@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+/* Class-based dark mode (toggled by next-themes on <html>) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Surfaces */
+  --color-background:           #fbfbfb;
+  --color-foreground:           #0a0a0b;
+  --color-card:                 #ffffff;
+  --color-card-foreground:      #0a0a0b;
+  --color-popover:              #ffffff;
+  --color-popover-foreground:   #0a0a0b;
+
+  /* Brand — Growfit red */
+  --color-primary:              #af2d35;
+  --color-primary-foreground:   #ffffff;
+  --color-brand:                #af2d35;
+  --color-brand-foreground:     #ffffff;
+
+  /* Neutrals */
+  --color-secondary:            #f4f4f5;
+  --color-secondary-foreground: #18181b;
+  --color-muted:                #f4f4f5;
+  --color-muted-foreground:     #52525b;
+  --color-accent:               #fdf0f1;
+  --color-accent-foreground:    #6b1b1f;
+
+  /* Status */
+  --color-destructive:          #dc2626;
+  --color-destructive-foreground: #ffffff;
+
+  /* Lines & focus */
+  --color-border:               #e4e4e7;
+  --color-input:                #e4e4e7;
+  --color-ring:                 #af2d35;
+
+  /* Radius */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.125rem;
+
+  /* Fonts */
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+.dark {
+  --color-background:           #0a0a0b;
+  --color-foreground:           #fafafa;
+  --color-card:                 #141417;
+  --color-card-foreground:      #fafafa;
+  --color-popover:              #141417;
+  --color-popover-foreground:   #fafafa;
+
+  --color-primary:              #d4434c;
+  --color-primary-foreground:   #ffffff;
+  --color-brand:                #d4434c;
+  --color-brand-foreground:     #ffffff;
+
+  --color-secondary:            #1f1f23;
+  --color-secondary-foreground: #fafafa;
+  --color-muted:                #1a1a1d;
+  --color-muted-foreground:     #a1a1aa;
+  --color-accent:               #2a1214;
+  --color-accent-foreground:    #f4a0a5;
+
+  --color-destructive:          #f87171;
+  --color-destructive-foreground: #0a0a0b;
+
+  --color-border:               #27272a;
+  --color-input:                #27272a;
+  --color-ring:                 #d4434c;
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans), system-ui, sans-serif;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  button, [role="button"], a, label[for], select {
+    cursor: pointer;
+  }
+
+  html { scroll-padding-top: 4rem; }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
