@@ -4,11 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   MousePointer2, Eraser, Undo2, Redo2, RotateCcw, Users, Circle,
   ArrowUpRight, Minus, Waves, Pencil, Download, Tag, Grid3x3,
-  Play, Square, Plus, Save, FolderOpen, Send, Trash2, Film,
+  Play, Square, Plus, Save, FolderOpen, Send, Trash2, Film, Video,
 } from "lucide-react";
 import { POSITIONS } from "@/lib/types";
 import { FORMATIONS, FORMATION_SIZES, type Formation } from "@/lib/formations";
 import { savePlay, listPlays, loadPlay, deletePlay, sharePlayToSquad, type SavedPlaySummary } from "@/app/actions/tactic-plays";
+import { drawBoard, pickRecorderMime } from "@/lib/board-render";
 
 // ── Types ────────────────────────────────────────────────────────
 export interface BoardPlayer {
@@ -208,6 +209,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   // Animation
   const [frames, setFrames] = useState<Frame[]>([]);
   const [playing, setPlaying] = useState(false);
+  const [recording, setRecording] = useState(false);
   const [anim, setAnim] = useState<BoardState | null>(null);
   const rafRef = useRef<number | null>(null);
 
@@ -352,6 +354,85 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   }
 
   useEffect(() => () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); }, []);
+
+  /**
+   * Record the play sequence to a video file. The board is redrawn to an
+   * offscreen canvas each animation frame and MediaRecorder captures that
+   * canvas stream, so the export matches exactly what playback shows.
+   */
+  async function recordAnimation() {
+    if (frames.length < 2) {
+      setNotice("Capture at least 2 steps before recording.");
+      return;
+    }
+    const mime = pickRecorderMime();
+    if (!mime) {
+      setNotice("This browser can't record video. Try Chrome, or use PNG export.");
+      return;
+    }
+
+    stopPlayback();
+    setRecording(true);
+    setNotice("Recording…");
+
+    const scale = 6;
+    const canvas = document.createElement("canvas");
+    canvas.width = W * scale;
+    canvas.height = H * scale;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) { setRecording(false); return; }
+
+    const stream = canvas.captureStream(30);
+    const rec = new MediaRecorder(stream, { mimeType: mime });
+    const chunks: BlobPart[] = [];
+    rec.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+    const stopped = new Promise<void>((res) => { rec.onstop = () => res(); });
+    rec.start();
+
+    const SEG = 1100;
+    const total = SEG * (frames.length - 1);
+    const ease = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
+    const startedAt = performance.now();
+
+    await new Promise<void>((resolve) => {
+      const tick = (now: number) => {
+        const elapsed = Math.min(now - startedAt, total);
+        const seg = Math.min(Math.floor(elapsed / SEG), frames.length - 2);
+        const local = ease(Math.min((elapsed - seg * SEG) / SEG, 1));
+        const from = frames[seg];
+        const to = frames[seg + 1];
+
+        const tokens = state.tokens.map((t) => {
+          const a = from.tokens.find((ft) => ft.id === t.id);
+          const b = to.tokens.find((ft) => ft.id === t.id);
+          if (!a || !b) return t;
+          return { ...t, x: a.x + (b.x - a.x) * local, y: a.y + (b.y - a.y) * local };
+        });
+
+        drawBoard(ctx, { tokens, shapes: to.shapes, overlay, showNames, scale });
+
+        if (now - startedAt < total) requestAnimationFrame(tick);
+        else resolve();
+      };
+      requestAnimationFrame(tick);
+    });
+
+    // Hold the final frame briefly so the video doesn't cut dead on the last step.
+    await new Promise((r) => setTimeout(r, 500));
+    rec.stop();
+    await stopped;
+
+    const blob = new Blob(chunks, { type: mime });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    const ext = mime.includes("mp4") ? "mp4" : "webm";
+    a.download = `${(playName || team?.name || "play").trim()}.${ext}`.replace(/\s+/g, "-").toLowerCase();
+    a.click();
+    URL.revokeObjectURL(a.href);
+
+    setRecording(false);
+    setNotice("Recording saved to your downloads.");
+  }
 
   // ── Saved plays ────────────────────────────────────────────────
   async function refreshPlays(id = teamId) {
@@ -863,8 +944,18 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                   <Play className="size-3" aria-hidden="true" /> Play
                 </button>
               )}
+              <button
+                type="button"
+                onClick={recordAnimation}
+                disabled={frames.length < 2 || playing || recording}
+                title="Record the sequence as a video"
+                className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50"
+              >
+                <Video className="size-3 text-primary" aria-hidden="true" />
+                {recording ? "Recording…" : "Record"}
+              </button>
               {frames.length > 0 && (
-                <button type="button" onClick={() => setFrames([])} disabled={playing} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
+                <button type="button" onClick={() => setFrames([])} disabled={playing || recording} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
                   Clear
                 </button>
               )}
