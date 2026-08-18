@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   MousePointer2, Eraser, Undo2, Redo2, RotateCcw, Users, Circle,
-  ArrowUpRight, Minus, Waves, Pencil, Download, Tag,
+  ArrowUpRight, Minus, Waves, Pencil, Download, Tag, Grid3x3,
+  Play, Square, Plus, Save, FolderOpen, Send, Trash2, Film,
 } from "lucide-react";
 import { POSITIONS } from "@/lib/types";
 import { FORMATIONS, FORMATION_SIZES, type Formation } from "@/lib/formations";
+import { savePlay, listPlays, loadPlay, deletePlay, sharePlayToSquad, type SavedPlaySummary } from "@/app/actions/tactic-plays";
 
 // ── Types ────────────────────────────────────────────────────────
 export interface BoardPlayer {
@@ -40,6 +42,14 @@ interface BoardState {
   shapes: Shape[];
 }
 type Mode = "move" | "run" | "pass" | "dribble" | "free" | "erase";
+
+/** One step of a play: where every token sits, plus the lines drawn at that step. */
+interface Frame {
+  id: string;
+  tokens: { id: string; x: number; y: number }[];
+  shapes: Shape[];
+}
+type Overlay = "none" | "thirds" | "channels" | "zone14";
 
 // ── Pitch geometry (attacking upward) ────────────────────────────
 const W = 100;
@@ -113,6 +123,72 @@ function dribblePath(x1: number, y1: number, x2: number, y2: number): string {
   }
   return d + ` L${x2},${y2}`;
 }
+/**
+ * Tactical overlays. Half-spaces are the two channels between the centre and
+ * the wings — the highest-value areas to attack from, and the thing coaches
+ * most often want to point at.
+ */
+function OverlayLayer({ overlay }: { overlay: Overlay }) {
+  if (overlay === "none") return null;
+  const line = "rgba(255,255,255,0.35)";
+
+  if (overlay === "thirds") {
+    return (
+      <g pointerEvents="none">
+        <rect x={2} y={2} width={W - 4} height={(H - 4) / 3} fill="#ef4444" opacity={0.1} />
+        <rect x={2} y={2 + (H - 4) / 3} width={W - 4} height={(H - 4) / 3} fill="#eab308" opacity={0.08} />
+        <rect x={2} y={2 + (2 * (H - 4)) / 3} width={W - 4} height={(H - 4) / 3} fill="#3b82f6" opacity={0.1} />
+        <g stroke={line} strokeWidth={0.4} strokeDasharray="2 2">
+          <line x1={2} y1={2 + (H - 4) / 3} x2={W - 2} y2={2 + (H - 4) / 3} />
+          <line x1={2} y1={2 + (2 * (H - 4)) / 3} x2={W - 2} y2={2 + (2 * (H - 4)) / 3} />
+        </g>
+        <g fill="rgba(255,255,255,0.75)" fontSize={3.4} textAnchor="middle">
+          <text x={50} y={26}>Attacking third</text>
+          <text x={50} y={76}>Middle third</text>
+          <text x={50} y={126}>Defensive third</text>
+        </g>
+      </g>
+    );
+  }
+
+  if (overlay === "channels") {
+    // Five vertical channels: wing / half-space / centre / half-space / wing.
+    const edges = [2, 21, 38, 62, 79, 98];
+    return (
+      <g pointerEvents="none">
+        <rect x={edges[1]} y={2} width={edges[2] - edges[1]} height={H - 4} fill="#a855f7" opacity={0.16} />
+        <rect x={edges[3]} y={2} width={edges[4] - edges[3]} height={H - 4} fill="#a855f7" opacity={0.16} />
+        <g stroke={line} strokeWidth={0.4} strokeDasharray="2 2">
+          {edges.slice(1, -1).map((x) => (
+            <line key={x} x1={x} y1={2} x2={x} y2={H - 2} />
+          ))}
+        </g>
+        <g fill="rgba(255,255,255,0.8)" fontSize={3} textAnchor="middle">
+          <text x={11.5} y={H / 2}>Wing</text>
+          <text x={29.5} y={H / 2 - 4}>Half</text>
+          <text x={29.5} y={H / 2}>space</text>
+          <text x={50} y={H / 2}>Centre</text>
+          <text x={70.5} y={H / 2 - 4}>Half</text>
+          <text x={70.5} y={H / 2}>space</text>
+          <text x={88.5} y={H / 2}>Wing</text>
+        </g>
+      </g>
+    );
+  }
+
+  // Zone 14 — the pocket just outside the box where most chances are created.
+  return (
+    <g pointerEvents="none">
+      <rect x={38} y={22} width={24} height={22} fill="#f97316" opacity={0.28} />
+      <rect x={38} y={22} width={24} height={22} fill="none" stroke={line} strokeWidth={0.4} strokeDasharray="2 2" />
+      <text x={50} y={35} fill="rgba(255,255,255,0.9)" fontSize={3.6} textAnchor="middle">Zone 14</text>
+      <rect x={26} y={2} width={12} height={20} fill="#22d3ee" opacity={0.2} />
+      <rect x={62} y={2} width={12} height={20} fill="#22d3ee" opacity={0.2} />
+      <text x={50} y={52} fill="rgba(255,255,255,0.7)" fontSize={2.6} textAnchor="middle">cut-back zones shaded</text>
+    </g>
+  );
+}
+
 function polyPath(pts: { x: number; y: number }[]): string {
   if (pts.length === 0) return "";
   return pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
@@ -124,9 +200,23 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const [awayFormationId, setAwayFormationId] = useState("11-4-4-2");
   const [mode, setMode] = useState<Mode>("move");
   const [showNames, setShowNames] = useState(true);
+  const [overlay, setOverlay] = useState<Overlay>("none");
 
   const [state, setState] = useState<BoardState>({ tokens: [], shapes: [] });
   const [draft, setDraft] = useState<Shape | null>(null);
+
+  // Animation
+  const [frames, setFrames] = useState<Frame[]>([]);
+  const [playing, setPlaying] = useState(false);
+  const [anim, setAnim] = useState<BoardState | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  // Saved plays
+  const [plays, setPlays] = useState<SavedPlaySummary[]>([]);
+  const [playName, setPlayName] = useState("");
+  const [currentPlayId, setCurrentPlayId] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -149,6 +239,9 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const placed = new Set(state.tokens.filter((t) => t.playerId).map((t) => t.playerId));
   const bench = roster.filter((p) => !placed.has(p.id));
 
+  /** What the pitch renders: the animated snapshot while playing, else live state. */
+  const view = anim ?? state;
+
   // ── History ────────────────────────────────────────────────────
   function snapshot() {
     past.current.push(JSON.parse(JSON.stringify(stateRef.current)) as BoardState);
@@ -168,6 +261,156 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     past.current.push(JSON.parse(JSON.stringify(stateRef.current)) as BoardState);
     setState(next);
     forceRender((n) => n + 1);
+  }
+
+  // ── Animation ──────────────────────────────────────────────────
+  function captureFrame() {
+    const f: Frame = {
+      id: uid("f"),
+      tokens: state.tokens.map((t) => ({ id: t.id, x: t.x, y: t.y })),
+      shapes: JSON.parse(JSON.stringify(state.shapes)) as Shape[],
+    };
+    setFrames((fs) => [...fs, f]);
+    setNotice(`Step ${frames.length + 1} captured.`);
+  }
+  function updateFrame(i: number) {
+    setFrames((fs) =>
+      fs.map((f, idx) =>
+        idx === i
+          ? { ...f, tokens: state.tokens.map((t) => ({ id: t.id, x: t.x, y: t.y })), shapes: JSON.parse(JSON.stringify(state.shapes)) as Shape[] }
+          : f
+      )
+    );
+    setNotice(`Step ${i + 1} updated.`);
+  }
+  function deleteFrame(i: number) {
+    setFrames((fs) => fs.filter((_, idx) => idx !== i));
+  }
+  /** Jump the board to a stored step so the coach can edit it. */
+  function gotoFrame(i: number) {
+    const f = frames[i];
+    if (!f) return;
+    snapshot();
+    setState((st) => ({
+      tokens: st.tokens.map((t) => {
+        const p = f.tokens.find((ft) => ft.id === t.id);
+        return p ? { ...t, x: p.x, y: p.y } : t;
+      }),
+      shapes: JSON.parse(JSON.stringify(f.shapes)) as Shape[],
+    }));
+  }
+
+  function stopPlayback() {
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    setPlaying(false);
+    setAnim(null);
+  }
+
+  /** Play the captured steps back, easing token positions between each pair. */
+  function playAnimation() {
+    if (frames.length < 2) {
+      setNotice("Capture at least 2 steps to play a sequence.");
+      return;
+    }
+    stopPlayback();
+    setPlaying(true);
+
+    const SEG = 1100; // ms per step
+    const start = performance.now();
+    const total = SEG * (frames.length - 1);
+    const ease = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
+
+    const tick = (now: number) => {
+      const elapsed = now - start;
+      const clamped = Math.min(elapsed, total);
+      const seg = Math.min(Math.floor(clamped / SEG), frames.length - 2);
+      const local = ease(Math.min((clamped - seg * SEG) / SEG, 1));
+
+      const from = frames[seg];
+      const to = frames[seg + 1];
+
+      setAnim({
+        tokens: state.tokens.map((t) => {
+          const a = from.tokens.find((ft) => ft.id === t.id);
+          const b = to.tokens.find((ft) => ft.id === t.id);
+          if (!a || !b) return t;
+          return { ...t, x: a.x + (b.x - a.x) * local, y: a.y + (b.y - a.y) * local };
+        }),
+        shapes: to.shapes,
+      });
+
+      if (elapsed < total) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        rafRef.current = null;
+        setPlaying(false);
+        setAnim(null);
+      }
+    };
+    rafRef.current = requestAnimationFrame(tick);
+  }
+
+  useEffect(() => () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); }, []);
+
+  // ── Saved plays ────────────────────────────────────────────────
+  async function refreshPlays(id = teamId) {
+    if (!id) return;
+    const res = await listPlays(id);
+    if (res.plays) setPlays(res.plays);
+  }
+  useEffect(() => { void refreshPlays(teamId); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [teamId]);
+
+  async function handleSave() {
+    const name = playName.trim();
+    if (!name) { setNotice("Give the play a name first."); return; }
+    setBusy("save");
+    const res = await savePlay({
+      playId: currentPlayId ?? undefined,
+      teamId,
+      name,
+      data: { tokens: state.tokens, shapes: state.shapes, frames, homeFormationId, awayFormationId },
+    });
+    setBusy(null);
+    if (res.error) { setNotice(res.error); return; }
+    setCurrentPlayId(res.id ?? null);
+    setNotice(`Saved "${name}".`);
+    void refreshPlays();
+  }
+
+  async function handleLoad(id: string) {
+    setBusy("load");
+    const res = await loadPlay(id);
+    setBusy(null);
+    if (res.error || !res.data) { setNotice(res.error ?? "Could not load play."); return; }
+    const d = res.data as Partial<BoardState & { frames: Frame[]; homeFormationId: string; awayFormationId: string }>;
+    snapshot();
+    setState({ tokens: d.tokens ?? [], shapes: d.shapes ?? [] });
+    setFrames(d.frames ?? []);
+    if (d.homeFormationId) setHomeFormationId(d.homeFormationId);
+    if (d.awayFormationId) setAwayFormationId(d.awayFormationId);
+    setCurrentPlayId(id);
+    setPlayName(res.name ?? "");
+    setNotice(`Loaded "${res.name}".`);
+  }
+
+  async function handleDelete(id: string) {
+    setBusy("delete");
+    const res = await deletePlay(id);
+    setBusy(null);
+    if (res.error) { setNotice(res.error); return; }
+    if (currentPlayId === id) { setCurrentPlayId(null); }
+    setNotice("Play deleted.");
+    void refreshPlays();
+  }
+
+  async function handleShare() {
+    const name = playName.trim();
+    if (!name) { setNotice("Name and save the play before sharing."); return; }
+    setBusy("share");
+    const res = await sharePlayToSquad({ teamId, playName: name });
+    setBusy(null);
+    setNotice(res.error ?? `Shared "${name}" with the squad.`);
   }
 
   // ── Coordinates ────────────────────────────────────────────────
@@ -477,6 +720,20 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
         <button type="button" onClick={() => setShowNames((v) => !v)} title="Toggle names" className={`inline-flex h-9 items-center gap-1 rounded-md border px-2.5 text-xs ${showNames ? "bg-muted border-border" : "bg-background border-border"} hover:bg-muted`}>
           <Tag className="size-3.5" aria-hidden="true" /> Names
         </button>
+        <span className="inline-flex h-9 items-center gap-1 rounded-md border border-border bg-background pl-2 pr-1 text-xs">
+          <Grid3x3 className="size-3.5 text-muted-foreground" aria-hidden="true" />
+          <select
+            value={overlay}
+            onChange={(e) => setOverlay(e.target.value as Overlay)}
+            aria-label="Pitch overlay"
+            className="bg-transparent py-1 text-xs focus:outline-none"
+          >
+            <option value="none">No overlay</option>
+            <option value="thirds">Thirds</option>
+            <option value="channels">Channels &amp; half-spaces</option>
+            <option value="zone14">Zone 14 &amp; cut-backs</option>
+          </select>
+        </span>
         <span className="mx-1 h-6 w-px bg-border" />
         <button type="button" onClick={clearDrawings} className="inline-flex h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">Clear lines</button>
         <button type="button" onClick={clearAll} className="inline-flex h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
@@ -512,6 +769,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
 
               <rect x={0} y={0} width={W} height={H} fill="url(#tb-stripe)" />
 
+              <OverlayLayer overlay={overlay} />
+
               {/* Markings */}
               <g stroke="rgba(255,255,255,0.55)" strokeWidth={0.5} fill="none">
                 <rect x={2} y={2} width={W - 4} height={H - 4} rx={1} />
@@ -527,11 +786,11 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               </g>
 
               {/* Shapes */}
-              {state.shapes.map((sh) => renderShape(sh))}
+              {view.shapes.map((sh) => renderShape(sh))}
               {draft && renderShape(draft, true)}
 
               {/* Tokens */}
-              {state.tokens.map((tok) => (
+              {view.tokens.map((tok) => (
                 <g
                   key={tok.id}
                   transform={`translate(${tok.x} ${tok.y})`}
@@ -580,6 +839,105 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
 
         {/* Bench + legend */}
         <div className="space-y-4">
+          {/* ── Animation ─────────────────────────────────────── */}
+          <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+            <div className="flex items-center gap-1.5">
+              <Film className="size-3.5 text-primary" aria-hidden="true" />
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                Play sequence
+              </p>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Move the players, capture a step, move again. Play it back to show the movement.
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              <button type="button" onClick={captureFrame} disabled={playing} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
+                <Plus className="size-3" aria-hidden="true" /> Capture step
+              </button>
+              {playing ? (
+                <button type="button" onClick={stopPlayback} className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground">
+                  <Square className="size-3" aria-hidden="true" /> Stop
+                </button>
+              ) : (
+                <button type="button" onClick={playAnimation} disabled={frames.length < 2} className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground disabled:opacity-50">
+                  <Play className="size-3" aria-hidden="true" /> Play
+                </button>
+              )}
+              {frames.length > 0 && (
+                <button type="button" onClick={() => setFrames([])} disabled={playing} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
+                  Clear
+                </button>
+              )}
+            </div>
+            {frames.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No steps captured yet.</p>
+            ) : (
+              <ol className="space-y-1">
+                {frames.map((f, i) => (
+                  <li key={f.id} className="flex items-center gap-1.5">
+                    <button type="button" onClick={() => gotoFrame(i)} disabled={playing} className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-left text-xs hover:bg-muted disabled:opacity-50">
+                      Step {i + 1}
+                    </button>
+                    <button type="button" onClick={() => updateFrame(i)} disabled={playing} title="Update this step to the current board" className="rounded-md border border-border bg-background px-1.5 py-1 text-[10px] hover:bg-muted disabled:opacity-50">Set</button>
+                    <button type="button" onClick={() => deleteFrame(i)} disabled={playing} title="Delete step" className="rounded-md border border-border bg-background px-1.5 py-1 hover:bg-muted disabled:opacity-50">
+                      <Trash2 className="size-3" aria-hidden="true" />
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+
+          {/* ── Saved plays ───────────────────────────────────── */}
+          <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+            <div className="flex items-center gap-1.5">
+              <FolderOpen className="size-3.5 text-primary" aria-hidden="true" />
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Plays</p>
+            </div>
+            <input
+              type="text"
+              value={playName}
+              onChange={(e) => setPlayName(e.target.value)}
+              placeholder="Play name e.g. High press trigger"
+              maxLength={80}
+              className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <div className="flex flex-wrap gap-1.5">
+              <button type="button" onClick={handleSave} disabled={busy !== null} className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground disabled:opacity-50">
+                <Save className="size-3" aria-hidden="true" /> {currentPlayId ? "Update" : "Save"}
+              </button>
+              <button type="button" onClick={handleShare} disabled={busy !== null} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
+                <Send className="size-3" aria-hidden="true" /> Share to squad
+              </button>
+              {currentPlayId && (
+                <button type="button" onClick={() => { setCurrentPlayId(null); setPlayName(""); }} className="inline-flex h-8 items-center rounded-md border border-border bg-background px-2 text-xs hover:bg-muted">
+                  New
+                </button>
+              )}
+            </div>
+            {plays.length > 0 && (
+              <ul className="space-y-1 pt-1">
+                {plays.map((p) => (
+                  <li key={p.id} className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleLoad(p.id)}
+                      className={`flex-1 truncate rounded-md border px-2 py-1 text-left text-xs hover:bg-muted ${
+                        currentPlayId === p.id ? "border-primary bg-primary/10" : "border-border bg-background"
+                      }`}
+                    >
+                      {p.name}
+                    </button>
+                    <button type="button" onClick={() => handleDelete(p.id)} title="Delete play" className="rounded-md border border-border bg-background px-1.5 py-1 hover:bg-muted">
+                      <Trash2 className="size-3" aria-hidden="true" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {notice && <p className="text-[11px] text-muted-foreground pt-1">{notice}</p>}
+          </div>
+
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
               Bench {bench.length > 0 && `(${bench.length})`}
