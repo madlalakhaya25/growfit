@@ -1,8 +1,12 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { MousePointer2, Spline, Eraser, Undo2, RotateCcw, Users, Circle } from "lucide-react";
+import {
+  MousePointer2, Eraser, Undo2, Redo2, RotateCcw, Users, Circle,
+  ArrowUpRight, Minus, Waves, Pencil, Download, Tag,
+} from "lucide-react";
 import { POSITIONS } from "@/lib/types";
+import { FORMATIONS, FORMATION_SIZES, type Formation } from "@/lib/formations";
 
 // ── Types ────────────────────────────────────────────────────────
 export interface BoardPlayer {
@@ -22,19 +26,22 @@ interface Token {
   x: number;
   y: number;
   kind: "player" | "opponent" | "ball";
-  group: string; // position group, or "Opponent" / "Ball"
+  group: string;
   playerId?: string;
 }
-interface Arrow {
+type ShapeKind = "run" | "pass" | "dribble" | "free";
+interface Shape {
   id: string;
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
+  kind: ShapeKind;
+  pts: { x: number; y: number }[];
 }
-type Mode = "move" | "arrow" | "erase";
+interface BoardState {
+  tokens: Token[];
+  shapes: Shape[];
+}
+type Mode = "move" | "run" | "pass" | "dribble" | "free" | "erase";
 
-// ── Pitch geometry (viewBox 100 x 150, attacking upward) ─────────
+// ── Pitch geometry (attacking upward) ────────────────────────────
 const W = 100;
 const H = 150;
 
@@ -44,7 +51,7 @@ const GROUP_COLOR: Record<string, string> = {
   Defender: "#3b82f6",
   Midfielder: "#22c55e",
   Forward: "#ef4444",
-  Opponent: "#64748b",
+  Opponent: "#0f172a",
   Ball: "#f8fafc",
 };
 
@@ -57,58 +64,113 @@ function shortLabel(name: string): string {
   return first.length > 9 ? first.slice(0, 8) + "…" : first;
 }
 
-// Formation slots — [x, y] in board space, attacking toward y=0.
-const FORMATIONS: { id: string; label: string; slots: [number, number][] }[] = [
-  {
-    id: "7-231",
-    label: "7-a-side · 2-3-1",
-    slots: [[50, 142], [34, 118], [66, 118], [22, 86], [50, 90], [78, 86], [50, 44]],
-  },
-  {
-    id: "9-323",
-    label: "9-a-side · 3-2-3",
-    slots: [[50, 142], [24, 116], [50, 120], [76, 116], [34, 88], [66, 88], [22, 46], [50, 40], [78, 46]],
-  },
-  {
-    id: "11-433",
-    label: "11-a-side · 4-3-3",
-    slots: [[50, 142], [16, 116], [38, 120], [62, 120], [84, 116], [28, 86], [50, 90], [72, 86], [22, 44], [50, 38], [78, 44]],
-  },
-  {
-    id: "11-442",
-    label: "11-a-side · 4-4-2",
-    slots: [[50, 142], [16, 116], [38, 120], [62, 120], [84, 116], [16, 84], [40, 88], [60, 88], [84, 84], [38, 42], [62, 42]],
-  },
-];
-
 let idc = 0;
 const uid = (p: string) => `${p}-${++idc}`;
 
+/**
+ * Assign real players to formation slots: exact position match first, then
+ * same position group, then whoever is left — so a right back lands at right
+ * back rather than wherever the list order happens to put them.
+ */
+function assignToSlots(formation: Formation, roster: BoardPlayer[]): (BoardPlayer | undefined)[] {
+  const pool = [...roster];
+  const out: (BoardPlayer | undefined)[] = new Array(formation.slots.length).fill(undefined);
+
+  const take = (pred: (p: BoardPlayer) => boolean) => {
+    const i = pool.findIndex(pred);
+    return i === -1 ? undefined : pool.splice(i, 1)[0];
+  };
+
+  formation.slots.forEach((slot, i) => {
+    const p = take((pl) => pl.position === slot.role);
+    if (p) out[i] = p;
+  });
+  formation.slots.forEach((slot, i) => {
+    if (out[i]) return;
+    const p = take((pl) => groupOf(pl.position) === groupOf(slot.role));
+    if (p) out[i] = p;
+  });
+  formation.slots.forEach((_, i) => {
+    if (out[i]) return;
+    out[i] = pool.shift();
+  });
+  return out;
+}
+
+/** Wavy path for a dribble line. */
+function dribblePath(x1: number, y1: number, x2: number, y2: number): string {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = Math.hypot(dx, dy);
+  if (len < 1) return `M${x1},${y1}`;
+  const px = -dy / len, py = dx / len;
+  const n = Math.max(2, Math.round(len / 3.2));
+  let d = `M${x1},${y1}`;
+  for (let i = 1; i < n; i++) {
+    const t = i / n;
+    const cx = x1 + dx * t, cy = y1 + dy * t;
+    const off = (i % 2 === 0 ? 1 : -1) * 1.5;
+    d += ` L${(cx + px * off).toFixed(2)},${(cy + py * off).toFixed(2)}`;
+  }
+  return d + ` L${x2},${y2}`;
+}
+function polyPath(pts: { x: number; y: number }[]): string {
+  if (pts.length === 0) return "";
+  return pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
+}
+
 export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const [teamId, setTeamId] = useState(teams[0]?.id ?? "");
-  const [formationId, setFormationId] = useState(FORMATIONS[0].id);
+  const [homeFormationId, setHomeFormationId] = useState("11-4-3-3");
+  const [awayFormationId, setAwayFormationId] = useState("11-4-4-2");
   const [mode, setMode] = useState<Mode>("move");
-  const [tokens, setTokens] = useState<Token[]>([]);
-  const [arrows, setArrows] = useState<Arrow[]>([]);
-  const [tempArrow, setTempArrow] = useState<Arrow | null>(null);
+  const [showNames, setShowNames] = useState(true);
+
+  const [state, setState] = useState<BoardState>({ tokens: [], shapes: [] });
+  const [draft, setDraft] = useState<Shape | null>(null);
+
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const past = useRef<BoardState[]>([]);
+  const future = useRef<BoardState[]>([]);
+  const [, forceRender] = useState(0);
 
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<{ id: string; dx: number; dy: number } | null>(null);
-  const drawing = useRef<boolean>(false);
+  const drawing = useRef(false);
 
   const team = teams.find((t) => t.id === teamId);
 
-  // Roster sorted by position group so formations fill sensibly (GK first).
   const roster = useMemo(() => {
     const rs = [...(team?.players ?? [])];
     rs.sort((a, b) => GROUP_ORDER.indexOf(groupOf(a.position)) - GROUP_ORDER.indexOf(groupOf(b.position)));
     return rs;
   }, [team]);
 
-  const placedPlayerIds = new Set(tokens.filter((t) => t.playerId).map((t) => t.playerId));
-  const bench = roster.filter((p) => !placedPlayerIds.has(p.id));
+  const placed = new Set(state.tokens.filter((t) => t.playerId).map((t) => t.playerId));
+  const bench = roster.filter((p) => !placed.has(p.id));
 
-  // ── Coordinate conversion ──────────────────────────────────────
+  // ── History ────────────────────────────────────────────────────
+  function snapshot() {
+    past.current.push(JSON.parse(JSON.stringify(stateRef.current)) as BoardState);
+    if (past.current.length > 40) past.current.shift();
+    future.current = [];
+  }
+  function undo() {
+    const prev = past.current.pop();
+    if (!prev) return;
+    future.current.push(JSON.parse(JSON.stringify(stateRef.current)) as BoardState);
+    setState(prev);
+    forceRender((n) => n + 1);
+  }
+  function redo() {
+    const next = future.current.pop();
+    if (!next) return;
+    past.current.push(JSON.parse(JSON.stringify(stateRef.current)) as BoardState);
+    setState(next);
+    forceRender((n) => n + 1);
+  }
+
+  // ── Coordinates ────────────────────────────────────────────────
   function toBoard(clientX: number, clientY: number) {
     const rect = svgRef.current!.getBoundingClientRect();
     return {
@@ -117,86 +179,187 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     };
   }
 
-  // ── Token placement ────────────────────────────────────────────
-  function placePlayer(p: BoardPlayer, x = 50, y = 75) {
-    setTokens((t) => [
-      ...t,
-      { id: uid("tok"), label: shortLabel(p.full_name), x, y, kind: "player", group: groupOf(p.position), playerId: p.id },
-    ]);
+  // ── Setup actions ──────────────────────────────────────────────
+  function setUpHome() {
+    const f = FORMATIONS.find((x) => x.id === homeFormationId)!;
+    const assigned = assignToSlots(f, roster);
+    snapshot();
+    setState((st) => ({
+      ...st,
+      tokens: [
+        ...st.tokens.filter((t) => t.kind !== "player"),
+        ...f.slots.map((slot, i) => {
+          const p = assigned[i];
+          return {
+            id: uid("h"),
+            label: p ? shortLabel(p.full_name) : String(i + 1),
+            x: slot.x, y: slot.y,
+            kind: "player" as const,
+            group: p ? groupOf(p.position) : groupOf(slot.role),
+            playerId: p?.id,
+          };
+        }),
+      ],
+    }));
   }
-  function applyFormation() {
-    const formation = FORMATIONS.find((f) => f.id === formationId)!;
-    const next: Token[] = formation.slots.map((slot, i) => {
-      const p = roster[i];
-      return {
-        id: uid("tok"),
-        label: p ? shortLabel(p.full_name) : `#${i + 1}`,
-        x: slot[0],
-        y: slot[1],
-        kind: "player",
-        group: p ? groupOf(p.position) : "Midfielder",
-        playerId: p?.id,
-      };
-    });
-    // Keep any existing opponents / ball, replace the player tokens.
-    setTokens((t) => [...t.filter((tok) => tok.kind !== "player"), ...next]);
+  function setUpAway() {
+    const f = FORMATIONS.find((x) => x.id === awayFormationId)!;
+    snapshot();
+    setState((st) => ({
+      ...st,
+      tokens: [
+        ...st.tokens.filter((t) => t.kind !== "opponent"),
+        // Rotate 180° so the opponent defends the top goal.
+        ...f.slots.map((slot, i) => ({
+          id: uid("a"),
+          label: String(i + 1),
+          x: W - slot.x,
+          y: H - slot.y,
+          kind: "opponent" as const,
+          group: "Opponent",
+        })),
+      ],
+    }));
   }
-  function addOpponent() {
-    setTokens((t) => [...t, { id: uid("opp"), label: "", x: 50, y: 40, kind: "opponent", group: "Opponent" }]);
+  function placePlayer(p: BoardPlayer) {
+    snapshot();
+    setState((st) => ({
+      ...st,
+      tokens: [...st.tokens, {
+        id: uid("h"), label: shortLabel(p.full_name), x: 50, y: 75,
+        kind: "player", group: groupOf(p.position), playerId: p.id,
+      }],
+    }));
   }
   function addBall() {
-    setTokens((t) => [...t.filter((tok) => tok.kind !== "ball"), { id: uid("ball"), label: "", x: 50, y: 75, kind: "ball", group: "Ball" }]);
+    snapshot();
+    setState((st) => ({
+      ...st,
+      tokens: [...st.tokens.filter((t) => t.kind !== "ball"), {
+        id: uid("b"), label: "", x: 50, y: 75, kind: "ball", group: "Ball",
+      }],
+    }));
+  }
+  function addOpponent() {
+    snapshot();
+    setState((st) => ({
+      ...st,
+      tokens: [...st.tokens, {
+        id: uid("a"), label: "", x: 50, y: 40, kind: "opponent", group: "Opponent",
+      }],
+    }));
+  }
+  function clearAll() {
+    snapshot();
+    setState({ tokens: [], shapes: [] });
+  }
+  function clearDrawings() {
+    snapshot();
+    setState((st) => ({ ...st, shapes: [] }));
   }
 
-  // ── Pointer handlers ───────────────────────────────────────────
+  // ── Pointer handling ───────────────────────────────────────────
   function onTokenDown(e: React.PointerEvent, tok: Token) {
-    e.stopPropagation();
     if (mode === "erase") {
-      setTokens((t) => t.filter((x) => x.id !== tok.id));
+      e.stopPropagation();
+      snapshot();
+      setState((st) => ({ ...st, tokens: st.tokens.filter((t) => t.id !== tok.id) }));
       return;
     }
     if (mode !== "move") return;
+    e.stopPropagation();
     const { x, y } = toBoard(e.clientX, e.clientY);
+    snapshot();
     drag.current = { id: tok.id, dx: tok.x - x, dy: tok.y - y };
     (e.target as Element).setPointerCapture?.(e.pointerId);
   }
   function onSvgDown(e: React.PointerEvent) {
-    if (mode !== "arrow") return;
+    if (mode === "move" || mode === "erase") return;
     const { x, y } = toBoard(e.clientX, e.clientY);
     drawing.current = true;
-    setTempArrow({ id: "temp", x1: x, y1: y, x2: x, y2: y });
+    setDraft({ id: "draft", kind: mode, pts: [{ x, y }, { x, y }] });
     svgRef.current?.setPointerCapture?.(e.pointerId);
   }
   function onSvgMove(e: React.PointerEvent) {
     if (drag.current) {
       const { x, y } = toBoard(e.clientX, e.clientY);
       const d = drag.current;
-      setTokens((t) => t.map((tok) => (tok.id === d.id ? { ...tok, x: Math.max(2, Math.min(W - 2, x + d.dx)), y: Math.max(2, Math.min(H - 2, y + d.dy)) } : tok)));
-    } else if (drawing.current && tempArrow) {
+      setState((st) => ({
+        ...st,
+        tokens: st.tokens.map((t) =>
+          t.id === d.id
+            ? { ...t, x: Math.max(2, Math.min(W - 2, x + d.dx)), y: Math.max(2, Math.min(H - 2, y + d.dy)) }
+            : t
+        ),
+      }));
+    } else if (drawing.current) {
       const { x, y } = toBoard(e.clientX, e.clientY);
-      setTempArrow((a) => (a ? { ...a, x2: x, y2: y } : a));
+      setDraft((d) => {
+        if (!d) return d;
+        if (d.kind === "free") return { ...d, pts: [...d.pts, { x, y }] };
+        return { ...d, pts: [d.pts[0], { x, y }] };
+      });
     }
   }
   function onSvgUp() {
     drag.current = null;
-    if (drawing.current && tempArrow) {
-      const len = Math.hypot(tempArrow.x2 - tempArrow.x1, tempArrow.y2 - tempArrow.y1);
-      if (len > 3) setArrows((a) => [...a, { ...tempArrow, id: uid("arr") }]);
+    if (drawing.current && draft) {
+      const a = draft.pts[0], b = draft.pts[draft.pts.length - 1];
+      if (Math.hypot(b.x - a.x, b.y - a.y) > 3) {
+        snapshot();
+        const shape = { ...draft, id: uid("s") };
+        setState((st) => ({ ...st, shapes: [...st.shapes, shape] }));
+      }
     }
     drawing.current = false;
-    setTempArrow(null);
+    setDraft(null);
   }
-  function onArrowDown(e: React.PointerEvent, id: string) {
+  function onShapeDown(e: React.PointerEvent, id: string) {
     if (mode !== "erase") return;
     e.stopPropagation();
-    setArrows((a) => a.filter((x) => x.id !== id));
+    snapshot();
+    setState((st) => ({ ...st, shapes: st.shapes.filter((s2) => s2.id !== id) }));
   }
 
-  const modeBtn = (m: Mode, Icon: typeof MousePointer2, label: string) => (
+  // ── Export ─────────────────────────────────────────────────────
+  function exportPng() {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const clone = svg.cloneNode(true) as SVGSVGElement;
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    clone.setAttribute("width", String(W * 8));
+    clone.setAttribute("height", String(H * 8));
+    const xml = new XMLSerializer().serializeToString(clone);
+    const url = URL.createObjectURL(new Blob([xml], { type: "image/svg+xml;charset=utf-8" }));
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = W * 8;
+      canvas.height = H * 8;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `${team?.name ?? "tactics"}-board.png`.replace(/\s+/g, "-").toLowerCase();
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }, "image/png");
+    };
+    img.src = url;
+  }
+
+  // ── UI helpers ─────────────────────────────────────────────────
+  const toolBtn = (m: Mode, Icon: typeof MousePointer2, label: string) => (
     <button
+      key={m}
       type="button"
       onClick={() => setMode(m)}
-      className={`inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium border ${
+      title={label}
+      className={`inline-flex h-9 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium ${
         mode === m ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border hover:bg-muted"
       }`}
     >
@@ -204,65 +367,123 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       {label}
     </button>
   );
+  const formationSelect = (value: string, onChange: (v: string) => void, id: string) => (
+    <select
+      id={id}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+    >
+      {FORMATION_SIZES.map((size) => (
+        <optgroup key={size} label={FORMATIONS.find((f) => f.size === size)!.format}>
+          {FORMATIONS.filter((f) => f.size === size).map((f) => (
+            <option key={f.id} value={f.id}>{f.label}</option>
+          ))}
+        </optgroup>
+      ))}
+    </select>
+  );
+
+  const shapeStroke: Record<ShapeKind, string> = {
+    run: "#fde047", pass: "#fde047", dribble: "#38bdf8", free: "#f472b6",
+  };
+  function renderShape(sh: Shape, isDraft = false) {
+    const stroke = shapeStroke[sh.kind];
+    const common = {
+      stroke, strokeWidth: 1.2, fill: "none",
+      strokeLinecap: "round" as const, strokeLinejoin: "round" as const,
+      opacity: isDraft ? 0.75 : 1,
+      style: { cursor: mode === "erase" ? "pointer" : "default" },
+      onPointerDown: isDraft ? undefined : (e: React.PointerEvent) => onShapeDown(e, sh.id),
+    };
+    const a = sh.pts[0], b = sh.pts[sh.pts.length - 1];
+    if (sh.kind === "free") return <path key={sh.id} d={polyPath(sh.pts)} {...common} />;
+    if (sh.kind === "dribble")
+      return <path key={sh.id} d={dribblePath(a.x, a.y, b.x, b.y)} markerEnd="url(#tb-arrow)" {...common} />;
+    return (
+      <line
+        key={sh.id}
+        x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+        strokeDasharray={sh.kind === "pass" ? "3 2" : undefined}
+        markerEnd="url(#tb-arrow)"
+        {...common}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
-      {/* Controls */}
-      <div className="flex flex-wrap items-end gap-3">
-        {teams.length > 1 && (
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground" htmlFor="tb-team">Team</label>
+      {/* Team + formations */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border border-border bg-card p-3 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Your team</p>
+          {teams.length > 1 && (
             <select
-              id="tb-team"
               value={teamId}
-              onChange={(e) => { setTeamId(e.target.value); setTokens((t) => t.filter((x) => x.kind !== "player")); }}
+              onChange={(e) => {
+                setTeamId(e.target.value);
+                snapshot();
+                setState((st) => ({ ...st, tokens: st.tokens.filter((t) => t.kind !== "player") }));
+              }}
               className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             >
               {teams.map((t) => (
                 <option key={t.id} value={t.id}>{t.name}{t.age_group ? ` · ${t.age_group}` : ""}</option>
               ))}
             </select>
-          </div>
-        )}
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground" htmlFor="tb-formation">Formation</label>
-          <select
-            id="tb-formation"
-            value={formationId}
-            onChange={(e) => setFormationId(e.target.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          )}
+          {formationSelect(homeFormationId, setHomeFormationId, "tb-home-formation")}
+          <button
+            type="button"
+            onClick={setUpHome}
+            className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
           >
-            {FORMATIONS.map((f) => (<option key={f.id} value={f.id}>{f.label}</option>))}
-          </select>
+            <Users className="size-3.5" aria-hidden="true" />
+            Set up my XI
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={applyFormation}
-          className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-        >
-          <Users className="size-3.5" aria-hidden="true" />
-          Set up XI
-        </button>
+
+        <div className="rounded-xl border border-border bg-card p-3 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Opponent</p>
+          {teams.length > 1 && <div className="h-[34px]" aria-hidden="true" />}
+          {formationSelect(awayFormationId, setAwayFormationId, "tb-away-formation")}
+          <button
+            type="button"
+            onClick={setUpAway}
+            className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm font-semibold hover:bg-muted"
+          >
+            <Circle className="size-3.5" aria-hidden="true" />
+            Set up opponent XI
+          </button>
+        </div>
       </div>
 
-      {/* Mode + add tools */}
-      <div className="flex flex-wrap items-center gap-2">
-        {modeBtn("move", MousePointer2, "Move")}
-        {modeBtn("arrow", Spline, "Arrow")}
-        {modeBtn("erase", Eraser, "Erase")}
+      {/* Tools */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {toolBtn("move", MousePointer2, "Move")}
+        {toolBtn("run", ArrowUpRight, "Run")}
+        {toolBtn("pass", Minus, "Pass")}
+        {toolBtn("dribble", Waves, "Dribble")}
+        {toolBtn("free", Pencil, "Draw")}
+        {toolBtn("erase", Eraser, "Erase")}
         <span className="mx-1 h-6 w-px bg-border" />
-        <button type="button" onClick={addOpponent} className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm hover:bg-muted">
-          <Circle className="size-3.5" aria-hidden="true" /> Opponent
-        </button>
-        <button type="button" onClick={addBall} className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm hover:bg-muted">
-          ⚽ Ball
+        <button type="button" onClick={addBall} title="Add ball" className="inline-flex h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">⚽ Ball</button>
+        <button type="button" onClick={addOpponent} title="Add one opponent" className="inline-flex h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
+          <Circle className="size-3.5" aria-hidden="true" /> +1
         </button>
         <span className="mx-1 h-6 w-px bg-border" />
-        <button type="button" onClick={() => setArrows((a) => a.slice(0, -1))} className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm hover:bg-muted">
-          <Undo2 className="size-3.5" aria-hidden="true" /> Undo arrow
+        <button type="button" onClick={undo} title="Undo" className="inline-flex h-9 items-center rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted"><Undo2 className="size-3.5" aria-hidden="true" /></button>
+        <button type="button" onClick={redo} title="Redo" className="inline-flex h-9 items-center rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted"><Redo2 className="size-3.5" aria-hidden="true" /></button>
+        <button type="button" onClick={() => setShowNames((v) => !v)} title="Toggle names" className={`inline-flex h-9 items-center gap-1 rounded-md border px-2.5 text-xs ${showNames ? "bg-muted border-border" : "bg-background border-border"} hover:bg-muted`}>
+          <Tag className="size-3.5" aria-hidden="true" /> Names
         </button>
-        <button type="button" onClick={() => { setTokens((t) => t.filter((x) => x.kind === "player")); setArrows([]); }} className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm hover:bg-muted">
-          <RotateCcw className="size-3.5" aria-hidden="true" /> Clear
+        <span className="mx-1 h-6 w-px bg-border" />
+        <button type="button" onClick={clearDrawings} className="inline-flex h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">Clear lines</button>
+        <button type="button" onClick={clearAll} className="inline-flex h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
+          <RotateCcw className="size-3.5" aria-hidden="true" /> Reset
+        </button>
+        <button type="button" onClick={exportPng} className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-semibold hover:bg-muted">
+          <Download className="size-3.5 text-primary" aria-hidden="true" /> PNG
         </button>
       </div>
 
@@ -274,45 +495,43 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               ref={svgRef}
               viewBox={`0 0 ${W} ${H}`}
               className="h-full w-full touch-none select-none"
-              style={{ background: "#15803d" }}
               onPointerDown={onSvgDown}
               onPointerMove={onSvgMove}
               onPointerUp={onSvgUp}
+              onPointerLeave={onSvgUp}
             >
-              {/* Pitch markings */}
+              <defs>
+                <marker id="tb-arrow" viewBox="0 0 10 10" refX={8} refY={5} markerWidth={4.5} markerHeight={4.5} orient="auto-start-reverse">
+                  <path d="M0,0 L10,5 L0,10 z" fill="#fde047" />
+                </marker>
+                <pattern id="tb-stripe" width={100} height={12.5} patternUnits="userSpaceOnUse">
+                  <rect width={100} height={12.5} fill="#15803d" />
+                  <rect width={100} height={6.25} fill="#166f36" />
+                </pattern>
+              </defs>
+
+              <rect x={0} y={0} width={W} height={H} fill="url(#tb-stripe)" />
+
+              {/* Markings */}
               <g stroke="rgba(255,255,255,0.55)" strokeWidth={0.5} fill="none">
                 <rect x={2} y={2} width={W - 4} height={H - 4} rx={1} />
                 <line x1={2} y1={H / 2} x2={W - 2} y2={H / 2} />
                 <circle cx={W / 2} cy={H / 2} r={11} />
                 <circle cx={W / 2} cy={H / 2} r={0.8} fill="rgba(255,255,255,0.55)" />
-                {/* Penalty boxes */}
                 <rect x={26} y={2} width={48} height={20} />
                 <rect x={38} y={2} width={24} height={8} />
                 <rect x={26} y={H - 22} width={48} height={20} />
                 <rect x={38} y={H - 10} width={24} height={8} />
+                <circle cx={W / 2} cy={16} r={0.8} fill="rgba(255,255,255,0.55)" />
+                <circle cx={W / 2} cy={H - 16} r={0.8} fill="rgba(255,255,255,0.55)" />
               </g>
 
-              {/* Arrows */}
-              <defs>
-                <marker id="tb-arrow" viewBox="0 0 10 10" refX={8} refY={5} markerWidth={5} markerHeight={5} orient="auto-start-reverse">
-                  <path d="M0,0 L10,5 L0,10 z" fill="#fde047" />
-                </marker>
-              </defs>
-              {arrows.map((a) => (
-                <line
-                  key={a.id}
-                  x1={a.x1} y1={a.y1} x2={a.x2} y2={a.y2}
-                  stroke="#fde047" strokeWidth={1.2} markerEnd="url(#tb-arrow)"
-                  style={{ cursor: mode === "erase" ? "pointer" : "default" }}
-                  onPointerDown={(e) => onArrowDown(e, a.id)}
-                />
-              ))}
-              {tempArrow && (
-                <line x1={tempArrow.x1} y1={tempArrow.y1} x2={tempArrow.x2} y2={tempArrow.y2} stroke="#fde047" strokeWidth={1.2} strokeDasharray="2 1.5" markerEnd="url(#tb-arrow)" />
-              )}
+              {/* Shapes */}
+              {state.shapes.map((sh) => renderShape(sh))}
+              {draft && renderShape(draft, true)}
 
               {/* Tokens */}
-              {tokens.map((tok) => (
+              {state.tokens.map((tok) => (
                 <g
                   key={tok.id}
                   transform={`translate(${tok.x} ${tok.y})`}
@@ -320,12 +539,26 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                   style={{ cursor: mode === "move" ? "grab" : mode === "erase" ? "pointer" : "default" }}
                 >
                   {tok.kind === "ball" ? (
-                    <circle r={2.6} fill="#f8fafc" stroke="#111" strokeWidth={0.4} />
+                    <circle r={2.4} fill="#f8fafc" stroke="#111" strokeWidth={0.4} />
                   ) : (
                     <>
-                      <circle r={4.2} fill={GROUP_COLOR[tok.group]} stroke="rgba(0,0,0,0.35)" strokeWidth={0.5} />
-                      {tok.label && (
-                        <text y={7.6} textAnchor="middle" fontSize={3} fill="#fff" style={{ paintOrder: "stroke", stroke: "rgba(0,0,0,0.55)", strokeWidth: 0.4 }}>
+                      <circle
+                        r={4.2}
+                        fill={GROUP_COLOR[tok.group]}
+                        stroke={tok.kind === "opponent" ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.35)"}
+                        strokeWidth={0.5}
+                      />
+                      {tok.kind === "opponent" && tok.label && (
+                        <text y={1.2} textAnchor="middle" fontSize={3.4} fill="#fff" fontWeight="bold">{tok.label}</text>
+                      )}
+                      {tok.kind === "player" && showNames && tok.label && (
+                        <text
+                          y={7.6}
+                          textAnchor="middle"
+                          fontSize={3}
+                          fill="#fff"
+                          style={{ paintOrder: "stroke", stroke: "rgba(0,0,0,0.6)", strokeWidth: 0.5 }}
+                        >
                           {tok.label}
                         </text>
                       )}
@@ -337,8 +570,11 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           </div>
           <p className="mt-2 text-center text-xs text-muted-foreground">
             {mode === "move" && "Drag players, opponents and the ball to position them."}
-            {mode === "arrow" && "Drag on the pitch to draw a run or pass."}
-            {mode === "erase" && "Tap a player or arrow to remove it."}
+            {mode === "run" && "Drag to draw a run (solid arrow)."}
+            {mode === "pass" && "Drag to draw a pass (dashed arrow)."}
+            {mode === "dribble" && "Drag to draw a dribble (wavy line)."}
+            {mode === "free" && "Draw freehand to sketch a zone or shape."}
+            {mode === "erase" && "Tap a player or a line to remove it."}
           </p>
         </div>
 
@@ -378,6 +614,11 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                   {g}
                 </div>
               ))}
+              <div className="pt-1 space-y-1.5">
+                <div className="flex items-center gap-2"><span className="inline-block h-0.5 w-5" style={{ background: "#fde047" }} /> Run</div>
+                <div className="flex items-center gap-2"><span className="inline-block h-0.5 w-5" style={{ backgroundImage: "repeating-linear-gradient(to right,#fde047 0 3px,transparent 3px 6px)" }} /> Pass</div>
+                <div className="flex items-center gap-2"><span className="inline-block h-0.5 w-5" style={{ background: "#38bdf8" }} /> Dribble</div>
+              </div>
             </div>
           </div>
         </div>
