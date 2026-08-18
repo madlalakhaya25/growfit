@@ -99,10 +99,21 @@ export default function RolePage() {
 
   async function handleContinue() {
     if (!selected) return;
-    if (!clubCode || clubCode.trim().length !== 6) {
+
+    const code = clubCode.trim();
+    const isPlayer = selected === "player";
+
+    // Players may continue without a code — they land in a "waiting to be
+    // added" state until their coach adds them. Every other role needs one.
+    if (code.length === 0 && !isPlayer) {
+      setError("Enter your club code to continue.");
+      return;
+    }
+    if (code.length > 0 && code.length !== 6) {
       setError("Club code must be exactly 6 characters.");
       return;
     }
+
     setLoading(true);
     setError(null);
     const supabase = createClient();
@@ -115,14 +126,18 @@ export default function RolePage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push("/auth/login"); return; }
 
-    const { data: academyData, error: rpcError } = await supabase.rpc("find_academy_by_join_code", {
-      p_code: clubCode.toUpperCase(),
-    });
-    if (rpcError) { setError(rpcError.message); setLoading(false); return; }
-    if (academyData?.error || !academyData?.academy_id) {
-      setError("Invalid club code — double-check with your club admin.");
-      setLoading(false);
-      return;
+    let academyId: string | null = null;
+    if (code.length === 6) {
+      const { data: academyData, error: rpcError } = await supabase.rpc("find_academy_by_join_code", {
+        p_code: code.toUpperCase(),
+      });
+      if (rpcError) { setError(rpcError.message); setLoading(false); return; }
+      if (academyData?.error || !academyData?.academy_id) {
+        setError("Invalid club code — double-check with your club admin.");
+        setLoading(false);
+        return;
+      }
+      academyId = academyData.academy_id;
     }
 
     const { data, error: upsertErr } = await supabase
@@ -130,7 +145,7 @@ export default function RolePage() {
       .upsert({
         id: user.id,
         role: selected,
-        academy_id: academyData.academy_id,
+        academy_id: academyId,
         full_name: user.email?.split("@")[0] ?? "New user",
       })
       .select("id, role, academy_id, full_name")
@@ -230,7 +245,9 @@ export default function RolePage() {
                 {selectedRole ? `Join ${selectedRole.label === "Admin" ? "your academy" : "your club"}` : "Join your club"}
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Your club admin will give you a 6-character code. Enter it here to connect your account to your academy.
+                {selected === "player"
+                  ? "Your club admin will give you a 6-character code. Have it? Enter it to link your academy now — otherwise you can continue without one."
+                  : "Your club admin will give you a 6-character code. Enter it here to connect your account to your academy."}
               </p>
             </div>
             <div className="space-y-1.5">
@@ -246,10 +263,16 @@ export default function RolePage() {
                 className={INPUT_CLASS}
               />
               <p className="text-xs text-muted-foreground">
-                Don&apos;t have a code?{" "}
-                <Link href="/register-club" className="text-primary underline underline-offset-2">
-                  Register a new club instead
-                </Link>
+                {selected === "player" ? (
+                  <>Don&apos;t have a code yet? Continue without one — your coach will add you.</>
+                ) : (
+                  <>
+                    Don&apos;t have a code?{" "}
+                    <Link href="/register-club" className="text-primary underline underline-offset-2">
+                      Register a new club instead
+                    </Link>
+                  </>
+                )}
               </p>
             </div>
           </div>
