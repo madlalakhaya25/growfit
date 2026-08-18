@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LayoutGrid, ChevronRight } from "lucide-react";
 import { TacticalConceptPanel } from "@/components/ai/tactical-concept-panel";
+import { PositionalRolePanel } from "@/components/ai/positional-role-panel";
 
 export default function CoachTacticsPage() {
   return (
@@ -31,6 +32,7 @@ export default function CoachTacticsPage() {
       </Link>
 
       <TacticalConceptPanel />
+      <PositionalRolePanel />
     </div>
   );
 }
