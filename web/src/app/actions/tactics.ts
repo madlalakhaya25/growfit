@@ -19,6 +19,54 @@ function getLTPDPhase(ageGroup: string): string {
   return "Training to Win (U19+) — elite competition preparation, full tactical complexity";
 }
 
+export async function explainPositionalRole(params: {
+  positionLabel: string;
+  ageGroup: string;
+}): Promise<{ explanation?: string; error?: string }> {
+  try {
+    await requireUser();
+
+    const positionLabel = params.positionLabel.trim();
+    if (!positionLabel) return { error: "Pick a position first." };
+
+    const ageGroup = params.ageGroup.trim() || "U15";
+    const ltpdPhase = getLTPDPhase(ageGroup);
+
+    const prompt = `Explain the role of the ${positionLabel} position for a coach at a SAFA-registered grassroots youth academy.
+
+POSITION: ${positionLabel}
+AGE GROUP: ${ageGroup} | LTPD Phase: ${ltpdPhase}
+
+Describe what this position is actually responsible for, pitched at the LTPD phase above — what is age-appropriate to expect at ${ageGroup}, and what should NOT be demanded yet. Reflect South African grassroots reality (mixed-ability squads, small-sided formats at younger ages).
+
+Return plain text (no markdown, no asterisks) in exactly this structure:
+
+ROLE IN A SENTENCE: [one clear sentence a player would understand]
+IN POSSESSION: [3 numbered responsibilities when the team has the ball]
+OUT OF POSSESSION: [3 numbered responsibilities when the team loses the ball]
+KEY ATTRIBUTES TO DEVELOP: [3 qualities to work on at this age]
+COMMON MISTAKES AT ${ageGroup}: [2 typical errors and the fix]
+COACHING CUES: [3 short phrases the coach can shout to this player during play]`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-lite",
+      contents: prompt,
+      config: {
+        maxOutputTokens: 900,
+        systemInstruction:
+          "You are a UEFA Pro Licence and SAFA Level 4 Coaching Badge qualified youth development specialist. Your positional guidance is grounded in FIFA's Long-Term Player Development (LTPD) framework, the 4-Corner Player Development Model (Technical, Tactical, Physical, Social/Psychological), SAFA's National Development Programme curriculum, and CAF youth development principles. You understand South African grassroots football and always keep guidance age-appropriate and player-centred. Plain text only — no asterisks, no Markdown formatting.",
+      },
+    });
+
+    let text = response.text ?? "";
+    text = text.replace(/\*/g, "");
+
+    return { explanation: text };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "AI service unavailable." };
+  }
+}
+
 export async function explainTacticalConcept(params: {
   conceptId: string;
   ageGroup: string;
