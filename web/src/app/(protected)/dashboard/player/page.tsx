@@ -43,9 +43,16 @@ export default async function PlayerDashboardPage() {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">My Passport</h1>
-        <p className="text-muted-foreground text-sm">
-          Your coach has added you to the squad. Enter the share token they gave you to link your profile.
-        </p>
+
+        <div className="rounded-xl border border-border bg-card p-6 space-y-2">
+          <p className="text-base font-semibold">You&apos;re all set — waiting to be added</p>
+          <p className="text-sm text-muted-foreground">
+            Your account is ready. As soon as your coach adds you to a squad, your
+            passport, ratings and fixtures appear here automatically. If your coach
+            has already given you a share token, enter it below to link your profile now.
+          </p>
+        </div>
+
         <ClaimProfileForm />
       </div>
     );
