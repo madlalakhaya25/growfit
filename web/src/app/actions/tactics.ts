@@ -3,6 +3,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { requireUser } from "@/lib/auth";
 import { getConcept } from "@/lib/tactics";
+import { buildSquadContext } from "./squad-context";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -70,12 +71,22 @@ COACHING CUES: [3 short phrases the coach can shout to this player during play]`
 export async function explainTacticalConcept(params: {
   conceptId: string;
   ageGroup: string;
+  teamId?: string;
 }): Promise<{ explanation?: string; error?: string }> {
   try {
     await requireUser();
 
     const concept = getConcept(params.conceptId);
     if (!concept) return { error: "Unknown tactical concept." };
+
+    // Ground the explanation in this squad's real numbers when we have a team.
+    let squadNote = "";
+    if (params.teamId) {
+      const { context } = await buildSquadContext(params.teamId);
+      if (context) {
+        squadNote = `\n\nTHIS COACH'S ACTUAL SQUAD — tailor the advice to these players and cite their real numbers where relevant. Never invent a player or a statistic that is not listed:\n${context.brief}`;
+      }
+    }
 
     const ageGroup = params.ageGroup.trim() || "U15";
     const ltpdPhase = getLTPDPhase(ageGroup);
@@ -95,13 +106,13 @@ WHY IT MATTERS AT ${ageGroup}: [2 sentences tied to this developmental phase]
 KEY PRINCIPLES: [3 short, numbered coaching principles]
 WHAT TO LOOK FOR: [2 things the coach should watch the players doing well]
 COMMON MISTAKES: [2 typical errors at this age and the fix]
-COACHING CUES: [3 short phrases the coach can shout during play]`;
+COACHING CUES: [3 short phrases the coach can shout during play]${squadNote}`;
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-lite",
       contents: prompt,
       config: {
-        maxOutputTokens: 900,
+        maxOutputTokens: 1000,
         systemInstruction:
           "You are a UEFA Pro Licence and SAFA Level 4 Coaching Badge qualified youth development specialist. Your tactical explanations are grounded in FIFA's Long-Term Player Development (LTPD) framework, the 4-Corner Player Development Model (Technical, Tactical, Physical, Social/Psychological), SAFA's National Development Programme curriculum, and CAF youth development principles. You understand South African grassroots football and always keep guidance age-appropriate and player-centred. Plain text only — no asterisks, no Markdown formatting.",
       },

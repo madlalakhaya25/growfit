@@ -16,6 +16,7 @@ import {
   Download,
   Building2,
   Lightbulb,
+  Sparkles,
   Loader2,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
@@ -48,6 +49,7 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { href: "/dashboard/coach/fixtures", label: "Fixtures", Icon: Calendar },
     { href: "/dashboard/coach/training", label: "Training", Icon: Dumbbell },
     { href: "/dashboard/coach/tactics", label: "Tactics", Icon: Lightbulb },
+    { href: "/dashboard/coach/assistant", label: "Assistant", mobileLabel: "AI", Icon: Sparkles },
     { href: "/dashboard/coach/announcements", label: "Announcements", mobileLabel: "Posts", Icon: Megaphone },
   ],
   player: [
