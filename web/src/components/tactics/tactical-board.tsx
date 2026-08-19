@@ -11,6 +11,7 @@ import { FORMATIONS, FORMATION_SIZES, type Formation } from "@/lib/formations";
 import { savePlay, listPlays, loadPlay, deletePlay, sharePlayToSquad, listLinkTargets, type SavedPlaySummary, type LinkTarget } from "@/app/actions/tactic-plays";
 import { describePlay } from "@/app/actions/tactics";
 import { TACTICAL_CONCEPTS, TACTICAL_CATEGORIES, getConcept } from "@/lib/tactics";
+import { PLAY_TEMPLATES, expandTemplate } from "@/lib/play-templates";
 import { drawBoard, pickRecorderMime } from "@/lib/board-render";
 
 // ── Types ────────────────────────────────────────────────────────
@@ -510,6 +511,21 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setFixtureId(meta?.fixture_id ?? "");
     setDescription(null);
     setNotice(`Loaded "${res.name}".`);
+  }
+
+  /** Load a pre-built pattern onto the board as a starting point. */
+  function loadTemplate(id: string) {
+    const tpl = PLAY_TEMPLATES.find((t) => t.id === id);
+    if (!tpl) return;
+    const { tokens, shapes, frames: tplFrames } = expandTemplate(tpl);
+    snapshot();
+    setState({ tokens: tokens as typeof state.tokens, shapes: shapes as typeof state.shapes });
+    setFrames(tplFrames as typeof frames);
+    setConceptIds([tpl.conceptId]);
+    setCurrentPlayId(null);
+    setPlayName(tpl.label);
+    setDescription(null);
+    setNotice("Template loaded — drag it about, then save it as your own.");
   }
 
   async function handleDescribe() {
@@ -1098,6 +1114,18 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               <FolderOpen className="size-3.5 text-primary" aria-hidden="true" />
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Plays</p>
             </div>
+            <select
+              value=""
+              onChange={(e) => { if (e.target.value) loadTemplate(e.target.value); }}
+              aria-label="Start from a template"
+              className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">Start from a template…</option>
+              {PLAY_TEMPLATES.map((t) => (
+                <option key={t.id} value={t.id}>{t.label}</option>
+              ))}
+            </select>
+
             <input
               type="text"
               value={playName}
