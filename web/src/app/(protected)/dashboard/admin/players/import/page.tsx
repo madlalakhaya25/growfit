@@ -4,6 +4,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PlayerImportPanel, type ImportTeam } from "@/components/records/player-import-panel";
 
+// Reading a PDF with several cards can take longer than the default limit.
+export const maxDuration = 60;
+
 export default async function AdminImportPlayersPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

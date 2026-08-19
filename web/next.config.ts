@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      // Registration PDFs are routinely over the 1MB default, which rejected
+      // the upload before the action ever ran.
+      bodySizeLimit: "15mb",
+    },
+  },
   images: {
     remotePatterns: [
       {

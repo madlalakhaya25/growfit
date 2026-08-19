@@ -70,16 +70,20 @@ export function VoiceNoteRecorder({
       if (blob.size === 0) { setError("Nothing was recorded."); return; }
 
       setBusy(true);
-      const ext = mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : "webm";
-      const fd = new FormData();
-      fd.append("play_id", playId);
-      fd.append("file", new File([blob], `voice-note.${ext}`, { type: mime }));
-      const res = await uploadPlayVoiceNote(fd);
-      setBusy(false);
-
-      if (res.error) { setError(res.error); return; }
-      setUrl(res.url ?? null);
-      onChange?.(res.url ?? null);
+      try {
+        const ext = mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : "webm";
+        const fd = new FormData();
+        fd.append("play_id", playId);
+        fd.append("file", new File([blob], `voice-note.${ext}`, { type: mime }));
+        const res = await uploadPlayVoiceNote(fd);
+        if (res.error) { setError(res.error); return; }
+        setUrl(res.url ?? null);
+        onChange?.(res.url ?? null);
+      } catch (err) {
+        setError(err instanceof Error ? `Could not save the recording: ${err.message}` : "Could not save the recording.");
+      } finally {
+        setBusy(false);
+      }
     };
 
     recRef.current = rec;
@@ -101,11 +105,16 @@ export function VoiceNoteRecorder({
   async function remove() {
     if (!playId) return;
     setBusy(true);
-    const res = await deletePlayVoiceNote(playId);
-    setBusy(false);
-    if (res.error) { setError(res.error); return; }
-    setUrl(null);
-    onChange?.(null);
+    try {
+      const res = await deletePlayVoiceNote(playId);
+      if (res.error) { setError(res.error); return; }
+      setUrl(null);
+      onChange?.(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete the recording.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (

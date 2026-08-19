@@ -30,16 +30,32 @@ export function PlayerImportPanel({ teams }: { teams: ImportTeam[] }) {
     if (!file) return;
     setError(null);
     setResult(null);
+
+    // Fail fast on the client rather than after a long upload.
+    if (file.size > 12 * 1024 * 1024) {
+      setError("That PDF is over 12 MB. Split it into smaller batches of cards.");
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+
     setBusy("extract");
-
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await extractPlayersFromPdf(fd);
-    setBusy(null);
-    if (fileRef.current) fileRef.current.value = "";
-
-    if (res.error) { setError(res.error); return; }
-    setRows((prev) => [...prev, ...(res.players ?? []).map((p) => ({ ...p, position: null }))]);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await extractPlayersFromPdf(fd);
+      if (res.error) { setError(res.error); return; }
+      setRows((prev) => [...prev, ...(res.players ?? []).map((p) => ({ ...p, position: null }))]);
+    } catch (err) {
+      // Without this the spinner ran forever on any thrown error.
+      setError(
+        err instanceof Error
+          ? `Upload failed: ${err.message}`
+          : "Upload failed. Check your connection and try again."
+      );
+    } finally {
+      setBusy(null);
+      if (fileRef.current) fileRef.current.value = "";
+    }
   }
 
   function update(i: number, patch: Partial<ImportRow>) {
@@ -49,11 +65,16 @@ export function PlayerImportPanel({ teams }: { teams: ImportTeam[] }) {
   async function handleCreate() {
     setError(null);
     setBusy("create");
-    const res = await createImportedPlayers({ rows, teamId: teamId || undefined });
-    setBusy(null);
-    if (res.error) { setError(res.error); return; }
-    setResult({ created: res.created ?? 0, skipped: res.skipped ?? [] });
-    setRows([]);
+    try {
+      const res = await createImportedPlayers({ rows, teamId: teamId || undefined });
+      if (res.error) { setError(res.error); return; }
+      setResult({ created: res.created ?? 0, skipped: res.skipped ?? [] });
+      setRows([]);
+    } catch (err) {
+      setError(err instanceof Error ? `Could not create players: ${err.message}` : "Could not create players.");
+    } finally {
+      setBusy(null);
+    }
   }
 
   const cell = "w-full rounded border border-border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary";
