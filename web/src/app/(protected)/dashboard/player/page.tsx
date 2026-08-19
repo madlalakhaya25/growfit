@@ -15,6 +15,7 @@ import { DocumentHub } from "@/components/records/document-hub";
 import { PlayerIdentityForm } from "@/components/records/player-identity-form";
 import type { MilestoneCategory } from "@/app/actions/development";
 import { DevelopmentPlanPanel } from "@/components/development/development-plan-panel";
+import { MyPositionPanel } from "@/components/tactics/my-position-panel";
 
 const ATTR_KEYS = ["pace", "shooting", "passing", "dribbling", "defending", "physical"] as const;
 type AttrKey = (typeof ATTR_KEYS)[number];
@@ -143,10 +144,14 @@ export default async function PlayerDashboardPage() {
     : null;
   const overall = attrsOverall ?? matchAvg;
 
-  const posLabel = POSITIONS.find((p) => p.value === player.position)?.label ?? "—";
+  const positionEntry = POSITIONS.find((p) => p.value === player.position);
+  const posLabel = positionEntry?.label ?? "—";
   const age = player.date_of_birth
     ? Math.floor((Date.now() - new Date(player.date_of_birth).getTime()) / 31_557_600_000)
     : null;
+  // Age band for the positional guide: round up to the next odd year, giving
+  // U11 / U13 / U15 etc. Falls back to U15 when we have no date of birth.
+  const playerAgeGroup = age ? `U${age % 2 === 1 ? age : age + 1}` : "U15";
 
   // Normalize media tag items
   type RawMediaUpload = {
@@ -393,6 +398,16 @@ export default async function PlayerDashboardPage() {
           </section>
         );
       })()}
+
+      {positionEntry && (
+        <section className="space-y-3">
+          <MyPositionPanel
+            positionLabel={positionEntry.label}
+            positionGroup={positionEntry.group}
+            ageGroup={playerAgeGroup}
+          />
+        </section>
+      )}
 
       <section className="space-y-3">
         <DevelopmentPlanPanel playerId={player.id} />
