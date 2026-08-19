@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { CoachAssistantPanel, type AssistantTeam, type AssistantFixture } from "@/components/ai/coach-assistant-panel";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
 
 export default async function CoachAssistantPage() {
   const supabase = await createClient();
@@ -10,7 +11,7 @@ export default async function CoachAssistantPage() {
   const { data: teamRows } = await supabase
     .from("teams")
     .select("id, name, age_group")
-    .eq("coach_id", user.id)
+    .in("id", await getCoachedTeamIds(supabase, user.id))
     .eq("active", true)
     .order("name");
 

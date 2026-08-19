@@ -19,6 +19,7 @@ import { DevelopmentPlanPanel } from "@/components/development/development-plan-
 import { MilestoneCard } from "@/components/development/milestone-card";
 import type { MilestoneCategory } from "@/app/actions/development";
 import { ClipsSection } from "./clips-section";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
 
 const CORE_ATTR_KEYS: AttrKey[] = ["pace", "shooting", "passing", "dribbling", "defending", "physical"];
 
@@ -31,6 +32,7 @@ export default async function PlayerDetailPage({
 }) {
   const [{ playerId }, { team: teamParam }] = await Promise.all([params, searchParams]);
   const { supabase, user } = await requireUser();
+  const myTeamIds = await getCoachedTeamIds(supabase, user.id);
 
   const [{ data: player }, { data: myAttrs }, { data: coachTeams }, { data: memberships }] = await Promise.all([
     supabase
@@ -50,7 +52,7 @@ export default async function PlayerDetailPage({
       .eq("player_id", playerId)
       .eq("coach_id", user.id)
       .single(),
-    supabase.from("teams").select("id").eq("coach_id", user.id).eq("active", true),
+    supabase.from("teams").select("id").in("id", myTeamIds).eq("active", true),
     supabase.from("team_members").select("team_id").eq("player_id", playerId).eq("active", true),
   ]);
 

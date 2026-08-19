@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Users } from "lucide-react";
+import { CoachCodeBlock, RemoveCoachButton } from "./coach-code-controls";
 import { TeamActions } from "./team-actions";
 
 export default async function AdminTeamsPage() {
@@ -20,8 +21,9 @@ export default async function AdminTeamsPage() {
   const { data: teams } = await supabase
     .from("teams")
     .select(`
-      id, name, age_group, invite_code, active, created_at,
+      id, name, age_group, invite_code, coach_code, active, created_at,
       profiles ( full_name ),
+      team_coaches ( coach_id, is_head, profiles ( full_name ) ),
       team_members ( player_id, active )
     `)
     .eq("academy_id", profile.academy_id)
@@ -45,7 +47,8 @@ export default async function AdminTeamsPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {(teams ?? []).map((t: {
-            id: string; name: string; age_group: string | null; invite_code: string;
+            id: string; name: string; age_group: string | null; invite_code: string; coach_code: string | null;
+            team_coaches?: { coach_id: string; is_head: boolean; profiles: { full_name: string } | { full_name: string }[] | null }[];
             profiles: { full_name: string } | { full_name: string }[] | null;
             team_members: { player_id: string; active: boolean }[];
           }) => {
@@ -67,16 +70,44 @@ export default async function AdminTeamsPage() {
                   <span>{activeCount} player{activeCount !== 1 ? "s" : ""}</span>
                 </div>
 
-                {coach && (
-                  <p className="text-sm">
-                    <span className="text-muted-foreground">Coach: </span>
-                    <span className="font-medium">{coach.full_name}</span>
-                  </p>
-                )}
+                {(() => {
+                  const roster = (t.team_coaches ?? []).map((tc) => {
+                    const pr = Array.isArray(tc.profiles) ? tc.profiles[0] : tc.profiles;
+                    return { id: tc.coach_id, name: pr?.full_name ?? "Coach", isHead: tc.is_head };
+                  });
+                  if (roster.length === 0) {
+                    return (
+                      <p className="text-sm text-muted-foreground">
+                        No coach yet — share the coach code below.
+                      </p>
+                    );
+                  }
+                  return (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">
+                        {roster.length === 1 ? "Coach" : `Coaches (${roster.length})`}
+                      </p>
+                      <ul className="space-y-0.5">
+                        {roster.map((c) => (
+                          <li key={c.id} className="flex items-center justify-between gap-2 text-sm">
+                            <span className="font-medium truncate">{c.name}</span>
+                            <span className="flex items-center gap-1.5 shrink-0">
+                              {c.isHead && <Badge variant="neutral">Head</Badge>}
+                              <RemoveCoachButton teamId={t.id} coachId={c.id} coachName={c.name} />
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })()}
 
-                <div className="pt-1 border-t border-border">
-                  <p className="text-xs text-muted-foreground">Invite code</p>
-                  <p className="font-mono font-bold tracking-widest">{t.invite_code}</p>
+                <div className="pt-1 border-t border-border grid gap-2 sm:grid-cols-2">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Player invite code</p>
+                    <p className="font-mono font-bold tracking-widest">{t.invite_code}</p>
+                  </div>
+                  <CoachCodeBlock teamId={t.id} code={t.coach_code} />
                 </div>
 
                 <TeamActions teamId={t.id} name={t.name} ageGroup={t.age_group ?? ""} />

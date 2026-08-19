@@ -5,8 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Users, Calendar, Plus, Dumbbell, ChevronRight } from "lucide-react";
 import { CreateTeamForm } from "@/components/create-team-form";
+import { JoinTeamForm } from "@/components/join-team-form";
 import { CopyButton } from "@/components/copy-button";
 import { daysFromNow } from "@/lib/utils";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
 
 const SESSION_TYPE_LABEL: Record<string, string> = {
   general: "General", technical: "Technical", tactical: "Tactical",
@@ -19,7 +21,7 @@ export default async function CoachDashboardPage() {
   const { data: teamRows } = await supabase
     .from("teams")
     .select("id, name, age_group, invite_code")
-    .eq("coach_id", user.id)
+    .in("id", await getCoachedTeamIds(supabase, user.id))
     .eq("active", true);
 
   const rawTeams = teamRows ?? [];
@@ -88,15 +90,30 @@ export default async function CoachDashboardPage() {
       </div>
 
       {allTeams.length === 0 ? (
-        <Card id="create-team">
-          <CardHeader>
-            <CardTitle>Create your first team</CardTitle>
-            <CardDescription>Set up a team to start managing your squad, fixtures, and training.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <CreateTeamForm />
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Join a team</CardTitle>
+              <CardDescription>
+                If your admin has already set up the teams, enter the coach code they
+                gave you. A team can have more than one coach.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <JoinTeamForm compact />
+            </CardContent>
+          </Card>
+
+          <Card id="create-team">
+            <CardHeader>
+              <CardTitle>Or create your own team</CardTitle>
+              <CardDescription>Set up a team to start managing your squad, fixtures, and training.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CreateTeamForm />
+            </CardContent>
+          </Card>
+        </div>
       ) : (
         <div className="space-y-6">
 

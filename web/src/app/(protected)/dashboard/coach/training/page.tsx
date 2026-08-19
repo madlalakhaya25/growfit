@@ -4,6 +4,7 @@ import { Plus, Dumbbell } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
 
 const TYPE_STYLES: Record<string, { label: string; chip: string }> = {
   general:    { label: "General",    chip: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" },
@@ -27,7 +28,7 @@ export default async function CoachTrainingPage({
   const { data: allTeams } = await supabase
     .from("teams")
     .select("id, name, age_group")
-    .eq("coach_id", user.id)
+    .in("id", await getCoachedTeamIds(supabase, user.id))
     .eq("active", true)
     .order("created_at");
 

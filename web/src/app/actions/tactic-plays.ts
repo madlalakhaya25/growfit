@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
 
 export interface SavedPlaySummary {
   id: string;
@@ -30,7 +31,7 @@ async function requireCoachTeam(teamId: string) {
     .from("teams")
     .select("id, academy_id")
     .eq("id", teamId)
-    .eq("coach_id", user.id)
+    .in("id", await getCoachedTeamIds(supabase, user.id))
     .eq("active", true)
     .single();
   return { supabase, user, team };

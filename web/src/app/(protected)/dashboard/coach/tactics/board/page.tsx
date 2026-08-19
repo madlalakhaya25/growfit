@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { TacticalBoard, type BoardTeam } from "@/components/tactics/tactical-board";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
 
 type MemberRow = {
   active: boolean;
@@ -23,7 +24,7 @@ export default async function CoachBoardPage() {
   const { data } = await supabase
     .from("teams")
     .select("id, name, age_group, team_members(active, players(id, full_name, position))")
-    .eq("coach_id", user.id)
+    .in("id", await getCoachedTeamIds(supabase, user.id))
     .eq("active", true)
     .order("name");
 

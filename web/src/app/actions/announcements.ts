@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
 
 const announcementSchema = z.object({
   team_id: z.string().uuid("Invalid team"),
@@ -14,7 +15,7 @@ async function getCoachTeamIds(supabase: Awaited<ReturnType<typeof createClient>
   const { data } = await supabase
     .from("teams")
     .select("id")
-    .eq("coach_id", userId)
+    .in("id", await getCoachedTeamIds(supabase, userId))
     .eq("active", true);
   return (data ?? []).map((t: { id: string }) => t.id);
 }

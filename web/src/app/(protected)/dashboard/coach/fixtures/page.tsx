@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
 
 const STATUS_VARIANT = {
   upcoming: "neutral",
@@ -27,7 +28,7 @@ export default async function CoachFixturesPage({
   const { data: allTeams } = await supabase
     .from("teams")
     .select("id, name, age_group")
-    .eq("coach_id", user.id)
+    .in("id", await getCoachedTeamIds(supabase, user.id))
     .eq("active", true)
     .order("created_at");
 

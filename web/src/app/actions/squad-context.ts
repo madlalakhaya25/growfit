@@ -2,6 +2,7 @@
 
 import { requireUser } from "@/lib/auth";
 import { POSITIONS } from "@/lib/types";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
 
 /**
  * Assembles the real squad into a compact text brief the AI features share.
@@ -35,7 +36,7 @@ export async function buildSquadContext(
     .from("teams")
     .select("id, name, age_group")
     .eq("id", teamId)
-    .eq("coach_id", user.id)
+    .in("id", await getCoachedTeamIds(supabase, user.id))
     .eq("active", true)
     .single();
   if (!team) return { error: "You don't coach this team." };

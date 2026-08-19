@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { AddPlayerTabs } from "./add-player-tabs";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
 
 export default async function AddPlayerPage({
   searchParams,
@@ -13,7 +14,7 @@ export default async function AddPlayerPage({
   const { data: allTeams } = await supabase
     .from("teams")
     .select("id, academy_id")
-    .eq("coach_id", user.id)
+    .in("id", await getCoachedTeamIds(supabase, user.id))
     .eq("active", true)
     .order("created_at");
 

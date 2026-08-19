@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { LayoutGrid, ChevronRight, Sparkles } from "lucide-react";
 import { TacticalConceptPanel } from "@/components/ai/tactical-concept-panel";
 import { PositionalRolePanel } from "@/components/ai/positional-role-panel";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
 
 export default async function CoachTacticsPage() {
   // Pass the coach's team so concept advice can cite their real squad numbers.
@@ -12,7 +13,7 @@ export default async function CoachTacticsPage() {
     ? await supabase
         .from("teams")
         .select("id")
-        .eq("coach_id", user.id)
+        .in("id", await getCoachedTeamIds(supabase, user.id))
         .eq("active", true)
         .order("name")
         .limit(1)

@@ -5,12 +5,13 @@ import { createClient } from "@/lib/supabase/server";
 import { createFixtureSchema } from "@/lib/validation";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
 
 async function getCoachTeamIds(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
   const { data: teams } = await supabase
     .from("teams")
     .select("id")
-    .eq("coach_id", userId)
+    .in("id", await getCoachedTeamIds(supabase, userId))
     .eq("active", true);
   return (teams ?? []).map((t: { id: string }) => t.id);
 }
@@ -25,7 +26,7 @@ export async function createFixture(formData: FormData) {
     .from("teams")
     .select("id")
     .eq("id", teamId)
-    .eq("coach_id", user.id)
+    .in("id", await getCoachedTeamIds(supabase, user.id))
     .eq("active", true)
     .single();
 

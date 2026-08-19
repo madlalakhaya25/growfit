@@ -10,6 +10,7 @@ import { RemovePlayerButton } from "./remove-player-button";
 import { CopyInviteLinkButton } from "@/components/copy-invite-link-button";
 import { POSITIONS } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
 
 export default async function SquadPage({
   searchParams,
@@ -24,7 +25,7 @@ export default async function SquadPage({
   const { data: allTeams } = await supabase
     .from("teams")
     .select("id, name, age_group, invite_code")
-    .eq("coach_id", user.id)
+    .in("id", await getCoachedTeamIds(supabase, user.id))
     .eq("active", true)
     .order("created_at");
 
