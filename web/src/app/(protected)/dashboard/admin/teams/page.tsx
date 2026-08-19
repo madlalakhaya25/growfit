@@ -24,8 +24,7 @@ export default async function AdminTeamsPage() {
   const { data: teams, error: teamsError } = await supabase
     .from("teams")
     .select(`
-      id, name, age_group, invite_code, active, created_at,
-      profiles ( full_name ),
+      id, name, age_group, invite_code, coach_id, active, created_at,
       team_members ( player_id, active )
     `)
     .eq("academy_id", profile.academy_id)
@@ -81,10 +80,12 @@ export default async function AdminTeamsPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {(teams ?? []).map((t: {
             id: string; name: string; age_group: string | null; invite_code: string;
-            profiles: { full_name: string } | { full_name: string }[] | null;
+            coach_id: string | null;
             team_members: { player_id: string; active: boolean }[];
           }) => {
-            const coach = Array.isArray(t.profiles) ? t.profiles[0] : t.profiles;
+            // Coach names come from the roster query; before migration 019 that
+            // is empty and the card simply shows no coach.
+            const roster = rosterByTeam.get(t.id) ?? [];
             const activeCount = (t.team_members ?? []).filter((m) => m.active).length;
 
             return (
@@ -103,8 +104,6 @@ export default async function AdminTeamsPage() {
                 </div>
 
                 {(() => {
-                  const roster = rosterByTeam.get(t.id)
-                    ?? (coach ? [{ id: "legacy", name: coach.full_name, isHead: true }] : []);
                   if (roster.length === 0) {
                     return (
                       <p className="text-sm text-muted-foreground">
