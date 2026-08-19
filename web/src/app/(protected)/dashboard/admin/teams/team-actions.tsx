@@ -43,6 +43,7 @@ export function TeamActions({
           className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
         <select
+          aria-label="Age group"
           name="age_group"
           defaultValue={ageGroup}
           className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

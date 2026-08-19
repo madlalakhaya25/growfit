@@ -845,7 +845,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       type="button"
       onClick={() => setMode(m)}
       title={label}
-      className={`inline-flex h-9 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium ${
+      className={`inline-flex h-10 sm:h-9 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium ${
         mode === m ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border hover:bg-muted"
       }`}
     >
@@ -856,6 +856,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const formationSelect = (value: string, onChange: (v: string) => void, id: string) => (
     <select
       id={id}
+      aria-label="Formation"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
@@ -906,6 +907,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           {teams.length > 1 && (
             <select
               value={teamId}
+              aria-label="Team"
               onChange={(e) => {
                 setTeamId(e.target.value);
                 snapshot();
@@ -953,17 +955,17 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
         {toolBtn("free", Pencil, "Draw")}
         {toolBtn("erase", Eraser, "Erase")}
         <span className="mx-1 h-6 w-px bg-border" />
-        <button type="button" onClick={addBall} title="Add ball" className="inline-flex h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">⚽ Ball</button>
-        <button type="button" onClick={addOpponent} title="Add one opponent" className="inline-flex h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
+        <button type="button" onClick={addBall} title="Add ball" className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">⚽ Ball</button>
+        <button type="button" onClick={addOpponent} title="Add one opponent" className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
           <Circle className="size-3.5" aria-hidden="true" /> +1
         </button>
         <span className="mx-1 h-6 w-px bg-border" />
-        <button type="button" onClick={undo} title="Undo" className="inline-flex h-9 items-center rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted"><Undo2 className="size-3.5" aria-hidden="true" /></button>
-        <button type="button" onClick={redo} title="Redo" className="inline-flex h-9 items-center rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted"><Redo2 className="size-3.5" aria-hidden="true" /></button>
-        <button type="button" onClick={() => setShowNames((v) => !v)} title="Toggle names" className={`inline-flex h-9 items-center gap-1 rounded-md border px-2.5 text-xs ${showNames ? "bg-muted border-border" : "bg-background border-border"} hover:bg-muted`}>
+        <button type="button" onClick={undo} title="Undo" className="inline-flex h-10 sm:h-9 items-center rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted"><Undo2 className="size-3.5" aria-hidden="true" /></button>
+        <button type="button" onClick={redo} title="Redo" className="inline-flex h-10 sm:h-9 items-center rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted"><Redo2 className="size-3.5" aria-hidden="true" /></button>
+        <button type="button" onClick={() => setShowNames((v) => !v)} title="Toggle names" className={`inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border px-2.5 text-xs ${showNames ? "bg-muted border-border" : "bg-background border-border"} hover:bg-muted`}>
           <Tag className="size-3.5" aria-hidden="true" /> Names
         </button>
-        <span className="inline-flex h-9 items-center gap-1 rounded-md border border-border bg-background pl-2 pr-1 text-xs">
+        <span className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background pl-2 pr-1 text-xs">
           <Grid3x3 className="size-3.5 text-muted-foreground" aria-hidden="true" />
           <select
             value={overlay}
@@ -978,11 +980,11 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           </select>
         </span>
         <span className="mx-1 h-6 w-px bg-border" />
-        <button type="button" onClick={clearDrawings} className="inline-flex h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">Clear lines</button>
-        <button type="button" onClick={clearAll} className="inline-flex h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
+        <button type="button" onClick={clearDrawings} className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">Clear lines</button>
+        <button type="button" onClick={clearAll} className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
           <RotateCcw className="size-3.5" aria-hidden="true" /> Reset
         </button>
-        <button type="button" onClick={exportPng} className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-semibold hover:bg-muted">
+        <button type="button" onClick={exportPng} className="inline-flex h-10 sm:h-9 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-semibold hover:bg-muted">
           <Download className="size-3.5 text-primary" aria-hidden="true" /> PNG
         </button>
       </div>
@@ -1094,15 +1096,15 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               Move the players, capture a step, move again. Play it back to show the movement.
             </p>
             <div className="flex flex-wrap gap-1.5">
-              <button type="button" onClick={captureFrame} disabled={playing} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
+              <button type="button" onClick={captureFrame} disabled={playing} className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
                 <Plus className="size-3" aria-hidden="true" /> Capture step
               </button>
               {playing ? (
-                <button type="button" onClick={stopPlayback} className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground">
+                <button type="button" onClick={stopPlayback} className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground">
                   <Square className="size-3" aria-hidden="true" /> Stop
                 </button>
               ) : (
-                <button type="button" onClick={playAnimation} disabled={frames.length < 2} className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground disabled:opacity-50">
+                <button type="button" onClick={playAnimation} disabled={frames.length < 2} className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground disabled:opacity-50">
                   <Play className="size-3" aria-hidden="true" /> Play
                 </button>
               )}
@@ -1111,13 +1113,13 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                 onClick={recordAnimation}
                 disabled={frames.length < 2 || playing || recording}
                 title="Record the sequence as a video"
-                className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50"
+                className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50"
               >
                 <Video className="size-3 text-primary" aria-hidden="true" />
                 {recording ? "Recording…" : "Record"}
               </button>
               {frames.length > 0 && (
-                <button type="button" onClick={() => setFrames([])} disabled={playing || recording} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
+                <button type="button" onClick={() => setFrames([])} disabled={playing || recording} className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
                   Clear
                 </button>
               )}
@@ -1132,7 +1134,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                       Step {i + 1}
                     </button>
                     <button type="button" onClick={() => updateFrame(i)} disabled={playing} title="Update this step to the current board" className="rounded-md border border-border bg-background px-1.5 py-1 text-[10px] hover:bg-muted disabled:opacity-50">Set</button>
-                    <button type="button" onClick={() => deleteFrame(i)} disabled={playing} title="Delete step" className="rounded-md border border-border bg-background px-1.5 py-1 hover:bg-muted disabled:opacity-50">
+                    <button type="button" onClick={() => deleteFrame(i)} disabled={playing} title="Delete step" className="rounded-md border border-border bg-background px-2 py-2 sm:py-1 hover:bg-muted disabled:opacity-50">
                       <Trash2 className="size-3" aria-hidden="true" />
                     </button>
                   </li>
@@ -1149,8 +1151,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
             </div>
             <select
               value=""
-              onChange={(e) => { if (e.target.value) loadTemplate(e.target.value); }}
               aria-label="Start from a template"
+              onChange={(e) => { if (e.target.value) loadTemplate(e.target.value); }}
               className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="">Start from a template…</option>
@@ -1225,22 +1227,22 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
             </select>
 
             <div className="flex flex-wrap gap-1.5">
-              <button type="button" onClick={handleSave} disabled={busy !== null} className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground disabled:opacity-50">
+              <button type="button" onClick={handleSave} disabled={busy !== null} className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground disabled:opacity-50">
                 <Save className="size-3" aria-hidden="true" /> {currentPlayId ? "Update" : "Save"}
               </button>
-              <button type="button" onClick={handleDescribe} disabled={busy !== null} title="Generate coaching points from the board" className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
+              <button type="button" onClick={handleDescribe} disabled={busy !== null} title="Generate coaching points from the board" className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
                 <Sparkles className="size-3 text-primary" aria-hidden="true" />
                 {busy === "describe" ? "Thinking…" : "Describe"}
               </button>
-              <button type="button" onClick={handleAnalyseOpponent} disabled={busy !== null} title="Analyse the opponent shape and advise how to counter it" className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
+              <button type="button" onClick={handleAnalyseOpponent} disabled={busy !== null} title="Analyse the opponent shape and advise how to counter it" className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
                 <Swords className="size-3 text-primary" aria-hidden="true" />
                 {busy === "analyse" ? "Analysing…" : "Counter them"}
               </button>
-              <button type="button" onClick={handleShare} disabled={busy !== null} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
+              <button type="button" onClick={handleShare} disabled={busy !== null} className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
                 <Send className="size-3" aria-hidden="true" /> Share to squad
               </button>
               {currentPlayId && (
-                <button type="button" onClick={() => { setCurrentPlayId(null); setPlayName(""); setVoiceUrl(null); setAnalysis(null); setDescription(null); }} className="inline-flex h-8 items-center rounded-md border border-border bg-background px-2 text-xs hover:bg-muted">
+                <button type="button" onClick={() => { setCurrentPlayId(null); setPlayName(""); setVoiceUrl(null); setAnalysis(null); setDescription(null); }} className="inline-flex h-10 sm:h-8 items-center rounded-md border border-border bg-background px-2 text-xs hover:bg-muted">
                   New
                 </button>
               )}
@@ -1301,7 +1303,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                     >
                       {p.name}
                     </button>
-                    <button type="button" onClick={() => handleDelete(p.id)} title="Delete play" className="rounded-md border border-border bg-background px-1.5 py-1 hover:bg-muted">
+                    <button type="button" onClick={() => handleDelete(p.id)} title="Delete play" className="rounded-md border border-border bg-background px-2 py-2 sm:py-1 hover:bg-muted">
                       <Trash2 className="size-3" aria-hidden="true" />
                     </button>
                   </li>
