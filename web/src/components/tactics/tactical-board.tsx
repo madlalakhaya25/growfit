@@ -15,6 +15,7 @@ import { VoiceNoteRecorder } from "@/components/tactics/voice-note-recorder";
 import { TACTICAL_CONCEPTS, TACTICAL_CATEGORIES, getConcept } from "@/lib/tactics";
 import { PLAY_TEMPLATES, expandTemplate } from "@/lib/play-templates";
 import { drawBoard, pickRecorderMime } from "@/lib/board-render";
+import { framesFromShapes } from "@/lib/play-motion";
 
 // ── Types ────────────────────────────────────────────────────────
 export interface BoardPlayer {
@@ -340,27 +341,40 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   }
 
   /** Play the captured steps back, easing token positions between each pair. */
-  function playAnimation() {
-    if (frames.length < 2) {
-      setNotice("Capture at least 2 steps to play a sequence.");
-      return;
+  function playAnimation(override?: Frame[]) {
+    // Captured steps win; otherwise animate what the drawn arrows describe, so
+    // drawing a play and pressing Play does the obvious thing.
+    let seqFrames = override ?? frames;
+    if (seqFrames.length < 2) {
+      const derived = framesFromShapes(state.tokens, state.shapes) as Frame[];
+      if (derived.length >= 2) {
+        seqFrames = derived;
+        setFrames(derived);
+      } else {
+        setNotice(
+          state.shapes.length > 0
+            ? "Draw a run or pass that starts on a player, or capture steps by hand."
+            : "Draw some runs and passes, or capture steps by hand, then press Play."
+        );
+        return;
+      }
     }
     stopPlayback();
     setPlaying(true);
 
     const SEG = 1100; // ms per step
     const start = performance.now();
-    const total = SEG * (frames.length - 1);
+    const total = SEG * (seqFrames.length - 1);
     const ease = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
 
     const tick = (now: number) => {
       const elapsed = now - start;
       const clamped = Math.min(elapsed, total);
-      const seg = Math.min(Math.floor(clamped / SEG), frames.length - 2);
+      const seg = Math.min(Math.floor(clamped / SEG), seqFrames.length - 2);
       const local = ease(Math.min((clamped - seg * SEG) / SEG, 1));
 
-      const from = frames[seg];
-      const to = frames[seg + 1];
+      const from = seqFrames[seg];
+      const to = seqFrames[seg + 1];
 
       setAnim({
         tokens: state.tokens.map((t) => {
@@ -391,9 +405,15 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
    * canvas stream, so the export matches exactly what playback shows.
    */
   async function recordAnimation() {
-    if (frames.length < 2) {
-      setNotice("Capture at least 2 steps before recording.");
-      return;
+    let seqFrames = frames;
+    if (seqFrames.length < 2) {
+      const derived = framesFromShapes(state.tokens, state.shapes) as Frame[];
+      if (derived.length < 2) {
+        setNotice("Draw runs and passes, or capture steps, before recording.");
+        return;
+      }
+      seqFrames = derived;
+      setFrames(derived);
     }
     const mime = pickRecorderMime();
     if (!mime) {
@@ -420,17 +440,17 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     rec.start();
 
     const SEG = 1100;
-    const total = SEG * (frames.length - 1);
+    const total = SEG * (seqFrames.length - 1);
     const ease = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
     const startedAt = performance.now();
 
     await new Promise<void>((resolve) => {
       const tick = (now: number) => {
         const elapsed = Math.min(now - startedAt, total);
-        const seg = Math.min(Math.floor(elapsed / SEG), frames.length - 2);
+        const seg = Math.min(Math.floor(elapsed / SEG), seqFrames.length - 2);
         const local = ease(Math.min((elapsed - seg * SEG) / SEG, 1));
-        const from = frames[seg];
-        const to = frames[seg + 1];
+        const from = seqFrames[seg];
+        const to = seqFrames[seg + 1];
 
         const tokens = state.tokens.map((t) => {
           const a = from.tokens.find((ft) => ft.id === t.id);
@@ -533,7 +553,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setDescription(null);
     setAnalysis(null);
     setVoiceUrl(null);
-    setNotice("Template loaded — drag it about, then save it as your own.");
+    setNotice("Template loaded — press Play under the pitch to watch it, then drag it about and save it as your own.");
   }
 
   async function handleDescribe() {
@@ -1072,6 +1092,34 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               ))}
             </svg>
           </div>
+          {/* Playback sits with the pitch — it is the first thing wanted after
+              loading a template or drawing a play. */}
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+            {playing ? (
+              <button
+                type="button"
+                onClick={stopPlayback}
+                className="inline-flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground"
+              >
+                <Square className="size-4" aria-hidden="true" /> Stop
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => playAnimation()}
+                disabled={state.tokens.length === 0}
+                className="inline-flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+              >
+                <Play className="size-4" aria-hidden="true" /> Play the move
+              </button>
+            )}
+            {frames.length > 0 && (
+              <span className="text-xs text-muted-foreground">
+                {frames.length} step{frames.length === 1 ? "" : "s"}
+              </span>
+            )}
+          </div>
+
           <p className="mt-2 text-center text-xs text-muted-foreground">
             {mode === "move" && "Drag players, opponents and the ball to position them."}
             {mode === "run" && "Drag to draw a run (solid arrow)."}
@@ -1093,7 +1141,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               </p>
             </div>
             <p className="text-[11px] text-muted-foreground leading-snug">
-              Move the players, capture a step, move again. Play it back to show the movement.
+              Draw runs and passes and press Play — the players follow your arrows. For finer control, capture steps by hand.
             </p>
             <div className="flex flex-wrap gap-1.5">
               <button type="button" onClick={captureFrame} disabled={playing} className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
@@ -1104,14 +1152,14 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                   <Square className="size-3" aria-hidden="true" /> Stop
                 </button>
               ) : (
-                <button type="button" onClick={playAnimation} disabled={frames.length < 2} className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground disabled:opacity-50">
+                <button type="button" onClick={() => playAnimation()} disabled={state.tokens.length === 0} className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground disabled:opacity-50">
                   <Play className="size-3" aria-hidden="true" /> Play
                 </button>
               )}
               <button
                 type="button"
                 onClick={recordAnimation}
-                disabled={frames.length < 2 || playing || recording}
+                disabled={state.tokens.length === 0 || playing || recording}
                 title="Record the sequence as a video"
                 className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50"
               >

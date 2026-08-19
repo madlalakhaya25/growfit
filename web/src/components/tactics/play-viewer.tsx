@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Play, Square, RotateCcw } from "lucide-react";
 import { BOARD_W as W, BOARD_H as H, BOARD_GROUP_COLOR } from "@/lib/board-render";
+import { framesFromShapes } from "@/lib/play-motion";
 
 // Read-only mirror of the board's data shape (see components/tactics/tactical-board).
 interface VToken { id: string; label: string; x: number; y: number; kind: "player" | "opponent" | "ball"; group: string }
@@ -32,7 +33,13 @@ function dribblePath(x1: number, y1: number, x2: number, y2: number): string {
 export function PlayViewer({ data }: { data: PlayData }) {
   const baseTokens = data.tokens ?? [];
   const baseShapes = data.shapes ?? [];
-  const frames = data.frames ?? [];
+  // Plays saved before arrows drove movement have no captured steps — derive the
+  // sequence from what the coach drew so they still animate.
+  const stored = data.frames ?? [];
+  const frames: VFrame[] =
+    stored.length >= 2
+      ? stored
+      : (framesFromShapes(baseTokens, baseShapes) as VFrame[]);
 
   const [tokens, setTokens] = useState<VToken[]>(baseTokens);
   const [shapes, setShapes] = useState<VShape[]>(baseShapes);

@@ -201,5 +201,8 @@ export function expandTemplate(tpl: PlayTemplate) {
     shapes: toShapes(step),
   }));
 
-  return { tokens, shapes: toShapes(first), frames };
+  // Show every arrow at rest so the play reads as a diagram before it is played;
+  // playback then swaps in each step's own lines as the movement unfolds.
+  const allShapes = tpl.steps.flatMap((step) => toShapes(step));
+  return { tokens, shapes: allShapes, frames };
 }
