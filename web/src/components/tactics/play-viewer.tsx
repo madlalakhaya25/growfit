@@ -63,12 +63,15 @@ export function PlayViewer({ data }: { data: PlayData }) {
 
     const SEG = 1100;
     const total = SEG * (frames.length - 1);
-    const started = performance.now();
+    let started: number | null = null;
     const ease = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
 
     const tick = (now: number) => {
-      const elapsed = Math.min(now - started, total);
-      const seg = Math.min(Math.floor(elapsed / SEG), frames.length - 2);
+      // See the board: a rAF timestamp can predate the click, making elapsed
+      // negative and indexing frames[-1].
+      if (started === null) started = now;
+      const elapsed = Math.min(Math.max(0, now - started), total);
+      const seg = Math.max(0, Math.min(Math.floor(elapsed / SEG), frames.length - 2));
       const local = ease(Math.min((elapsed - seg * SEG) / SEG, 1));
       const from = frames[seg], to = frames[seg + 1];
 

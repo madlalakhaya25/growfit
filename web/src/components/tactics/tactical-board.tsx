@@ -250,6 +250,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const [description, setDescription] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [voiceUrl, setVoiceUrl] = useState<string | null>(null);
+  // Tapping a player selects them; tapping a bench player then swaps the two.
+  const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -258,7 +260,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const [, forceRender] = useState(0);
 
   const svgRef = useRef<SVGSVGElement>(null);
-  const drag = useRef<{ id: string; dx: number; dy: number } | null>(null);
+  const drag = useRef<{ id: string; dx: number; dy: number; startX: number; startY: number; moved: boolean } | null>(null);
   const drawing = useRef(false);
 
   const team = teams.find((t) => t.id === teamId);
@@ -363,14 +365,19 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setPlaying(true);
 
     const SEG = 1100; // ms per step
-    const start = performance.now();
+    // The timestamp a rAF callback receives is when that frame began, which can
+    // predate a performance.now() taken in the click handler. That made elapsed
+    // negative, seg -1, and seqFrames[-1] undefined — the callback threw on its
+    // first frame and playback silently died. Take the clock from the first tick.
+    let start: number | null = null;
     const total = SEG * (seqFrames.length - 1);
     const ease = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
 
     const tick = (now: number) => {
-      const elapsed = now - start;
+      if (start === null) start = now;
+      const elapsed = Math.max(0, now - start);
       const clamped = Math.min(elapsed, total);
-      const seg = Math.min(Math.floor(clamped / SEG), seqFrames.length - 2);
+      const seg = Math.max(0, Math.min(Math.floor(clamped / SEG), seqFrames.length - 2));
       const local = ease(Math.min((clamped - seg * SEG) / SEG, 1));
 
       const from = seqFrames[seg];
@@ -442,12 +449,13 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     const SEG = 1100;
     const total = SEG * (seqFrames.length - 1);
     const ease = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
-    const startedAt = performance.now();
+    let startedAt: number | null = null;
 
     await new Promise<void>((resolve) => {
       const tick = (now: number) => {
-        const elapsed = Math.min(now - startedAt, total);
-        const seg = Math.min(Math.floor(elapsed / SEG), seqFrames.length - 2);
+        if (startedAt === null) startedAt = now;
+        const elapsed = Math.min(Math.max(0, now - startedAt), total);
+        const seg = Math.max(0, Math.min(Math.floor(elapsed / SEG), seqFrames.length - 2));
         const local = ease(Math.min((elapsed - seg * SEG) / SEG, 1));
         const from = seqFrames[seg];
         const to = seqFrames[seg + 1];
@@ -727,6 +735,33 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       };
     });
   }
+  /**
+   * Swap a bench player for the selected player on the pitch. The replacement
+   * inherits the exact spot, which is what a coach means by a substitution —
+   * the shape stays, the person changes.
+   */
+  function substitute(incoming: BoardPlayer) {
+    const outgoing = state.tokens.find((t) => t.id === selectedTokenId);
+    if (!outgoing) return;
+    snapshot();
+    setState((st) => ({
+      ...st,
+      tokens: st.tokens.map((t) =>
+        t.id === outgoing.id
+          ? {
+              ...t,
+              id: uid("h"),
+              label: shortLabel(incoming.full_name),
+              group: groupOf(incoming.position),
+              playerId: incoming.id,
+            }
+          : t
+      ),
+    }));
+    setSelectedTokenId(null);
+    setNotice(`${shortLabel(incoming.full_name)} on for ${outgoing.label}.`);
+  }
+
   function placePlayer(p: BoardPlayer) {
     snapshot();
     setState((st) => ({
@@ -776,7 +811,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     e.stopPropagation();
     const { x, y } = toBoard(e.clientX, e.clientY);
     snapshot();
-    drag.current = { id: tok.id, dx: tok.x - x, dy: tok.y - y };
+    drag.current = { id: tok.id, dx: tok.x - x, dy: tok.y - y, startX: x, startY: y, moved: false };
     (e.target as Element).setPointerCapture?.(e.pointerId);
   }
   function onSvgDown(e: React.PointerEvent) {
@@ -790,6 +825,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     if (drag.current) {
       const { x, y } = toBoard(e.clientX, e.clientY);
       const d = drag.current;
+      if (Math.hypot(x - d.startX, y - d.startY) > 1.5) d.moved = true;
       setState((st) => ({
         ...st,
         tokens: st.tokens.map((t) =>
@@ -808,6 +844,13 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     }
   }
   function onSvgUp() {
+    if (drag.current && !drag.current.moved) {
+      const tapped = drag.current.id;
+      const tok = state.tokens.find((t) => t.id === tapped);
+      setSelectedTokenId(
+        tok && tok.kind === "player" ? (tapped === selectedTokenId ? null : tapped) : null
+      );
+    }
     drag.current = null;
     if (drawing.current && draft) {
       const a = draft.pts[0], b = draft.pts[draft.pts.length - 1];
@@ -1066,6 +1109,9 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                     <circle r={2.4} fill="#f8fafc" stroke="#111" strokeWidth={0.4} />
                   ) : (
                     <>
+                      {tok.id === selectedTokenId && (
+                        <circle r={6} fill="none" stroke="#fff" strokeWidth={0.9} strokeDasharray="1.5 1.2" />
+                      )}
                       <circle
                         r={4.2}
                         fill={GROUP_COLOR[tok.group]}
@@ -1362,9 +1408,28 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           </div>
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
-              Bench {bench.length > 0 && `(${bench.length})`}
-            </p>
+            <div className="mb-2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                Bench {bench.length > 0 && `(${bench.length})`}
+              </p>
+              {selectedTokenId ? (
+                <p className="mt-1 rounded bg-primary/10 px-2 py-1 text-[11px] text-primary">
+                  {state.tokens.find((t) => t.id === selectedTokenId)?.label} selected — tap a
+                  bench player to bring them on.
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTokenId(null)}
+                    className="ml-1 underline"
+                  >
+                    Cancel
+                  </button>
+                </p>
+              ) : (
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Tap a player on the pitch to substitute them.
+                </p>
+              )}
+            </div>
             {roster.length === 0 ? (
               <p className="text-sm text-muted-foreground">This team has no players yet. Add players in the Squad tab.</p>
             ) : bench.length === 0 ? (
@@ -1375,7 +1440,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                   <button
                     key={p.id}
                     type="button"
-                    onClick={() => placePlayer(p)}
+                    onClick={() => (selectedTokenId ? substitute(p) : placePlayer(p))}
                     className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs hover:bg-muted"
                   >
                     <span className="inline-block size-2 rounded-full" style={{ background: GROUP_COLOR[groupOf(p.position)] }} />
