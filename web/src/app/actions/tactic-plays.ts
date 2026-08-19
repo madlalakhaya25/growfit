@@ -14,6 +14,7 @@ export interface SavedPlaySummary {
   fixture_id: string | null;
   shared: boolean;
   share_token: string | null;
+  voice_url: string | null;
 }
 
 export interface LinkTarget {
@@ -91,7 +92,7 @@ export async function listPlays(teamId: string): Promise<{ plays?: SavedPlaySumm
   const { supabase } = await requireUser();
   const { data, error } = await supabase
     .from("tactic_plays")
-    .select("id, name, notes, team_id, updated_at, concept_ids, session_id, fixture_id, shared, share_token")
+    .select("id, name, notes, team_id, updated_at, concept_ids, session_id, fixture_id, shared, share_token, voice_url")
     .eq("team_id", teamId)
     .order("updated_at", { ascending: false });
   if (error) return { error: error.message };
@@ -196,7 +197,7 @@ export async function sharePlayToSquad(input: {
 
 /** Read a shared play by token for the player-facing view. */
 export async function getSharedPlay(token: string): Promise<{
-  play?: { name: string; notes: string | null; data: unknown; concept_ids: string[]; team_name: string; age_group: string | null };
+  play?: { name: string; notes: string | null; data: unknown; concept_ids: string[]; voice_url: string | null; team_name: string; age_group: string | null };
   error?: string;
 }> {
   const { supabase } = await requireUser();
@@ -205,4 +206,70 @@ export async function getSharedPlay(token: string): Promise<{
   const res = data as { error?: string } & Record<string, unknown>;
   if (res?.error) return { error: res.error };
   return { play: res as never };
+}
+
+/** Attach a recorded voice note to a play. Audio lives in the academy-media bucket. */
+export async function uploadPlayVoiceNote(formData: FormData): Promise<{ url?: string; error?: string }> {
+  const { supabase } = await requireUser();
+
+  const playId = formData.get("play_id") as string;
+  const file = formData.get("file") as File | null;
+  if (!playId) return { error: "Save the play before recording a voice note." };
+  if (!file || !file.size) return { error: "No recording captured." };
+  if (file.size > 10 * 1024 * 1024) return { error: "Voice note must be under 10 MB." };
+  if (!file.type.startsWith("audio/")) return { error: "Only audio recordings are allowed." };
+
+  // Confirm the caller may write this play, and pick up any previous recording.
+  const { data: play } = await supabase
+    .from("tactic_plays")
+    .select("id, academy_id, voice_path")
+    .eq("id", playId)
+    .single();
+  if (!play) return { error: "Play not found." };
+
+  const ext = file.type.includes("mp4") ? "mp4" : file.type.includes("ogg") ? "ogg" : "webm";
+  const path = `${play.academy_id}/voice/${playId}-${Date.now()}.${ext}`;
+
+  const { error: storageErr } = await supabase.storage
+    .from("academy-media")
+    .upload(path, file, { contentType: file.type });
+  if (storageErr) return { error: storageErr.message };
+
+  const { data: { publicUrl } } = supabase.storage.from("academy-media").getPublicUrl(path);
+
+  const { error: updErr } = await supabase
+    .from("tactic_plays")
+    .update({ voice_url: publicUrl, voice_path: path })
+    .eq("id", playId);
+  if (updErr) return { error: updErr.message };
+
+  // Only remove the old file once the new one is safely recorded.
+  if (play.voice_path) {
+    await supabase.storage.from("academy-media").remove([play.voice_path]);
+  }
+
+  revalidatePath("/dashboard/coach/tactics/board");
+  return { url: publicUrl };
+}
+
+export async function deletePlayVoiceNote(playId: string): Promise<{ success?: boolean; error?: string }> {
+  const { supabase } = await requireUser();
+
+  const { data: play } = await supabase
+    .from("tactic_plays")
+    .select("voice_path")
+    .eq("id", playId)
+    .single();
+
+  const { error } = await supabase
+    .from("tactic_plays")
+    .update({ voice_url: null, voice_path: null })
+    .eq("id", playId);
+  if (error) return { error: error.message };
+
+  if (play?.voice_path) {
+    await supabase.storage.from("academy-media").remove([play.voice_path]);
+  }
+  revalidatePath("/dashboard/coach/tactics/board");
+  return { success: true };
 }
