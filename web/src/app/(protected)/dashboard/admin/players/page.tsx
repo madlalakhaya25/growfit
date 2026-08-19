@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { Upload } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
@@ -59,9 +60,18 @@ export default async function AdminPlayersPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Players</h1>
-        <p className="text-sm text-muted-foreground">{players?.length ?? 0} active players</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Players</h1>
+          <p className="text-sm text-muted-foreground">{players?.length ?? 0} active players</p>
+        </div>
+        <Link
+          href="/dashboard/admin/players/import"
+          className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+        >
+          <Upload className="size-4" aria-hidden="true" />
+          Import players
+        </Link>
       </div>
 
       <Suspense fallback={null}>
