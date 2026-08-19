@@ -261,8 +261,20 @@ export default async function CoachDashboardPage() {
               <CardTitle>Add another team</CardTitle>
               <CardDescription>Manage multiple squads from a single account.</CardDescription>
             </CardHeader>
-            <CardContent>
-              <CreateTeamForm />
+            <CardContent className="space-y-5">
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Join a team with a coach code</p>
+                <p className="text-xs text-muted-foreground">
+                  For a team your admin has already set up. A team can have more than
+                  one coach, so this works alongside whoever is already on it.
+                </p>
+                <JoinTeamForm compact />
+              </div>
+
+              <div className="border-t border-border pt-5 space-y-2">
+                <p className="text-sm font-medium">Or create a new team</p>
+                <CreateTeamForm />
+              </div>
             </CardContent>
           </Card>
         </div>
