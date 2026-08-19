@@ -173,3 +173,62 @@ PROGRESSION: [1 sentence on how to make it harder once they master it]`;
     return { error: err instanceof Error ? err.message : "AI service unavailable." };
   }
 }
+
+/**
+ * Analyse the opponent's shape on the board and advise how to counter it.
+ * Works from a text summary of what the coach actually placed, and is given the
+ * formations available in the app so its suggestion is one they can load.
+ */
+export async function analyseOpponent(params: {
+  ageGroup: string;
+  opponentFormation: string;
+  ourFormation: string;
+  summary: string;
+  availableFormations: string[];
+}): Promise<{ analysis?: string; error?: string }> {
+  try {
+    await requireUser();
+
+    const ageGroup = params.ageGroup.trim() || "U15";
+    const ltpdPhase = getLTPDPhase(ageGroup);
+
+    const prompt = `A youth football coach has set up an opponent's shape on a tactical board. Analyse it and advise how to counter it.
+
+OUR SHAPE: ${params.ourFormation}
+OPPONENT SHAPE: ${params.opponentFormation}
+AGE GROUP: ${ageGroup} | LTPD Phase: ${ltpdPhase}
+
+BOARD DESCRIPTION (generated from what the coach placed):
+${params.summary}
+
+FORMATIONS AVAILABLE IN THIS APP (recommend only from this list):
+${params.availableFormations.join(", ")}
+
+Give practical advice for countering this opponent, pitched at the LTPD phase above. Work only from the board description — do not invent opponent players or movements that are not listed. Keep it realistic for South African grassroots football with mixed-ability squads. At this age the priority is the players' development, so never advise anti-football or time-wasting.
+
+Return plain text (no markdown, no asterisks) in exactly this structure:
+
+WHAT THEY ARE DOING: [2-3 sentences reading their shape]
+WHERE THE SPACE IS: [2 numbered areas their shape leaves open and why]
+HOW TO COUNTER: [3 numbered practical instructions]
+SUGGESTED SHAPE: [one formation from the list above, and one sentence on why]
+WATCH OUT FOR: [2 threats their shape creates against us]
+TRAIN THIS WEEK: [1 sentence on what to rehearse in training]`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-lite",
+      contents: prompt,
+      config: {
+        maxOutputTokens: 1000,
+        systemInstruction:
+          "You are a UEFA Pro Licence and SAFA Level 4 Coaching Badge qualified youth development specialist and opposition analyst. Your advice is grounded in FIFA's Long-Term Player Development (LTPD) framework, the 4-Corner Player Development Model, SAFA's National Development Programme curriculum, and CAF youth development principles. You understand South African grassroots football. Player development always outranks winning a single match. Plain text only — no asterisks, no Markdown formatting.",
+      },
+    });
+
+    let text = response.text ?? "";
+    text = text.replace(/\*/g, "");
+    return { analysis: text };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "AI service unavailable." };
+  }
+}

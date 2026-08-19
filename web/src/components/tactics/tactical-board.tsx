@@ -4,12 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   MousePointer2, Eraser, Undo2, Redo2, RotateCcw, Users, Circle,
   ArrowUpRight, Minus, Waves, Pencil, Download, Tag, Grid3x3,
-  Play, Square, Plus, Save, FolderOpen, Send, Trash2, Film, Video, Sparkles,
+  Play, Square, Plus, Save, FolderOpen, Send, Trash2, Film, Video, Sparkles, Swords,
 } from "lucide-react";
 import { POSITIONS } from "@/lib/types";
 import { FORMATIONS, FORMATION_SIZES, type Formation } from "@/lib/formations";
 import { savePlay, listPlays, loadPlay, deletePlay, sharePlayToSquad, listLinkTargets, type SavedPlaySummary, type LinkTarget } from "@/app/actions/tactic-plays";
-import { describePlay } from "@/app/actions/tactics";
+import { describePlay, analyseOpponent } from "@/app/actions/tactics";
+import { SpeakButton } from "@/components/tactics/speak-button";
+import { VoiceNoteRecorder } from "@/components/tactics/voice-note-recorder";
 import { TACTICAL_CONCEPTS, TACTICAL_CATEGORIES, getConcept } from "@/lib/tactics";
 import { PLAY_TEMPLATES, expandTemplate } from "@/lib/play-templates";
 import { drawBoard, pickRecorderMime } from "@/lib/board-render";
@@ -243,8 +245,10 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const [targets, setTargets] = useState<{ sessions: LinkTarget[]; fixtures: LinkTarget[] }>({ sessions: [], fixtures: [] });
   const [filterConcept, setFilterConcept] = useState<string>("");
 
-  // AI describer
+  // AI describer + opponent analysis
   const [description, setDescription] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [voiceUrl, setVoiceUrl] = useState<string | null>(null);
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -510,6 +514,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setSessionId(meta?.session_id ?? "");
     setFixtureId(meta?.fixture_id ?? "");
     setDescription(null);
+    setAnalysis(null);
+    setVoiceUrl(meta?.voice_url ?? null);
     setNotice(`Loaded "${res.name}".`);
   }
 
@@ -525,6 +531,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setCurrentPlayId(null);
     setPlayName(tpl.label);
     setDescription(null);
+    setAnalysis(null);
+    setVoiceUrl(null);
     setNotice("Template loaded — drag it about, then save it as your own.");
   }
 
@@ -542,6 +550,25 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setDescription(res.description ?? null);
   }
 
+  async function handleAnalyseOpponent() {
+    if (!state.tokens.some((t) => t.kind === "opponent")) {
+      setNotice("Set up the opponent XI first so there's a shape to analyse.");
+      return;
+    }
+    setBusy("analyse");
+    setAnalysis(null);
+    const res = await analyseOpponent({
+      ageGroup: team?.age_group ?? "U15",
+      opponentFormation: FORMATIONS.find((f) => f.id === awayFormationId)?.label ?? "unknown",
+      ourFormation: FORMATIONS.find((f) => f.id === homeFormationId)?.label ?? "custom",
+      summary: summariseBoard(),
+      availableFormations: FORMATIONS.map((f) => `${f.label} (${f.format})`),
+    });
+    setBusy(null);
+    if (res.error) { setNotice(res.error); return; }
+    setAnalysis(res.analysis ?? null);
+  }
+
   /** Turn the board into text the model can reason about. */
   function summariseBoard(): string {
     const zone = (y: number) => (y < 50 ? "attacking third" : y < 100 ? "middle third" : "defensive third");
@@ -555,7 +582,13 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     lines.push(`Formation: ${FORMATIONS.find((f) => f.id === homeFormationId)?.label ?? "custom"} vs ${FORMATIONS.find((f) => f.id === awayFormationId)?.label ?? "unknown"}.`);
     lines.push(`Our players on the board (${players.length}):`);
     players.forEach((p) => lines.push(`- ${p.label || "player"} (${p.group}) in the ${side(p.x)} ${zone(p.y)}`));
-    if (opponents.length) lines.push(`Opponents on the board: ${opponents.length}.`);
+    if (opponents.length) {
+      lines.push(`Opponent players on the board (${opponents.length}):`);
+      opponents.forEach((o) => lines.push(`- opponent ${o.label || "?"} in the ${side(o.x)} ${zone(o.y)}`));
+      const deepest = Math.min(...opponents.map((o) => o.y));
+      const highest = Math.max(...opponents.map((o) => o.y));
+      lines.push(`Their block spans from the ${zone(highest)} back to the ${zone(deepest)}, so it is ${highest - deepest > 60 ? "stretched" : "compact"}.`);
+    }
     if (ball) lines.push(`Ball starts in the ${side(ball.x)} ${zone(ball.y)}.`);
 
     if (state.shapes.length) {
@@ -1199,18 +1232,41 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                 <Sparkles className="size-3 text-primary" aria-hidden="true" />
                 {busy === "describe" ? "Thinking…" : "Describe"}
               </button>
+              <button type="button" onClick={handleAnalyseOpponent} disabled={busy !== null} title="Analyse the opponent shape and advise how to counter it" className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
+                <Swords className="size-3 text-primary" aria-hidden="true" />
+                {busy === "analyse" ? "Analysing…" : "Counter them"}
+              </button>
               <button type="button" onClick={handleShare} disabled={busy !== null} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
                 <Send className="size-3" aria-hidden="true" /> Share to squad
               </button>
               {currentPlayId && (
-                <button type="button" onClick={() => { setCurrentPlayId(null); setPlayName(""); }} className="inline-flex h-8 items-center rounded-md border border-border bg-background px-2 text-xs hover:bg-muted">
+                <button type="button" onClick={() => { setCurrentPlayId(null); setPlayName(""); setVoiceUrl(null); setAnalysis(null); setDescription(null); }} className="inline-flex h-8 items-center rounded-md border border-border bg-background px-2 text-xs hover:bg-muted">
                   New
                 </button>
               )}
             </div>
+            {/* Voice note — the coach's own explanation, heard by players */}
+            <VoiceNoteRecorder playId={currentPlayId} initialUrl={voiceUrl} onChange={setVoiceUrl} />
+
             {description && (
-              <div className="rounded-md border border-border bg-background p-2 space-y-0.5 max-h-56 overflow-y-auto">
+              <div className="rounded-md border border-border bg-background p-2 space-y-1 max-h-56 overflow-y-auto">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Coaching points</p>
+                  <SpeakButton text={description} />
+                </div>
                 {description.trim().split("\n").filter(Boolean).map((l, i) => (
+                  <p key={i} className="text-[11px] text-muted-foreground leading-relaxed">{l}</p>
+                ))}
+              </div>
+            )}
+
+            {analysis && (
+              <div className="rounded-md border border-primary/40 bg-primary/5 p-2 space-y-1 max-h-56 overflow-y-auto">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Countering the opponent</p>
+                  <SpeakButton text={analysis} />
+                </div>
+                {analysis.trim().split("\n").filter(Boolean).map((l, i) => (
                   <p key={i} className="text-[11px] text-muted-foreground leading-relaxed">{l}</p>
                 ))}
               </div>
