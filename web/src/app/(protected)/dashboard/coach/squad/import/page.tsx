@@ -7,7 +7,12 @@ import { PlayerImportPanel, type ImportTeam } from "@/components/records/player-
 // Reading a PDF with several cards can take longer than the default limit.
 export const maxDuration = 60;
 
-export default async function CoachImportPlayersPage() {
+export default async function CoachImportPlayersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ team?: string }>;
+}) {
+  const { team: teamParam } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
@@ -30,7 +35,7 @@ export default async function CoachImportPlayersPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <Link href="/dashboard/coach/squad" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+        <Link href={teamParam ? `/dashboard/coach/squad?team=${teamParam}` : "/dashboard/coach/squad"} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-4" aria-hidden="true" />
           Back
         </Link>
@@ -43,7 +48,10 @@ export default async function CoachImportPlayersPage() {
         </div>
       </div>
 
-      <PlayerImportPanel teams={(teamRows ?? []) as ImportTeam[]} />
+      <PlayerImportPanel
+        teams={(teamRows ?? []) as ImportTeam[]}
+        defaultTeamId={teamParam ?? (teamRows ?? [])[0]?.id ?? ""}
+      />
     </div>
   );
 }

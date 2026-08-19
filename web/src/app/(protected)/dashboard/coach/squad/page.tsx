@@ -107,7 +107,7 @@ export default async function SquadPage({
         <div className="flex gap-2 shrink-0">
           <CopyInviteLinkButton inviteCode={team.invite_code} />
           <Button asChild variant="outline" className="shrink-0">
-            <Link href="/dashboard/coach/squad/import">
+            <Link href={`/dashboard/coach/squad/import?team=${team.id}`}>
               <Upload className="size-4" aria-hidden="true" />
               Import
             </Link>

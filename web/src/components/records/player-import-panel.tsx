@@ -15,9 +15,16 @@ const blankRow = (): ImportRow => ({
   fifa_number: null, id_number: null, age_group: null, position: null,
 });
 
-export function PlayerImportPanel({ teams }: { teams: ImportTeam[] }) {
+export function PlayerImportPanel({
+  teams,
+  defaultTeamId = "",
+}: {
+  teams: ImportTeam[];
+  /** Pre-selected when arriving from a squad, so an import is not orphaned. */
+  defaultTeamId?: string;
+}) {
   const [rows, setRows] = useState<ImportRow[]>([]);
-  const [teamId, setTeamId] = useState("");
+  const [teamId, setTeamId] = useState(defaultTeamId);
   const [busy, setBusy] = useState<"extract" | "create" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ created: number; skipped: string[] } | null>(null);
@@ -131,6 +138,13 @@ export function PlayerImportPanel({ teams }: { teams: ImportTeam[] }) {
               Skipped as already registered: {result.skipped.join(", ")}
             </p>
           )}
+          {result.created > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {teamId
+                ? `Added to ${teams.find((t) => t.id === teamId)?.name ?? "the squad"}.`
+                : "They are in your academy but not in a squad yet, so they will not appear on a squad page. Add them from Squad, then Add player."}
+            </p>
+          )}
         </div>
       )}
 
@@ -237,7 +251,7 @@ export function PlayerImportPanel({ teams }: { teams: ImportTeam[] }) {
                 onChange={(e) => setTeamId(e.target.value)}
                 className="rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
               >
-                <option value="">Don&apos;t add to a squad yet</option>
+                <option value="">No squad yet — add them later</option>
                 {teams.map((t) => (
                   <option key={t.id} value={t.id}>
                     Add to {t.name}{t.age_group ? ` · ${t.age_group}` : ""}
