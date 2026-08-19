@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { Upload } from "lucide-react";
+import { listUnassignedPlayers } from "@/app/actions/squad";
+import { UnassignedPlayersPanel, type AssignTeam } from "@/components/records/unassigned-players-panel";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +60,16 @@ export default async function AdminPlayersPage({
     }
   }
 
+  const [{ players: unassigned }, { data: assignTeams }] = await Promise.all([
+    listUnassignedPlayers(),
+    supabase
+      .from("teams")
+      .select("id, name, age_group")
+      .eq("academy_id", profile.academy_id)
+      .eq("active", true)
+      .order("name"),
+  ]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -73,6 +85,13 @@ export default async function AdminPlayersPage({
           Import players
         </Link>
       </div>
+
+      {(unassigned ?? []).length > 0 && (
+        <UnassignedPlayersPanel
+          players={unassigned ?? []}
+          teams={(assignTeams ?? []) as AssignTeam[]}
+        />
+      )}
 
       <Suspense fallback={null}>
         <AdminPlayerSearch initialQ={q} />

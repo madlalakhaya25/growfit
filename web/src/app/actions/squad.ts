@@ -249,3 +249,72 @@ export async function removeTeamCoach(teamId: string, coachId: string) {
   revalidatePath("/dashboard/admin/teams");
   return { success: true };
 }
+
+/** Admin: players in the academy who are not in any active squad. */
+export async function listUnassignedPlayers(): Promise<{
+  players?: { id: string; full_name: string; position: string | null; date_of_birth: string | null; mysafa_number: string | null }[];
+  error?: string;
+}> {
+  const { supabase, user } = await requireUser();
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("academy_id, role")
+    .eq("id", user.id)
+    .single();
+  if (!profile?.academy_id) return { error: "No academy linked." };
+  if (!["admin", "coach"].includes(profile.role)) return { error: "Not allowed." };
+
+  const [{ data: players }, { data: memberships }] = await Promise.all([
+    supabase
+      .from("players")
+      .select("id, full_name, position, date_of_birth, mysafa_number")
+      .eq("academy_id", profile.academy_id)
+      .eq("active", true)
+      .order("full_name"),
+    supabase.from("team_members").select("player_id").eq("active", true),
+  ]);
+
+  const inSquad = new Set((memberships ?? []).map((m: { player_id: string }) => m.player_id));
+  return {
+    players: ((players ?? []) as { id: string; full_name: string; position: string | null; date_of_birth: string | null; mysafa_number: string | null }[])
+      .filter((p) => !inSquad.has(p.id)),
+  };
+}
+
+/** Admin: put existing academy players into a squad. */
+export async function assignPlayersToTeam(input: { teamId: string; playerIds: string[] }) {
+  const { supabase, user } = await requireUser();
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("academy_id, role")
+    .eq("id", user.id)
+    .single();
+  if (!profile?.academy_id) return { error: "No academy linked." };
+  if (!["admin", "coach"].includes(profile.role)) return { error: "Not allowed." };
+  if (input.playerIds.length === 0) return { error: "Pick at least one player." };
+
+  // The team must belong to the caller's academy.
+  const { data: team } = await supabase
+    .from("teams")
+    .select("id")
+    .eq("id", input.teamId)
+    .eq("academy_id", profile.academy_id)
+    .eq("active", true)
+    .single();
+  if (!team) return { error: "Team not found in your academy." };
+
+  const { error } = await supabase
+    .from("team_members")
+    .upsert(
+      input.playerIds.map((player_id) => ({ team_id: team.id, player_id, active: true })),
+      { onConflict: "team_id,player_id" }
+    );
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/admin/players");
+  revalidatePath("/dashboard/coach/squad");
+  return { success: true, count: input.playerIds.length };
+}

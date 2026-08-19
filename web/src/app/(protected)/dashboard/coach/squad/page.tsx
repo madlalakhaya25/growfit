@@ -67,14 +67,20 @@ export default async function SquadPage({
     return { ...p, avg, ratingsCount: ratings.length, age, joinedAt: m.joined_at };
   }).filter(Boolean);
 
+  // Group by position group rather than the raw value. Players now carry
+  // specific roles (cb, lb, cdm, …) as well as the five legacy ones, and
+  // grouping on the raw value meant every specific role fell outside the
+  // render order and simply never appeared.
   const byPosition: Record<string, typeof squad> = {};
   for (const p of squad) {
-    const pos = p?.position ?? "unassigned";
-    if (!byPosition[pos]) byPosition[pos] = [];
-    byPosition[pos].push(p);
+    const group = p?.position
+      ? POSITIONS.find((x) => x.value === p.position)?.group ?? "Unassigned"
+      : "Unassigned";
+    if (!byPosition[group]) byPosition[group] = [];
+    byPosition[group].push(p);
   }
 
-  const posOrder = ["goalkeeper", "defender", "midfielder", "winger", "striker", "unassigned"];
+  const posOrder = ["Goalkeeper", "Defender", "Midfielder", "Forward", "Unassigned"];
 
   return (
     <div className="space-y-6">
@@ -143,7 +149,7 @@ export default async function SquadPage({
             .map((pos) => (
               <section key={pos}>
                 <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  {POSITIONS.find((p) => p.value === pos)?.label ?? "Unassigned"} · {byPosition[pos].length}
+                  {pos} · {byPosition[pos].length}
                 </h2>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {byPosition[pos].map((player) => {
