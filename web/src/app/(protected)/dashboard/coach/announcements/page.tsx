@@ -1,3 +1,4 @@
+import { LinkifiedText } from "@/components/linkified-text";
 import { redirect } from "next/navigation";
 import { Megaphone, PenLine, Eye } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -104,7 +105,7 @@ export default async function CoachAnnouncementsPage() {
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                      {a.body}
+                      <LinkifiedText text={a.body} />
                     </p>
                     <div className="flex flex-wrap items-center gap-2 pt-0.5">
                       {multiTeam && teamName && (

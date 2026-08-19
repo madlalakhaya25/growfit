@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { LayoutGrid, ChevronRight } from "lucide-react";
+import { LayoutGrid, ChevronRight, Sparkles } from "lucide-react";
 import { TacticalConceptPanel } from "@/components/ai/tactical-concept-panel";
 import { PositionalRolePanel } from "@/components/ai/positional-role-panel";
 
@@ -41,6 +41,22 @@ export default async function CoachTacticsPage() {
           <span className="block font-semibold text-sm">Open the Tactical Board</span>
           <span className="block text-xs text-muted-foreground">
             Set up your squad in a formation and draw runs &amp; passing lines.
+          </span>
+        </span>
+        <ChevronRight className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
+      </Link>
+
+      <Link
+        href="/dashboard/coach/assistant"
+        className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:bg-muted/40 transition-colors"
+      >
+        <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+          <Sparkles className="size-5" aria-hidden="true" />
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="block font-semibold text-sm">Ask the AI Coach Assistant</span>
+          <span className="block text-xs text-muted-foreground">
+            Squad-aware answers, a suggested XI, and match plans for your next fixture.
           </span>
         </span>
         <ChevronRight className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />

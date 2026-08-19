@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, FileText, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,8 +11,6 @@ import { POSITIONS } from "@/lib/types";
 import { ClaimProfileForm } from "./claim-profile-form";
 import { RatingChart } from "@/components/rating-chart";
 import { MediaGallery } from "@/components/media/media-gallery";
-import { DocumentHub } from "@/components/records/document-hub";
-import { PlayerIdentityForm } from "@/components/records/player-identity-form";
 import type { MilestoneCategory } from "@/app/actions/development";
 import { DevelopmentPlanPanel } from "@/components/development/development-plan-panel";
 import { MyPositionPanel } from "@/components/tactics/my-position-panel";
@@ -177,6 +175,10 @@ export default async function PlayerDashboardPage() {
   });
 
   const needsRegistration = !player.mysafa_number && !player.id_number;
+  const docsSigned = (myDocuments ?? []).filter(
+    (d: { status: string }) => d.status === "signed" || d.status === "uploaded"
+  ).length;
+  const docsOutstanding = Math.max(0, 6 - docsSigned);
 
   return (
     <div className="space-y-6">
@@ -472,28 +474,23 @@ export default async function PlayerDashboardPage() {
         </section>
       )}
 
-      <section id="registration" className="space-y-3">
-        <div>
-          <h2 className="text-base font-semibold">My Registration Numbers</h2>
-          <p className="text-sm text-muted-foreground">
-            Keep these up to date so your parent can link their account to your profile.
-          </p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4">
-          <PlayerIdentityForm
-            playerId={player.id}
-            initial={{ mysafa_number: player.mysafa_number, id_number: player.id_number }}
-          />
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <div>
-          <h2 className="text-base font-semibold">Documents &amp; Contracts</h2>
-          <p className="text-sm text-muted-foreground">{currentSeason} season — your parent or guardian signs these on your behalf.</p>
-        </div>
-        <DocumentHub playerId={player.id} season={currentSeason} documents={myDocuments ?? []} readOnly />
-      </section>
+      {/* Paperwork lives on its own page so the passport stays about football. */}
+      <Link
+        href="/dashboard/player/records"
+        className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:bg-muted/40 transition-colors"
+      >
+        <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+          <FileText className="size-5" aria-hidden="true" />
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="block font-semibold text-sm">My Records</span>
+          <span className="block text-xs text-muted-foreground">
+            Registration numbers and {currentSeason} season documents
+            {docsOutstanding > 0 ? ` · ${docsOutstanding} still outstanding` : ""}
+          </span>
+        </span>
+        <ChevronRight className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
+      </Link>
     </div>
   );
 }

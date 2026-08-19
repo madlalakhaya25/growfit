@@ -273,3 +273,56 @@ export async function deletePlayVoiceNote(playId: string): Promise<{ success?: b
   revalidatePath("/dashboard/coach/tactics/board");
   return { success: true };
 }
+
+/** Plays a player can see: shared, and belonging to a team they play for. */
+export async function listSharedPlaysForMe(): Promise<{
+  plays?: { id: string; name: string; notes: string | null; share_token: string; concept_ids: string[]; voice_url: string | null; team_name: string; updated_at: string }[];
+  error?: string;
+}> {
+  const { supabase, user } = await requireUser();
+
+  const { data: player } = await supabase
+    .from("players")
+    .select("id")
+    .eq("profile_id", user.id)
+    .eq("active", true)
+    .maybeSingle();
+  if (!player) return { plays: [] };
+
+  const { data: memberships } = await supabase
+    .from("team_members")
+    .select("team_id")
+    .eq("player_id", player.id)
+    .eq("active", true);
+
+  const teamIds = (memberships ?? []).map((m: { team_id: string }) => m.team_id);
+  if (teamIds.length === 0) return { plays: [] };
+
+  const { data, error } = await supabase
+    .from("tactic_plays")
+    .select("id, name, notes, share_token, concept_ids, voice_url, updated_at, teams ( name )")
+    .in("team_id", teamIds)
+    .eq("shared", true)
+    .order("updated_at", { ascending: false });
+
+  if (error) return { error: error.message };
+
+  type Row = {
+    id: string; name: string; notes: string | null; share_token: string;
+    concept_ids: string[]; voice_url: string | null; updated_at: string;
+    teams: { name: string } | { name: string }[] | null;
+  };
+
+  return {
+    plays: ((data ?? []) as Row[]).map((p) => ({
+      id: p.id,
+      name: p.name,
+      notes: p.notes,
+      share_token: p.share_token,
+      concept_ids: p.concept_ids ?? [],
+      voice_url: p.voice_url,
+      updated_at: p.updated_at,
+      team_name: (Array.isArray(p.teams) ? p.teams[0]?.name : p.teams?.name) ?? "",
+    })),
+  };
+}

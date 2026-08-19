@@ -1,3 +1,4 @@
+import { LinkifiedText } from "@/components/linkified-text";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -82,7 +83,7 @@ export default async function PlayerAnnouncementDetailPage({
             </span>
           </div>
           <p className="text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">
-            {announcement.body}
+            <LinkifiedText text={announcement.body} />
           </p>
         </div>
       </article>
