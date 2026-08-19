@@ -18,23 +18,56 @@ export default async function AdminTeamsPage() {
     .single();
   if (!profile?.academy_id) redirect("/auth/role");
 
-  const { data: teams } = await supabase
+  // Core query deliberately excludes coach_code and team_coaches: both arrive
+  // with migration 019, and asking for a column that does not exist fails the
+  // whole query — which used to render as "No teams yet" rather than an error.
+  const { data: teams, error: teamsError } = await supabase
     .from("teams")
     .select(`
-      id, name, age_group, invite_code, coach_code, active, created_at,
+      id, name, age_group, invite_code, active, created_at,
       profiles ( full_name ),
-      team_coaches ( coach_id, is_head, profiles ( full_name ) ),
       team_members ( player_id, active )
     `)
     .eq("academy_id", profile.academy_id)
     .eq("active", true)
     .order("name");
 
+  // Best effort: coach codes and the coaching roster. Missing before 019.
+  const teamIds = (teams ?? []).map((t: { id: string }) => t.id);
+  const [{ data: codeRows }, { data: rosterRows }] = teamIds.length
+    ? await Promise.all([
+        supabase.from("teams").select("id, coach_code").in("id", teamIds),
+        supabase
+          .from("team_coaches")
+          .select("team_id, coach_id, is_head, profiles ( full_name )")
+          .in("team_id", teamIds),
+      ])
+    : [{ data: null }, { data: null }];
+
+  const coachCodeById = new Map(
+    ((codeRows ?? []) as { id: string; coach_code: string | null }[]).map((r) => [r.id, r.coach_code])
+  );
+  const rosterByTeam = new Map<string, { id: string; name: string; isHead: boolean }[]>();
+  for (const r of (rosterRows ?? []) as {
+    team_id: string; coach_id: string; is_head: boolean;
+    profiles: { full_name: string } | { full_name: string }[] | null;
+  }[]) {
+    const pr = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
+    const list = rosterByTeam.get(r.team_id) ?? [];
+    list.push({ id: r.coach_id, name: pr?.full_name ?? "Coach", isHead: r.is_head });
+    rosterByTeam.set(r.team_id, list);
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Teams</h1>
         <p className="text-sm text-muted-foreground">{teams?.length ?? 0} active teams</p>
+        {teamsError && (
+          <p className="mt-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            Could not load teams: {teamsError.message}
+          </p>
+        )}
       </div>
 
       {(teams ?? []).length === 0 ? (
@@ -47,8 +80,7 @@ export default async function AdminTeamsPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {(teams ?? []).map((t: {
-            id: string; name: string; age_group: string | null; invite_code: string; coach_code: string | null;
-            team_coaches?: { coach_id: string; is_head: boolean; profiles: { full_name: string } | { full_name: string }[] | null }[];
+            id: string; name: string; age_group: string | null; invite_code: string;
             profiles: { full_name: string } | { full_name: string }[] | null;
             team_members: { player_id: string; active: boolean }[];
           }) => {
@@ -71,10 +103,8 @@ export default async function AdminTeamsPage() {
                 </div>
 
                 {(() => {
-                  const roster = (t.team_coaches ?? []).map((tc) => {
-                    const pr = Array.isArray(tc.profiles) ? tc.profiles[0] : tc.profiles;
-                    return { id: tc.coach_id, name: pr?.full_name ?? "Coach", isHead: tc.is_head };
-                  });
+                  const roster = rosterByTeam.get(t.id)
+                    ?? (coach ? [{ id: "legacy", name: coach.full_name, isHead: true }] : []);
                   if (roster.length === 0) {
                     return (
                       <p className="text-sm text-muted-foreground">
@@ -93,7 +123,9 @@ export default async function AdminTeamsPage() {
                             <span className="font-medium truncate">{c.name}</span>
                             <span className="flex items-center gap-1.5 shrink-0">
                               {c.isHead && <Badge variant="neutral">Head</Badge>}
-                              <RemoveCoachButton teamId={t.id} coachId={c.id} coachName={c.name} />
+                              {c.id !== "legacy" && (
+                                <RemoveCoachButton teamId={t.id} coachId={c.id} coachName={c.name} />
+                              )}
                             </span>
                           </li>
                         ))}
@@ -107,7 +139,7 @@ export default async function AdminTeamsPage() {
                     <p className="text-xs text-muted-foreground">Player invite code</p>
                     <p className="font-mono font-bold tracking-widest">{t.invite_code}</p>
                   </div>
-                  <CoachCodeBlock teamId={t.id} code={t.coach_code} />
+                  <CoachCodeBlock teamId={t.id} code={coachCodeById.get(t.id) ?? null} />
                 </div>
 
                 <TeamActions teamId={t.id} name={t.name} ageGroup={t.age_group ?? ""} />

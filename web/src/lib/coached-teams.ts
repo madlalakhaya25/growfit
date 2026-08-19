@@ -8,8 +8,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * across all age groups alongside the age-group coach — so membership lives in
  * team_coaches and queries filter by these ids instead.
  *
- * teams.coach_id still marks the head coach, and is kept in step by the
- * database functions in migration 019.
+ * Falls back to teams.coach_id when team_coaches is missing, so the app keeps
+ * working if the code is deployed before migration 019 is applied. Without that
+ * fallback a missing table silently returns no teams, which reads as "you have
+ * no teams" rather than "the database is behind".
  */
 export async function getCoachedTeamIds(
   // The Supabase client is generated without database types in this project.
@@ -17,10 +19,21 @@ export async function getCoachedTeamIds(
   supabase: SupabaseClient<any, any, any>,
   userId: string
 ): Promise<string[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("team_coaches")
     .select("team_id")
     .eq("coach_id", userId);
 
-  return ((data ?? []) as { team_id: string }[]).map((r) => r.team_id);
+  if (!error) {
+    return ((data ?? []) as { team_id: string }[]).map((r) => r.team_id);
+  }
+
+  // Migration 019 not applied yet — read the single-coach column instead.
+  const { data: legacy } = await supabase
+    .from("teams")
+    .select("id")
+    .eq("coach_id", userId)
+    .eq("active", true);
+
+  return ((legacy ?? []) as { id: string }[]).map((r) => r.id);
 }
