@@ -1,9 +1,24 @@
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
 import { LayoutGrid, ChevronRight } from "lucide-react";
 import { TacticalConceptPanel } from "@/components/ai/tactical-concept-panel";
 import { PositionalRolePanel } from "@/components/ai/positional-role-panel";
 
-export default function CoachTacticsPage() {
+export default async function CoachTacticsPage() {
+  // Pass the coach's team so concept advice can cite their real squad numbers.
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: team } = user
+    ? await supabase
+        .from("teams")
+        .select("id")
+        .eq("coach_id", user.id)
+        .eq("active", true)
+        .order("name")
+        .limit(1)
+        .maybeSingle()
+    : { data: null };
+
   return (
     <div className="space-y-6">
       <div>
@@ -31,7 +46,7 @@ export default function CoachTacticsPage() {
         <ChevronRight className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
       </Link>
 
-      <TacticalConceptPanel />
+      <TacticalConceptPanel teamId={team?.id} />
       <PositionalRolePanel />
     </div>
   );

@@ -13,7 +13,7 @@ import { generateSessionPlan } from "@/app/actions/session-generator";
 
 const AGE_GROUPS = ["U9", "U11", "U13", "U15", "U17", "U19", "Senior"];
 
-export function TacticalConceptPanel() {
+export function TacticalConceptPanel({ teamId }: { teamId?: string } = {}) {
   const [conceptId, setConceptId] = useState<string>(TACTICAL_CONCEPTS[0].id);
   const [ageGroup, setAgeGroup] = useState("U15");
 
@@ -30,7 +30,7 @@ export function TacticalConceptPanel() {
     setError(null);
     setSession(null);
     startExplain(async () => {
-      const result = await explainTacticalConcept({ conceptId, ageGroup });
+      const result = await explainTacticalConcept({ conceptId, ageGroup, teamId });
       if (result.error) setError(result.error);
       else setExplanation(result.explanation ?? null);
     });
