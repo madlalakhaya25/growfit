@@ -14,6 +14,7 @@ import {
   Camera,
   Building2,
   Brain,
+  LayoutGrid,
   CheckCircle2,
   ArrowRight,
 } from "lucide-react";
@@ -43,6 +44,7 @@ const ROLES = [
       "Match ratings and performance history",
       "Training attendance and session notes",
       "Development milestones across 5 categories",
+      "Watch your coach's plays and hear their voice note",
     ],
   },
   {
@@ -51,10 +53,10 @@ const ROLES = [
     color: "bg-primary/10 text-primary",
     description: "Tools that make coaching easier.",
     bullets: [
+      "AI assistant that knows your squad by name",
+      "Tactical board with formations, animation, and video export",
       "AI session plans aligned to FIFA LTPD and SAFA NDP",
-      "Post-match ratings, reports, and analysis",
-      "Player attribute assessments (4-Corner Model)",
-      "Fixtures, training, and team announcements",
+      "Suggested XI, match plans, and post-match reports",
     ],
   },
   {
@@ -93,6 +95,16 @@ const FEATURES = [
     Icon: Wand2,
     title: "AI Session Generator",
     text: "Builds LTPD-phased drills with 4-Corner coaching cues, a FIFA session structure, and SAFA NDP competency alignment.",
+  },
+  {
+    Icon: Brain,
+    title: "AI Coach Assistant",
+    text: "Ask about your own squad and get answers grounded in real ratings, form, attendance, and results. It suggests an XI and writes the match plan.",
+  },
+  {
+    Icon: LayoutGrid,
+    title: "Tactical Board",
+    text: "Set your squad in any formation from 5-a-side to 11-a-side, draw runs and passes, animate the play, and share it to the squad as a video.",
   },
   {
     Icon: Brain,
@@ -216,7 +228,7 @@ export default function Home() {
             <dl className="mt-10 grid max-w-md grid-cols-3 gap-6">
               {[
                 ["4", "User roles"],
-                ["5", "AI reports"],
+                ["13", "AI tools"],
                 ["360°", "Player view"],
               ].map(([n, label]) => (
                 <div key={label}>
@@ -315,11 +327,11 @@ export default function Home() {
               <div>
                 <Badge variant="brand" className="mb-4">AI-Powered Development</Badge>
                 <h2 className="text-3xl font-bold tracking-tight">
-                  Five AI reports, each shaped by{" "}
+                  Thirteen AI tools, each shaped by{" "}
                   <span className="text-primary">FIFA, SAFA and CAF standards.</span>
                 </h2>
                 <p className="mt-4 text-muted-foreground leading-relaxed">
-                  Each report is built around the FIFA Long-Term Player Development
+                  Every one is built around the FIFA Long-Term Player Development
                   framework, the 4-Corner Model, and SAFA&apos;s National Development
                   Programme. So coaches and parents get feedback that&apos;s grounded
                   in how youth development actually works, not just numbers on a screen.
@@ -327,6 +339,8 @@ export default function Home() {
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
                 {[
+                  { icon: Brain,      label: "AI Coach Assistant",      desc: "Squad-aware answers, suggested XI, and match plans" },
+                  { icon: LayoutGrid, label: "Tactical Analysis",       desc: "Reads the board, explains a play, counters the opponent" },
                   { icon: Wand2,      label: "AI Session Planner",     desc: "LTPD-phased drills with 4-Corner coaching cues" },
                   { icon: Brain,      label: "Player Insights",         desc: "Position competencies and pathway readiness" },
                   { icon: Trophy,     label: "Match Reports",           desc: "FIFA technical methodology with a development lens" },

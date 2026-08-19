@@ -93,7 +93,15 @@ player_attributes       — coach ability assessment (pace, shooting, …, physi
 training_sessions       — scheduled training with type, location, notes
 training_drills         — ordered drills within a session; optional video URL
 announcements           — team broadcast messages from coaches
+tactic_plays            — saved tactical board plays: JSONB board state (tokens,
+                          drawn shapes, animation frames), concept tags, optional
+                          session/fixture link, share token + shared flag for the
+                          player-facing view, and an optional coach voice note
 ```
+
+Board state is deliberately stored as JSONB rather than normalised columns: the
+board's shape is still evolving, and a play is always read and written whole, so
+there is nothing to gain from splitting tokens and frames into their own tables.
 
 ### Key invariants
 
@@ -101,6 +109,18 @@ announcements           — team broadcast messages from coaches
 - `player_ratings`: fixture-linked ratings have a `UNIQUE(fixture_id, player_id, coach_id)` partial index; standalone ratings (no fixture) are unrestricted
 - `player_attributes`: one row per `(player_id, coach_id)` — upserted on every assessment
 - All tables have `ENABLE ROW LEVEL SECURITY`
+
+### AI layer
+
+AI features are Gemini-backed server actions in `web/src/app/actions/`. They share
+one squad-context builder (`squad-context.ts`) that assembles the team's real data
+— players with position, form and training attendance, squad attribute averages,
+recent results, and previous meetings with an upcoming opponent — into a single
+text brief. That brief is passed into the prompt so advice cites real players and
+real numbers.
+
+The brief is rebuilt per request rather than cached, so answers always reflect
+current data, and prompts forbid inventing players or statistics not present in it.
 
 ### Helper functions (SECURITY DEFINER)
 

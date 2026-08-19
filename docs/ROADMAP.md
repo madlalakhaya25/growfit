@@ -66,6 +66,26 @@ FootballPath is built incrementally. This document tracks what has shipped, what
 
 ---
 
+### Phase 4 — Tactics
+
+- Tactical board: 16 formation presets (5/7/9/11-a-side), automatic player
+  assignment by position, opponent set-up in the opposing half
+- Drawing tools: runs, passes, dribbles, freehand; undo/redo; names toggle
+- Pitch overlays: thirds, channels and half-spaces, zone 14 and cut-back zones
+- Frame-by-frame animation with playback, PNG export, and video recording
+- Saved plays: concept tags, session/fixture links, filtering, templates
+- Shared plays with a player-facing animated view and coach voice notes
+- Tactical concept library, positional roles, and a player position guide
+
+### Phase 5 — Squad-aware AI
+
+- Shared squad-context layer feeding real ratings, form, attendance and results
+  into the AI features
+- Conversational coach assistant with multi-turn follow-ups
+- Suggested XI with per-player reasoning, and full pre-match plans
+- Play describer and opponent counter-analysis from the board
+- Read-aloud for AI output at the touchline
+
 ## In Progress 🔄
 
 ### Admin Dashboard
