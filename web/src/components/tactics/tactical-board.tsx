@@ -4,11 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   MousePointer2, Eraser, Undo2, Redo2, RotateCcw, Users, Circle,
   ArrowUpRight, Minus, Waves, Pencil, Download, Tag, Grid3x3,
-  Play, Square, Plus, Save, FolderOpen, Send, Trash2, Film, Video,
+  Play, Square, Plus, Save, FolderOpen, Send, Trash2, Film, Video, Sparkles,
 } from "lucide-react";
 import { POSITIONS } from "@/lib/types";
 import { FORMATIONS, FORMATION_SIZES, type Formation } from "@/lib/formations";
-import { savePlay, listPlays, loadPlay, deletePlay, sharePlayToSquad, type SavedPlaySummary } from "@/app/actions/tactic-plays";
+import { savePlay, listPlays, loadPlay, deletePlay, sharePlayToSquad, listLinkTargets, type SavedPlaySummary, type LinkTarget } from "@/app/actions/tactic-plays";
+import { describePlay } from "@/app/actions/tactics";
+import { TACTICAL_CONCEPTS, TACTICAL_CATEGORIES, getConcept } from "@/lib/tactics";
 import { drawBoard, pickRecorderMime } from "@/lib/board-render";
 
 // ── Types ────────────────────────────────────────────────────────
@@ -106,6 +108,19 @@ function assignToSlots(formation: Formation, roster: BoardPlayer[]): (BoardPlaye
     out[i] = pool.shift();
   });
   return out;
+}
+
+/**
+ * Squeeze a full-pitch formation slot into one half, so two teams can be shown
+ * facing each other. Home keeps the bottom half, away is mirrored into the top.
+ * GK sits deepest, the furthest forward player sits nearest halfway.
+ */
+function compress(slot: { x: number; y: number }, side: "home" | "away"): { x: number; y: number } {
+  const DEEPEST = 142, HIGHEST = 38; // y range formations actually use
+  const t = Math.max(0, Math.min(1, (DEEPEST - slot.y) / (DEEPEST - HIGHEST)));
+  return side === "home"
+    ? { x: slot.x, y: 146 - t * 68 }        // 146 (own goal) → 78 (just short of halfway)
+    : { x: W - slot.x, y: 4 + t * 68 };     // 4 (their goal) → 72, mirrored across
 }
 
 /** Wavy path for a dribble line. */
@@ -219,6 +234,16 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const [currentPlayId, setCurrentPlayId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // Tagging + linking
+  const [conceptIds, setConceptIds] = useState<string[]>([]);
+  const [sessionId, setSessionId] = useState<string>("");
+  const [fixtureId, setFixtureId] = useState<string>("");
+  const [targets, setTargets] = useState<{ sessions: LinkTarget[]; fixtures: LinkTarget[] }>({ sessions: [], fixtures: [] });
+  const [filterConcept, setFilterConcept] = useState<string>("");
+
+  // AI describer
+  const [description, setDescription] = useState<string | null>(null);
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -440,7 +465,11 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     const res = await listPlays(id);
     if (res.plays) setPlays(res.plays);
   }
-  useEffect(() => { void refreshPlays(teamId); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [teamId]);
+  useEffect(() => {
+    void refreshPlays(teamId);
+    if (teamId) void listLinkTargets(teamId).then(setTargets);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [teamId]);
 
   async function handleSave() {
     const name = playName.trim();
@@ -451,6 +480,9 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       teamId,
       name,
       data: { tokens: state.tokens, shapes: state.shapes, frames, homeFormationId, awayFormationId },
+      conceptIds,
+      sessionId: sessionId || null,
+      fixtureId: fixtureId || null,
     });
     setBusy(null);
     if (res.error) { setNotice(res.error); return; }
@@ -472,7 +504,60 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     if (d.awayFormationId) setAwayFormationId(d.awayFormationId);
     setCurrentPlayId(id);
     setPlayName(res.name ?? "");
+    const meta = plays.find((p) => p.id === id);
+    setConceptIds(meta?.concept_ids ?? []);
+    setSessionId(meta?.session_id ?? "");
+    setFixtureId(meta?.fixture_id ?? "");
+    setDescription(null);
     setNotice(`Loaded "${res.name}".`);
+  }
+
+  async function handleDescribe() {
+    setBusy("describe");
+    setDescription(null);
+    const res = await describePlay({
+      playName: playName.trim(),
+      ageGroup: team?.age_group ?? "U15",
+      conceptLabels: conceptIds.map((id) => getConcept(id)?.label ?? id),
+      summary: summariseBoard(),
+    });
+    setBusy(null);
+    if (res.error) { setNotice(res.error); return; }
+    setDescription(res.description ?? null);
+  }
+
+  /** Turn the board into text the model can reason about. */
+  function summariseBoard(): string {
+    const zone = (y: number) => (y < 50 ? "attacking third" : y < 100 ? "middle third" : "defensive third");
+    const side = (x: number) => (x < 33 ? "left" : x > 67 ? "right" : "central");
+
+    const players = state.tokens.filter((t) => t.kind === "player");
+    const opponents = state.tokens.filter((t) => t.kind === "opponent");
+    const ball = state.tokens.find((t) => t.kind === "ball");
+
+    const lines: string[] = [];
+    lines.push(`Formation: ${FORMATIONS.find((f) => f.id === homeFormationId)?.label ?? "custom"} vs ${FORMATIONS.find((f) => f.id === awayFormationId)?.label ?? "unknown"}.`);
+    lines.push(`Our players on the board (${players.length}):`);
+    players.forEach((p) => lines.push(`- ${p.label || "player"} (${p.group}) in the ${side(p.x)} ${zone(p.y)}`));
+    if (opponents.length) lines.push(`Opponents on the board: ${opponents.length}.`);
+    if (ball) lines.push(`Ball starts in the ${side(ball.x)} ${zone(ball.y)}.`);
+
+    if (state.shapes.length) {
+      lines.push("Lines drawn:");
+      state.shapes.forEach((sh) => {
+        const a = sh.pts[0], b = sh.pts[sh.pts.length - 1];
+        const kind = sh.kind === "run" ? "a run" : sh.kind === "pass" ? "a pass" : sh.kind === "dribble" ? "a dribble" : "a freehand mark";
+        lines.push(`- ${kind} from the ${side(a.x)} ${zone(a.y)} to the ${side(b.x)} ${zone(b.y)}`);
+      });
+    } else {
+      lines.push("No runs or passes drawn.");
+    }
+
+    lines.push(frames.length >= 2
+      ? `The play has ${frames.length} movement steps captured as a sequence.`
+      : "No movement sequence captured.");
+
+    return lines.join("\n");
   }
 
   async function handleDelete(id: string) {
@@ -488,8 +573,9 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   async function handleShare() {
     const name = playName.trim();
     if (!name) { setNotice("Name and save the play before sharing."); return; }
+    if (!currentPlayId) { setNotice("Save the play before sharing it."); return; }
     setBusy("share");
-    const res = await sharePlayToSquad({ teamId, playName: name });
+    const res = await sharePlayToSquad({ teamId, playId: currentPlayId, playName: name });
     setBusy(null);
     setNotice(res.error ?? `Shared "${name}" with the squad.`);
   }
@@ -508,42 +594,69 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     const f = FORMATIONS.find((x) => x.id === homeFormationId)!;
     const assigned = assignToSlots(f, roster);
     snapshot();
-    setState((st) => ({
-      ...st,
-      tokens: [
-        ...st.tokens.filter((t) => t.kind !== "player"),
-        ...f.slots.map((slot, i) => {
-          const p = assigned[i];
-          return {
-            id: uid("h"),
-            label: p ? shortLabel(p.full_name) : String(i + 1),
-            x: slot.x, y: slot.y,
-            kind: "player" as const,
-            group: p ? groupOf(p.position) : groupOf(slot.role),
-            playerId: p?.id,
-          };
-        }),
-      ],
-    }));
+    setState((st) => {
+      // Only use the full pitch when we're the only team on the board.
+      const vsOpponent = st.tokens.some((t) => t.kind === "opponent");
+      return {
+        ...st,
+        tokens: [
+          ...st.tokens.filter((t) => t.kind !== "player"),
+          ...f.slots.map((slot, i) => {
+            const p = assigned[i];
+            const pos = vsOpponent ? compress(slot, "home") : slot;
+            return {
+              id: uid("h"),
+              label: p ? shortLabel(p.full_name) : String(i + 1),
+              x: pos.x, y: pos.y,
+              kind: "player" as const,
+              group: p ? groupOf(p.position) : groupOf(slot.role),
+              playerId: p?.id,
+            };
+          }),
+        ],
+      };
+    });
   }
   function setUpAway() {
     const f = FORMATIONS.find((x) => x.id === awayFormationId)!;
+    const home = FORMATIONS.find((x) => x.id === homeFormationId)!;
+    const assigned = assignToSlots(home, roster);
     snapshot();
-    setState((st) => ({
-      ...st,
-      tokens: [
-        ...st.tokens.filter((t) => t.kind !== "opponent"),
-        // Rotate 180° so the opponent defends the top goal.
-        ...f.slots.map((slot, i) => ({
-          id: uid("a"),
-          label: String(i + 1),
-          x: W - slot.x,
-          y: H - slot.y,
-          kind: "opponent" as const,
-          group: "Opponent",
-        })),
-      ],
-    }));
+    setState((st) => {
+      const hadHome = st.tokens.some((t) => t.kind === "player");
+      return {
+        ...st,
+        tokens: [
+          ...st.tokens.filter((t) => t.kind !== "opponent" && t.kind !== "player"),
+          // With both teams up, each side is compressed into its own half so
+          // the shapes face each other instead of interleaving through midfield.
+          ...(hadHome
+            ? home.slots.map((slot, i) => {
+                const p = assigned[i];
+                const c = compress(slot, "home");
+                return {
+                  id: uid("h"),
+                  label: p ? shortLabel(p.full_name) : String(i + 1),
+                  x: c.x, y: c.y,
+                  kind: "player" as const,
+                  group: p ? groupOf(p.position) : groupOf(slot.role),
+                  playerId: p?.id,
+                };
+              })
+            : []),
+          ...f.slots.map((slot, i) => {
+            const c = compress(slot, "away");
+            return {
+              id: uid("a"),
+              label: String(i + 1),
+              x: c.x, y: c.y,
+              kind: "opponent" as const,
+              group: "Opponent",
+            };
+          }),
+        ],
+      };
+    });
   }
   function placePlayer(p: BoardPlayer) {
     snapshot();
@@ -993,9 +1106,70 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               maxLength={80}
               className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
             />
+            {/* Tag by tactical concept */}
+            <details className="rounded-md border border-border bg-background">
+              <summary className="cursor-pointer px-2 py-1.5 text-xs text-muted-foreground">
+                Concepts {conceptIds.length > 0 && `(${conceptIds.length})`}
+              </summary>
+              <div className="max-h-40 overflow-y-auto px-2 pb-2 space-y-1.5">
+                {TACTICAL_CATEGORIES.map((cat) => {
+                  const items = TACTICAL_CONCEPTS.filter((c) => c.category === cat);
+                  if (items.length === 0) return null;
+                  return (
+                    <div key={cat}>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground pt-1">{cat}</p>
+                      {items.map((c) => (
+                        <label key={c.id} className="flex items-start gap-1.5 py-0.5 text-xs cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={conceptIds.includes(c.id)}
+                            onChange={(e) =>
+                              setConceptIds((ids) =>
+                                e.target.checked ? [...ids, c.id] : ids.filter((x) => x !== c.id)
+                              )
+                            }
+                            className="mt-0.5"
+                          />
+                          <span>{c.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
+
+            {/* Attach to a session or fixture */}
+            <select
+              value={sessionId}
+              onChange={(e) => { setSessionId(e.target.value); if (e.target.value) setFixtureId(""); }}
+              aria-label="Attach to training session"
+              className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">Not attached to a session</option>
+              {targets.sessions.map((s) => (
+                <option key={s.id} value={s.id}>{s.when} · {s.label}</option>
+              ))}
+            </select>
+            <select
+              value={fixtureId}
+              onChange={(e) => { setFixtureId(e.target.value); if (e.target.value) setSessionId(""); }}
+              aria-label="Attach to fixture"
+              className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">Not attached to a fixture</option>
+              {targets.fixtures.map((f) => (
+                <option key={f.id} value={f.id}>{f.when} · {f.label}</option>
+              ))}
+            </select>
+
             <div className="flex flex-wrap gap-1.5">
               <button type="button" onClick={handleSave} disabled={busy !== null} className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground disabled:opacity-50">
                 <Save className="size-3" aria-hidden="true" /> {currentPlayId ? "Update" : "Save"}
+              </button>
+              <button type="button" onClick={handleDescribe} disabled={busy !== null} title="Generate coaching points from the board" className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
+                <Sparkles className="size-3 text-primary" aria-hidden="true" />
+                {busy === "describe" ? "Thinking…" : "Describe"}
               </button>
               <button type="button" onClick={handleShare} disabled={busy !== null} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
                 <Send className="size-3" aria-hidden="true" /> Share to squad
@@ -1006,9 +1180,33 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                 </button>
               )}
             </div>
+            {description && (
+              <div className="rounded-md border border-border bg-background p-2 space-y-0.5 max-h-56 overflow-y-auto">
+                {description.trim().split("\n").filter(Boolean).map((l, i) => (
+                  <p key={i} className="text-[11px] text-muted-foreground leading-relaxed">{l}</p>
+                ))}
+              </div>
+            )}
+
+            {plays.length > 1 && (
+              <select
+                value={filterConcept}
+                onChange={(e) => setFilterConcept(e.target.value)}
+                aria-label="Filter plays by concept"
+                className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">All plays</option>
+                {TACTICAL_CONCEPTS.filter((c) => plays.some((p) => p.concept_ids?.includes(c.id))).map((c) => (
+                  <option key={c.id} value={c.id}>{c.label}</option>
+                ))}
+              </select>
+            )}
+
             {plays.length > 0 && (
               <ul className="space-y-1 pt-1">
-                {plays.map((p) => (
+                {plays
+                  .filter((p) => !filterConcept || p.concept_ids?.includes(filterConcept))
+                  .map((p) => (
                   <li key={p.id} className="flex items-center gap-1.5">
                     <button
                       type="button"

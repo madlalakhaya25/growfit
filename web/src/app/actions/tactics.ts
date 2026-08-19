@@ -115,3 +115,61 @@ COACHING CUES: [3 short phrases the coach can shout during play]`;
     return { error: err instanceof Error ? err.message : "AI service unavailable." };
   }
 }
+
+/**
+ * Describe a play drawn on the tactical board. The board state is summarised
+ * into text (positions by zone, drawn runs/passes, movement steps) and the
+ * model turns that into coaching points — so the description follows what the
+ * coach actually drew rather than inventing a play.
+ */
+export async function describePlay(params: {
+  playName: string;
+  ageGroup: string;
+  conceptLabels: string[];
+  summary: string;
+}): Promise<{ description?: string; error?: string }> {
+  try {
+    await requireUser();
+
+    const ageGroup = params.ageGroup.trim() || "U15";
+    const ltpdPhase = getLTPDPhase(ageGroup);
+    const concepts = params.conceptLabels.length
+      ? params.conceptLabels.join(", ")
+      : "not tagged";
+
+    const prompt = `A youth football coach has drawn a play on a tactical board. Turn it into coaching points.
+
+PLAY NAME: ${params.playName || "Untitled play"}
+AGE GROUP: ${ageGroup} | LTPD Phase: ${ltpdPhase}
+TAGGED CONCEPTS: ${concepts}
+
+BOARD DESCRIPTION (generated from what the coach drew):
+${params.summary}
+
+Describe what this play is doing and how to coach it, pitched at the LTPD phase above. Work only from the board description — do not invent players or movements that are not listed. If the board is sparse, say what the coach should add.
+
+Return plain text (no markdown, no asterisks) in exactly this structure:
+
+WHAT THIS PLAY DOES: [2-3 sentences]
+KEY MOMENTS: [3 numbered moments in the sequence and what matters at each]
+COACHING POINTS: [3 numbered points to emphasise at ${ageGroup}]
+WHAT TO WATCH FOR: [2 signs it is working]
+PROGRESSION: [1 sentence on how to make it harder once they master it]`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-lite",
+      contents: prompt,
+      config: {
+        maxOutputTokens: 900,
+        systemInstruction:
+          "You are a UEFA Pro Licence and SAFA Level 4 Coaching Badge qualified youth development specialist. Your guidance is grounded in FIFA's Long-Term Player Development (LTPD) framework, the 4-Corner Player Development Model, SAFA's National Development Programme curriculum, and CAF youth development principles. You understand South African grassroots football and keep everything age-appropriate and player-centred. Plain text only — no asterisks, no Markdown formatting.",
+      },
+    });
+
+    let text = response.text ?? "";
+    text = text.replace(/\*/g, "");
+    return { description: text };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "AI service unavailable." };
+  }
+}
