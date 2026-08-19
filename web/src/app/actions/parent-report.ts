@@ -1,6 +1,7 @@
 "use server";
 
 import { GoogleGenAI } from "@google/genai";
+import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
@@ -139,7 +140,7 @@ Use these exact section headers:
 6. FROM THE COACHING STAFF:`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-lite",
+      model: AI_MODEL,
       contents: prompt,
       config: {
         maxOutputTokens: 700,

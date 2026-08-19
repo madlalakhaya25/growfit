@@ -1,6 +1,7 @@
 "use server";
 
 import { GoogleGenAI, Type } from "@google/genai";
+import { AI_MODEL_DOC } from "@/lib/ai-models";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 
@@ -43,7 +44,7 @@ export async function extractPlayersFromPdf(
     const base64 = Buffer.from(await file.arrayBuffer()).toString("base64");
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: AI_MODEL_DOC,
       contents: [
         {
           role: "user",

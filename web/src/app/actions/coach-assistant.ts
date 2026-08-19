@@ -1,6 +1,7 @@
 "use server";
 
 import { GoogleGenAI } from "@google/genai";
+import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
 import { buildSquadContext } from "./squad-context";
 
@@ -57,7 +58,7 @@ export async function askCoachAssistant(params: {
     ];
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-lite",
+      model: AI_MODEL,
       contents,
       config: { maxOutputTokens: 900, systemInstruction: COACH_SYSTEM },
     });
@@ -101,7 +102,7 @@ MUST GET MINUTES: [1-2 names who need game time, and why]
 SELECTION NOTES: [2 sentences on the balance of the side and any risk]`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-lite",
+      model: AI_MODEL,
       contents: prompt,
       config: { maxOutputTokens: 1000, systemInstruction: COACH_SYSTEM },
     });
@@ -142,7 +143,7 @@ TEAM TALK: [3 short points to say before kick-off, in plain language a young pla
 REHEARSE AT TRAINING: [1 sentence on what to drill this week]`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-lite",
+      model: AI_MODEL,
       contents: prompt,
       config: { maxOutputTokens: 1200, systemInstruction: COACH_SYSTEM },
     });

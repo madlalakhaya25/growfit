@@ -1,6 +1,7 @@
 "use server";
 
 import { GoogleGenAI } from "@google/genai";
+import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
@@ -176,7 +177,7 @@ Output format (plain text, no markdown, no asterisks):
 6. SAFA PATHWAY ALIGNMENT: (one sentence on how current performance aligns with SAFA's National Development Programme and pathway from grassroots to semi-professional football)`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-lite",
+      model: AI_MODEL,
       contents: prompt,
       config: {
         maxOutputTokens: 800,

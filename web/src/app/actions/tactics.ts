@@ -1,6 +1,7 @@
 "use server";
 
 import { GoogleGenAI } from "@google/genai";
+import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
 import { getConcept } from "@/lib/tactics";
 import { buildSquadContext } from "./squad-context";
@@ -50,7 +51,7 @@ COMMON MISTAKES AT ${ageGroup}: [2 typical errors and the fix]
 COACHING CUES: [3 short phrases the coach can shout to this player during play]`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-lite",
+      model: AI_MODEL,
       contents: prompt,
       config: {
         maxOutputTokens: 900,
@@ -109,7 +110,7 @@ COMMON MISTAKES: [2 typical errors at this age and the fix]
 COACHING CUES: [3 short phrases the coach can shout during play]${squadNote}`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-lite",
+      model: AI_MODEL,
       contents: prompt,
       config: {
         maxOutputTokens: 1000,
@@ -168,7 +169,7 @@ WHAT TO WATCH FOR: [2 signs it is working]
 PROGRESSION: [1 sentence on how to make it harder once they master it]`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-lite",
+      model: AI_MODEL,
       contents: prompt,
       config: {
         maxOutputTokens: 900,
@@ -227,7 +228,7 @@ WATCH OUT FOR: [2 threats their shape creates against us]
 TRAIN THIS WEEK: [1 sentence on what to rehearse in training]`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-lite",
+      model: AI_MODEL,
       contents: prompt,
       config: {
         maxOutputTokens: 1000,
