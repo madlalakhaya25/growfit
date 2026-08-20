@@ -18,6 +18,9 @@ export interface ExtractedPlayer {
   age_group: string | null;
   /** A headshot read off the card, paired in by best-effort reading order. */
   photoDataUrl: string | null;
+  /** Set when a registration number on this card matches a player already in the academy. */
+  matchedPlayerId: string | null;
+  matchedPlayerName: string | null;
 }
 
 const MAX_PDF_BYTES = 10 * 1024 * 1024;
@@ -39,7 +42,7 @@ export async function extractPlayersFromPdf(
   formData: FormData
 ): Promise<{ players?: ExtractedPlayer[]; error?: string }> {
   try {
-    await requireUser();
+    const { supabase, user } = await requireUser();
 
     const file = formData.get("file") as File | null;
     if (!file || !file.size) return { error: "Choose a PDF to upload." };
@@ -49,7 +52,21 @@ export async function extractPlayersFromPdf(
     const bytes = Buffer.from(await file.arrayBuffer());
     const base64 = bytes.toString("base64");
 
-    const [response, headshots] = await Promise.all([
+    const { data: profileRow } = await supabase
+      .from("profiles")
+      .select("academy_id")
+      .eq("id", user.id)
+      .single();
+    const existingPlayersPromise = profileRow?.academy_id
+      ? supabase
+          .from("players")
+          .select("id, full_name, mysafa_number, id_number, fifa_number")
+          .eq("academy_id", profileRow.academy_id)
+          .eq("active", true)
+      : Promise.resolve({ data: [] as { id: string; full_name: string; mysafa_number: string | null; id_number: string | null; fifa_number: string | null }[] });
+
+    const [response, headshots, { data: existingPlayers }] = await Promise.all([
+
       ai.models.generateContent({
         model: AI_MODEL_DOC,
         contents: [
@@ -108,6 +125,7 @@ export async function extractPlayersFromPdf(
       }),
       // Best-effort: never let a headshot extraction problem sink the import.
       extractPdfHeadshots(bytes).catch((): PdfHeadshot[] => []),
+      existingPlayersPromise,
     ]);
 
     const raw = (response.text ?? "").trim();
@@ -130,24 +148,42 @@ export async function extractPlayersFromPdf(
       return s && s.toLowerCase() !== "null" ? s : null;
     };
 
+    // Same normalisation the create step uses, so "already registered" is
+    // decided consistently whether it is caught here (before Create, with a
+    // chance to just attach the photo) or as a fallback at Create itself.
+    const norm = (v: string | null) => (v ? v.replace(/\s/g, "").toUpperCase() : null);
+    const findMatch = (mysafa: string | null, idNumber: string | null, fifa: string | null) => {
+      const keys = [norm(mysafa), norm(idNumber), norm(fifa)].filter(Boolean);
+      if (keys.length === 0) return null;
+      return (existingPlayers ?? []).find((p) =>
+        keys.includes(norm(p.mysafa_number)) || keys.includes(norm(p.id_number)) || keys.includes(norm(p.fifa_number))
+      ) ?? null;
+    };
+
     const players: ExtractedPlayer[] = parsed
       .map((row, i): ExtractedPlayer | null => {
         const r = row as Record<string, unknown>;
         const name = clean(r.full_name);
         if (!name) return null;
         const dob = clean(r.date_of_birth);
+        const mysafa_number = clean(r.mysafa_number);
+        const fifa_number = clean(r.fifa_number);
+        const id_number = clean(r.id_number);
+        const match = findMatch(mysafa_number, id_number, fifa_number);
         return {
           full_name: name,
           // Keep only dates the model returned in the shape we asked for.
           date_of_birth: dob && /^\d{4}-\d{2}-\d{2}$/.test(dob) ? dob : null,
-          mysafa_number: clean(r.mysafa_number),
-          fifa_number: clean(r.fifa_number),
-          id_number: clean(r.id_number),
+          mysafa_number,
+          fifa_number,
+          id_number,
           age_group: clean(r.age_group),
           // Best-effort pairing by position in reading order. The review table
           // shows every photo before anything is created, so a wrong pairing
           // here is caught by a human rather than silently attached.
           photoDataUrl: headshots[i]?.dataUrl ?? null,
+          matchedPlayerId: match?.id ?? null,
+          matchedPlayerName: match?.full_name ?? null,
         };
       })
       .filter((p): p is ExtractedPlayer => p !== null);
@@ -281,4 +317,65 @@ export async function createImportedPlayers(input: {
   revalidatePath("/dashboard/admin/players");
   revalidatePath("/dashboard/coach/squad");
   return { created: insertedIds.length, skipped, photosAttached };
+}
+
+/**
+ * Attach a headshot to a player who already exists in the academy — used when
+ * a re-uploaded registration PDF matches someone already registered. The
+ * player is never duplicated; only their photo_url changes, via the same
+ * bucket/path/upsert convention the profile page's own uploader uses.
+ */
+export async function attachHeadshotsToExisting(
+  matches: { playerId: string; photoDataUrl: string }[]
+): Promise<{ attached?: number; error?: string }> {
+  const { supabase, user } = await requireUser();
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("academy_id, role")
+    .eq("id", user.id)
+    .single();
+  if (!profile?.academy_id) return { error: "No academy linked to your account." };
+  if (!["admin", "coach"].includes(profile.role)) {
+    return { error: "Only a coach or admin can attach a player photo." };
+  }
+
+  let attached = 0;
+  await Promise.all(
+    matches.map(async ({ playerId, photoDataUrl }) => {
+      const match = photoDataUrl.match(/^data:(image\/\w+);base64,(.+)$/);
+      if (!match) return;
+      const [, contentType, b64] = match;
+      const ext = contentType === "image/png" ? "png" : "jpg";
+      const bytes = Buffer.from(b64, "base64");
+
+      // Confirm the player is actually in this academy before writing anything.
+      const { data: target } = await supabase
+        .from("players")
+        .select("id")
+        .eq("id", playerId)
+        .eq("academy_id", profile.academy_id)
+        .single();
+      if (!target) return;
+
+      const { error: uploadErr } = await supabase.storage
+        .from("player-photos")
+        .upload(`${playerId}.${ext}`, bytes, { upsert: true, contentType });
+      if (uploadErr) return;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("player-photos")
+        .getPublicUrl(`${playerId}.${ext}`);
+
+      const { error: updateErr } = await supabase
+        .from("players")
+        .update({ photo_url: publicUrl })
+        .eq("id", playerId);
+      if (!updateErr) attached++;
+    })
+  );
+
+  revalidatePath("/dashboard/admin/players");
+  revalidatePath("/dashboard/coach/squad");
+  return { attached };
 }

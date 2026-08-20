@@ -20,6 +20,10 @@ import { MilestoneCard } from "@/components/development/milestone-card";
 import type { MilestoneCategory } from "@/app/actions/development";
 import { ClipsSection } from "./clips-section";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { PlayerPhotoUpload } from "@/components/player-photo-upload";
+import { ExtendedInfoForm } from "@/components/records/extended-info-form";
+import { MedicalForm } from "@/components/records/medical-form";
+import { DocumentHub } from "@/components/records/document-hub";
 
 const CORE_ATTR_KEYS: AttrKey[] = ["pace", "shooting", "passing", "dribbling", "defending", "physical"];
 
@@ -39,6 +43,7 @@ export default async function PlayerDetailPage({
       .from("players")
       .select(`
         id, full_name, position, secondary_pos, preferred_foot, date_of_birth, photo_url, share_token,
+        school, home_address, id_number, mysafa_number,
         player_ratings (
           id, rating, note, created_at,
           fixtures ( opponent, fixture_date )
@@ -58,6 +63,8 @@ export default async function PlayerDetailPage({
 
   if (!player) notFound();
 
+  const currentSeasonForRecords = new Date().getFullYear().toString();
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("academy_id")
@@ -74,10 +81,10 @@ export default async function PlayerDetailPage({
       ? teamParam
       : sharedTeamIds[0] ?? null;
 
-  const [{ data: medical }, { data: milestoneTemplates }, { data: completions }, { data: clips }, { data: recentFixtures }] = await Promise.all([
+  const [{ data: medical }, { data: milestoneTemplates }, { data: completions }, { data: clips }, { data: recentFixtures }, { data: docs }] = await Promise.all([
     supabase
       .from("player_medical")
-      .select("blood_type, allergies, chronic_conditions, current_medication, emergency_1_name, emergency_1_relationship, emergency_1_phone, emergency_2_name, emergency_2_relationship, emergency_2_phone, has_medical_aid, medical_aid_scheme, nearest_hospital, doctor_clinic")
+      .select("*")
       .eq("player_id", playerId)
       .maybeSingle(),
     profile?.academy_id
@@ -106,6 +113,11 @@ export default async function PlayerDetailPage({
           .order("fixture_date", { ascending: false })
           .limit(20)
       : Promise.resolve({ data: [] as { id: string; opponent: string; fixture_date: string }[] }),
+    supabase
+      .from("player_documents")
+      .select("document_type, status, signer_name, signed_at, uploaded_at, upload_url")
+      .eq("player_id", playerId)
+      .eq("season", currentSeasonForRecords),
   ]);
 
   type Rating = {
@@ -215,6 +227,10 @@ export default async function PlayerDetailPage({
                 ))}
               </div>
             )}
+
+            <div className="pt-2">
+              <PlayerPhotoUpload playerId={player.id} />
+            </div>
 
             {teamId && (
               <div className="pt-2">
@@ -420,6 +436,36 @@ export default async function PlayerDetailPage({
           </div>
         </section>
       )}
+
+      <section className="space-y-6">
+        <h2 className="text-xl font-bold">Player Records</h2>
+
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+          <p className="font-semibold">Registration Details</p>
+          <ExtendedInfoForm
+            playerId={playerId}
+            initial={{ school: player.school, home_address: player.home_address, id_number: player.id_number, mysafa_number: player.mysafa_number }}
+          />
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="font-semibold">Medical &amp; Emergency</p>
+            {medical?.needs_renewal && (
+              <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-600">Renewal needed</span>
+            )}
+          </div>
+          <MedicalForm playerId={playerId} initial={medical as Record<string, unknown> | null} />
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+          <div>
+            <p className="font-semibold">Documents &amp; Contracts · {currentSeasonForRecords}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Signed by the player&apos;s parent or guardian. Read-only view.</p>
+          </div>
+          <DocumentHub playerId={playerId} season={currentSeasonForRecords} documents={docs ?? []} readOnly />
+        </div>
+      </section>
     </div>
   );
 }

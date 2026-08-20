@@ -1,5 +1,6 @@
 "use server";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 
 export async function claimPlayerProfile(formData: FormData) {
@@ -48,4 +49,30 @@ export async function claimPlayerByRegistration(formData: FormData) {
   if (result?.error) return { error: result.error };
 
   redirect("/dashboard/player");
+}
+
+/**
+ * A player updating their own MySAFA/ID number after they have already claimed
+ * their profile. Routed through a SECURITY DEFINER function rather than a plain
+ * update() — RLS has no policy letting a player write their own already-claimed
+ * row (only the initial claim), so a direct update silently touches nothing.
+ * See migration 020 for why this needed a database-side fix, not just a form.
+ */
+export async function updateMyRegistrationNumbers(formData: FormData) {
+  const { supabase } = await requireUser();
+
+  const mysafa = (formData.get("mysafa_number") as string) ?? "";
+  const idNumber = (formData.get("id_number") as string) ?? "";
+
+  const { data, error } = await supabase.rpc("update_own_registration_numbers", {
+    p_mysafa_number: mysafa,
+    p_id_number: idNumber,
+  });
+
+  if (error) return { error: error.message };
+  const result = data as { error?: string; success?: boolean };
+  if (result?.error) return { error: result.error };
+
+  revalidatePath("/dashboard/player", "page");
+  return { success: true };
 }

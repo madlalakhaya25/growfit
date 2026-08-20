@@ -1,30 +1,25 @@
 "use client";
 
 import { useActionState } from "react";
-import { savePlayerExtendedInfo } from "@/app/actions/records";
+import { updateMyRegistrationNumbers } from "@/app/actions/player";
 
 type ActionResult = { error?: string; success?: boolean } | null;
 
 async function action(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  const playerId = formData.get("playerId") as string;
-  return savePlayerExtendedInfo(playerId, {
-    mysafa_number: (formData.get("mysafa_number") as string) || undefined,
-    id_number: (formData.get("id_number") as string) || undefined,
-  });
+  return updateMyRegistrationNumbers(formData);
 }
 
 export function PlayerIdentityForm({
-  playerId,
   initial,
 }: {
-  playerId: string;
+  /** Unused by the write itself — the update is scoped to the caller's own row. */
+  playerId?: string;
   initial: { mysafa_number?: string | null; id_number?: string | null };
 }) {
   const [state, dispatch, isPending] = useActionState(action, null);
 
   return (
     <form action={dispatch} className="space-y-4">
-      <input type="hidden" name="playerId" value={playerId} />
 
       <div className="space-y-1.5">
         <label htmlFor="mysafa_number" className="text-sm font-medium">

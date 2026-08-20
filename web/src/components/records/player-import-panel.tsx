@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Upload, Loader2, Plus, Trash2, UserPlus, CheckCircle2, ImagePlus, X } from "lucide-react";
-import { extractPlayersFromPdf, createImportedPlayers, type ImportRow } from "@/app/actions/player-import";
+import { extractPlayersFromPdf, createImportedPlayers, attachHeadshotsToExisting, type ImportRow } from "@/app/actions/player-import";
 import { POSITIONS } from "@/lib/types";
 
 // Legacy catch-all values duplicate the specific ones — hide from the picker.
@@ -13,6 +13,7 @@ export interface ImportTeam { id: string; name: string; age_group: string | null
 const blankRow = (): ImportRow => ({
   full_name: "", date_of_birth: null, mysafa_number: null,
   fifa_number: null, id_number: null, age_group: null, position: null, photoDataUrl: null,
+  matchedPlayerId: null, matchedPlayerName: null,
 });
 
 function readAsDataUrl(file: File): Promise<string> {
@@ -33,14 +34,18 @@ export function PlayerImportPanel({
   defaultTeamId?: string;
 }) {
   const [rows, setRows] = useState<ImportRow[]>([]);
+  const [attachChecked, setAttachChecked] = useState<Set<number>>(new Set());
   const [teamId, setTeamId] = useState(defaultTeamId);
   const [busy, setBusy] = useState<"extract" | "create" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ created: number; skipped: string[]; photosAttached: number } | null>(null);
+  const [result, setResult] = useState<{ created: number; skipped: string[]; photosAttached: number; attachedToExisting: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const positions = POSITIONS.filter((p) => !LEGACY.has(p.value));
   const photoCount = rows.filter((r) => r.photoDataUrl).length;
+  const toCreateCount = rows.filter((r) => !r.matchedPlayerId && r.full_name.trim()).length;
+  const toAttachCount = rows.filter((r, i) => r.matchedPlayerId && r.photoDataUrl && attachChecked.has(i)).length;
+  const matchedCount = rows.filter((r) => r.matchedPlayerId).length;
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -61,7 +66,16 @@ export function PlayerImportPanel({
       fd.append("file", file);
       const res = await extractPlayersFromPdf(fd);
       if (res.error) { setError(res.error); return; }
-      setRows((prev) => [...prev, ...(res.players ?? []).map((p) => ({ ...p, position: null }))]);
+      const startIndex = rows.length;
+      const newRows = (res.players ?? []).map((p) => ({ ...p, position: null }));
+      setRows((prev) => [...prev, ...newRows]);
+      setAttachChecked((prev) => {
+        const next = new Set(prev);
+        newRows.forEach((r, i) => {
+          if (r.matchedPlayerId && r.photoDataUrl) next.add(startIndex + i);
+        });
+        return next;
+      });
     } catch (err) {
       // Without this the spinner ran forever on any thrown error.
       setError(
@@ -93,10 +107,34 @@ export function PlayerImportPanel({
     setError(null);
     setBusy("create");
     try {
-      const res = await createImportedPlayers({ rows, teamId: teamId || undefined });
-      if (res.error) { setError(res.error); return; }
-      setResult({ created: res.created ?? 0, skipped: res.skipped ?? [], photosAttached: res.photosAttached ?? 0 });
+      // Matched rows never create a duplicate player. If their attach box is
+      // checked and they carry a photo, that photo goes onto the EXISTING
+      // player instead; otherwise the row is left out entirely.
+      const toCreate = rows.filter((r) => !r.matchedPlayerId);
+      const toAttach = rows
+        .map((r, i) => ({ r, i }))
+        .filter(({ r, i }) => r.matchedPlayerId && r.photoDataUrl && attachChecked.has(i));
+
+      const [createRes, attachRes] = await Promise.all([
+        toCreate.length > 0
+          ? createImportedPlayers({ rows: toCreate, teamId: teamId || undefined })
+          : Promise.resolve({ created: 0, skipped: [], photosAttached: 0 }),
+        toAttach.length > 0
+          ? attachHeadshotsToExisting(toAttach.map(({ r }) => ({ playerId: r.matchedPlayerId!, photoDataUrl: r.photoDataUrl! })))
+          : Promise.resolve({ attached: 0 }),
+      ]);
+
+      if ("error" in createRes && createRes.error) { setError(createRes.error); return; }
+      if ("error" in attachRes && attachRes.error) { setError(attachRes.error); return; }
+
+      setResult({
+        created: createRes.created ?? 0,
+        skipped: createRes.skipped ?? [],
+        photosAttached: createRes.photosAttached ?? 0,
+        attachedToExisting: attachRes.attached ?? 0,
+      });
       setRows([]);
+      setAttachChecked(new Set());
     } catch (err) {
       setError(err instanceof Error ? `Could not create players: ${err.message}` : "Could not create players.");
     } finally {
@@ -160,6 +198,12 @@ export function PlayerImportPanel({
               A coach or admin can change any player&apos;s photo from their profile at any time.
             </p>
           )}
+          {result.attachedToExisting > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {result.attachedToExisting} photo{result.attachedToExisting === 1 ? "" : "s"} attached to
+              players already registered — no new player was created for them.
+            </p>
+          )}
           {result.skipped.length > 0 && (
             <p className="text-xs text-muted-foreground">
               Skipped as already registered: {result.skipped.join(", ")}
@@ -187,6 +231,12 @@ export function PlayerImportPanel({
                   one is the right player before creating; replace or clear any that aren&apos;t.
                 </p>
               )}
+              {matchedCount > 0 && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {matchedCount} row{matchedCount === 1 ? "" : "s"} already registered — highlighted
+                  below. Nothing new is created for them; tick the box to attach their photo instead.
+                </p>
+              )}
             </div>
             <button
               type="button"
@@ -212,6 +262,71 @@ export function PlayerImportPanel({
               </thead>
               <tbody>
                 {rows.map((r, i) => (
+                  r.matchedPlayerId ? (
+                  <tr key={i} className="border-b border-border last:border-0 bg-amber-500/5">
+                    <td className="px-3 py-2">
+                      <div className="flex flex-col items-center gap-1">
+                        <label
+                          className="relative block size-12 shrink-0 cursor-pointer overflow-hidden rounded-full border border-border bg-muted"
+                          title={r.photoDataUrl ? "Replace photo" : "Add a photo"}
+                        >
+                          {r.photoDataUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={r.photoDataUrl} alt="" className="size-full object-cover" />
+                          ) : (
+                            <span className="flex size-full items-center justify-center">
+                              <ImagePlus className="size-4 text-muted-foreground" aria-hidden="true" />
+                            </span>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            aria-label={`Photo, row ${i + 1}`}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                void replacePhoto(i, file);
+                                setAttachChecked((prev) => new Set(prev).add(i));
+                              }
+                              e.target.value = "";
+                            }}
+                            className="sr-only"
+                          />
+                        </label>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2" colSpan={4}>
+                      <p className="text-xs font-medium">Already registered — {r.matchedPlayerName}</p>
+                      <label className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          disabled={!r.photoDataUrl}
+                          checked={attachChecked.has(i)}
+                          onChange={(e) =>
+                            setAttachChecked((prev) => {
+                              const next = new Set(prev);
+                              if (e.target.checked) next.add(i); else next.delete(i);
+                              return next;
+                            })
+                          }
+                        />
+                        {r.photoDataUrl
+                          ? `Attach this photo to ${r.matchedPlayerName}\u2019s profile \u2014 no new player is created for them.`
+                          : "No photo on this card to attach — nothing happens for this row unless you add one."}
+                      </label>
+                    </td>
+                    <td className="px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() => setRows((rs) => rs.filter((_, idx) => idx !== i))}
+                        aria-label={`Remove row ${i + 1}`}
+                        className="rounded border border-border bg-background p-1.5 hover:bg-muted"
+                      >
+                        <Trash2 className="size-3.5" aria-hidden="true" />
+                      </button>
+                    </td>
+                  </tr>
+                  ) : (
                   <tr key={i} className="border-b border-border last:border-0">
                     <td className="px-3 py-2">
                       <div className="flex flex-col items-center gap-1">
@@ -311,6 +426,7 @@ export function PlayerImportPanel({
                       </button>
                     </td>
                   </tr>
+                  )
                 ))}
               </tbody>
             </table>
@@ -335,11 +451,16 @@ export function PlayerImportPanel({
             <button
               type="button"
               onClick={handleCreate}
-              disabled={busy !== null || rows.every((r) => !r.full_name.trim())}
+              disabled={busy !== null || (toCreateCount === 0 && toAttachCount === 0)}
               className="inline-flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
             >
               {busy === "create" ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <UserPlus className="size-4" aria-hidden="true" />}
-              {busy === "create" ? "Creating…" : `Create ${rows.filter((r) => r.full_name.trim()).length} player(s)`}
+              {busy === "create"
+                ? "Working…"
+                : [
+                    toCreateCount > 0 ? `Create ${toCreateCount} player${toCreateCount === 1 ? "" : "s"}` : null,
+                    toAttachCount > 0 ? `attach ${toAttachCount} photo${toAttachCount === 1 ? "" : "s"}` : null,
+                  ].filter(Boolean).join(" & ") || "Nothing to do"}
             </button>
           </div>
         </div>
