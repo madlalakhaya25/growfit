@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Star } from "lucide-react";
+import { ArrowLeft, Star, Download } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -118,8 +118,14 @@ export default async function AdminPlayerDetailPage({
                 <p className="font-mono font-semibold text-xs tracking-wide">{player.share_token}</p>
               </div>
             </div>
-            <div className="pt-2">
+            <div className="pt-2 flex flex-wrap gap-2">
               <PlayerPhotoUpload playerId={player.id} />
+              <Button asChild variant="outline" size="sm">
+                <a href={`/api/players/${player.id}/card`}>
+                  <Download className="size-3.5" aria-hidden="true" />
+                  Download card
+                </a>
+              </Button>
             </div>
           </CardContent>
         </Card>

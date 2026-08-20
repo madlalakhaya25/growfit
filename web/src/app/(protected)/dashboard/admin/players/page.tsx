@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Upload } from "lucide-react";
+import { Upload, CreditCard } from "lucide-react";
 import { listUnassignedPlayers } from "@/app/actions/squad";
 import { UnassignedPlayersPanel, type AssignTeam } from "@/components/records/unassigned-players-panel";
 import { redirect } from "next/navigation";
@@ -77,13 +77,22 @@ export default async function AdminPlayersPage({
           <h1 className="text-2xl font-bold">Players</h1>
           <p className="text-sm text-muted-foreground">{players?.length ?? 0} active players</p>
         </div>
-        <Link
-          href="/dashboard/admin/players/import"
-          className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-        >
-          <Upload className="size-4" aria-hidden="true" />
-          Import players
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/dashboard/admin/players/new-card"
+            className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-4 text-sm font-semibold hover:bg-muted"
+          >
+            <CreditCard className="size-4 text-primary" aria-hidden="true" />
+            Create card
+          </Link>
+          <Link
+            href="/dashboard/admin/players/import"
+            className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+          >
+            <Upload className="size-4" aria-hidden="true" />
+            Import players
+          </Link>
+        </div>
       </div>
 
       {(unassigned ?? []).length > 0 && (
