@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Upload, Loader2, Plus, Trash2, UserPlus, CheckCircle2 } from "lucide-react";
+import { Upload, Loader2, Plus, Trash2, UserPlus, CheckCircle2, ImagePlus, X } from "lucide-react";
 import { extractPlayersFromPdf, createImportedPlayers, type ImportRow } from "@/app/actions/player-import";
 import { POSITIONS } from "@/lib/types";
 
@@ -12,8 +12,17 @@ export interface ImportTeam { id: string; name: string; age_group: string | null
 
 const blankRow = (): ImportRow => ({
   full_name: "", date_of_birth: null, mysafa_number: null,
-  fifa_number: null, id_number: null, age_group: null, position: null,
+  fifa_number: null, id_number: null, age_group: null, position: null, photoDataUrl: null,
 });
+
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
 
 export function PlayerImportPanel({
   teams,
@@ -27,10 +36,11 @@ export function PlayerImportPanel({
   const [teamId, setTeamId] = useState(defaultTeamId);
   const [busy, setBusy] = useState<"extract" | "create" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ created: number; skipped: string[] } | null>(null);
+  const [result, setResult] = useState<{ created: number; skipped: string[]; photosAttached: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const positions = POSITIONS.filter((p) => !LEGACY.has(p.value));
+  const photoCount = rows.filter((r) => r.photoDataUrl).length;
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -69,13 +79,23 @@ export function PlayerImportPanel({
     setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   }
 
+  async function replacePhoto(i: number, file: File) {
+    if (!file.type.startsWith("image/")) return;
+    try {
+      const dataUrl = await readAsDataUrl(file);
+      update(i, { photoDataUrl: dataUrl });
+    } catch {
+      setError("Could not read that image. Try a different file.");
+    }
+  }
+
   async function handleCreate() {
     setError(null);
     setBusy("create");
     try {
       const res = await createImportedPlayers({ rows, teamId: teamId || undefined });
       if (res.error) { setError(res.error); return; }
-      setResult({ created: res.created ?? 0, skipped: res.skipped ?? [] });
+      setResult({ created: res.created ?? 0, skipped: res.skipped ?? [], photosAttached: res.photosAttached ?? 0 });
       setRows([]);
     } catch (err) {
       setError(err instanceof Error ? `Could not create players: ${err.message}` : "Could not create players.");
@@ -93,9 +113,10 @@ export function PlayerImportPanel({
         <div>
           <p className="font-semibold text-sm">Upload registration cards</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            A SAFA registration PDF with one or more player cards. Names, dates of birth
-            and registration numbers are read off it — you check them before anything is
-            created. The file itself is not stored.
+            A SAFA registration PDF with one or more player cards. Names, dates of birth,
+            registration numbers, and a headshot where the card has one are read off it —
+            you check everything, photo included, before anything is created. The file
+            itself is not stored.
           </p>
         </div>
 
@@ -133,6 +154,12 @@ export function PlayerImportPanel({
             <CheckCircle2 className="size-4 text-primary" aria-hidden="true" />
             {result.created} player{result.created === 1 ? "" : "s"} created
           </p>
+          {result.photosAttached > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {result.photosAttached} photo{result.photosAttached === 1 ? "" : "s"} attached automatically.
+              A coach or admin can change any player&apos;s photo from their profile at any time.
+            </p>
+          )}
           {result.skipped.length > 0 && (
             <p className="text-xs text-muted-foreground">
               Skipped as already registered: {result.skipped.join(", ")}
@@ -152,7 +179,15 @@ export function PlayerImportPanel({
       {rows.length > 0 && (
         <div className="rounded-xl border border-border bg-card">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
-            <p className="text-sm font-semibold">Check before creating ({rows.length})</p>
+            <div>
+              <p className="text-sm font-semibold">Check before creating ({rows.length})</p>
+              {photoCount > 0 && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {photoCount} photo{photoCount === 1 ? "" : "s"} matched by card position — check each
+                  one is the right player before creating; replace or clear any that aren&apos;t.
+                </p>
+              )}
+            </div>
             <button
               type="button"
               onClick={() => setRows([])}
@@ -163,9 +198,10 @@ export function PlayerImportPanel({
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[46rem] text-left">
+            <table className="w-full min-w-[52rem] text-left">
               <thead>
                 <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted-foreground">
+                  <th className="px-3 py-2 font-medium">Photo</th>
                   <th className="px-3 py-2 font-medium">Name</th>
                   <th className="px-3 py-2 font-medium">Date of birth</th>
                   <th className="px-3 py-2 font-medium">SAFA no.</th>
@@ -177,6 +213,43 @@ export function PlayerImportPanel({
               <tbody>
                 {rows.map((r, i) => (
                   <tr key={i} className="border-b border-border last:border-0">
+                    <td className="px-3 py-2">
+                      <div className="flex flex-col items-center gap-1">
+                        <label
+                          className="relative block size-12 shrink-0 cursor-pointer overflow-hidden rounded-full border border-border bg-muted"
+                          title={r.photoDataUrl ? "Replace photo" : "Add a photo"}
+                        >
+                          {r.photoDataUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={r.photoDataUrl} alt="" className="size-full object-cover" />
+                          ) : (
+                            <span className="flex size-full items-center justify-center">
+                              <ImagePlus className="size-4 text-muted-foreground" aria-hidden="true" />
+                            </span>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            aria-label={`Photo, row ${i + 1}`}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) void replacePhoto(i, file);
+                              e.target.value = "";
+                            }}
+                            className="sr-only"
+                          />
+                        </label>
+                        {r.photoDataUrl && (
+                          <button
+                            type="button"
+                            onClick={() => update(i, { photoDataUrl: null })}
+                            className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-destructive"
+                          >
+                            <X className="size-2.5" aria-hidden="true" /> Clear
+                          </button>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-3 py-2">
                       <input
                         aria-label={`Name, row ${i + 1}`}

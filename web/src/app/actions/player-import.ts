@@ -4,6 +4,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { AI_MODEL_DOC } from "@/lib/ai-models";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
+import { extractPdfHeadshots, type PdfHeadshot } from "@/lib/pdf-headshots";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -15,20 +16,24 @@ export interface ExtractedPlayer {
   id_number: string | null;
   /** e.g. "U15 Level 2" as printed — helps pick the right squad. */
   age_group: string | null;
+  /** A headshot read off the card, paired in by best-effort reading order. */
+  photoDataUrl: string | null;
 }
 
 const MAX_PDF_BYTES = 10 * 1024 * 1024;
 
 /**
- * Read players off a SAFA/LFA registration PDF.
+ * Read players — and, where present, their headshot — off a SAFA/LFA
+ * registration PDF.
  *
  * Nothing is written to the database here and the file is never stored — it is
  * held in memory, sent for extraction, and discarded. The caller reviews and
- * edits the rows before anything is created, because OCR of a scanned card is
- * not reliable enough to trust blind.
+ * edits every row, including the photo, before anything is created, because
+ * neither the text nor the photo pairing is reliable enough to trust blind.
  *
- * POPIA note: this sends children's registration details to the AI provider for
- * processing. That is a deliberate, reviewable step rather than a background job.
+ * POPIA note: this sends children's registration details and photos to the AI
+ * provider for text extraction. That is a deliberate, reviewable step rather
+ * than a background job.
  */
 export async function extractPlayersFromPdf(
   formData: FormData
@@ -41,62 +46,69 @@ export async function extractPlayersFromPdf(
     if (file.size > MAX_PDF_BYTES) return { error: "PDF must be under 10 MB." };
     if (file.type !== "application/pdf") return { error: "Only PDF files are supported." };
 
-    const base64 = Buffer.from(await file.arrayBuffer()).toString("base64");
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const base64 = bytes.toString("base64");
 
-    const response = await ai.models.generateContent({
-      model: AI_MODEL_DOC,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { inlineData: { mimeType: "application/pdf", data: base64 } },
-            {
-              text:
-                "This is a South African SAFA player registration card sheet. Each page holds " +
-                "several cards laid out in a grid — read each card as a unit and do not mix " +
-                "fields between cards.\n\n" +
-                "On each card:\n" +
-                "- the SURNAME appears first in capitals, with the first name on the line below\n" +
-                "- the date of birth is prefixed 'dob:' and written DD/MM/YYYY\n" +
-                "- there are usually two reference codes: a shorter one of about five " +
-                "characters that begins with 0 (the SAFA/MySAFA number), and a longer one of " +
-                "about seven characters that begins with 1 (the FIFA Connect ID)\n" +
-                "- an age group such as 'U15 Level 2' is shown\n\n" +
-                "Return for each player:\n" +
-                "- full_name: first name then surname, normally capitalised (NGIDI / Anelisa " +
-                "becomes 'Anelisa Ngidi')\n" +
-                "- date_of_birth: strictly YYYY-MM-DD, converted from the DD/MM/YYYY on the card\n" +
-                "- mysafa_number: the shorter SAFA code\n" +
-                "- fifa_number: the longer FIFA Connect ID\n" +
-                "- id_number: a 13-digit South African ID number, only if one actually appears\n" +
-                "- age_group: the age group text as printed\n\n" +
-                "Ignore the club name, region, season, gender and card expiry date — they are " +
-                "the same for everyone and are not player fields. Ignore coaches and officials; " +
-                "cards marked 'Player' only. Use null for anything not clearly readable — never " +
-                "guess a number or a date, and never invent a player."
+    const [response, headshots] = await Promise.all([
+      ai.models.generateContent({
+        model: AI_MODEL_DOC,
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { inlineData: { mimeType: "application/pdf", data: base64 } },
+              {
+                text:
+                  "This is a South African SAFA player registration card sheet. Each page holds " +
+                  "several cards laid out in a grid — read each card as a unit and do not mix " +
+                  "fields between cards.\n\n" +
+                  "On each card:\n" +
+                  "- the SURNAME appears first in capitals, with the first name on the line below\n" +
+                  "- the date of birth is prefixed 'dob:' and written DD/MM/YYYY\n" +
+                  "- there are usually two reference codes: a shorter one of about five " +
+                  "characters that begins with 0 (the SAFA/MySAFA number), and a longer one of " +
+                  "about seven characters that begins with 1 (the FIFA Connect ID)\n" +
+                  "- an age group such as 'U15 Level 2' is shown\n\n" +
+                  "Return for each player, IN THE ORDER THE CARDS APPEAR ON THE PAGE (left to right, " +
+                  "top to bottom) — this order is used to match each player to their photo, so keep it " +
+                  "exact even where a card is hard to read:\n" +
+                  "- full_name: first name then surname, normally capitalised (NGIDI / Anelisa " +
+                  "becomes 'Anelisa Ngidi')\n" +
+                  "- date_of_birth: strictly YYYY-MM-DD, converted from the DD/MM/YYYY on the card\n" +
+                  "- mysafa_number: the shorter SAFA code\n" +
+                  "- fifa_number: the longer FIFA Connect ID\n" +
+                  "- id_number: a 13-digit South African ID number, only if one actually appears\n" +
+                  "- age_group: the age group text as printed\n\n" +
+                  "Ignore the club name, region, season, gender and card expiry date — they are " +
+                  "the same for everyone and are not player fields. Ignore coaches and officials; " +
+                  "cards marked 'Player' only. Use null for anything not clearly readable — never " +
+                  "guess a number or a date, and never invent a player."
+              },
+            ],
+          },
+        ],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                full_name: { type: Type.STRING },
+                date_of_birth: { type: Type.STRING, nullable: true },
+                mysafa_number: { type: Type.STRING, nullable: true },
+                fifa_number: { type: Type.STRING, nullable: true },
+                id_number: { type: Type.STRING, nullable: true },
+                age_group: { type: Type.STRING, nullable: true },
+              },
+              required: ["full_name"],
             },
-          ],
-        },
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              full_name: { type: Type.STRING },
-              date_of_birth: { type: Type.STRING, nullable: true },
-              mysafa_number: { type: Type.STRING, nullable: true },
-              fifa_number: { type: Type.STRING, nullable: true },
-              id_number: { type: Type.STRING, nullable: true },
-              age_group: { type: Type.STRING, nullable: true },
-            },
-            required: ["full_name"],
           },
         },
-      },
-    });
+      }),
+      // Best-effort: never let a headshot extraction problem sink the import.
+      extractPdfHeadshots(bytes).catch((): PdfHeadshot[] => []),
+    ]);
 
     const raw = (response.text ?? "").trim();
     if (!raw) return { error: "Nothing could be read from that PDF." };
@@ -119,7 +131,7 @@ export async function extractPlayersFromPdf(
     };
 
     const players: ExtractedPlayer[] = parsed
-      .map((row) => {
+      .map((row, i): ExtractedPlayer | null => {
         const r = row as Record<string, unknown>;
         const name = clean(r.full_name);
         if (!name) return null;
@@ -132,6 +144,10 @@ export async function extractPlayersFromPdf(
           fifa_number: clean(r.fifa_number),
           id_number: clean(r.id_number),
           age_group: clean(r.age_group),
+          // Best-effort pairing by position in reading order. The review table
+          // shows every photo before anything is created, so a wrong pairing
+          // here is caught by a human rather than silently attached.
+          photoDataUrl: headshots[i]?.dataUrl ?? null,
         };
       })
       .filter((p): p is ExtractedPlayer => p !== null);
@@ -150,11 +166,15 @@ export interface ImportRow extends ExtractedPlayer {
 /**
  * Create the reviewed players. Skips anyone whose registration number already
  * exists in the academy, so re-running an import does not duplicate a squad.
+ * Any row carrying a photo (auto-matched or manually attached in the review
+ * table) gets it uploaded to the same player-photos bucket and path convention
+ * the profile page's own photo uploader uses, so a later manual change from a
+ * coach or admin cleanly replaces it rather than leaving an orphaned file.
  */
 export async function createImportedPlayers(input: {
   rows: ImportRow[];
   teamId?: string;
-}): Promise<{ created?: number; skipped?: string[]; error?: string }> {
+}): Promise<{ created?: number; skipped?: string[]; photosAttached?: number; error?: string }> {
   const { supabase, user } = await requireUser();
 
   const { data: profile } = await supabase
@@ -217,15 +237,48 @@ export async function createImportedPlayers(input: {
     .select("id");
 
   if (error) return { error: error.message };
+  const insertedIds = (inserted ?? []) as { id: string }[];
 
   // Optionally drop them straight into a squad.
-  if (input.teamId && inserted && inserted.length > 0) {
+  if (input.teamId && insertedIds.length > 0) {
     await supabase.from("team_members").insert(
-      inserted.map((p: { id: string }) => ({ team_id: input.teamId, player_id: p.id }))
+      insertedIds.map((p) => ({ team_id: input.teamId, player_id: p.id }))
     );
   }
 
+  // A single insert() call returns rows in the same order they were sent, so
+  // toInsert[i] and insertedIds[i] are the same player.
+  let photosAttached = 0;
+  await Promise.all(
+    toInsert.map(async (row, i) => {
+      if (!row.photoDataUrl) return;
+      const playerId = insertedIds[i]?.id;
+      if (!playerId) return;
+
+      const match = row.photoDataUrl.match(/^data:(image\/\w+);base64,(.+)$/);
+      if (!match) return;
+      const [, contentType, b64] = match;
+      const ext = contentType === "image/png" ? "png" : "jpg";
+      const bytes = Buffer.from(b64, "base64");
+
+      const { error: uploadErr } = await supabase.storage
+        .from("player-photos")
+        .upload(`${playerId}.${ext}`, bytes, { upsert: true, contentType });
+      if (uploadErr) return;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("player-photos")
+        .getPublicUrl(`${playerId}.${ext}`);
+
+      const { error: updateErr } = await supabase
+        .from("players")
+        .update({ photo_url: publicUrl })
+        .eq("id", playerId);
+      if (!updateErr) photosAttached++;
+    })
+  );
+
   revalidatePath("/dashboard/admin/players");
   revalidatePath("/dashboard/coach/squad");
-  return { created: inserted?.length ?? 0, skipped };
+  return { created: insertedIds.length, skipped, photosAttached };
 }
