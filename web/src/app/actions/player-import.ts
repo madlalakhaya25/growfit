@@ -210,7 +210,7 @@ export interface ImportRow extends ExtractedPlayer {
 export async function createImportedPlayers(input: {
   rows: ImportRow[];
   teamId?: string;
-}): Promise<{ created?: number; skipped?: string[]; photosAttached?: number; error?: string }> {
+}): Promise<{ created?: number; skipped?: string[]; photosAttached?: number; playerIds?: string[]; error?: string }> {
   const { supabase, user } = await requireUser();
 
   const { data: profile } = await supabase
@@ -316,7 +316,7 @@ export async function createImportedPlayers(input: {
 
   revalidatePath("/dashboard/admin/players");
   revalidatePath("/dashboard/coach/squad");
-  return { created: insertedIds.length, skipped, photosAttached };
+  return { created: insertedIds.length, skipped, photosAttached, playerIds: insertedIds.map((p) => p.id) };
 }
 
 /**
