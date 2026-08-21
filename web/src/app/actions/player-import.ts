@@ -25,6 +25,37 @@ export interface ExtractedPlayer {
 
 const MAX_PDF_BYTES = 10 * 1024 * 1024;
 
+type Db = Awaited<ReturnType<typeof requireUser>>["supabase"];
+
+/**
+ * Write one headshot to a player, via the same bucket, path and upsert
+ * convention the profile page's own uploader uses — so a later manual change
+ * cleanly replaces it rather than leaving an orphaned file behind.
+ *
+ * Caller is responsible for confirming the player belongs to their academy.
+ */
+async function uploadPlayerPhoto(supabase: Db, playerId: string, photoDataUrl: string): Promise<boolean> {
+  const match = photoDataUrl.match(/^data:(image\/\w+);base64,(.+)$/);
+  if (!match) return false;
+  const [, contentType, b64] = match;
+  const ext = contentType === "image/png" ? "png" : "jpg";
+
+  const { error: uploadErr } = await supabase.storage
+    .from("player-photos")
+    .upload(`${playerId}.${ext}`, Buffer.from(b64, "base64"), { upsert: true, contentType });
+  if (uploadErr) return false;
+
+  const { data: { publicUrl } } = supabase.storage
+    .from("player-photos")
+    .getPublicUrl(`${playerId}.${ext}`);
+
+  const { error: updateErr } = await supabase
+    .from("players")
+    .update({ photo_url: publicUrl })
+    .eq("id", playerId);
+  return !updateErr;
+}
+
 /**
  * Bind each extracted headshot to the player whose card it was printed on,
  * by matching the registration numbers read off that same card — never by
@@ -277,7 +308,15 @@ export interface ImportRow extends ExtractedPlayer {
 export async function createImportedPlayers(input: {
   rows: ImportRow[];
   teamId?: string;
-}): Promise<{ created?: number; skipped?: string[]; photosAttached?: number; playerIds?: string[]; error?: string }> {
+}): Promise<{
+  created?: number;
+  skipped?: string[];
+  photosAttached?: number;
+  /** Headshots given to already-registered players who had no photo yet. */
+  backfilled?: number;
+  playerIds?: string[];
+  error?: string;
+}> {
   const { supabase, user } = await requireUser();
 
   const { data: profile } = await supabase
@@ -294,34 +333,65 @@ export async function createImportedPlayers(input: {
   const rows = input.rows.filter((r) => r.full_name.trim().length > 0);
   if (rows.length === 0) return { error: "There are no players to create." };
 
-  // Existing registration numbers in this academy, to avoid duplicates.
+  // Existing registration numbers in this academy, to avoid duplicates — and
+  // who they belong to, so a re-uploaded card can still give its headshot to
+  // the player it was printed for.
   const { data: existing } = await supabase
     .from("players")
-    .select("mysafa_number, id_number, fifa_number")
+    .select("id, photo_url, mysafa_number, id_number, fifa_number")
     .eq("academy_id", profile.academy_id);
 
   const taken = new Set<string>();
-  for (const e of (existing ?? []) as Record<string, string | null>[]) {
+  const existingByKey = new Map<string, { id: string; photo_url: string | null }>();
+  for (const e of (existing ?? []) as {
+    id: string; photo_url: string | null;
+    mysafa_number: string | null; id_number: string | null; fifa_number: string | null;
+  }[]) {
     for (const v of [e.mysafa_number, e.id_number, e.fifa_number]) {
-      if (v) taken.add(v.replace(/\s/g, "").toUpperCase());
+      if (!v) continue;
+      const k = v.replace(/\s/g, "").toUpperCase();
+      taken.add(k);
+      existingByKey.set(k, { id: e.id, photo_url: e.photo_url });
     }
   }
 
   const skipped: string[] = [];
+  // A card for someone already registered still carries their headshot. If
+  // they have no photo yet — created by hand, or imported from a sheet whose
+  // photos were missing or unreadable — a later upload should fill that gap
+  // rather than discard the photo along with the duplicate row.
+  const backfill = new Map<string, string>();
   const toInsert = rows.filter((r) => {
     const keys = [r.mysafa_number, r.id_number, r.fifa_number]
       .filter(Boolean)
       .map((v) => v!.replace(/\s/g, "").toUpperCase());
     if (keys.some((k) => taken.has(k))) {
       skipped.push(r.full_name);
+      const owner = keys.map((k) => existingByKey.get(k)).find(Boolean);
+      // Only fill an empty photo — never silently replace one already there.
+      if (r.photoDataUrl && owner && !owner.photo_url && !backfill.has(owner.id)) {
+        backfill.set(owner.id, r.photoDataUrl);
+      }
       return false;
     }
     keys.forEach((k) => taken.add(k));
     return true;
   });
 
+  let backfilled = 0;
+  if (backfill.size > 0) {
+    const results = await Promise.all(
+      [...backfill].map(([playerId, dataUrl]) => uploadPlayerPhoto(supabase, playerId, dataUrl))
+    );
+    backfilled = results.filter(Boolean).length;
+  }
+
   if (toInsert.length === 0) {
-    return { created: 0, skipped };
+    if (backfilled > 0) {
+      revalidatePath("/dashboard/admin/players");
+      revalidatePath("/dashboard/coach/squad");
+    }
+    return { created: 0, skipped, backfilled };
   }
 
   const { data: inserted, error } = await supabase
@@ -354,36 +424,15 @@ export async function createImportedPlayers(input: {
   let photosAttached = 0;
   await Promise.all(
     toInsert.map(async (row, i) => {
-      if (!row.photoDataUrl) return;
       const playerId = insertedIds[i]?.id;
-      if (!playerId) return;
-
-      const match = row.photoDataUrl.match(/^data:(image\/\w+);base64,(.+)$/);
-      if (!match) return;
-      const [, contentType, b64] = match;
-      const ext = contentType === "image/png" ? "png" : "jpg";
-      const bytes = Buffer.from(b64, "base64");
-
-      const { error: uploadErr } = await supabase.storage
-        .from("player-photos")
-        .upload(`${playerId}.${ext}`, bytes, { upsert: true, contentType });
-      if (uploadErr) return;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from("player-photos")
-        .getPublicUrl(`${playerId}.${ext}`);
-
-      const { error: updateErr } = await supabase
-        .from("players")
-        .update({ photo_url: publicUrl })
-        .eq("id", playerId);
-      if (!updateErr) photosAttached++;
+      if (!row.photoDataUrl || !playerId) return;
+      if (await uploadPlayerPhoto(supabase, playerId, row.photoDataUrl)) photosAttached++;
     })
   );
 
   revalidatePath("/dashboard/admin/players");
   revalidatePath("/dashboard/coach/squad");
-  return { created: insertedIds.length, skipped, photosAttached, playerIds: insertedIds.map((p) => p.id) };
+  return { created: insertedIds.length, skipped, photosAttached, backfilled, playerIds: insertedIds.map((p) => p.id) };
 }
 
 /**
@@ -410,12 +459,6 @@ export async function attachHeadshotsToExisting(
   let attached = 0;
   await Promise.all(
     matches.map(async ({ playerId, photoDataUrl }) => {
-      const match = photoDataUrl.match(/^data:(image\/\w+);base64,(.+)$/);
-      if (!match) return;
-      const [, contentType, b64] = match;
-      const ext = contentType === "image/png" ? "png" : "jpg";
-      const bytes = Buffer.from(b64, "base64");
-
       // Confirm the player is actually in this academy before writing anything.
       const { data: target } = await supabase
         .from("players")
@@ -425,20 +468,7 @@ export async function attachHeadshotsToExisting(
         .single();
       if (!target) return;
 
-      const { error: uploadErr } = await supabase.storage
-        .from("player-photos")
-        .upload(`${playerId}.${ext}`, bytes, { upsert: true, contentType });
-      if (uploadErr) return;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from("player-photos")
-        .getPublicUrl(`${playerId}.${ext}`);
-
-      const { error: updateErr } = await supabase
-        .from("players")
-        .update({ photo_url: publicUrl })
-        .eq("id", playerId);
-      if (!updateErr) attached++;
+      if (await uploadPlayerPhoto(supabase, playerId, photoDataUrl)) attached++;
     })
   );
 

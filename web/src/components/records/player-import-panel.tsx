@@ -40,7 +40,7 @@ export function PlayerImportPanel({
   const [error, setError] = useState<string | null>(null);
   const [photoWarning, setPhotoWarning] = useState<string | null>(null);
   const [unassignedPhotos, setUnassignedPhotos] = useState<string[]>([]);
-  const [result, setResult] = useState<{ created: number; skipped: string[]; photosAttached: number; attachedToExisting: number } | null>(null);
+  const [result, setResult] = useState<{ created: number; skipped: string[]; photosAttached: number; attachedToExisting: number; backfilled: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const positions = POSITIONS.filter((p) => !LEGACY.has(p.value));
@@ -136,6 +136,7 @@ export function PlayerImportPanel({
         skipped: createRes.skipped ?? [],
         photosAttached: createRes.photosAttached ?? 0,
         attachedToExisting: attachRes.attached ?? 0,
+        backfilled: ("backfilled" in createRes ? createRes.backfilled : 0) ?? 0,
       });
       setRows([]);
       setAttachChecked(new Set());
@@ -199,7 +200,11 @@ export function PlayerImportPanel({
         <div className="rounded-xl border border-primary/40 bg-primary/5 p-4 space-y-1">
           <p className="flex items-center gap-1.5 text-sm font-semibold">
             <CheckCircle2 className="size-4 text-primary" aria-hidden="true" />
-            {result.created} player{result.created === 1 ? "" : "s"} created
+            {result.created > 0
+              ? `${result.created} player${result.created === 1 ? "" : "s"} created`
+              : result.backfilled + result.attachedToExisting > 0
+                ? "Photos updated"
+                : "Everyone on this document was already registered"}
           </p>
           {result.photosAttached > 0 && (
             <p className="text-xs text-muted-foreground">
@@ -211,6 +216,12 @@ export function PlayerImportPanel({
             <p className="text-xs text-muted-foreground">
               {result.attachedToExisting} photo{result.attachedToExisting === 1 ? "" : "s"} attached to
               players already registered — no new player was created for them.
+            </p>
+          )}
+          {result.backfilled > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {result.backfilled} already-registered player{result.backfilled === 1 ? "" : "s"} had no
+              photo yet and got theirs from this document.
             </p>
           )}
           {result.skipped.length > 0 && (
