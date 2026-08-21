@@ -4,7 +4,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { AI_MODEL_DOC } from "@/lib/ai-models";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
-import { extractPdfHeadshots } from "@/lib/pdf-headshots";
+import { extractPdfHeadshots, type CardHeadshot } from "@/lib/pdf-headshots";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -24,6 +24,58 @@ export interface ExtractedPlayer {
 }
 
 const MAX_PDF_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Bind each extracted headshot to the player whose card it was printed on,
+ * by matching the registration numbers read off that same card — never by
+ * position in a list.
+ *
+ * Position was tried and abandoned: a single card with a missing or
+ * unreadable photo shifts every photo after it one player up, silently
+ * putting the wrong child's face on a name. Registration numbers (FIFA
+ * Connect ID, MySAFA) are unique per player and printed on the card right
+ * under the photo, so they identify the owner outright.
+ *
+ * A match is only accepted when it is unambiguous in both directions — one
+ * photo, one player. Anything ambiguous is left for the reviewer instead of
+ * being guessed at, and the count of such photos is returned so the caller
+ * can say so plainly.
+ *
+ * Mutates `players` in place; returns how many photos went unclaimed.
+ */
+function attachHeadshotsByIdentity(players: ExtractedPlayer[], headshots: CardHeadshot[]): number {
+  if (headshots.length === 0) return 0;
+  const key = (v: string | null) => (v ? v.replace(/\s/g, "").toUpperCase() : null);
+  const claimed = new Set<number>();
+
+  const bind = (identifiers: (string | null)[], player: ExtractedPlayer): boolean => {
+    const keys = identifiers.map(key).filter((k): k is string => !!k && k.length >= 3);
+    if (keys.length === 0) return false;
+    const hits: number[] = [];
+    for (const [i, h] of headshots.entries()) {
+      if (claimed.has(i)) continue;
+      if (keys.some((k) => h.labels.includes(k))) hits.push(i);
+    }
+    // Ambiguous in either direction is not a match — leave it to the reviewer.
+    if (hits.length !== 1) return false;
+    claimed.add(hits[0]);
+    player.photoDataUrl = headshots[hits[0]].dataUrl;
+    return true;
+  };
+
+  // Registration numbers first: unique by definition, so these are exact.
+  const stillNeedingPhoto = players.filter(
+    (p) => !bind([p.fifa_number, p.mysafa_number, p.id_number], p)
+  );
+
+  // Then names, for a card whose numbers didn't read cleanly. Only distinctive
+  // parts — a short token risks colliding with another player's name.
+  for (const p of stillNeedingPhoto) {
+    bind(p.full_name.split(/\s+/).filter((w) => w.length >= 4), p);
+  }
+
+  return headshots.length - claimed.size;
+}
 
 /**
  * Read players — and, where present, their headshot — off a SAFA/LFA
@@ -124,7 +176,7 @@ export async function extractPlayersFromPdf(
         },
       }),
       // Best-effort: never let a headshot extraction problem sink the import.
-      extractPdfHeadshots(bytes).catch((): (string | null)[] => []),
+      extractPdfHeadshots(bytes).catch((): CardHeadshot[] => []),
       existingPlayersPromise,
     ]);
 
@@ -142,15 +194,6 @@ export async function extractPlayersFromPdf(
     }
 
     if (!Array.isArray(parsed)) return { error: "Could not read the document." };
-
-    // The headshot count only lines up with the card count when every card's
-    // photo slot resolved cleanly. When it doesn't (a missing photo, or a
-    // slot too ambiguous to trust — see pdf-headshots.ts), pairing by
-    // position would silently attach the wrong player's photo to a name
-    // instead of just missing one, so skip auto-attaching entirely rather
-    // than guess. The reviewer can still attach any photo by hand.
-    const countMismatch = headshots.length > 0 && headshots.length !== parsed.length;
-    const safeHeadshots = countMismatch ? [] : headshots;
 
     const clean = (v: unknown) => {
       const s = typeof v === "string" ? v.trim() : "";
@@ -170,7 +213,7 @@ export async function extractPlayersFromPdf(
     };
 
     const players: ExtractedPlayer[] = parsed
-      .map((row, i): ExtractedPlayer | null => {
+      .map((row): ExtractedPlayer | null => {
         const r = row as Record<string, unknown>;
         const name = clean(r.full_name);
         if (!name) return null;
@@ -187,10 +230,7 @@ export async function extractPlayersFromPdf(
           fifa_number,
           id_number,
           age_group: clean(r.age_group),
-          // Best-effort pairing by position in reading order. The review table
-          // shows every photo before anything is created, so a wrong pairing
-          // here is caught by a human rather than silently attached.
-          photoDataUrl: safeHeadshots[i] ?? null,
+          photoDataUrl: null, // bound below, by identity rather than position
           matchedPlayerId: match?.id ?? null,
           matchedPlayerName: match?.full_name ?? null,
         };
@@ -198,11 +238,15 @@ export async function extractPlayersFromPdf(
       .filter((p): p is ExtractedPlayer => p !== null);
 
     if (players.length === 0) return { error: "No players were found in that PDF." };
+
+    const unmatchedPhotos = attachHeadshotsByIdentity(players, headshots);
+
     return {
       players,
-      photoWarning: countMismatch
-        ? "Photos on this document couldn't be reliably matched to players — attach each one by hand below."
-        : undefined,
+      photoWarning:
+        unmatchedPhotos > 0
+          ? `${unmatchedPhotos} photo${unmatchedPhotos === 1 ? "" : "s"} on this document couldn't be tied to a specific player — attach ${unmatchedPhotos === 1 ? "it" : "them"} by hand below.`
+          : undefined,
     };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Could not process the PDF." };
