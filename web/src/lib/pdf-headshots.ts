@@ -1,64 +1,68 @@
 import { PDFDocument, PDFName } from "pdf-lib";
 
 /**
- * Pull embedded headshots out of a SAFA registration PDF, one slot per card
- * in true on-page order (left to right, top to bottom) — the same order the
- * text extraction is asked to read the cards in, so the two lists can be
- * paired by position.
+ * Pull embedded headshots out of a SAFA registration PDF, each tagged with
+ * the text printed on its own card — so a photo can be bound to a player by
+ * that player's registration number rather than by position in a list.
  *
  * These cards are generated, not scanned: every graphic on the page — the
  * academy crest, a QR code, a badge, the player's photo — is its own embedded
- * image object. That means a real photo can be read out directly, with no
- * OCR and no rendering the page to a bitmap for the actual pixels.
+ * image object. So a real photo can be read out directly, with no OCR.
  *
- * Getting the ORDER right, though, turned out to need a real PDF
- * interpreter, not a hand-rolled one — verified against a real, messy
- * Growfit card sheet:
+ * Getting the OWNER of each photo right is the hard part, and position-based
+ * pairing was tried and abandoned twice against a real Growfit card sheet:
  *
- * - A resource dictionary's key order (an earlier version of this file) is
- *   just whatever order the generator happened to write resource names in,
- *   and did not match the cards' visual grid position.
- * - The content stream's own "Do" paint sequence — plausible-sounding, since
- *   it's literally paint order — ALSO did not match visual order on that
- *   same sheet: two cards' Form XObjects were invoked out of grid order.
- * - Reliably resolving a card's true on-page position requires composing
- *   nested Form transforms and BBoxes correctly, which a full interpreter
- *   does and a hand-rolled content-stream walk kept getting subtly wrong.
+ * - A resource dictionary's key order is just whatever order the generator
+ *   wrote resource names in; it did not match the cards' visual layout.
+ * - The content stream's own "Do" paint order — plausible, since it is
+ *   literally paint order — ALSO did not match visual layout on that sheet.
+ * - Even with correct on-page geometry, ANY purely positional scheme breaks
+ *   the moment one card's photo is missing or unreadable: every photo after
+ *   it shifts one player up, so a single bad card silently mislabels the
+ *   whole rest of the sheet. That is the worst possible failure here — a
+ *   wrong child's face attached to a name, looking entirely correct.
  *
- * So this uses pdf.js (`collectImageCandidates`, via `getOperatorList`) to
- * get each image's correctly-resolved page position, and sorts by that —
- * top-to-bottom row clusters, left-to-right within a row — rather than by
- * any form of document-internal ordering. pdf-lib is still used for the
- * actual photo bytes (`extractJpegBytesByDimension`): pdf.js gives correct
- * positions but decodes to raw pixels, and re-encoding would degrade the
- * photo, so pdf-lib reads the original JPEG bytes and the two are joined by
- * each photo's pixel dimensions.
+ * So position is used only to work out which card a photo sits on, never
+ * which player it belongs to. Each photo is tagged with the text tokens
+ * printed directly beneath it on that same card — which always include that
+ * player's FIFA Connect ID and MySAFA number, both unique — and the caller
+ * binds photo to player by matching those. Ordering the list correctly is
+ * then merely a nicety, not a correctness requirement.
  *
- * Two more things this guards against, both seen on that same real sheet:
+ * Two more real-document hazards this handles:
  *
- * - A missing photo (blank slot, or one that didn't survive editing) must
- *   not shift every photo after it onto the wrong player. A slot with no
- *   usable photo becomes `null` and keeps its position in the grid — column
- *   position is inferred from whichever row has the most photos, so a card
- *   missing its photo in an otherwise-full row doesn't collapse the row and
- *   shift its neighbour into the gap.
- * - A hand-edited card had two images placed on top of each other in the
- *   same slot (old photo left behind under the replacement) — no way to
- *   tell which is real from the file alone, so overlapping placements are
- *   dropped as a pair rather than guessing. A child's face is not something
- *   to guess at; losing one auto-match is a far smaller cost than showing
- *   the wrong one confidently.
+ * - A hand-edited card had a replacement photo painted directly over the
+ *   original, leaving both in the file at the same spot. The one actually
+ *   visible is the one painted last, so later paint wins.
+ * - Another card's photo was a raw Flate bitmap, not a JPEG — the right
+ *   size and shape to look like a photo, but not a usable one. Restricting
+ *   to JPEG (`DCTDecode`) excludes it, and excludes the crest/QR/badge
+ *   graphics for free. A child's face is not something to guess at, so a
+ *   miss is the right trade.
  */
 
 const MIN_DIMENSION = 100;
-// Excludes small shared decorations (badges, QR mounts) reused across
-// cards — a real per-card photo is both larger on the page and, unlike a
-// shared graphic, painted at exactly one position in the whole document.
+// On-page size bounds for a card photo, in points. The lower bound drops
+// small shared decorations (badges, QR mounts); the upper bound drops the
+// full-page background image, which would otherwise sit "above" every card's
+// text and collect all of it as labels.
 const MIN_ONPAGE_SIZE = 60;
-// Two placements this close (in points) are treated as competing for the
-// same slot rather than two different cards.
+const MAX_ONPAGE_SIZE = 200;
+// How far below a photo to read text for that card's labels.
+const LABEL_REACH_BELOW = 95;
+// Two placements this close (points) are competing for one slot, not two cards.
 const COLLISION_DISTANCE = 40;
 const ROW_CLUSTER_FACTOR = 0.6;
+
+export interface CardHeadshot {
+  dataUrl: string;
+  /**
+   * Uppercased, whitespace-stripped text tokens printed on the same card —
+   * registration numbers and name parts. The caller matches against these
+   * rather than trusting this list's order.
+   */
+  labels: string[];
+}
 
 type Mat = [number, number, number, number, number, number];
 const IDENTITY: Mat = [1, 0, 0, 1, 0, 0];
@@ -73,17 +77,28 @@ function mul(m1: Mat, m2: Mat): Mat {
   ];
 }
 
-interface ImageCandidate {
+interface Placement {
   page: number;
-  w: number; // native pixel width
-  h: number; // native pixel height
+  w: number; // native pixel size, used to join to the original JPEG bytes
+  h: number;
   x: number; // page position, PDF user space
   y: number;
-  onPageW: number; // displayed size in points
+  onPageW: number;
   onPageH: number;
+  labels: string[];
 }
 
-async function collectImageCandidates(bytes: Buffer): Promise<ImageCandidate[]> {
+/**
+ * Every photo-shaped image placement, with the card text beneath it.
+ *
+ * pdf.js is used here rather than a hand-rolled content-stream walk because
+ * resolving a placement's true page position means composing nested Form
+ * XObject transforms, which a hand-rolled version kept getting subtly wrong.
+ * It decodes images to raw pixels though, and re-encoding would degrade the
+ * photo, so the original JPEG bytes come from pdf-lib and the two are joined
+ * on native pixel dimensions.
+ */
+async function collectPlacements(bytes: Buffer): Promise<Placement[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pdfjsLib: any = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const doc = await pdfjsLib.getDocument({
@@ -93,13 +108,16 @@ async function collectImageCandidates(bytes: Buffer): Promise<ImageCandidate[]> 
   }).promise;
   const OPS = pdfjsLib.OPS;
 
-  const raw: (ImageCandidate & { id: string })[] = [];
+  const out: Placement[] = [];
+
   for (let p = 1; p <= doc.numPages; p++) {
     const page = await doc.getPage(p);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const opList: any = await page.getOperatorList();
+
     let ctm: Mat = IDENTITY;
     const stack: Mat[] = [];
+    const placements: Omit<Placement, "labels">[] = [];
     for (let i = 0; i < opList.fnArray.length; i++) {
       const fn = opList.fnArray[i];
       const args = opList.argsArray[i];
@@ -107,116 +125,55 @@ async function collectImageCandidates(bytes: Buffer): Promise<ImageCandidate[]> 
       if (fn === OPS.restore) { ctm = stack.pop() ?? IDENTITY; continue; }
       if (fn === OPS.transform) { ctm = mul(args as Mat, ctm); continue; }
       if (fn === OPS.paintImageXObject || fn === OPS.paintJpegXObject) {
-        const [id, w, h] = args as [string, number, number];
+        const [, w, h] = args as [string, number, number];
         if (typeof w !== "number" || typeof h !== "number") continue;
-        raw.push({
-          page: p, id, w, h,
-          x: ctm[4], y: ctm[5],
-          onPageW: Math.abs(ctm[0]), onPageH: Math.abs(ctm[3]),
-        });
+        const onPageW = Math.abs(ctm[0]);
+        const onPageH = Math.abs(ctm[3]);
+        if (w < MIN_DIMENSION || h < MIN_DIMENSION) continue;
+        if (onPageW < MIN_ONPAGE_SIZE || onPageH < MIN_ONPAGE_SIZE) continue;
+        if (onPageW > MAX_ONPAGE_SIZE || onPageH > MAX_ONPAGE_SIZE) continue;
+        placements.push({ page: p, w, h, x: ctm[4], y: ctm[5], onPageW, onPageH });
       }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const textContent: any = await page.getTextContent();
+    const texts = textContent.items
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .filter((it: any) => typeof it.str === "string" && it.str.trim())
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((it: any) => ({ s: it.str.trim(), x: it.transform[4], y: it.transform[5] }));
+
+    for (const pl of placements) {
+      const labels = texts
+        .filter((t: { x: number; y: number }) =>
+          t.x + 5 >= pl.x - 30 &&
+          t.x <= pl.x + Math.max(pl.onPageW, 200) &&
+          t.y < pl.y &&
+          t.y > pl.y - LABEL_REACH_BELOW
+        )
+        .map((t: { s: string }) => t.s.replace(/\s/g, "").toUpperCase())
+        .filter((s: string) => s.length > 0);
+      out.push({ ...pl, labels });
     }
   }
 
-  // A shared graphic (crest, QR mount) is the same object painted at
-  // several different positions; a per-card photo is painted once.
-  const idCounts = new Map<string, number>();
-  for (const r of raw) {
-    const key = `${r.page}:${r.id}`;
-    idCounts.set(key, (idCounts.get(key) ?? 0) + 1);
-  }
-
-  return raw.filter((r) =>
-    idCounts.get(`${r.page}:${r.id}`) === 1 &&
-    r.w >= MIN_DIMENSION && r.h >= MIN_DIMENSION &&
-    r.onPageW >= MIN_ONPAGE_SIZE && r.onPageH >= MIN_ONPAGE_SIZE
-  );
-}
-
-/** Reading order: top-to-bottom rows, left-to-right within a row. */
-function orderIntoSlots(candidates: ImageCandidate[]): (ImageCandidate | null)[] {
-  const byPage = new Map<number, ImageCandidate[]>();
-  for (const c of candidates) {
-    if (!byPage.has(c.page)) byPage.set(c.page, []);
-    byPage.get(c.page)!.push(c);
-  }
-
-  const slots: (ImageCandidate | null)[] = [];
-  for (const p of [...byPage.keys()].sort((a, b) => a - b)) {
-    let list = byPage.get(p)!;
-
-    // Collapse overlapping placements (the same slot, twice) — drop both
-    // rather than guess which is real. See file header.
-    const used = new Set<number>();
-    const collapsed: ImageCandidate[] = [];
-    for (let i = 0; i < list.length; i++) {
-      if (used.has(i)) continue;
-      const cluster = [i];
-      for (let j = i + 1; j < list.length; j++) {
-        if (used.has(j)) continue;
-        if (Math.abs(list[i].x - list[j].x) < COLLISION_DISTANCE && Math.abs(list[i].y - list[j].y) < COLLISION_DISTANCE) {
-          cluster.push(j);
-        }
-      }
-      cluster.forEach((k) => used.add(k));
-      if (cluster.length === 1) collapsed.push(list[i]);
-    }
-    list = collapsed;
-
-    // Row-cluster by vertical center, top of page first.
-    const withCenter = list.map((it) => ({ it, cy: it.y + it.onPageH / 2 }));
-    withCenter.sort((a, b) => b.cy - a.cy);
-    const rows: { cy: number; items: typeof withCenter }[] = [];
-    for (const entry of withCenter) {
-      const last = rows[rows.length - 1];
-      const threshold = entry.it.onPageH * ROW_CLUSTER_FACTOR;
-      if (last && Math.abs(entry.cy - last.cy) < threshold) last.items.push(entry);
-      else rows.push({ cy: entry.cy, items: [entry] });
-    }
-
-    // The fullest row establishes the grid's column positions, so a row
-    // missing one photo still places its survivor(s) in the right column
-    // instead of shifting them left.
-    const fullestRow = rows.reduce<{ cy: number; items: typeof withCenter } | null>(
-      (a, b) => (!a || b.items.length > a.items.length ? b : a),
-      null
-    );
-    const columnXs = (fullestRow?.items ?? []).map((e) => e.it.x).sort((a, b) => a - b);
-
-    for (const row of rows) {
-      row.items.sort((a, b) => a.it.x - b.it.x);
-      if (columnXs.length <= 1 || row.items.length >= columnXs.length) {
-        for (const e of row.items) slots.push(e.it);
-        continue;
-      }
-      const placed: (ImageCandidate | null)[] = columnXs.map(() => null);
-      for (const e of row.items) {
-        let best = 0, bestDist = Infinity;
-        for (let c = 0; c < columnXs.length; c++) {
-          const d = Math.abs(columnXs[c] - e.it.x);
-          if (d < bestDist) { bestDist = d; best = c; }
-        }
-        placed[best] = e.it;
-      }
-      slots.push(...placed);
-    }
-  }
-  return slots;
+  return out;
 }
 
 /**
- * Every JPEG (`DCTDecode`) image on the page, grouped by native pixel
- * dimensions. Restricted to JPEG specifically: everything else on these
- * cards — crest, QR code, badges, and (seen on a real hand-edited card) a
- * corrupted placeholder the right size and shape to look like a photo — is
- * a raw Flate bitmap. JPEG-only trades a rare miss for never attaching a
- * broken or wrong image.
+ * Original JPEG bytes for every `DCTDecode` image, grouped by native pixel
+ * dimensions — the join key back to the pdf.js placements.
  */
 async function extractJpegBytesByDimension(bytes: Buffer): Promise<Map<string, string[]>> {
   const pdf = await PDFDocument.load(bytes, { ignoreEncryption: true });
   const pool = new Map<string, string[]>();
   const seenRefs = new Set<string>();
 
+  // The object graph is walked ad hoc — Form XObjects nest further XObject
+  // dictionaries to an unpredictable depth — so this uses loosely-typed nodes
+  // by design rather than fighting pdf-lib's low-level types for a traversal
+  // they are not meant to describe.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function walk(resources: any, depth: number) {
     if (depth > 8 || !resources) return;
@@ -238,9 +195,7 @@ async function extractJpegBytesByDimension(bytes: Buffer): Promise<Map<string, s
       if (subtype === "/Image") {
         const refKey = ref?.toString();
         if (!refKey || seenRefs.has(refKey)) continue;
-
-        const filter = dict.get(PDFName.of("Filter"))?.toString();
-        if (filter !== "/DCTDecode") continue;
+        if (dict.get(PDFName.of("Filter"))?.toString() !== "/DCTDecode") continue;
 
         const width = Number(dict.get(PDFName.of("Width")));
         const height = Number(dict.get(PDFName.of("Height")));
@@ -250,8 +205,8 @@ async function extractJpegBytesByDimension(bytes: Buffer): Promise<Map<string, s
         if (!contents) continue;
 
         seenRefs.add(refKey);
-        const dataUrl = `data:image/jpeg;base64,${Buffer.from(contents).toString("base64")}`;
         const dimKey = `${width}x${height}`;
+        const dataUrl = `data:image/jpeg;base64,${Buffer.from(contents).toString("base64")}`;
         const list = pool.get(dimKey);
         if (list) list.push(dataUrl);
         else pool.set(dimKey, [dataUrl]);
@@ -271,22 +226,64 @@ async function extractJpegBytesByDimension(bytes: Buffer): Promise<Map<string, s
   return pool;
 }
 
+/** Reading order: pages, then top-to-bottom rows, left-to-right within a row. */
+function toReadingOrder<T extends { page: number; x: number; y: number; onPageH: number }>(items: T[]): T[] {
+  const ordered: T[] = [];
+  const byPage = new Map<number, T[]>();
+  for (const it of items) {
+    if (!byPage.has(it.page)) byPage.set(it.page, []);
+    byPage.get(it.page)!.push(it);
+  }
+  for (const p of [...byPage.keys()].sort((a, b) => a - b)) {
+    const withCenter = byPage.get(p)!.map((it) => ({ it, cy: it.y + it.onPageH / 2 }));
+    withCenter.sort((a, b) => b.cy - a.cy);
+    const rows: { cy: number; items: typeof withCenter }[] = [];
+    for (const entry of withCenter) {
+      const last = rows[rows.length - 1];
+      if (last && Math.abs(entry.cy - last.cy) < entry.it.onPageH * ROW_CLUSTER_FACTOR) last.items.push(entry);
+      else rows.push({ cy: entry.cy, items: [entry] });
+    }
+    for (const row of rows) {
+      row.items.sort((a, b) => a.it.x - b.it.x);
+      for (const e of row.items) ordered.push(e.it);
+    }
+  }
+  return ordered;
+}
+
 /**
- * One entry per card slot found, in true reading order — `null` where a
- * slot has no usable photo, so the array stays aligned with the text
- * extraction's one-row-per-card output even when some cards are missing a
- * photo or their placement is too ambiguous to trust.
+ * One entry per card photo that could be read, in reading order — but the
+ * caller should bind these to players via `labels`, not by index. A card
+ * whose photo is missing or unusable simply has no entry, which is safe
+ * precisely because matching is by label rather than position.
  */
-export async function extractPdfHeadshots(bytes: Buffer): Promise<(string | null)[]> {
-  const [candidates, pool] = await Promise.all([
-    collectImageCandidates(bytes),
+export async function extractPdfHeadshots(bytes: Buffer): Promise<CardHeadshot[]> {
+  const [placements, pool] = await Promise.all([
+    collectPlacements(bytes),
     extractJpegBytesByDimension(bytes),
   ]);
-  const orderedSlots = orderIntoSlots(candidates);
 
-  return orderedSlots.map((slot) => {
-    if (!slot) return null;
-    const list = pool.get(`${slot.w}x${slot.h}`);
-    return list?.shift() ?? null;
-  });
+  // Join to original JPEG bytes. Non-JPEG placements (crest, corrupted
+  // photo slots) find nothing and drop out here.
+  const withPhotos: (Placement & { dataUrl: string })[] = [];
+  for (const pl of placements) {
+    const dataUrl = pool.get(`${pl.w}x${pl.h}`)?.shift();
+    if (dataUrl) withPhotos.push({ ...pl, dataUrl });
+  }
+
+  // Where a replacement was painted over an original, keep the one actually
+  // visible — the one painted last. `placements` is in paint order.
+  const resolved: (Placement & { dataUrl: string })[] = [];
+  for (const cur of withPhotos) {
+    const clashIdx = resolved.findIndex(
+      (r) =>
+        r.page === cur.page &&
+        Math.abs(r.x - cur.x) < COLLISION_DISTANCE &&
+        Math.abs(r.y - cur.y) < COLLISION_DISTANCE
+    );
+    if (clashIdx === -1) resolved.push(cur);
+    else resolved[clashIdx] = cur;
+  }
+
+  return toReadingOrder(resolved).map((r) => ({ dataUrl: r.dataUrl, labels: r.labels }));
 }
