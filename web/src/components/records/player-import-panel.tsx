@@ -39,6 +39,7 @@ export function PlayerImportPanel({
   const [busy, setBusy] = useState<"extract" | "create" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [photoWarning, setPhotoWarning] = useState<string | null>(null);
+  const [unassignedPhotos, setUnassignedPhotos] = useState<string[]>([]);
   const [result, setResult] = useState<{ created: number; skipped: string[]; photosAttached: number; attachedToExisting: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -68,6 +69,7 @@ export function PlayerImportPanel({
       const res = await extractPlayersFromPdf(fd);
       if (res.error) { setError(res.error); return; }
       setPhotoWarning(res.photoWarning ?? null);
+      setUnassignedPhotos((prev) => [...prev, ...(res.unassignedPhotos ?? [])]);
       const startIndex = rows.length;
       const newRows = (res.players ?? []).map((p) => ({ ...p, position: null }));
       setRows((prev) => [...prev, ...newRows]);
@@ -137,6 +139,8 @@ export function PlayerImportPanel({
       });
       setRows([]);
       setAttachChecked(new Set());
+      setUnassignedPhotos([]);
+      setPhotoWarning(null);
     } catch (err) {
       setError(err instanceof Error ? `Could not create players: ${err.message}` : "Could not create players.");
     } finally {
@@ -224,6 +228,48 @@ export function PlayerImportPanel({
         </div>
       )}
 
+      {/* Photos read off the document that no card identified an owner for.
+          Shown rather than discarded so the reviewer can place them. */}
+      {unassignedPhotos.length > 0 && rows.length > 0 && (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 space-y-3">
+          <div>
+            <p className="text-sm font-semibold">
+              Unassigned photo{unassignedPhotos.length === 1 ? "" : "s"} ({unassignedPhotos.length})
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              These came off the document but their card didn&apos;t identify a player. Pick who each
+              belongs to, or leave them — nothing is attached unless you choose.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {unassignedPhotos.map((dataUrl, pi) => (
+              <div key={pi} className="w-32 space-y-1.5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={dataUrl} alt="" className="h-32 w-32 rounded-lg border border-border object-cover" />
+                <select
+                  defaultValue=""
+                  onChange={(e) => {
+                    const rowIdx = Number(e.target.value);
+                    if (Number.isNaN(rowIdx)) return;
+                    update(rowIdx, { photoDataUrl: dataUrl });
+                    if (rows[rowIdx]?.matchedPlayerId) {
+                      setAttachChecked((prev) => new Set(prev).add(rowIdx));
+                    }
+                    setUnassignedPhotos((prev) => prev.filter((_, idx) => idx !== pi));
+                  }}
+                  className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+                >
+                  <option value="">Assign to…</option>
+                  {rows.map((r, ri) => (
+                    <option key={ri} value={ri}>{r.full_name || `Row ${ri + 1}`}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Review table */}
       {rows.length > 0 && (
         <div className="rounded-xl border border-border bg-card">
@@ -232,8 +278,8 @@ export function PlayerImportPanel({
               <p className="text-sm font-semibold">Check before creating ({rows.length})</p>
               {photoCount > 0 && (
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {photoCount} photo{photoCount === 1 ? "" : "s"} matched by card position — check each
-                  one is the right player before creating; replace or clear any that aren&apos;t.
+                  {photoCount} photo{photoCount === 1 ? "" : "s"} matched by the registration number on
+                  each card — still worth a glance before creating.
                 </p>
               )}
               {matchedCount > 0 && (
@@ -245,7 +291,7 @@ export function PlayerImportPanel({
             </div>
             <button
               type="button"
-              onClick={() => setRows([])}
+              onClick={() => { setRows([]); setUnassignedPhotos([]); setPhotoWarning(null); }}
               className="text-xs text-muted-foreground underline"
             >
               Clear all

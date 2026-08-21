@@ -41,10 +41,11 @@ const MAX_PDF_BYTES = 10 * 1024 * 1024;
  * being guessed at, and the count of such photos is returned so the caller
  * can say so plainly.
  *
- * Mutates `players` in place; returns how many photos went unclaimed.
+ * Mutates `players` in place; returns the photos left unclaimed, so the
+ * reviewer can place them by hand rather than having them silently binned.
  */
-function attachHeadshotsByIdentity(players: ExtractedPlayer[], headshots: CardHeadshot[]): number {
-  if (headshots.length === 0) return 0;
+function attachHeadshotsByIdentity(players: ExtractedPlayer[], headshots: CardHeadshot[]): string[] {
+  if (headshots.length === 0) return [];
   const key = (v: string | null) => (v ? v.replace(/\s/g, "").toUpperCase() : null);
   const claimed = new Set<number>();
 
@@ -74,7 +75,7 @@ function attachHeadshotsByIdentity(players: ExtractedPlayer[], headshots: CardHe
     bind(p.full_name.split(/\s+/).filter((w) => w.length >= 4), p);
   }
 
-  return headshots.length - claimed.size;
+  return headshots.filter((_, i) => !claimed.has(i)).map((h) => h.dataUrl);
 }
 
 /**
@@ -92,7 +93,13 @@ function attachHeadshotsByIdentity(players: ExtractedPlayer[], headshots: CardHe
  */
 export async function extractPlayersFromPdf(
   formData: FormData
-): Promise<{ players?: ExtractedPlayer[]; error?: string; photoWarning?: string }> {
+): Promise<{
+  players?: ExtractedPlayer[];
+  error?: string;
+  photoWarning?: string;
+  /** Photos read off the document that no player could be matched to. */
+  unassignedPhotos?: string[];
+}> {
   try {
     const { supabase, user } = await requireUser();
 
@@ -239,13 +246,15 @@ export async function extractPlayersFromPdf(
 
     if (players.length === 0) return { error: "No players were found in that PDF." };
 
-    const unmatchedPhotos = attachHeadshotsByIdentity(players, headshots);
+    const unassignedPhotos = attachHeadshotsByIdentity(players, headshots);
+    const n = unassignedPhotos.length;
 
     return {
       players,
+      unassignedPhotos,
       photoWarning:
-        unmatchedPhotos > 0
-          ? `${unmatchedPhotos} photo${unmatchedPhotos === 1 ? "" : "s"} on this document couldn't be tied to a specific player — attach ${unmatchedPhotos === 1 ? "it" : "them"} by hand below.`
+        n > 0
+          ? `${n} photo${n === 1 ? "" : "s"} on this document couldn't be tied to a specific player — assign ${n === 1 ? "it" : "them"} below, or leave ${n === 1 ? "it" : "them"} out.`
           : undefined,
     };
   } catch (err) {
