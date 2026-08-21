@@ -4,7 +4,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { AI_MODEL_DOC } from "@/lib/ai-models";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
-import { extractPdfHeadshots, type PdfHeadshot } from "@/lib/pdf-headshots";
+import { extractPdfHeadshots } from "@/lib/pdf-headshots";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -40,7 +40,7 @@ const MAX_PDF_BYTES = 10 * 1024 * 1024;
  */
 export async function extractPlayersFromPdf(
   formData: FormData
-): Promise<{ players?: ExtractedPlayer[]; error?: string }> {
+): Promise<{ players?: ExtractedPlayer[]; error?: string; photoWarning?: string }> {
   try {
     const { supabase, user } = await requireUser();
 
@@ -124,7 +124,7 @@ export async function extractPlayersFromPdf(
         },
       }),
       // Best-effort: never let a headshot extraction problem sink the import.
-      extractPdfHeadshots(bytes).catch((): PdfHeadshot[] => []),
+      extractPdfHeadshots(bytes).catch((): (string | null)[] => []),
       existingPlayersPromise,
     ]);
 
@@ -142,6 +142,15 @@ export async function extractPlayersFromPdf(
     }
 
     if (!Array.isArray(parsed)) return { error: "Could not read the document." };
+
+    // The headshot count only lines up with the card count when every card's
+    // photo slot resolved cleanly. When it doesn't (a missing photo, or a
+    // slot too ambiguous to trust — see pdf-headshots.ts), pairing by
+    // position would silently attach the wrong player's photo to a name
+    // instead of just missing one, so skip auto-attaching entirely rather
+    // than guess. The reviewer can still attach any photo by hand.
+    const countMismatch = headshots.length > 0 && headshots.length !== parsed.length;
+    const safeHeadshots = countMismatch ? [] : headshots;
 
     const clean = (v: unknown) => {
       const s = typeof v === "string" ? v.trim() : "";
@@ -181,7 +190,7 @@ export async function extractPlayersFromPdf(
           // Best-effort pairing by position in reading order. The review table
           // shows every photo before anything is created, so a wrong pairing
           // here is caught by a human rather than silently attached.
-          photoDataUrl: headshots[i]?.dataUrl ?? null,
+          photoDataUrl: safeHeadshots[i] ?? null,
           matchedPlayerId: match?.id ?? null,
           matchedPlayerName: match?.full_name ?? null,
         };
@@ -189,7 +198,12 @@ export async function extractPlayersFromPdf(
       .filter((p): p is ExtractedPlayer => p !== null);
 
     if (players.length === 0) return { error: "No players were found in that PDF." };
-    return { players };
+    return {
+      players,
+      photoWarning: countMismatch
+        ? "Photos on this document couldn't be reliably matched to players — attach each one by hand below."
+        : undefined,
+    };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Could not process the PDF." };
   }
