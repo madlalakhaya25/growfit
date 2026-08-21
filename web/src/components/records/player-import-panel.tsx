@@ -38,6 +38,7 @@ export function PlayerImportPanel({
   const [teamId, setTeamId] = useState(defaultTeamId);
   const [busy, setBusy] = useState<"extract" | "create" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [photoWarning, setPhotoWarning] = useState<string | null>(null);
   const [result, setResult] = useState<{ created: number; skipped: string[]; photosAttached: number; attachedToExisting: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -66,6 +67,7 @@ export function PlayerImportPanel({
       fd.append("file", file);
       const res = await extractPlayersFromPdf(fd);
       if (res.error) { setError(res.error); return; }
+      setPhotoWarning(res.photoWarning ?? null);
       const startIndex = rows.length;
       const newRows = (res.players ?? []).map((p) => ({ ...p, position: null }));
       setRows((prev) => [...prev, ...newRows]);
@@ -184,6 +186,9 @@ export function PlayerImportPanel({
           <p className="text-xs text-muted-foreground">Reading the cards — this takes a few seconds.</p>
         )}
         {error && <p className="text-sm text-destructive">{error}</p>}
+        {photoWarning && (
+          <p className="text-sm text-amber-600 dark:text-amber-500">{photoWarning}</p>
+        )}
       </div>
 
       {result && (
