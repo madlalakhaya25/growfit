@@ -22,7 +22,7 @@ export default async function AdminDashboardPage() {
   const [players, teams, fixtures, ratings] = await Promise.all([
     supabase.from("players").select("id", { count: "exact" }).eq("academy_id", academyId).eq("active", true),
     supabase.from("teams").select("id", { count: "exact" }).eq("academy_id", academyId).eq("active", true),
-    supabase.from("fixtures").select("id", { count: "exact" }).eq("status", "upcoming"),
+    supabase.from("fixtures").select("id", { count: "exact" }).eq("status", "upcoming").gte("fixture_date", new Date().toISOString()),
     supabase.from("player_ratings").select("id", { count: "exact" }),
   ]);
 

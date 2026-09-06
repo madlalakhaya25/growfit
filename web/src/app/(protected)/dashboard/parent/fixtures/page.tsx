@@ -4,6 +4,7 @@ import Link from "next/link";
 import { MapPin, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { isFixturePast } from "@/lib/fixtures";
 
 const STATUS_VARIANT = {
   upcoming:  "neutral",
@@ -69,8 +70,8 @@ export default async function ParentFixturesPage() {
   };
 
   const allFixtures = (fixtures ?? []) as Fixture[];
-  const upcoming = allFixtures.filter((f) => f.status === "upcoming");
-  const past     = allFixtures.filter((f) => f.status !== "upcoming");
+  const upcoming = allFixtures.filter((f) => !isFixturePast(f));
+  const past     = allFixtures.filter((f) => isFixturePast(f));
 
   function FixtureRow({ f }: { f: Fixture }) {
     const teamName = Array.isArray(f.teams) ? f.teams[0]?.name : f.teams?.name;

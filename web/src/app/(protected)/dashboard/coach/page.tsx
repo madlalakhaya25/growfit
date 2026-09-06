@@ -26,6 +26,7 @@ export default async function CoachDashboardPage() {
 
   const rawTeams = teamRows ?? [];
   const teamIds = rawTeams.map((t) => t.id);
+  const now = new Date().toISOString();
 
   // Batch queries instead of O(2n) per-team round-trips
   const [{ data: memberRows }, { data: upcomingRows }] = await Promise.all([
@@ -33,7 +34,9 @@ export default async function CoachDashboardPage() {
       ? supabase.from("team_members").select("team_id").in("team_id", teamIds).eq("active", true)
       : Promise.resolve({ data: [] }),
     teamIds.length
-      ? supabase.from("fixtures").select("team_id").in("team_id", teamIds).eq("status", "upcoming")
+      // A fixture whose kickoff has passed isn't "upcoming" for this badge,
+      // even if the coach hasn't logged its result yet.
+      ? supabase.from("fixtures").select("team_id").in("team_id", teamIds).eq("status", "upcoming").gte("fixture_date", now)
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -47,7 +50,6 @@ export default async function CoachDashboardPage() {
     squadCount: squadCountMap.get(team.id) ?? 0,
     upcomingCount: upcomingCountMap.get(team.id) ?? 0,
   }));
-  const now = new Date().toISOString();
 
   const [{ data: nextFixtures }, { data: nextSessions }] = await Promise.all([
     teamIds.length
