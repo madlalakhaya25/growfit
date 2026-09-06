@@ -152,6 +152,10 @@ Output format:
       contents: prompt,
       config: {
         maxOutputTokens: 600,
+        // Disable thinking: this is a direct-answer task, and unbudgeted
+        // thinking tokens were silently eating the whole visible-output budget,
+        // truncating the answer before the reader ever saw it end.
+        thinkingConfig: { thinkingBudget: 0 },
         systemInstruction:
           "You are an elite youth football development coach creating personalised, actionable 4-week development plans. Write in plain text only — no asterisks, no markdown, no bolding.",
       },

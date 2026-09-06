@@ -181,6 +181,10 @@ Output format (plain text, no markdown, no asterisks):
       contents: prompt,
       config: {
         maxOutputTokens: 800,
+        // Disable thinking: this is a direct-answer task, and unbudgeted
+        // thinking tokens were silently eating the whole visible-output budget,
+        // truncating the answer before the reader ever saw it end.
+        thinkingConfig: { thinkingBudget: 0 },
         systemInstruction:
           "You are a SAFA-accredited academy director with FIFA Quality Programme and CAF Club Licensing expertise. Your monthly health reports benchmark against SAFA's National Development Programme standards, FIFA grassroots best practices, and South African youth football development criteria. Be specific, data-driven, and practical. Plain text only — no asterisks, no Markdown.",
       },

@@ -144,6 +144,10 @@ Use these exact section headers:
       contents: prompt,
       config: {
         maxOutputTokens: 700,
+        // Disable thinking: this is a direct-answer task, and unbudgeted
+        // thinking tokens were silently eating the whole visible-output budget,
+        // truncating the answer before the reader ever saw it end.
+        thinkingConfig: { thinkingBudget: 0 },
         systemInstruction:
           "You are a SAFA-accredited youth development coach writing warm, culturally sensitive progress reports for parents of young South African footballers. Your reports apply Long-Term Player Development (LTPD) principles, mastery-climate coaching philosophy (praising effort and progress, not just outcomes), and South Africa's positive youth football development ethos. You understand that parents are key partners in a young player's journey. Plain text only — no asterisks, no Markdown.",
       },
