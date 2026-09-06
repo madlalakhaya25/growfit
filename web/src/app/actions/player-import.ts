@@ -5,6 +5,7 @@ import { AI_MODEL_DOC } from "@/lib/ai-models";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { extractPdfHeadshots, type CardHeadshot } from "@/lib/pdf-headshots";
+import { attachHeadshotsByIdentity } from "@/lib/headshot-matching";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -54,59 +55,6 @@ async function uploadPlayerPhoto(supabase: Db, playerId: string, photoDataUrl: s
     .update({ photo_url: publicUrl })
     .eq("id", playerId);
   return !updateErr;
-}
-
-/**
- * Bind each extracted headshot to the player whose card it was printed on,
- * by matching the registration numbers read off that same card — never by
- * position in a list.
- *
- * Position was tried and abandoned: a single card with a missing or
- * unreadable photo shifts every photo after it one player up, silently
- * putting the wrong child's face on a name. Registration numbers (FIFA
- * Connect ID, MySAFA) are unique per player and printed on the card right
- * under the photo, so they identify the owner outright.
- *
- * A match is only accepted when it is unambiguous in both directions — one
- * photo, one player. Anything ambiguous is left for the reviewer instead of
- * being guessed at, and the count of such photos is returned so the caller
- * can say so plainly.
- *
- * Mutates `players` in place; returns the photos left unclaimed, so the
- * reviewer can place them by hand rather than having them silently binned.
- */
-function attachHeadshotsByIdentity(players: ExtractedPlayer[], headshots: CardHeadshot[]): string[] {
-  if (headshots.length === 0) return [];
-  const key = (v: string | null) => (v ? v.replace(/\s/g, "").toUpperCase() : null);
-  const claimed = new Set<number>();
-
-  const bind = (identifiers: (string | null)[], player: ExtractedPlayer): boolean => {
-    const keys = identifiers.map(key).filter((k): k is string => !!k && k.length >= 3);
-    if (keys.length === 0) return false;
-    const hits: number[] = [];
-    for (const [i, h] of headshots.entries()) {
-      if (claimed.has(i)) continue;
-      if (keys.some((k) => h.labels.includes(k))) hits.push(i);
-    }
-    // Ambiguous in either direction is not a match — leave it to the reviewer.
-    if (hits.length !== 1) return false;
-    claimed.add(hits[0]);
-    player.photoDataUrl = headshots[hits[0]].dataUrl;
-    return true;
-  };
-
-  // Registration numbers first: unique by definition, so these are exact.
-  const stillNeedingPhoto = players.filter(
-    (p) => !bind([p.fifa_number, p.mysafa_number, p.id_number], p)
-  );
-
-  // Then names, for a card whose numbers didn't read cleanly. Only distinctive
-  // parts — a short token risks colliding with another player's name.
-  for (const p of stillNeedingPhoto) {
-    bind(p.full_name.split(/\s+/).filter((w) => w.length >= 4), p);
-  }
-
-  return headshots.filter((_, i) => !claimed.has(i)).map((h) => h.dataUrl);
 }
 
 /**
