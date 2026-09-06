@@ -55,15 +55,18 @@ export async function createFixture(formData: FormData) {
   redirect(`/dashboard/coach/fixtures?team=${teamId}`);
 }
 
-export async function cancelFixture(fixtureId: string) {
+export async function cancelFixture(fixtureId: string, reason: string) {
   const { supabase, user } = await requireUser();
+
+  const trimmedReason = reason.trim();
+  if (!trimmedReason) return { error: "Say why the fixture is being cancelled." };
 
   const teamIds = await getCoachTeamIds(supabase, user.id);
   if (!teamIds.length) return { error: "No team found." };
 
   const { data, error } = await supabase
     .from("fixtures")
-    .update({ status: "cancelled" })
+    .update({ status: "cancelled", cancellation_reason: trimmedReason })
     .eq("id", fixtureId)
     .in("team_id", teamIds)
     .select("id");
@@ -71,6 +74,7 @@ export async function cancelFixture(fixtureId: string) {
   if (error) return { error: error.message };
   if (!data?.length) return { error: "Fixture not found or already cancelled." };
   revalidatePath("/dashboard/coach/fixtures", "page");
+  revalidatePath(`/dashboard/coach/fixtures/${fixtureId}`, "page");
   return { success: true };
 }
 

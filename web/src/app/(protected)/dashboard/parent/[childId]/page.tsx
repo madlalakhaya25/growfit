@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { RatingRing } from "@/components/ui/rating-ring";
 import { StatBar } from "@/components/ui/stat-bar";
 import { POSITIONS, FEET } from "@/lib/types";
-import { isFixturePast } from "@/lib/fixtures";
+import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
 import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
 import { ParentReportPanel } from "@/components/ai/parent-report-panel";
@@ -23,13 +23,6 @@ const ATTR_LABELS: Record<AttrKey, string> = {
   defending: "Defending",
   physical: "Physical",
 };
-
-const STATUS_VARIANT = {
-  upcoming:  "neutral",
-  completed: "success",
-  cancelled: "danger",
-  postponed: "warning",
-} as const;
 
 export default async function ChildDetailPage({
   params,
@@ -119,7 +112,7 @@ export default async function ChildDetailPage({
     teamIds.length
       ? supabase
           .from("fixtures")
-          .select(`id, team_id, opponent, venue, fixture_date, is_home, status, match_results ( team_score, opponent_score )`)
+          .select(`id, team_id, opponent, venue, fixture_date, is_home, status, cancellation_reason, match_results ( team_score, opponent_score )`)
           .in("team_id", teamIds)
           .order("fixture_date", { ascending: false })
       : Promise.resolve({ data: [] }),
@@ -169,41 +162,43 @@ export default async function ChildDetailPage({
     const attendanceStatus = matchAttendanceMap.get(f.id);
     const teamInfo = teamMap.get(f.team_id) as { name: string; age_group: string | null } | null | undefined;
     return (
-      <div className="flex items-center justify-between px-4 py-3">
-        <div className="min-w-0">
-          <p className="font-medium">{f.is_home ? "vs" : "@"} {f.opponent}</p>
-          <p className="text-xs text-muted-foreground">
-            {date.toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short" })}
-            {f.venue && ` · ${f.venue}`}
-          </p>
-          {teamIds.length > 1 && teamInfo && (
-            <span className="text-xs text-muted-foreground">{teamInfo.name}</span>
-          )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {result && (
-            <span className="font-bold tabular-nums text-sm">
-              {f.is_home ? result.team_score : result.opponent_score}
-              {" – "}
-              {f.is_home ? result.opponent_score : result.team_score}
-            </span>
-          )}
-          {attendanceStatus ? (
-            <Badge variant={ATTENDANCE_VARIANT[attendanceStatus]} className="capitalize">
-              {attendanceStatus}
+      <div className="px-4 py-3 space-y-1">
+        <div className="flex items-center justify-between">
+          <div className="min-w-0">
+            <p className="font-medium">{f.is_home ? "vs" : "@"} {f.opponent}</p>
+            <p className="text-xs text-muted-foreground">
+              {date.toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short" })}
+              {f.venue && ` · ${f.venue}`}
+            </p>
+            {teamIds.length > 1 && teamInfo && (
+              <span className="text-xs text-muted-foreground">{teamInfo.name}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {result && (
+              <span className="font-bold tabular-nums text-sm">
+                {f.is_home ? result.team_score : result.opponent_score}
+                {" – "}
+                {f.is_home ? result.opponent_score : result.team_score}
+              </span>
+            )}
+            {attendanceStatus ? (
+              <Badge variant={ATTENDANCE_VARIANT[attendanceStatus]} className="capitalize">
+                {attendanceStatus}
+              </Badge>
+            ) : appearance ? (
+              <Badge variant={appearance.played ? "success" : "neutral"}>
+                {appearance.played ? "Played" : "Absent"}
+              </Badge>
+            ) : null}
+            <Badge variant={fixtureStatusVariant(f)} className="capitalize">
+              {fixtureStatusLabel(f)}
             </Badge>
-          ) : appearance ? (
-            <Badge variant={appearance.played ? "success" : "neutral"}>
-              {appearance.played ? "Played" : "Absent"}
-            </Badge>
-          ) : null}
-          <Badge
-            variant={STATUS_VARIANT[f.status as keyof typeof STATUS_VARIANT] ?? "neutral"}
-            className="capitalize"
-          >
-            {f.status}
-          </Badge>
+          </div>
         </div>
+        {f.status === "cancelled" && f.cancellation_reason && (
+          <p className="text-xs text-destructive">Cancelled: {f.cancellation_reason}</p>
+        )}
       </div>
     );
   }
