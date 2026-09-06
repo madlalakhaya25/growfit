@@ -72,49 +72,51 @@ guessing. If a future feature extracts two things from one document that
 need to be paired (a signature to a name, a barcode to a row), reach for an
 identifying field first; position is a last resort, not a starting point.
 
-## PR Agent review pipeline (new PR pipeline) — gotcha
+## pr-agent's CLI rejects `--config.*` / `--github.*` dotted flags — use `--extra_config_url` instead
 
-The repository now includes an automated PR reviewer job (`.github/workflows/pr-agent.yml`) that runs two independent models (Qwen2.5-Coder via OpenRouter and Gemini) using the `pr-agent` CLI. This job is advisory (not the merge gate) and has a few operational behaviours and pitfalls that have caused confusion and failed runs in the past:
+`.github/workflows/pr-agent.yml` runs `pr-agent` (pip package, not the
+packaged GitHub Action) twice per PR — once against Qwen2.5-Coder via
+OpenRouter, once against Gemini. Getting this working cost about twenty
+commits of trial and error on a real PR (#5) before the actual cause was
+found by reading the real job logs instead of trusting a green checkmark.
 
-- Dual-model runs and secrets:
-  - The job runs two parallel review jobs (qwen-review and gemini-review). Each only runs if the PR is not a draft and the relevant secret is present.
-  - Qwen requires `OPENROUTER_API_KEY`; Gemini requires `GEMINI_API_KEY`.
-  - If a secret is missing the workflow prints a warning and skips that reviewer. A skipped reviewer is normal when a key isn't set; it's not a failure but it means you'll only get the other review (or none).
-  - Gemini in this repo reuses the same `GEMINI_API_KEY` as the app's runtime features — consider giving CI its own key to avoid using up production quota or mixing billing.
+**The actual bug**: `pr-agent 0.45.0`'s CLI rejects `--config.model=...`,
+`--config.git_provider=...`, `--github.deployment_type=...`, and
+`--config.github_user_token=...` as `unrecognized arguments`, exits 2, and
+dumps its own `--help` text. Every one of these was tried. The workflow had
+`continue-on-error: true` on the pr-agent steps, which turned that real,
+repeated failure into a job that showed green in the Actions tab while
+posting nothing to the PR — a "clean" run that never actually reviewed
+anything. That's the trap: **a workflow completing without error is not
+evidence it did its job; check that a comment actually landed.**
 
-- pr-agent CLI nuances:
-  - The workflow installs `pr-agent` via `pip install pr-agent` and runs the CLI directly. That means the runner needs a compatible Python version (the job requests 3.12) and a working pip build environment.
-  - pip install can fail for transient network reasons or if `pr-agent`'s upstream release has binary deps needing system libs. If `pip install pr-agent` fails, try:
-    - Adding a step to upgrade pip/setuptools/wheel: `python -m pip install --upgrade pip setuptools wheel`.
-    - Pinning to a known-good `pr-agent` version: `pip install pr-agent==<version>`.
-    - Installing missing system packages with `apt-get` if the error mentions missing headers.
+**The fix**: `pr-agent`'s default model is `gpt-5.6` (confirmed from its
+own `pr_agent/settings/configuration.toml`), which needs an OpenAI key
+neither job sets — so a model override is required, just not through the
+CLI's dotted flags, which this version doesn't parse that way at all.
+`--extra_config_url` *is* a real, accepted top-level flag (it's in
+`--help`): it merges an extra `.pr_agent.toml` — a URL or a local
+filesystem path — before any repo-local config. Each job now writes its
+own one-line TOML to `$RUNNER_TEMP` (`model="openrouter/qwen/..."` or
+`model="gemini/..."`) and points `--extra_config_url` at it. No
+repo-local `.pr_agent.toml` exists, so nothing overrides these per-job
+files. `continue-on-error` is gone — a real failure shows red now, on
+purpose.
 
-- Model slugs and "model not found" errors:
-  - The Qwen model is invoked with the OpenRouter slug `openrouter/qwen/qwen-2.5-coder-32b-instruct:free` in the workflow. That slug is hosted by OpenRouter's free tier and is subject to change or removal by OpenRouter. If logs show "model not found" for Qwen, check openrouter.ai and swap to a current slug.
-  - Gemini errors usually come from invalid keys or quota; check the exact CLI output in the job logs for the HTTP error code and request id.
-
-- Permissions and tokens for posting comments:
-  - The jobs require `pull-requests: write` and `issues: write` to post review comments. The workflow already declares these permissions, but an org policy or repo settings can still block bot comments — verify in repo settings and audit logs if posts silently fail.
-  - The CLI uses `GITHUB_TOKEN` (provided by Actions by default). If you want the agent to act as a named bot account instead, create a PAT and store it as a secret and pass it to the workflow, but be cautious with extra permissions.
-
-- Skipped steps vs failures:
-  - The workflow deliberately emits warnings when keys are missing and then skips the heavy reviewer steps. That looks like a problem in the UI unless you read the step output — treat a "skipped" step with a warning as expected unless you intended the reviewer to run.
-
-- Diagnostic hardening to add if you see flaky failures:
-  - Echo Python/pip versions before install:
-    ```bash
-    python --version
-    pip --version
-    which python
-    ```
-  - Upgrade pip and pin pr-agent.
-  - Add `set -x` to the runner step to capture expanded env and arguments in logs (be careful not to print secrets).
-  - If the pr-agent CLI reports an HTTP auth error, paste that exact log into an issue or support request — it contains the provider response.
-
-- Interaction with the required PR gate:
-  - This PR Agent job is advisory only — `pr-checks.yml` is the repository's required gate that runs tsc, jest, build, and Playwright. Don't rely on the PR Agent comment threads to block merges; keep `pr-checks.yml` as the enforced check.
-
-If you hit a failing run, copy the job URL or failing step logs and paste them here and the exact step will be diagnosed. If you'd like, I can also add a short diagnostic step to the workflow (pip upgrade + echo versions) and pin `pr-agent` in the workflow for more stable CI runs.
+Other things worth knowing:
+- Each reviewer job only runs if its secret is present (`OPENROUTER_API_KEY`
+  for Qwen, `GEMINI_API_KEY` for Gemini) and the PR isn't a draft; missing a
+  secret prints a `::warning` and skips that reviewer rather than failing —
+  that's expected, not a bug.
+- Gemini reuses the app's own `GEMINI_API_KEY` and shares its quota/billing
+  with the live app's AI features — give CI its own key if that's ever a
+  problem.
+- The OpenRouter free-tier slug (`qwen/qwen-2.5-coder-32b-instruct:free`) is
+  OpenRouter's choice to keep hosting, not guaranteed — if Qwen starts
+  failing on "model not found," check openrouter.ai/qwen for a current slug.
+- This job is advisory only. `pr-checks.yml` (tsc, jest, build, Playwright)
+  is the repo's actual required gate — never treat a pr-agent thread as a
+  merge blocker on its own.
 
 ## Verify generated visual/binary output by rendering it, not by reading the code
 
