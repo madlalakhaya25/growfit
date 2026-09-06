@@ -24,7 +24,7 @@ export function DeletePlayerSection({ playerId, playerName }: { playerId: string
         <p className="font-semibold text-destructive">Delete this player permanently</p>
       </div>
       <p className="text-xs text-muted-foreground">
-        Removes the player's entire record — profile, ratings, attributes,
+        Removes the player&apos;s entire record — profile, ratings, attributes,
         attendance history, documents, consents, medical info, and photos.
         This cannot be undone and is not the same as removing them from a
         squad.

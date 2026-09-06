@@ -25,7 +25,7 @@ export function WelfareCheckinsPanel({ alerts }: Props) {
         </h2>
       </div>
       <p className="px-4 pt-3 text-xs text-muted-foreground">
-        Below the 75% training attendance threshold — the academy's policy is
+        Below the 75% training attendance threshold — the academy&apos;s policy is
         that this triggers a check-in, not a punishment.
       </p>
       <ul className="divide-y divide-amber-500/10">
