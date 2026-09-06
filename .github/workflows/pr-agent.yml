@@ -48,6 +48,14 @@
 # regardless of where it appears, so this is no less safe than any other
 # use of the token).
 #
+# Third real failure, Qwen-specific: pr-agent keeps a hardcoded table of
+# known models' max token counts and refuses to call anything missing from
+# it ("Model ... is not defined in MAX_TOKENS ... and no
+# custom_model_max_tokens is set") — confirmed the same way, from a real
+# failed run. The Qwen job's config sets custom_model_max_tokens explicitly
+# for this reason; Gemini's model is already in that table and needs no
+# such override (confirmed working end-to-end on a real PR).
+#
 # continue-on-error is deliberately NOT used here — that's exactly what hid
 # every failure above. Let a real failure show up red.
 
@@ -99,6 +107,14 @@ jobs:
           [config]
           model="openrouter/qwen/qwen-2.5-coder-32b-instruct:free"
           fallback_models=[]
+          # pr-agent keeps a hardcoded MAX_TOKENS table and refuses any model
+          # missing from it unless this is set explicitly — confirmed from a
+          # real failed run ("Model ... is not defined in MAX_TOKENS ... and
+          # no custom_model_max_tokens is set"). OpenRouter's own listing for
+          # this model is ambiguous between 32768 and 128000 depending on
+          # variant; using the smaller, safe number rather than risking a
+          # real context-length error from the provider.
+          custom_model_max_tokens=32768
 
           [github]
           user_token="$GITHUB_TOKEN"
