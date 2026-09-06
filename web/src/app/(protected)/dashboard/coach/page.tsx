@@ -9,6 +9,8 @@ import { JoinTeamForm } from "@/components/join-team-form";
 import { CopyButton } from "@/components/copy-button";
 import { daysFromNow } from "@/lib/utils";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { getWelfareAlerts } from "@/app/actions/welfare";
+import { WelfareCheckinsPanel } from "@/components/welfare/welfare-checkins-panel";
 
 const SESSION_TYPE_LABEL: Record<string, string> = {
   general: "General", technical: "Technical", tactical: "Tactical",
@@ -77,6 +79,9 @@ export default async function CoachDashboardPage() {
   const nextSession = nextSessions?.[0] ?? null;
   const multiTeam = allTeams.length > 1;
 
+  const welfareResult = teamIds.length ? await getWelfareAlerts() : { alerts: [] };
+  const welfareAlerts = "alerts" in welfareResult ? welfareResult.alerts : [];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -118,6 +123,8 @@ export default async function CoachDashboardPage() {
         </div>
       ) : (
         <div className="space-y-6">
+
+          <WelfareCheckinsPanel alerts={welfareAlerts} />
 
           {/* ── What's Next ───────────────────────────────────────── */}
           {!nextFixture && !nextSession && (

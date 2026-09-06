@@ -69,10 +69,25 @@ memory of what was planned.
   view
 - Medical & emergency contact record per player
 - Player consents (POPIA / photo / transport / risk acknowledgement) —
-  captured, exported in reports, **not yet enforced before display** (see
-  Next)
+  captured, exported in reports, and **photo consent is now enforced** on
+  the public passport page (the one place a photo reaches an anonymous
+  visitor); internal dashboards still show it to staff/family, who already
+  have full record access under RLS
 - Print-friendly document view; CSV and PDF export for player records,
   attendance, and consent/document compliance
+
+### Safeguarding & data rights (this pass)
+- **Welfare check-ins**: coach dashboard surfaces every player below the 75%
+  training attendance threshold, with a logged, persisted check-in note
+  (`welfare_checkins`) — previously this only ever came up if a coach asked
+  the AI assistant
+- **Self-service photo removal**: a parent or the player themself can
+  remove the player's own photo without a developer running a manual update
+- **Player erasure**: an admin can permanently delete a player's entire
+  record — profile, ratings, attendance, documents, consents, medical info,
+  photos — not just remove them from a squad
+- **Photo consent enforcement**: the public passport page no longer serves
+  a photo without `photo_consent` for the current season
 
 ### Development pathways
 - 5-category milestone framework (Technical, Tactical, Physical, Mental,
@@ -153,26 +168,55 @@ improvement, not a gap.
 
 ### Near term (weeks, not sprints — these are small)
 
-- **Enforce photo consent before display.** Captured and exported in
-  reports; never checked before rendering a photo anywhere, including the
-  public, unauthenticated passport page. A parent can tick "no photos" today
-  and have it make no difference.
-- **A welfare check-in surface.** The 75% attendance threshold is described
-  as triggering a welfare check-in in both the academy's own documentation
-  and the AI assistant's system prompt — but nothing surfaces it anywhere a
-  human would see it unprompted. It exists only as something the AI
-  assistant will mention if a coach happens to ask. This is the single
-  biggest gap between what the platform claims to do and what it actually
-  does for a real child-protection concern.
-- **Let a parent delete their child's own photo without a developer.**
-  There is no delete path for a player's photo or, more broadly, for a
-  player record at all — every other entity in the schema has one.
-- **A real deletion/erasure path more broadly** — POPIA's right to erasure
-  needs an actual answer, not "ask a developer."
-- **Fix `/offline`-style auth-guard gaps proactively** — found by building
-  the smoke suite, not by design. Worth a quick audit of `proxy.ts`'s
-  `PUBLIC_PATHS` against every top-level route now that a test exists to
-  catch the next one automatically.
+- ~~**Enforce photo consent before display.**~~ **Done**, scoped to the
+  actual public exposure: `get_public_passport()` (migration
+  `023_enforce_photo_consent.sql`) now nulls out `photo_url` unless
+  `player_consents.photo_consent` is true for the current season — enforced
+  inside the SECURITY DEFINER function itself, the only path a photo reaches
+  an anonymous visitor, so it can't be bypassed by a future caller. Internal
+  admin/coach/parent/player dashboards still show the photo: staff and
+  family already have full record access under RLS (medical info, ID
+  numbers), and a coach needs to recognise the child in front of them for
+  safeguarding reasons that outrank the "official channels" media consent
+  this checkbox actually describes. **Needs the migration run against the
+  live project** — see the gotcha in `web/CLAUDE.md`.
+- ~~**A welfare check-in surface.**~~ **Done.** The coach dashboard now
+  shows every player across the coach's teams below the 75% training
+  attendance threshold (recomputed live — the shared threshold logic moved
+  to `lib/attendance.ts` so this and the AI assistant's brief can't quietly
+  disagree), with a "Log check-in" action that records a persisted note
+  (`welfare_checkins`, migration `024`). Deliberately a log, not a dismiss
+  button — the alert itself only clears once attendance actually recovers.
+  Not yet on the admin side; coaches are the ones who see the pattern first.
+- ~~**Let a parent delete their child's own photo without a developer.**~~
+  **Done.** A narrow SECURITY DEFINER RPC (`delete_player_photo`, migration
+  `025`) lets a parent or the player themself clear the photo — checked
+  server-side, not just a client-side button, since RLS can't restrict which
+  *column* a broader grant would touch. Removes the actual storage object
+  too, not just the reference. Surfaced on the parent's child-detail page
+  and the player's own dashboard (both of which fetched `photo_url` already
+  but never rendered it).
+- ~~**A real deletion/erasure path more broadly.**~~ **Done for players.**
+  There was no DELETE policy on `players` at all — RLS defaults to deny, so
+  not even an admin could delete one. Migration `026` adds an admin-scoped
+  DELETE policy; every table referencing `players.id` already cascades, so
+  this is a genuine full erasure, not a soft flag. Gated behind typing the
+  player's exact name to confirm (checked both client- and server-side) —
+  deliberately admin-only and not self-service, since a parent-triggered
+  hard delete of the wrong record would be unrecoverable. A parent still
+  requests erasure through the academy, same as they would today for
+  anything not covered by a self-service form.
+- ~~**Fix `/offline`-style auth-guard gaps proactively.**~~ **Done, and
+  found a real one.** Auditing `proxy.ts`'s `PUBLIC_PATHS` against every
+  top-level route turned up `/register-club` missing — a brand-new visitor
+  with no session at all could never reach the self-service academy signup
+  page, silently defeating the whole multi-academy feature. Added. Also
+  fixed the redirect itself: it now preserves `?next=<path>` so a
+  logged-out visitor following a link like `/join/[code]` returns to finish
+  that action after signing in, instead of landing on their generic
+  dashboard and losing the invite code (`/auth/login` already had this
+  parameter arrive from `/join/[code]`'s own redirect — it just silently
+  ignored it until now).
 - ~~**Delete `DEFAULT_ACADEMY_ID`.**~~ **Done.** `src/lib/constants.ts` had
   no other importer at all (`PILOT_JOIN_CODE` was equally dead), so the
   whole file is gone rather than leaving one dead export behind.
@@ -180,6 +224,8 @@ improvement, not a gap.
   attendance forms now distinguish a real write failure (shown inline,
   optimistic state rolled back) from a network failure (queued to retry,
   not silently dropped) — see the offline write queue below.
+
+Every "Near term" item from the previous pass is now done.
 
 ### Medium term
 

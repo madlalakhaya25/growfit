@@ -13,6 +13,7 @@ import { calculateAge, getInitials } from "@/lib/player";
 import { ExtendedInfoForm } from "@/components/records/extended-info-form";
 import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
+import { DeletePlayerSection } from "@/components/records/delete-player-section";
 
 const ATTRS = [
   { key: "pace",      label: "Pace" },
@@ -210,6 +211,8 @@ export default async function AdminPlayerDetailPage({
           </div>
           <DocumentHub playerId={id} season={currentSeason} documents={docs ?? []} readOnly />
         </div>
+
+        <DeletePlayerSection playerId={player.id} playerName={player.full_name} />
       </section>
     </div>
   );

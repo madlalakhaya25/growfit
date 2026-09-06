@@ -6,6 +6,48 @@ releases yet. Newest first.
 
 ---
 
+## 2026-09-06 — Safeguarding, data rights, and a real registration-flow bug
+
+Closes out every item on the "Near term" roadmap from the previous pass.
+
+**Added**
+- **Welfare check-ins.** The coach dashboard now shows every player across
+  their teams below the 75% training attendance threshold, with a "Log
+  check-in" action that keeps a persisted note. Previously this threshold
+  was described as triggering a welfare check-in in the academy's own
+  policy and the AI assistant's system prompt, but nothing surfaced it
+  anywhere a human would see it unless they happened to ask the AI.
+- **Self-service photo removal.** A parent (or the player themself) can now
+  remove their own child's photo without asking a developer to run a manual
+  update — there was previously no delete path for it at all.
+- **Player erasure.** An admin can now permanently delete a player's entire
+  record. There was no DELETE policy on the players table at all before
+  this — not even an admin could remove one. POPIA's right to erasure now
+  has an actual answer instead of "ask a developer."
+
+**Fixed**
+- A brand-new visitor with no account could never reach `/register-club` —
+  the self-service academy signup page — because it was missing from the
+  auth guard's public-route allowlist and got redirected straight to a
+  login page they had no account to log into. This silently broke the
+  platform's whole multi-academy self-onboarding pitch for anyone arriving
+  without an existing session.
+- Following a team invite link (`/join/[code]`) while logged out sent a
+  visitor to a bare login page and, after signing in, dropped them on their
+  generic dashboard — losing the invite code. The login redirect now
+  preserves where they were headed and returns them there.
+- The public, unauthenticated player passport page served a player's photo
+  regardless of whether photo consent had actually been given — a parent
+  unticking "photo consent" had no real effect anywhere. Now enforced
+  inside the database function itself that serves the public passport.
+
+**Behind the scenes**: the attendance-threshold rule (75%, over a rolling
+window) was independently computed in two places already starting to
+drift in small ways; consolidated into `lib/attendance.ts` so the AI
+assistant's brief and the new welfare surface can't quietly disagree.
+
+---
+
 ## 2026-09-06 — Attendance that survives a bad connection, and cleaning up duplicated logic
 
 **Fixed**
