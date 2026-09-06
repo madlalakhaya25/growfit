@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { RatingRing } from "@/components/ui/rating-ring";
 import { StatBar } from "@/components/ui/stat-bar";
 import { POSITIONS, FEET } from "@/lib/types";
+import { isFixturePast } from "@/lib/fixtures";
 import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
 import { ParentReportPanel } from "@/components/ai/parent-report-panel";
@@ -142,8 +143,8 @@ export default async function ChildDetailPage({
   );
 
   const allFixtures = fixtures ?? [];
-  const upcoming = allFixtures.filter((f) => f.status === "upcoming");
-  const past = allFixtures.filter((f) => f.status !== "upcoming");
+  const upcoming = allFixtures.filter((f) => !isFixturePast(f));
+  const past = allFixtures.filter((f) => isFixturePast(f));
 
   const posLabel = POSITIONS.find((p) => p.value === player.position)?.label ?? "—";
   const footLabel = FEET.find((f) => f.value === player.preferred_foot)?.label;

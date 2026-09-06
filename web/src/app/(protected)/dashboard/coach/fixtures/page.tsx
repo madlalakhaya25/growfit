@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { isFixturePast } from "@/lib/fixtures";
 
 const STATUS_VARIANT = {
   upcoming: "neutral",
@@ -42,8 +43,8 @@ export default async function CoachFixturesPage({
     .eq("team_id", team.id)
     .order("fixture_date", { ascending: false });
 
-  const upcoming = (fixtures ?? []).filter((f: { status: string }) => f.status === "upcoming");
-  const past = (fixtures ?? []).filter((f: { status: string }) => f.status !== "upcoming");
+  const upcoming = (fixtures ?? []).filter((f) => !isFixturePast(f));
+  const past = (fixtures ?? []).filter((f) => isFixturePast(f));
 
   function FixtureRow({ f }: { f: { id: string; opponent: string; venue: string | null; fixture_date: string; is_home: boolean; status: string } }) {
     const date = new Date(f.fixture_date);

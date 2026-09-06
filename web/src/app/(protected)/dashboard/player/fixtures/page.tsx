@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { isFixturePast } from "@/lib/fixtures";
 
 const STATUS_VARIANT = {
   upcoming:  "neutral",
@@ -76,8 +77,8 @@ export default async function PlayerFixturesPage() {
   );
 
   const allFixtures = fixtures ?? [];
-  const upcoming = allFixtures.filter((f) => f.status === "upcoming");
-  const past     = allFixtures.filter((f) => f.status !== "upcoming");
+  const upcoming = allFixtures.filter((f) => !isFixturePast(f));
+  const past     = allFixtures.filter((f) => isFixturePast(f));
 
   type Fixture = (typeof allFixtures)[number];
 
