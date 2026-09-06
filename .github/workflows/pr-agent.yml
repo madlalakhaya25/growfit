@@ -1,60 +1,53 @@
-# Automated PR review — two independent open-source models, not Claude.
+# Automated PR review, via The-PR-Agent (Apache-2.0, community-governed as
+# of April 2026 — github.com/The-PR-Agent/pr-agent), backed by Gemini —
+# reusing this app's own GEMINI_API_KEY and model id (src/lib/ai-models.ts)
+# rather than adding a second Google account. NOTE: this shares
+# quota/billing with the app's live AI features — give it a separate key
+# if that's ever a problem.
 #
-# Runs The-PR-Agent (Apache-2.0, community-governed as of April 2026 —
-# github.com/The-PR-Agent/pr-agent) twice per PR, once per model:
+# Posts a narrative review comment plus separate, individually resolvable
+# inline suggestion threads ("improve"). This is advisory, not the merge
+# gate — pr-checks.yml is the required check.
 #
-#   - Qwen2.5-Coder-32B via OpenRouter's free tier. Scores well above
-#     Gemini Flash on coding-specific benchmarks and costs nothing — the
-#     free slug is OpenRouter's own choice to host, not guaranteed forever;
-#     check openrouter.ai/qwen if this job starts failing on auth/model-not-
-#     found and swap the slug.
-#   - Gemini, reusing this app's own GEMINI_API_KEY and model id
-#     (src/lib/ai-models.ts) rather than adding a second Google account.
-#     NOTE: this shares quota/billing with the app's live AI features — give
-#     it a separate key if that's ever a problem.
+# ── A second reviewer (Qwen2.5-Coder via OpenRouter's free tier) was tried
+# and deliberately dropped ─────────────────────────────────────────────────
+# The plan was two independent models per PR — Qwen specifically because it
+# scores well above Gemini Flash on coding-specific benchmarks, and
+# OpenRouter listed a free slug for it. Three real, distinct bugs were found
+# and fixed getting there (all instructive, all applicable to the Gemini
+# job below too):
 #
-# Each posts its own narrative review comment plus separate, individually
-# resolvable inline suggestion threads ("improve"). This is advisory, not
-# the merge gate — pr-checks.yml is the required check.
+#   1. pr-agent 0.45.0's CLI rejects `--config.model=...` (and
+#      `--config.git_provider`, `--github.deployment_type`,
+#      `--config.github_user_token`) as "unrecognized arguments" — exit 2,
+#      dumps its own --help. `continue-on-error: true` was turning that
+#      repeated failure into a "successful" job that had posted nothing to
+#      the PR at all, across roughly twenty commits before this was
+#      actually diagnosed from real job logs instead of a trusted green
+#      checkmark. Fix: `--extra_config_url` IS a real, accepted top-level
+#      flag (confirmed in the tool's own --help) that merges an extra
+#      .pr_agent.toml — a URL or local filesystem path — before any
+#      repo-local config. No repo-local .pr_agent.toml exists here, so
+#      nothing overrides these per-job files.
+#   2. pr-agent's default deployment_type is "user", and in that mode it
+#      reads the GitHub token from the *config* key github.user_token —
+#      not the ambient GITHUB_TOKEN env var, even with that set. Fix: each
+#      job's TOML also sets [github] user_token, expanded from the real
+#      GITHUB_TOKEN value at write time.
+#   3. pr-agent keeps a hardcoded table of known models' max token counts
+#      and refuses to call anything missing from it. Fix (Qwen-specific,
+#      since Gemini's model is already in that table):
+#      custom_model_max_tokens set explicitly.
 #
-# ── Why the model is set via --extra_config_url, not a CLI flag ──────────
-# The obvious `--config.model=...` (and `--config.git_provider`,
-# `--github.deployment_type`, `--config.github_user_token`) are all REJECTED
-# by pr-agent 0.45.0's actual CLI as "unrecognized arguments" — confirmed
-# against real run logs on this repo's own PR #5, not just docs, which
-# describe a CLI override syntax this shipped version doesn't accept. Every
-# one of those attempts printed the tool's own --help/usage text and exited
-# 2 — which `continue-on-error: true` was masking as a "successful" job that
-# had actually posted nothing, across roughly twenty commits of trial and
-# error on this branch before this fix (see git log for the full story).
-#
-# What --help actually confirms works: pr-agent's default model
-# (pr_agent/settings/configuration.toml) is "gpt-5.6", which needs an
-# OPENAI key neither job sets — so it must be overridden somehow, but not
-# through the CLI's dotted flags. --extra_config_url IS a real, accepted
-# top-level flag (it's in --help) that merges an extra .pr_agent.toml — as
-# either a URL or a local filesystem path — before the repo-local config.
-# Each job writes its own tiny TOML file with just its model, then points
-# --extra_config_url at it. No repo-local .pr_agent.toml exists, so nothing
-# overrides these per-job files.
-#
-# Getting past that flag error surfaced a second real one: pr-agent's
-# default deployment_type is "user", and in that mode it reads the GitHub
-# token from the *config* key github.user_token — not from the ambient
-# GITHUB_TOKEN env var, even though that's set. ("GitHub token is required
-# when using user deployment" — confirmed from a real failed run.) Each
-# job's config file sets [github] user_token, expanded from the real
-# GITHUB_TOKEN value at write time (GitHub Actions masks the value in logs
-# regardless of where it appears, so this is no less safe than any other
-# use of the token).
-#
-# Third real failure, Qwen-specific: pr-agent keeps a hardcoded table of
-# known models' max token counts and refuses to call anything missing from
-# it ("Model ... is not defined in MAX_TOKENS ... and no
-# custom_model_max_tokens is set") — confirmed the same way, from a real
-# failed run. The Qwen job's config sets custom_model_max_tokens explicitly
-# for this reason; Gemini's model is already in that table and needs no
-# such override (confirmed working end-to-end on a real PR).
+# All three fixes worked — the CLI, auth, and token-limit problems were
+# real but ours to fix. What killed the Qwen job was external: OpenRouter's
+# own API returned "This model is unavailable for free. The paid version is
+# available now" — they'd pulled the free tier for this model (and for
+# Qwen-coder generally) between when this was planned and when it was
+# tested against a real PR. Rather than chase OpenRouter's free-model
+# rotation indefinitely, shipped with Gemini alone — proven working
+# end-to-end (real review, real inline suggestions, on this repo's own
+# PR #5) and zero additional cost or dependency.
 #
 # continue-on-error is deliberately NOT used here — that's exactly what hid
 # every failure above. Let a real failure show up red.
@@ -71,78 +64,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  qwen-review:
-    if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-      issues: write
-    steps:
-      - name: Check for OpenRouter key
-        id: key
-        run: |
-          if [ -n "${{ secrets.OPENROUTER_API_KEY }}" ]; then
-            echo "available=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "::warning title=Qwen review skipped::OPENROUTER_API_KEY is not set. Add a free OpenRouter key (openrouter.ai) as a repo secret to enable the Qwen reviewer."
-          fi
-
-      - uses: actions/setup-python@v5
-        if: steps.key.outputs.available == 'true'
-        with:
-          python-version: "3.12"
-
-      - name: Install pr-agent
-        if: steps.key.outputs.available == 'true'
-        run: pip install pr-agent
-
-      - name: Write pr-agent config
-        if: steps.key.outputs.available == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          cat > "$RUNNER_TEMP/pr_agent_qwen.toml" <<EOF
-          [config]
-          model="openrouter/qwen/qwen-2.5-coder-32b-instruct:free"
-          fallback_models=[]
-          # pr-agent keeps a hardcoded MAX_TOKENS table and refuses any model
-          # missing from it unless this is set explicitly — confirmed from a
-          # real failed run ("Model ... is not defined in MAX_TOKENS ... and
-          # no custom_model_max_tokens is set"). OpenRouter's own listing for
-          # this model is ambiguous between 32768 and 128000 depending on
-          # variant; using the smaller, safe number rather than risking a
-          # real context-length error from the provider.
-          custom_model_max_tokens=32768
-
-          [github]
-          user_token="$GITHUB_TOKEN"
-          EOF
-
-      - name: Review (Qwen2.5-Coder via OpenRouter, free tier)
-        if: steps.key.outputs.available == 'true'
-        env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          pr-agent \
-            --pr_url="${{ github.event.pull_request.html_url }}" \
-            --extra_config_url="$RUNNER_TEMP/pr_agent_qwen.toml" \
-            review \
-            --pr_reviewer.extra_instructions="Sign off as 'Qwen2.5-Coder (via OpenRouter)' so it's clear which reviewer this is."
-
-      - name: Suggestions (Qwen2.5-Coder via OpenRouter, free tier)
-        if: steps.key.outputs.available == 'true'
-        env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          pr-agent \
-            --pr_url="${{ github.event.pull_request.html_url }}" \
-            --extra_config_url="$RUNNER_TEMP/pr_agent_qwen.toml" \
-            improve
-
   gemini-review:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
