@@ -74,8 +74,10 @@ jobs:
     steps:
       - name: Check for Gemini key
         id: key
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          if [ -n "${{ secrets.GEMINI_API_KEY }}" ]; then
+          if [ -n "$GEMINI_API_KEY" ]; then
             echo "available=true" >> "$GITHUB_OUTPUT"
           else
             echo "available=false" >> "$GITHUB_OUTPUT"
