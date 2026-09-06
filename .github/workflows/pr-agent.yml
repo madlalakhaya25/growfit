@@ -17,6 +17,7 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
+
     steps:
       - uses: actions/setup-python@v5
         with:
@@ -33,7 +34,6 @@ jobs:
         run: |
           pr-agent \
             --pr_url="${{ github.event.pull_request.html_url }}" \
-            --config.github_user_token="${{ secrets.GITHUB_TOKEN }}" \
             review \
             --pr_reviewer.extra_instructions="Sign off as 'Qwen2.5-Coder (via OpenRouter)' so it's clear which reviewer this is."
 
@@ -45,7 +45,6 @@ jobs:
         run: |
           pr-agent \
             --pr_url="${{ github.event.pull_request.html_url }}" \
-            --config.github_user_token="${{ secrets.GITHUB_TOKEN }}" \
             improve
 
   gemini-review:
@@ -55,6 +54,7 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
+
     steps:
       - uses: actions/setup-python@v5
         with:
@@ -71,7 +71,6 @@ jobs:
         run: |
           pr-agent \
             --pr_url="${{ github.event.pull_request.html_url }}" \
-            --config.github_user_token="${{ secrets.GITHUB_TOKEN }}" \
             review \
             --pr_reviewer.extra_instructions="Sign off as 'Gemini Flash' so it's clear which reviewer this is."
 
@@ -83,5 +82,4 @@ jobs:
         run: |
           pr-agent \
             --pr_url="${{ github.event.pull_request.html_url }}" \
-            --config.github_user_token="${{ secrets.GITHUB_TOKEN }}" \
             improve
