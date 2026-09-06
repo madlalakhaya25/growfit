@@ -38,6 +38,16 @@
 # --extra_config_url at it. No repo-local .pr_agent.toml exists, so nothing
 # overrides these per-job files.
 #
+# Getting past that flag error surfaced a second real one: pr-agent's
+# default deployment_type is "user", and in that mode it reads the GitHub
+# token from the *config* key github.user_token — not from the ambient
+# GITHUB_TOKEN env var, even though that's set. ("GitHub token is required
+# when using user deployment" — confirmed from a real failed run.) Each
+# job's config file sets [github] user_token, expanded from the real
+# GITHUB_TOKEN value at write time (GitHub Actions masks the value in logs
+# regardless of where it appears, so this is no less safe than any other
+# use of the token).
+#
 # continue-on-error is deliberately NOT used here — that's exactly what hid
 # every failure above. Let a real failure show up red.
 
@@ -82,11 +92,16 @@ jobs:
 
       - name: Write pr-agent config
         if: steps.key.outputs.available == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cat > "$RUNNER_TEMP/pr_agent_qwen.toml" <<'EOF'
+          cat > "$RUNNER_TEMP/pr_agent_qwen.toml" <<EOF
           [config]
           model="openrouter/qwen/qwen-2.5-coder-32b-instruct:free"
           fallback_models=[]
+
+          [github]
+          user_token="$GITHUB_TOKEN"
           EOF
 
       - name: Review (Qwen2.5-Coder via OpenRouter, free tier)
@@ -141,11 +156,16 @@ jobs:
 
       - name: Write pr-agent config
         if: steps.key.outputs.available == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cat > "$RUNNER_TEMP/pr_agent_gemini.toml" <<'EOF'
+          cat > "$RUNNER_TEMP/pr_agent_gemini.toml" <<EOF
           [config]
           model="gemini/gemini-3.6-flash"
           fallback_models=[]
+
+          [github]
+          user_token="$GITHUB_TOKEN"
           EOF
 
       - name: Review (Gemini)
