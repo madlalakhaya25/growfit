@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { RatingRing } from "@/components/ui/rating-ring";
 import { StatBar } from "@/components/ui/stat-bar";
 import { POSITIONS } from "@/lib/types";
-import { calculateAge } from "@/lib/player";
+import { calculateAge, getInitials } from "@/lib/player";
+import { RemovePlayerPhotoButton } from "@/components/remove-player-photo-button";
 import { ClaimProfileForm } from "./claim-profile-form";
 import { RatingChart } from "@/components/rating-chart";
 import { MediaGallery } from "@/components/media/media-gallery";
@@ -205,13 +206,23 @@ export default async function PlayerDashboardPage() {
         <Card className="overflow-hidden sm:col-span-2 lg:col-span-1">
           <div className="h-1 bg-brand" />
           <CardHeader className="flex-row items-center justify-between">
-            <div>
-              <CardTitle>{player.full_name}</CardTitle>
-              <CardDescription>{posLabel}</CardDescription>
+            <div className="flex items-center gap-3">
+              {player.photo_url ? (
+                <img src={player.photo_url} alt={player.full_name} className="size-12 rounded-full object-cover" />
+              ) : (
+                <span className="grid size-12 shrink-0 place-items-center rounded-full bg-brand/20 text-sm font-bold text-primary">
+                  {getInitials(player.full_name)}
+                </span>
+              )}
+              <div>
+                <CardTitle>{player.full_name}</CardTitle>
+                <CardDescription>{posLabel}</CardDescription>
+              </div>
             </div>
             <RatingRing value={overall} size={84} />
           </CardHeader>
           <CardContent className="space-y-3">
+            {player.photo_url && <RemovePlayerPhotoButton playerId={player.id} />}
             <div className="flex flex-wrap gap-2">
               <Badge variant="brand">{posLabel}</Badge>
               {age && <Badge variant="neutral">Age {age}</Badge>}

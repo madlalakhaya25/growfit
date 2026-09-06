@@ -56,7 +56,7 @@ This repository holds three separate workspaces:
 ┌──────────────────────────────────────────────────────────────┐
 │ SUPABASE                                                     │
 │                                                              │
-│ PostgreSQL — 28 tables, Row Level Security on every one,     │
+│ PostgreSQL — 29 tables, Row Level Security on every one,     │
 │              SECURITY DEFINER helper functions               │
 │ Auth        — email + password, JWT in httpOnly cookie,      │
 │               handle_new_user() trigger → profiles insert    │
@@ -123,7 +123,7 @@ than player with no academy → also `/auth/role`.
 
 ## Database schema
 
-28 tables, all with Row Level Security enabled. Grouped by domain rather than
+29 tables, all with Row Level Security enabled. Grouped by domain rather than
 alphabetically:
 
 ```
@@ -152,6 +152,8 @@ Fixtures & attendance
   training_drills                 — ordered drills within a session, optional video URL
   training_attendance             — coach-marked P/A/L/E per player per session (migration 005)
   drill_library                   — a reusable drill catalogue, independent of any one session
+  welfare_checkins                — logged record that a coach followed up on a player below the
+                                     75% attendance threshold (migration 024) — a log, not a dismiss flag
 
 Development & records
   development_milestone_templates — the 5-category milestone framework (Technical, Tactical, Physical,
@@ -211,10 +213,11 @@ tables.
 | `auth_role()` | Returns the calling user's role from `profiles` |
 | `auth_academy_id()` | Returns the calling user's `academy_id` |
 | `is_admin_or_coach()` | Boolean role check |
-| `get_public_passport(token)` | Bypasses RLS to serve the public passport page |
+| `get_public_passport(token)` | Bypasses RLS to serve the public passport page; also enforces photo consent (023) — nulls `photo_url` unless `photo_consent` is true for the current season, inside the function itself so it can't be skipped by a future caller |
 | `claim_player_profile(token)` | Atomically links a player record to a user |
 | `log_match_result(...)` | Atomic match logging: result + status + appearances + ratings in one transaction |
 | `update_own_registration_numbers(mysafa, id)` | Narrow, field-limited self-edit for a claimed player — added after discovering the general player self-edit path was silently broken for anyone past the initial claim (020) |
+| `delete_player_photo(player_id)` | Narrow self-service: a parent or the player themself can clear their own photo (025) — same reasoning as the function above, RLS can't restrict which column a broader UPDATE grant would touch |
 
 All SECURITY DEFINER functions set `search_path = public, pg_temp` to
 prevent search-path injection.
@@ -385,7 +388,7 @@ web/
 │   │   │   ├── coach/            ← squad, fixtures, training, tactics, assistant, announcements
 │   │   │   ├── player/           ← passport, fixtures, training, tactics, development, records, announcements
 │   │   │   └── parent/           ← children, per-child detail, fixtures, announcements
-│   │   ├── actions/               ← ~26 server action files, one per domain (see AI layer / pipeline sections above for the AI and import ones)
+│   │   ├── actions/               ← 30 server action files, one per domain (see AI layer / pipeline sections above for the AI and import ones)
 │   │   ├── api/
 │   │   │   ├── players/[id]/card/ ← generated SAFA-style card PDF
 │   │   │   ├── reports/           ← CSV/PDF exports
@@ -405,13 +408,14 @@ web/
 │       ├── auth.ts                 ← requireUser(), getProfile()
 │       ├── ai-models.ts            ← centralised Gemini model IDs
 │       ├── fixtures.ts             ← isFixturePast(), fixtureStatusLabel/Variant()
+│       ├── attendance.ts           ← the 75%-threshold rule, shared by the AI brief and the welfare surface
 │       ├── player.ts               ← calculateAge(), getInitials() — was duplicated in ~12 files each
 │       ├── headshot-matching.ts    ← identity-based photo↔player binding
 │       ├── pdf-headshots.ts        ← PDF headshot extraction
 │       ├── player-card-pdf.ts      ← SAFA-style card PDF generation
 │       ├── offline-attendance-queue.ts ← IndexedDB queue for attendance writes made offline
 │       └── supabase/{client,server}.ts
-└── supabase/migrations/           ← 22 sequentially-numbered files, checked in but NOT auto-applied — see the gotcha below
+└── supabase/migrations/           ← 26 sequentially-numbered files, checked in but NOT auto-applied — see the gotcha below
 ```
 
 ---

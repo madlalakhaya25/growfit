@@ -13,7 +13,7 @@ import { test, expect } from "@playwright/test";
  */
 
 test.describe("public pages render", () => {
-  for (const path of ["/", "/auth/login", "/auth/register", "/auth/forgot-password", "/offline"]) {
+  for (const path of ["/", "/auth/login", "/auth/register", "/auth/forgot-password", "/offline", "/register-club"]) {
     test(`${path} responds 200`, async ({ page }) => {
       const response = await page.goto(path);
       expect(response?.status()).toBe(200);
@@ -52,5 +52,13 @@ test.describe("routes that key off an external token fail closed, not broken", (
   test("an unknown invite code sends an anonymous visitor to login, not a crash", async ({ page }) => {
     await page.goto("/join/this-code-does-not-exist");
     await expect(page).toHaveURL(/\/auth\/login/);
+  });
+
+  test("the login redirect preserves where the visitor was headed", async ({ page }) => {
+    // Regression coverage for a real bug: the proxy used to redirect to a
+    // bare /auth/login with no way back, so a logged-out visitor following
+    // a team invite link lost the invite code the moment they had to sign in.
+    await page.goto("/join/this-code-does-not-exist");
+    await expect(page).toHaveURL(/next=%2Fjoin%2Fthis-code-does-not-exist/);
   });
 });

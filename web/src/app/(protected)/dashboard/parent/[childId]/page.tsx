@@ -9,6 +9,7 @@ import { StatBar } from "@/components/ui/stat-bar";
 import { POSITIONS, FEET } from "@/lib/types";
 import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
 import { calculateAge, getInitials } from "@/lib/player";
+import { RemovePlayerPhotoButton } from "@/components/remove-player-photo-button";
 import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
 import { ParentReportPanel } from "@/components/ai/parent-report-panel";
@@ -240,13 +241,22 @@ export default async function ChildDetailPage({
           <div className="h-1 bg-brand" />
           <CardHeader>
             <div className="flex items-center justify-between">
-              <span className="grid size-16 place-items-center rounded-full bg-brand/20 text-lg font-bold text-primary">
-                {initials}
-              </span>
+              {player.photo_url ? (
+                <img src={player.photo_url} alt={player.full_name} className="size-16 rounded-full object-cover" />
+              ) : (
+                <span className="grid size-16 place-items-center rounded-full bg-brand/20 text-lg font-bold text-primary">
+                  {initials}
+                </span>
+              )}
               <RatingRing value={overall} size={72} />
             </div>
             <CardTitle className="mt-3">{player.full_name}</CardTitle>
             <CardDescription>{posLabel}</CardDescription>
+            {player.photo_url && (
+              <div className="pt-1">
+                <RemovePlayerPhotoButton playerId={player.id} />
+              </div>
+            )}
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-wrap gap-2">

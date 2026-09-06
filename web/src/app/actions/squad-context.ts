@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { POSITIONS } from "@/lib/types";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { calculateAge } from "@/lib/player";
+import { attendancePct, isBelowWelfareThreshold, ATTENDANCE_WINDOW_DAYS, WELFARE_ATTENDANCE_THRESHOLD } from "@/lib/attendance";
 
 /**
  * Assembles the real squad into a compact text brief the AI features share.
@@ -74,7 +75,7 @@ export async function buildSquadContext(
   const playerIds = players.map((p) => p.id);
 
   // Training attendance across the recent term
-  const since = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
+  const since = new Date(Date.now() - ATTENDANCE_WINDOW_DAYS * 24 * 3600 * 1000).toISOString();
   const { data: sessions } = await supabase
     .from("training_sessions")
     .select("id")
@@ -133,7 +134,7 @@ export async function buildSquadContext(
       : "n/a";
 
     const present = attendanceByPlayer.get(p.id)?.present ?? 0;
-    const attPct = sessionIds.length > 0 ? Math.round((present / sessionIds.length) * 100) : null;
+    const attPct = attendancePct(present, sessionIds.length);
 
     const age = calculateAge(p.date_of_birth);
 
@@ -144,7 +145,7 @@ export async function buildSquadContext(
 
     lines.push(
       `- ${p.full_name} — ${posLabel(p.position)}${age ? `, age ${age}` : ""} | avg rating ${avg}/5 (${ratings.length} rated), recent form ${form}/5` +
-      (attPct !== null ? ` | training attendance ${attPct}%${attPct < 75 ? " (BELOW the 75% policy threshold)" : ""}` : "") +
+      (attPct !== null ? ` | training attendance ${attPct}%${isBelowWelfareThreshold(present, sessionIds.length) ? " (BELOW the 75% policy threshold)" : ""}` : "") +
       attrs
     );
   }
@@ -163,10 +164,10 @@ export async function buildSquadContext(
   if (sessionIds.length > 0) {
     const below = players.filter((p) => {
       const present = attendanceByPlayer.get(p.id)?.present ?? 0;
-      return present / sessionIds.length < 0.75;
+      return isBelowWelfareThreshold(present, sessionIds.length);
     });
     lines.push(
-      `TRAINING: ${sessionIds.length} sessions in the last 90 days. ${below.length} player(s) below the 75% attendance threshold${below.length ? `: ${below.map((p) => p.full_name).join(", ")}` : ""}.`
+      `TRAINING: ${sessionIds.length} sessions in the last ${ATTENDANCE_WINDOW_DAYS} days. ${below.length} player(s) below the ${Math.round(WELFARE_ATTENDANCE_THRESHOLD * 100)}% attendance threshold${below.length ? `: ${below.map((p) => p.full_name).join(", ")}` : ""}.`
     );
   }
 

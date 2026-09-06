@@ -1,7 +1,14 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/auth/login", "/auth/verify", "/auth/role", "/auth/register", "/auth/forgot-password", "/auth/reset-password", "/", "/passport", "/offline"];
+// Every top-level route not listed here is treated as protected by default
+// (see the redirect below) — the one way this list causes a real bug is a
+// genuinely public page missing from it, which then wrongly bounces a
+// logged-out visitor to login instead of rendering (this happened to
+// `/offline`). `/register-club` was found the same way: a brand new visitor
+// with no session at all could never reach the self-service academy signup
+// page without this entry, silently defeating the whole feature.
+const PUBLIC_PATHS = ["/auth/login", "/auth/verify", "/auth/role", "/auth/register", "/auth/forgot-password", "/auth/reset-password", "/", "/passport", "/offline", "/register-club"];
 
 // Simple in-memory rate limiter (per process instance)
 // For multi-instance deployments, replace with a shared store like Upstash Redis
@@ -75,7 +82,12 @@ export async function proxy(request: NextRequest) {
     pathname === "/favicon.ico";
 
   if (!user && !isPublic) {
-    return NextResponse.redirect(new URL("/auth/login", request.url));
+    const loginUrl = new URL("/auth/login", request.url);
+    // Lets a page like /join/[code] send an already-registered but
+    // logged-out visitor back to the action they came for, instead of
+    // dropping them at their generic dashboard after signing in.
+    loginUrl.searchParams.set("next", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   return supabaseResponse;
