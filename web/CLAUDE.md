@@ -125,3 +125,14 @@ this first before assuming the bug is in the upload code itself.
   full `npm run build` with dummy env vars (see any recent commit for the
   exact invocation) — the build catches things the type checker and unit
   tests both miss.
+
+## CI now actually runs the above on every PR
+
+`.github/workflows/pr-checks.yml` runs `tsc`, `npm test`, `npm run build`,
+and the Playwright suite on every PR to `main` — this used to be nothing but
+SonarQube and CodeQL, neither of which catches a broken build. Two
+open-source reviewers also run automatically (`.github/workflows/pr-agent.yml`,
+The-PR-Agent backed by Qwen2.5-Coder via OpenRouter and Gemini), posting a
+narrative review plus individually resolvable inline suggestions. Branch
+protection isn't turned on yet, so none of this blocks a merge as of this
+note — that's a deliberate separate step, not an oversight.
