@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/auth/login", "/auth/verify", "/auth/role", "/auth/register", "/auth/forgot-password", "/auth/reset-password", "/", "/passport"];
+const PUBLIC_PATHS = ["/auth/login", "/auth/verify", "/auth/role", "/auth/register", "/auth/forgot-password", "/auth/reset-password", "/", "/passport", "/offline"];
 
 // Simple in-memory rate limiter (per process instance)
 // For multi-instance deployments, replace with a shared store like Upstash Redis
