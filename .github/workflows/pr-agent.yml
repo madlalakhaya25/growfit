@@ -82,24 +82,7 @@ jobs:
         run: |
           pr-agent \
             --pr_url="${{ github.event.pull_request.html_url }}" \
-            improve            review \
-            --pr_reviewer.extra_instructions="Sign off as 'Qwen2.5-Coder (via OpenRouter)' so it's clear which reviewer this is."
-
-      - name: Suggestions (Qwen2.5-Coder via OpenRouter, free tier)
-        env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
-        run: |
-          pr-agent \
-            --pr_url="${{ github.event.pull_request.html_url }}" \
-            improve
-
-  gemini-review:
-    if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
+            improve      contents: read
       pull-requests: write
       issues: write
 
