@@ -1,0 +1,149 @@
+# Automated PR review — two independent open-source models, not Claude.
+#
+# Runs The-PR-Agent (Apache-2.0, donated by Qodo to community governance in
+# April 2026 — github.com/The-PR-Agent/pr-agent) twice per PR, once per
+# model, so two different model families each get a look:
+#
+#   - Qwen2.5-Coder-32B via OpenRouter's free tier. Scores well above
+#     Gemini Flash on coding-specific benchmarks and costs nothing — the
+#     free slug is OpenRouter's own choice to host, not guaranteed forever;
+#     check openrouter.ai/qwen if this job starts failing on auth/model-not-
+#     found and swap the slug.
+#   - Gemini, reusing this app's own GEMINI_API_KEY and model id
+#     (src/lib/ai-models.ts) rather than adding a second Google account.
+#     NOTE: this shares quota/billing with the app's live AI features — give
+#     it a separate key if that's ever a problem.
+#
+# Each posts its own narrative review comment plus separate, individually
+# resolvable inline suggestion threads ("improve"). This is advisory, not
+# the merge gate — pr-checks.yml is the required check. Pairing this with
+# GitHub's native "require conversation resolution before merging" and
+# "auto-merge" is what makes a clean PR merge itself with no bot clicking
+# merge on anyone's behalf.
+#
+# Installed via pip + invoked directly by CLI rather than the packaged
+# `the-pr-agent/pr-agent@main` action — the action's env-var-to-config
+# mapping has a reported bug for Gemini specifically
+# (The-PR-Agent/pr-agent#2083). The CLI's explicit --config.model flag has
+# no such ambiguity, and it's the only way to run two models from one repo
+# without two conflicting env-var configs colliding in the same job.
+
+name: PR Agent Review
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+    branches: [main]
+
+concurrency:
+  group: pr-agent-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  qwen-review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Check for OpenRouter key
+        id: key
+        run: |
+          if [ -n "${{ secrets.OPENROUTER_API_KEY }}" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Qwen review skipped::OPENROUTER_API_KEY is not set. Add a free OpenRouter key (openrouter.ai) as a repo secret to enable the Qwen reviewer."
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.key.outputs.available == 'true'
+        with:
+          python-version: "3.12"
+
+      - name: Install pr-agent
+        if: steps.key.outputs.available == 'true'
+        run: pip install pr-agent
+
+      - name: Review (Qwen2.5-Coder via OpenRouter, free tier)
+        if: steps.key.outputs.available == 'true'
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pr-agent \
+            --pr_url="${{ github.event.pull_request.html_url }}" \
+            --config.git_provider=github \
+            --github.deployment_type=user \
+            --config.model="openrouter/qwen/qwen-2.5-coder-32b-instruct:free" \
+            --pr_reviewer.extra_instructions="Sign off as 'Qwen2.5-Coder (via OpenRouter)' so it's clear which reviewer this is." \
+            review
+
+      - name: Suggestions (Qwen2.5-Coder via OpenRouter, free tier)
+        if: steps.key.outputs.available == 'true'
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pr-agent \
+            --pr_url="${{ github.event.pull_request.html_url }}" \
+            --config.git_provider=github \
+            --github.deployment_type=user \
+            --config.model="openrouter/qwen/qwen-2.5-coder-32b-instruct:free" \
+            improve
+
+  gemini-review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Check for Gemini key
+        id: key
+        run: |
+          if [ -n "${{ secrets.GEMINI_API_KEY }}" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Gemini review skipped::GEMINI_API_KEY is not set as a repo secret (Settings > Secrets and variables > Actions)."
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.key.outputs.available == 'true'
+        with:
+          python-version: "3.12"
+
+      - name: Install pr-agent
+        if: steps.key.outputs.available == 'true'
+        run: pip install pr-agent
+
+      - name: Review (Gemini)
+        if: steps.key.outputs.available == 'true'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pr-agent \
+            --pr_url="${{ github.event.pull_request.html_url }}" \
+            --config.git_provider=github \
+            --github.deployment_type=user \
+            --config.model="gemini/gemini-3.6-flash" \
+            --pr_reviewer.extra_instructions="Sign off as 'Gemini Flash' so it's clear which reviewer this is." \
+            review
+
+      - name: Suggestions (Gemini)
+        if: steps.key.outputs.available == 'true'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pr-agent \
+            --pr_url="${{ github.event.pull_request.html_url }}" \
+            --config.git_provider=github \
+            --github.deployment_type=user \
+            --config.model="gemini/gemini-3.6-flash" \
+            improve

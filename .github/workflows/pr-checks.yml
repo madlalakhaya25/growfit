@@ -1,0 +1,73 @@
+# The pull-request gate for the web app.
+#
+# Before this existed, nothing on `pull_request` ran `tsc`, `jest`, `build`,
+# or the Playwright smoke suite — only SonarQube and CodeQL, neither of which
+# catches a broken build or a failing test. Those checks only ever happened
+# when whoever was working the PR remembered to run them locally.
+#
+# This becomes the required status check for branch protection on `main`.
+
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      # fetch-depth: 0 — the attribution check walks the PR's own commits,
+      # and the default shallow clone has none of them.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Before `npm install`, because it needs nothing and should fail fast.
+      # The range is the pull request's own commits, so this can't fail on
+      # history already on main.
+      - name: Check for AI attribution
+        working-directory: .
+        run: >-
+          node scripts/check-ai-attribution.mjs
+          ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm test
+
+      # Dummy values — the same convention used everywhere else in this repo
+      # for a build that never talks to a real Supabase project. See
+      # web/CLAUDE.md's gotcha on why a fake project URL doesn't just crash.
+      - name: Build
+        run: npm run build
+        env:
+          GEMINI_API_KEY: dummy
+          NEXT_PUBLIC_SUPABASE_URL: https://x.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy
+          SUPABASE_SERVICE_ROLE_KEY: dummy
+
+      - name: Install Playwright's browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Playwright smoke suite
+        run: npm run test:e2e
