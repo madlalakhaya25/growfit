@@ -106,10 +106,10 @@ than player with no academy → also `/auth/role`.
    and `role`
 2. `handle_new_user()` Postgres trigger fires on `auth.users` INSERT →
    creates the `profiles` row
-3. A new academy can be created at signup via `/register-club` — the
-   `DEFAULT_ACADEMY_ID` constant from the original single-tenant pilot still
-   exists in `src/lib/constants.ts` but is no longer imported anywhere; every
-   real signup path now resolves its own `academy_id`
+3. A new academy can be created at signup via `/register-club`; every real
+   signup path resolves its own `academy_id`. The original single-tenant
+   pilot's `DEFAULT_ACADEMY_ID` constant (`src/lib/constants.ts`) has been
+   deleted — it had no importers left anywhere
 4. A coach joining an *existing* team uses a team join/coach code
    (`team_coaches`, migration 019) rather than a club-wide code
 5. If `role = parent` with a `share_token` → looks up the player → upserts
@@ -194,6 +194,15 @@ tables.
   exception — it stays "upcoming" until rescheduled, since its stored date
   is stale by definition). Never trust the raw column for a date-based
   question again without going through that function.
+- **Age and initials were each computed independently in ~12 files.**
+  Not a data-access duplication (the query differed by page) but a
+  *decision* duplication — the same judgment call re-made from scratch each
+  time, with no guarantee the copies agreed. `src/lib/player.ts`
+  (`calculateAge`, `getInitials`) is now the one place either is decided;
+  every call site imports it rather than re-deriving. Same category of fix
+  as `isFixturePast` above and the headshot matching below — when a rule
+  about the data (not just a fetch of it) shows up a second time, pull it
+  into a function before a third copy can quietly drift from the other two.
 
 ### Helper functions (SECURITY DEFINER)
 
@@ -387,18 +396,22 @@ web/
 │   ├── components/
 │   │   ├── ai/                    ← one panel per AI capability
 │   │   ├── tactics/                ← board, drawing tools, animation, voice notes
-│   │   ├── attendance/             ← training + match attendance forms
+│   │   ├── attendance/             ← training + match forms, shared offline-queue-flush hook
 │   │   ├── records/                ← document hub, consents, medical, player import review table
+│   │   ├── fixture-notifier.tsx    ← Realtime toast on a new fixture (player layout)
+│   │   ├── announcement-notifier.tsx ← same pattern, a new announcement (player + parent layouts)
 │   │   └── ui/                     ← Badge, Button, Card, RatingRing, StatBar
 │   └── lib/
 │       ├── auth.ts                 ← requireUser(), getProfile()
 │       ├── ai-models.ts            ← centralised Gemini model IDs
 │       ├── fixtures.ts             ← isFixturePast(), fixtureStatusLabel/Variant()
+│       ├── player.ts               ← calculateAge(), getInitials() — was duplicated in ~12 files each
 │       ├── headshot-matching.ts    ← identity-based photo↔player binding
 │       ├── pdf-headshots.ts        ← PDF headshot extraction
 │       ├── player-card-pdf.ts      ← SAFA-style card PDF generation
+│       ├── offline-attendance-queue.ts ← IndexedDB queue for attendance writes made offline
 │       └── supabase/{client,server}.ts
-└── supabase/migrations/           ← 21 sequentially-numbered files, checked in but NOT auto-applied — see the gotcha below
+└── supabase/migrations/           ← 22 sequentially-numbered files, checked in but NOT auto-applied — see the gotcha below
 ```
 
 ---
@@ -439,20 +452,26 @@ implemented — see the roadmap.
 **This shipped** — the "near-term" item in the previous version of this
 document is done. `academy_id` is on every table, RLS scopes every read and
 write to it, and `/register-club` lets a new academy self-onboard at
-signup. `DEFAULT_ACADEMY_ID` is dead code left over from the original
-single-tenant pilot (`src/lib/constants.ts`, unreferenced everywhere else) —
-safe to delete, not yet done.
+signup. `DEFAULT_ACADEMY_ID`, dead code left over from the original
+single-tenant pilot, has been deleted along with the rest of
+`src/lib/constants.ts` (nothing else in the file had an importer either).
 
 ## Scalability notes
 
 - **Read performance**: RLS helper functions (`auth_role()`,
-  `auth_academy_id()`) hit `profiles` on every query — index
-  `(id, role, academy_id)` under real load
-- **Real-time**: already used for one thing (`FixtureNotifier` — a new
-  fixture insert notifies players via Supabase Realtime); the same pattern
-  is available for announcements without a schema change
+  `auth_academy_id()`) hit `profiles` on every query. Migration
+  `022_profiles_covering_index.sql` adds a covering index on
+  `(id, role, academy_id)` so those lookups resolve from the index alone —
+  written but **not yet applied**; nothing in this repo's dev environment
+  runs migrations against the live project (see `web/CLAUDE.md`)
+- **Real-time**: used for two things now — `FixtureNotifier` (a new fixture
+  notifies players) and `AnnouncementNotifier` (a new announcement notifies
+  players and parents), both the same `postgres_changes` INSERT pattern,
+  wired into the player and parent layouts
 - **File storage**: player photos live in Supabase Storage
   (`player-photos` bucket) with public URLs; bucket policies mirror RLS
 - **Rate limiting**: currently in-memory per server instance — will silently
   under-count once there's more than one, per the note already in
-  `proxy.ts`
+  `proxy.ts`. Fixing this needs a real shared store (e.g. Upstash Redis)
+  and credentials that only the academy's own deployment has — not
+  something this environment can stand up on its own

@@ -1,8 +1,14 @@
 "use client";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { markTrainingAttendance } from "@/app/actions/attendance";
+import { enqueueAttendanceWrite } from "@/lib/offline-attendance-queue";
+import { useAttendanceQueueFlush } from "./use-attendance-queue-flush";
+
+type Status = "present" | "absent";
 
 interface Player {
   id: string;
@@ -24,17 +30,17 @@ function PlayerRow({
   sessionId,
   player,
   currentStatus,
+  onMark,
 }: {
   sessionId: string;
   player: Player;
-  currentStatus: string | null;
+  currentStatus: Status | null;
+  onMark: (playerId: string, status: Status) => void;
 }) {
   const [pending, startTransition] = useTransition();
 
-  function mark(status: "present" | "absent") {
-    startTransition(async () => {
-      await markTrainingAttendance(sessionId, player.id, status);
-    });
+  function mark(status: Status) {
+    startTransition(() => onMark(player.id, status));
   }
 
   return (
@@ -77,8 +83,40 @@ function PlayerRow({
 }
 
 export function TrainingAttendanceForm({ sessionId, players, existing }: Props) {
-  const statusMap = Object.fromEntries(existing.map((r) => [r.player_id, r.status]));
-  const presentCount = existing.filter((r) => r.status === "present").length;
+  const router = useRouter();
+  const [statusMap, setStatusMap] = useState<Record<string, Status>>(
+    () => Object.fromEntries(existing.map((r) => [r.player_id, r.status as Status]))
+  );
+
+  useAttendanceQueueFlush(() => router.refresh());
+
+  async function handleMark(playerId: string, status: Status) {
+    const previous = statusMap[playerId] ?? null;
+    setStatusMap((prev) => ({ ...prev, [playerId]: status }));
+    try {
+      const res = await markTrainingAttendance(sessionId, playerId, status);
+      if (res?.error) {
+        setStatusMap((prev) => {
+          const next = { ...prev };
+          if (previous) next[playerId] = previous; else delete next[playerId];
+          return next;
+        });
+        toast.error(res.error);
+      }
+    } catch {
+      await enqueueAttendanceWrite({
+        id: `training:${sessionId}:${playerId}:${Date.now()}`,
+        kind: "training",
+        sessionId,
+        playerId,
+        status,
+        queuedAt: new Date().toISOString(),
+      });
+      toast("Saved offline — will sync when you're back online", { duration: 5000 });
+    }
+  }
+
+  const presentCount = Object.values(statusMap).filter((s) => s === "present").length;
 
   if (players.length === 0) return null;
 
@@ -97,6 +135,7 @@ export function TrainingAttendanceForm({ sessionId, players, existing }: Props) 
             sessionId={sessionId}
             player={p}
             currentStatus={statusMap[p.id] ?? null}
+            onMark={handleMark}
           />
         ))}
       </div>

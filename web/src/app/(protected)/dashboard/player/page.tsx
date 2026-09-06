@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { RatingRing } from "@/components/ui/rating-ring";
 import { StatBar } from "@/components/ui/stat-bar";
 import { POSITIONS } from "@/lib/types";
+import { calculateAge } from "@/lib/player";
 import { ClaimProfileForm } from "./claim-profile-form";
 import { RatingChart } from "@/components/rating-chart";
 import { MediaGallery } from "@/components/media/media-gallery";
@@ -142,9 +143,7 @@ export default async function PlayerDashboardPage() {
 
   const positionEntry = POSITIONS.find((p) => p.value === player.position);
   const posLabel = positionEntry?.label ?? "—";
-  const age = player.date_of_birth
-    ? Math.floor((Date.now() - new Date(player.date_of_birth).getTime()) / 31_557_600_000)
-    : null;
+  const age = calculateAge(player.date_of_birth);
   // Age band for the positional guide: round up to the next odd year, giving
   // U11 / U13 / U15 etc. Falls back to U15 when we have no date of birth.
   const playerAgeGroup = age ? `U${age % 2 === 1 ? age : age + 1}` : "U15";

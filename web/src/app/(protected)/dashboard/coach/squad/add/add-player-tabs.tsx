@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { addPlayerToSquad, createPlayer } from "@/app/actions/squad";
 import { POSITIONS, FEET, AGE_GROUPS } from "@/lib/types";
+import { calculateAge, getInitials } from "@/lib/player";
 
 type Player = {
   id: string;
@@ -89,11 +90,9 @@ function SearchTab({ players, teamId, onBack }: { players: Player[]; teamId: str
         <div className="divide-y divide-border rounded-xl border border-border">
           {filtered.map((p) => {
             const added = addedIds.has(p.id);
-            const age = p.date_of_birth
-              ? Math.floor((Date.now() - new Date(p.date_of_birth).getTime()) / 31_557_600_000)
-              : null;
+            const age = calculateAge(p.date_of_birth);
             const posLabel = POSITIONS.find((pos) => pos.value === p.position)?.label;
-            const initials = p.full_name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+            const initials = getInitials(p.full_name);
 
             return (
               <div key={p.id} className="flex items-center gap-3 px-4 py-3">

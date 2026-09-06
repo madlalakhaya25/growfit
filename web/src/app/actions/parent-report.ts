@@ -3,6 +3,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
+import { calculateAge } from "@/lib/player";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -56,11 +57,7 @@ export async function generateParentReport(
     const milestones = milestonesResult.data ?? [];
     const trainingAttendance = trainingAttendanceResult.data ?? [];
 
-    const age = player.date_of_birth
-      ? Math.floor(
-          (Date.now() - new Date(player.date_of_birth).getTime()) / 31_557_600_000
-        )
-      : null;
+    const age = calculateAge(player.date_of_birth);
 
     const avgRating =
       ratings.length > 0

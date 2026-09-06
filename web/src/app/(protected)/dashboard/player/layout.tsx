@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { FixtureNotifier } from "@/components/fixture-notifier";
+import { AnnouncementNotifier } from "@/components/announcement-notifier";
 
 export default async function PlayerLayout({ children }: { children: React.ReactNode }) {
   const profile = await getProfile();
@@ -31,6 +32,7 @@ export default async function PlayerLayout({ children }: { children: React.React
   return (
     <>
       <FixtureNotifier teamIds={teamIds} />
+      <AnnouncementNotifier teamIds={teamIds} />
       {children}
     </>
   );

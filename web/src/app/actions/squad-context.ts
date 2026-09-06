@@ -3,6 +3,7 @@
 import { requireUser } from "@/lib/auth";
 import { POSITIONS } from "@/lib/types";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { calculateAge } from "@/lib/player";
 
 /**
  * Assembles the real squad into a compact text brief the AI features share.
@@ -134,9 +135,7 @@ export async function buildSquadContext(
     const present = attendanceByPlayer.get(p.id)?.present ?? 0;
     const attPct = sessionIds.length > 0 ? Math.round((present / sessionIds.length) * 100) : null;
 
-    const age = p.date_of_birth
-      ? Math.floor((Date.now() - new Date(p.date_of_birth).getTime()) / 31_557_600_000)
-      : null;
+    const age = calculateAge(p.date_of_birth);
 
     const a = (p.player_attributes ?? [])[0];
     const attrs = a

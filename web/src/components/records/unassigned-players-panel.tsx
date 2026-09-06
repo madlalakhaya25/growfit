@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { UserPlus, Users, CheckCircle2, Loader2 } from "lucide-react";
 import { assignPlayersToTeam } from "@/app/actions/squad";
 import { POSITIONS } from "@/lib/types";
+import { calculateAge } from "@/lib/player";
 
 export interface UnassignedPlayer {
   id: string;
@@ -71,9 +72,6 @@ export function UnassignedPlayersPanel({
     );
   }
 
-  const age = (dob: string | null) =>
-    dob ? Math.floor((Date.now() - new Date(dob).getTime()) / 31_557_600_000) : null;
-
   return (
     <div className="rounded-xl border border-border bg-card">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
@@ -92,7 +90,7 @@ export function UnassignedPlayersPanel({
 
       <ul className="divide-y divide-border">
         {players.map((p) => {
-          const a = age(p.date_of_birth);
+          const a = calculateAge(p.date_of_birth);
           const pos = POSITIONS.find((x) => x.value === p.position)?.label;
           return (
             <li key={p.id}>
