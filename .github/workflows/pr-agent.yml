@@ -58,6 +58,13 @@
 #
 # continue-on-error is deliberately NOT used here — that's exactly what hid
 # every failure above. Let a real failure show up red.
+#
+# Each review/suggest step has timeout-minutes: 5 — a real run against
+# openrouter/free hung for 7+ minutes on a single call with no output
+# (almost certainly an overloaded free-tier backend the router picked, not
+# a bug here) before it was manually cancelled. Free-tier capacity is
+# shared and unpredictable; a slow or unresponsive backend should fail this
+# one advisory job fast and visibly, not tie up a runner indefinitely.
 
 name: PR Agent Review
 
@@ -116,6 +123,7 @@ jobs:
 
       - name: Review (Gemini)
         if: steps.key.outputs.available == 'true'
+        timeout-minutes: 5
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -128,6 +136,7 @@ jobs:
 
       - name: Suggestions (Gemini)
         if: steps.key.outputs.available == 'true'
+        timeout-minutes: 5
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -186,6 +195,7 @@ jobs:
 
       - name: Review (OpenRouter free-tier router)
         if: steps.key.outputs.available == 'true'
+        timeout-minutes: 5
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -198,6 +208,7 @@ jobs:
 
       - name: Suggestions (OpenRouter free-tier router)
         if: steps.key.outputs.available == 'true'
+        timeout-minutes: 5
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
