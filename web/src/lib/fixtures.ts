@@ -17,3 +17,26 @@ export function isFixturePast(fixture: { status: string | FixtureStatus; fixture
   if (fixture.status === "postponed") return false;
   return new Date(fixture.fixture_date).getTime() < Date.now();
 }
+
+export type FixtureBadgeVariant = "neutral" | "success" | "danger" | "warning";
+
+/**
+ * Display label for a fixture's status badge. A fixture whose kickoff has
+ * passed but whose result hasn't been logged yet is still "upcoming" in the
+ * database (see isFixturePast) — showing that literally reads as a bug once
+ * the fixture has already moved into "Past", so it's relabelled here to
+ * describe what's actually true: nobody has recorded what happened yet.
+ */
+export function fixtureStatusLabel(fixture: { status: string; fixture_date: string }): string {
+  if (fixture.status === "upcoming" && isFixturePast(fixture)) return "Result pending";
+  return fixture.status;
+}
+
+/** Badge colour to pair with fixtureStatusLabel — pending pairs with warning, not neutral, since it wants a coach to act. */
+export function fixtureStatusVariant(fixture: { status: string; fixture_date: string }): FixtureBadgeVariant {
+  if (fixture.status === "upcoming" && isFixturePast(fixture)) return "warning";
+  if (fixture.status === "completed") return "success";
+  if (fixture.status === "cancelled") return "danger";
+  if (fixture.status === "postponed") return "warning";
+  return "neutral";
+}

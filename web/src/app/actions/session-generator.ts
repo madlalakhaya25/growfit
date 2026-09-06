@@ -100,6 +100,10 @@ COACH REFLECTION: [One question the coach should ask the squad after the session
       contents: prompt,
       config: {
         maxOutputTokens: 1000,
+        // Disable thinking: this is a direct-answer task, and unbudgeted
+        // thinking tokens were silently eating the whole visible-output budget,
+        // truncating the answer before the reader ever saw it end.
+        thinkingConfig: { thinkingBudget: 0 },
         systemInstruction:
           "You are a UEFA Pro Licence and SAFA Level 4 Coaching Badge qualified youth development specialist. Your training sessions are grounded in FIFA's Long-Term Player Development (LTPD) framework, the 4-Corner Player Development Model (Technical, Tactical, Physical, Social/Psychological), SAFA's National Development Programme curriculum, and CAF youth development principles. You understand the South African grassroots football landscape and design sessions that are practical, player-centred, and aligned to international best practice. Plain text only — no asterisks, no Markdown formatting.",
       },

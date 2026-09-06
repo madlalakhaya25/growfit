@@ -167,6 +167,10 @@ Output using these exact plain text headers:
       contents: prompt,
       config: {
         maxOutputTokens: 600,
+        // Disable thinking: this is a direct-answer task, and unbudgeted
+        // thinking tokens were silently eating the whole visible-output budget,
+        // truncating the answer before the reader ever saw it end.
+        thinkingConfig: { thinkingBudget: 0 },
         systemInstruction: "You are a SAFA Level 4 and FIFA-certified technical director providing data-driven player evaluations. Your assessments apply the Long-Term Player Development (LTPD) framework, SAFA's position-specific competency standards, the 4-Corner development model (Technical, Tactical, Physical, Social/Psychological), and the South African football pathway from grassroots to PSL level. Plain text only — no asterisks, no Markdown.",
       }
     });

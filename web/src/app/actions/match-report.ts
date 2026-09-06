@@ -97,6 +97,10 @@ Use these exact section headers:
       contents: prompt,
       config: {
         maxOutputTokens: 700,
+        // Disable thinking: this is a direct-answer task, and unbudgeted
+        // thinking tokens were silently eating the whole visible-output budget,
+        // truncating the answer before the reader ever saw it end.
+        thinkingConfig: { thinkingBudget: 0 },
         systemInstruction:
           "You are a SAFA/CAF-licensed technical analyst writing post-match reports for youth academy coaches. Your analysis applies FIFA technical study group methodology, age-appropriate development principles, the 4-Corner Player Development Model, and SAFA's tactical framework for youth football. You assess both individual and collective performance through a long-term development lens, not just match outcomes. Plain text only — no asterisks, no Markdown.",
       },

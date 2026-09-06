@@ -7,14 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
-import { isFixturePast } from "@/lib/fixtures";
-
-const STATUS_VARIANT = {
-  upcoming: "neutral",
-  completed: "success",
-  cancelled: "danger",
-  postponed: "warning",
-} as const;
+import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
 
 export default async function CoachFixturesPage({
   searchParams,
@@ -39,7 +32,7 @@ export default async function CoachFixturesPage({
 
   const { data: fixtures } = await supabase
     .from("fixtures")
-    .select("id, opponent, venue, fixture_date, is_home, status")
+    .select("id, opponent, venue, fixture_date, is_home, status, cancellation_reason")
     .eq("team_id", team.id)
     .order("fixture_date", { ascending: false });
 
@@ -66,8 +59,8 @@ export default async function CoachFixturesPage({
           <Badge variant="outline" className="text-xs shrink-0">
             {f.is_home ? "Home" : "Away"}
           </Badge>
-          <Badge variant={STATUS_VARIANT[f.status as keyof typeof STATUS_VARIANT] ?? "neutral"} className="capitalize shrink-0">
-            {f.status}
+          <Badge variant={fixtureStatusVariant(f)} className="capitalize shrink-0">
+            {fixtureStatusLabel(f)}
           </Badge>
         </div>
       </Link>

@@ -141,7 +141,7 @@ export function CoachAssistantPanel({
         </div>
 
         {output && (
-          <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 space-y-1 max-h-72 overflow-y-auto">
+          <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 space-y-1">
             <div className="flex items-center justify-between gap-2">
               <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{output.title}</p>
               <SpeakButton text={output.text} />

@@ -55,6 +55,10 @@ COACHING CUES: [3 short phrases the coach can shout to this player during play]`
       contents: prompt,
       config: {
         maxOutputTokens: 900,
+        // Disable thinking: this is a direct-answer task, and unbudgeted
+        // thinking tokens were silently eating the whole visible-output budget,
+        // truncating the answer before the reader ever saw it end.
+        thinkingConfig: { thinkingBudget: 0 },
         systemInstruction:
           "You are a UEFA Pro Licence and SAFA Level 4 Coaching Badge qualified youth development specialist. Your positional guidance is grounded in FIFA's Long-Term Player Development (LTPD) framework, the 4-Corner Player Development Model (Technical, Tactical, Physical, Social/Psychological), SAFA's National Development Programme curriculum, and CAF youth development principles. You understand South African grassroots football and always keep guidance age-appropriate and player-centred. Plain text only — no asterisks, no Markdown formatting.",
       },
@@ -114,6 +118,10 @@ COACHING CUES: [3 short phrases the coach can shout during play]${squadNote}`;
       contents: prompt,
       config: {
         maxOutputTokens: 1000,
+        // Disable thinking: this is a direct-answer task, and unbudgeted
+        // thinking tokens were silently eating the whole visible-output budget,
+        // truncating the answer before the reader ever saw it end.
+        thinkingConfig: { thinkingBudget: 0 },
         systemInstruction:
           "You are a UEFA Pro Licence and SAFA Level 4 Coaching Badge qualified youth development specialist. Your tactical explanations are grounded in FIFA's Long-Term Player Development (LTPD) framework, the 4-Corner Player Development Model (Technical, Tactical, Physical, Social/Psychological), SAFA's National Development Programme curriculum, and CAF youth development principles. You understand South African grassroots football and always keep guidance age-appropriate and player-centred. Plain text only — no asterisks, no Markdown formatting.",
       },
@@ -173,6 +181,10 @@ PROGRESSION: [1 sentence on how to make it harder once they master it]`;
       contents: prompt,
       config: {
         maxOutputTokens: 900,
+        // Disable thinking: this is a direct-answer task, and unbudgeted
+        // thinking tokens were silently eating the whole visible-output budget,
+        // truncating the answer before the reader ever saw it end.
+        thinkingConfig: { thinkingBudget: 0 },
         systemInstruction:
           "You are a UEFA Pro Licence and SAFA Level 4 Coaching Badge qualified youth development specialist. Your guidance is grounded in FIFA's Long-Term Player Development (LTPD) framework, the 4-Corner Player Development Model, SAFA's National Development Programme curriculum, and CAF youth development principles. You understand South African grassroots football and keep everything age-appropriate and player-centred. Plain text only — no asterisks, no Markdown formatting.",
       },
@@ -232,6 +244,10 @@ TRAIN THIS WEEK: [1 sentence on what to rehearse in training]`;
       contents: prompt,
       config: {
         maxOutputTokens: 1000,
+        // Disable thinking: this is a direct-answer task, and unbudgeted
+        // thinking tokens were silently eating the whole visible-output budget,
+        // truncating the answer before the reader ever saw it end.
+        thinkingConfig: { thinkingBudget: 0 },
         systemInstruction:
           "You are a UEFA Pro Licence and SAFA Level 4 Coaching Badge qualified youth development specialist and opposition analyst. Your advice is grounded in FIFA's Long-Term Player Development (LTPD) framework, the 4-Corner Player Development Model, SAFA's National Development Programme curriculum, and CAF youth development principles. You understand South African grassroots football. Player development always outranks winning a single match. Plain text only — no asterisks, no Markdown formatting.",
       },

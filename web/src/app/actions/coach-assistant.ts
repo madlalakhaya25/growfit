@@ -57,10 +57,12 @@ export async function askCoachAssistant(params: {
       { role: "user" as const, parts: [{ text: question }] },
     ];
 
+    // thinkingBudget: 0 — a direct-answer task; unbudgeted thinking tokens
+    // were silently eating the visible-output budget, truncating replies.
     const response = await ai.models.generateContent({
       model: AI_MODEL,
       contents,
-      config: { maxOutputTokens: 900, systemInstruction: COACH_SYSTEM },
+      config: { maxOutputTokens: 900, thinkingConfig: { thinkingBudget: 0 }, systemInstruction: COACH_SYSTEM },
     });
 
     const text = (response.text ?? "").replace(/\*/g, "");
@@ -104,7 +106,7 @@ SELECTION NOTES: [2 sentences on the balance of the side and any risk]`;
     const response = await ai.models.generateContent({
       model: AI_MODEL,
       contents: prompt,
-      config: { maxOutputTokens: 1000, systemInstruction: COACH_SYSTEM },
+      config: { maxOutputTokens: 1000, thinkingConfig: { thinkingBudget: 0 }, systemInstruction: COACH_SYSTEM },
     });
 
     const text = (response.text ?? "").replace(/\*/g, "");
@@ -145,7 +147,7 @@ REHEARSE AT TRAINING: [1 sentence on what to drill this week]`;
     const response = await ai.models.generateContent({
       model: AI_MODEL,
       contents: prompt,
-      config: { maxOutputTokens: 1200, systemInstruction: COACH_SYSTEM },
+      config: { maxOutputTokens: 1200, thinkingConfig: { thinkingBudget: 0 }, systemInstruction: COACH_SYSTEM },
     });
 
     const text = (response.text ?? "").replace(/\*/g, "");
