@@ -82,6 +82,54 @@ jobs:
         run: |
           pr-agent \
             --pr_url="${{ github.event.pull_request.html_url }}" \
+            improve            review \
+            --pr_reviewer.extra_instructions="Sign off as 'Qwen2.5-Coder (via OpenRouter)' so it's clear which reviewer this is."
+
+      - name: Suggestions (Qwen2.5-Coder via OpenRouter, free tier)
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+        run: |
+          pr-agent \
+            --pr_url="${{ github.event.pull_request.html_url }}" \
+            improve
+
+  gemini-review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pr-agent
+        run: pip install pr-agent
+
+      - name: Review (Gemini)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+        run: |
+          pr-agent \
+            --pr_url="${{ github.event.pull_request.html_url }}" \
+            review \
+            --pr_reviewer.extra_instructions="Sign off as 'Gemini Flash' so it's clear which reviewer this is."
+
+      - name: Suggestions (Gemini)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+        run: |
+          pr-agent \
+            --pr_url="${{ github.event.pull_request.html_url }}" \
             improve
 concurrency:
   group: pr-agent-${{ github.event.pull_request.number }}
