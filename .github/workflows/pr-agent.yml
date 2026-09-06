@@ -48,30 +48,18 @@ jobs:
       pull-requests: write
       issues: write
     steps:
-      - name: Check for OpenRouter key
-        id: key
-        run: |
-          if [ -n "${{ secrets.OPENROUTER_API_KEY }}" ]; then
-            echo "available=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "::warning title=Qwen review skipped::OPENROUTER_API_KEY is not set. Add a free OpenRouter key (openrouter.ai) as a repo secret to enable the Qwen reviewer."
-          fi
-
       - uses: actions/setup-python@v5
-        if: steps.key.outputs.available == 'true'
         with:
           python-version: "3.12"
 
       - name: Install pr-agent
-        if: steps.key.outputs.available == 'true'
         run: pip install pr-agent
 
       - name: Review (Qwen2.5-Coder via OpenRouter, free tier)
-        if: steps.key.outputs.available == 'true'
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
         run: |
           pr-agent \
             --pr_url="${{ github.event.pull_request.html_url }}" \
@@ -79,10 +67,10 @@ jobs:
             --pr_reviewer.extra_instructions="Sign off as 'Qwen2.5-Coder (via OpenRouter)' so it's clear which reviewer this is."
 
       - name: Suggestions (Qwen2.5-Coder via OpenRouter, free tier)
-        if: steps.key.outputs.available == 'true'
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
         run: |
           pr-agent \
             --pr_url="${{ github.event.pull_request.html_url }}" \
@@ -96,30 +84,18 @@ jobs:
       pull-requests: write
       issues: write
     steps:
-      - name: Check for Gemini key
-        id: key
-        run: |
-          if [ -n "${{ secrets.GEMINI_API_KEY }}" ]; then
-            echo "available=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "::warning title=Gemini review skipped::GEMINI_API_KEY is not set as a repo secret (Settings > Secrets and variables > Actions)."
-          fi
-
       - uses: actions/setup-python@v5
-        if: steps.key.outputs.available == 'true'
         with:
           python-version: "3.12"
 
       - name: Install pr-agent
-        if: steps.key.outputs.available == 'true'
         run: pip install pr-agent
 
       - name: Review (Gemini)
-        if: steps.key.outputs.available == 'true'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
         run: |
           pr-agent \
             --pr_url="${{ github.event.pull_request.html_url }}" \
@@ -127,10 +103,10 @@ jobs:
             --pr_reviewer.extra_instructions="Sign off as 'Gemini Flash' so it's clear which reviewer this is."
 
       - name: Suggestions (Gemini)
-        if: steps.key.outputs.available == 'true'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
         run: |
           pr-agent \
             --pr_url="${{ github.event.pull_request.html_url }}" \
