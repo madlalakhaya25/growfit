@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { RatingRing } from "@/components/ui/rating-ring";
 import { Users } from "lucide-react";
 import { POSITIONS } from "@/lib/types";
+import { calculateAge, getInitials } from "@/lib/player";
 import { LinkChildForm } from "./link-child-form";
 
 const ATTR_KEYS = ["pace", "shooting", "passing", "dribbling", "defending", "physical"] as const;
@@ -71,16 +72,9 @@ export default async function ParentDashboardPage() {
           {children.map((child) => {
             const overall = childOverall(child);
             const pos = POSITIONS.find((p) => p.value === child.position)?.label ?? "—";
-            const age = child.date_of_birth
-              ? Math.floor((Date.now() - new Date(child.date_of_birth).getTime()) / 31_557_600_000)
-              : null;
+            const age = calculateAge(child.date_of_birth);
             const ratingCount = child.player_ratings.length;
-            const initials = child.full_name
-              .split(" ")
-              .slice(0, 2)
-              .map((w) => w[0])
-              .join("")
-              .toUpperCase();
+            const initials = getInitials(child.full_name);
 
             return (
               <Link key={child.id} href={`/dashboard/parent/${child.id}`} className="block">

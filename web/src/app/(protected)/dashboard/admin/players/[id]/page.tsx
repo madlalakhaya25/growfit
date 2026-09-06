@@ -9,6 +9,7 @@ import { RatingRing } from "@/components/ui/rating-ring";
 import { StatBar } from "@/components/ui/stat-bar";
 import { PlayerPhotoUpload } from "@/components/player-photo-upload";
 import { POSITIONS, FEET } from "@/lib/types";
+import { calculateAge, getInitials } from "@/lib/player";
 import { ExtendedInfoForm } from "@/components/records/extended-info-form";
 import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
@@ -71,10 +72,8 @@ export default async function AdminPlayerDetailPage({
     : 0;
   const posLabel = POSITIONS.find((p) => p.value === player.position)?.label ?? "—";
   const footLabel = FEET.find((f) => f.value === player.preferred_foot)?.label;
-  const age = player.date_of_birth
-    ? Math.floor((Date.now() - new Date(player.date_of_birth).getTime()) / 31_557_600_000)
-    : null;
-  const initials = player.full_name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
+  const age = calculateAge(player.date_of_birth);
+  const initials = getInitials(player.full_name);
 
   return (
     <div className="space-y-6">

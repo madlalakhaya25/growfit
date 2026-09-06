@@ -6,6 +6,43 @@ releases yet. Newest first.
 
 ---
 
+## 2026-09-06 — Attendance that survives a bad connection, and cleaning up duplicated logic
+
+**Fixed**
+- Marking attendance (training or match) now tells the coach the truth. A
+  real save failure shows an error and un-does the optimistic tick; a
+  network failure (the actual pitchside case — one bar of signal, not a
+  broken write) queues the mark in the browser and retries it automatically
+  once the connection's back, instead of the button just quietly stopping
+  its spinner while nothing was ever saved.
+- Age and initials were each being computed from scratch in about a dozen
+  files — the same judgment call re-made independently everywhere it was
+  needed, with no guarantee every copy agreed. Consolidated into
+  `src/lib/player.ts`; every one of those ~24 call sites now calls the one
+  function instead of re-deriving it.
+- Deleted `DEFAULT_ACADEMY_ID`, dead code from the original single-tenant
+  pilot with zero remaining importers — and the rest of the file it lived
+  in, which turned out to be equally unused.
+
+**Added**
+- Announcements now notify players and parents the moment a coach posts
+  one, the same Supabase Realtime pattern already used for new fixtures —
+  no more finding out by opening the app and noticing a badge.
+- A database migration for a covering index on `profiles(id, role,
+  academy_id)`, the table the app's RLS checks hit on every single request.
+  Written and checked in, but **not yet applied** — this environment has no
+  live Supabase project to run it against; it needs to be run by hand
+  against the real one.
+
+**Not done, and why**: two other items from the architecture backlog need
+things this environment doesn't have and can't fake — moving auth rate
+limiting off in-memory needs a real shared store (Redis) and credentials
+for it; seeding a real Supabase test project for full end-to-end coverage
+needs, similarly, a real test project. Both stay open until someone with
+that access picks them up.
+
+---
+
 ## 2026-09-06 — Fixture accuracy and AI answers that don't cut off
 
 **Fixed**

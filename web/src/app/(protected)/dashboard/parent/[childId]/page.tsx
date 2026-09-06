@@ -8,6 +8,7 @@ import { RatingRing } from "@/components/ui/rating-ring";
 import { StatBar } from "@/components/ui/stat-bar";
 import { POSITIONS, FEET } from "@/lib/types";
 import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
+import { calculateAge, getInitials } from "@/lib/player";
 import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
 import { ParentReportPanel } from "@/components/ai/parent-report-panel";
@@ -141,10 +142,8 @@ export default async function ChildDetailPage({
 
   const posLabel = POSITIONS.find((p) => p.value === player.position)?.label ?? "—";
   const footLabel = FEET.find((f) => f.value === player.preferred_foot)?.label;
-  const age = player.date_of_birth
-    ? Math.floor((Date.now() - new Date(player.date_of_birth).getTime()) / 31_557_600_000)
-    : null;
-  const initials = player.full_name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
+  const age = calculateAge(player.date_of_birth);
+  const initials = getInitials(player.full_name);
 
   type Fixture = (typeof allFixtures)[number];
 

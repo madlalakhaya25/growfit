@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { RemovePlayerButton } from "./remove-player-button";
 import { CopyInviteLinkButton } from "@/components/copy-invite-link-button";
 import { POSITIONS } from "@/lib/types";
+import { calculateAge, getInitials } from "@/lib/player";
 import { cn } from "@/lib/utils";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 
@@ -61,9 +62,7 @@ export default async function SquadPage({
     const avg = ratings.length
       ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1)
       : null;
-    const age = p.date_of_birth
-      ? Math.floor((Date.now() - new Date(p.date_of_birth).getTime()) / 31_557_600_000)
-      : null;
+    const age = calculateAge(p.date_of_birth);
     return { ...p, avg, ratingsCount: ratings.length, age, joinedAt: m.joined_at };
   }).filter(Boolean);
 
@@ -154,12 +153,7 @@ export default async function SquadPage({
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {byPosition[pos].map((player) => {
                     if (!player) return null;
-                    const initials = player.full_name
-                      .split(" ")
-                      .slice(0, 2)
-                      .map((w: string) => w[0])
-                      .join("")
-                      .toUpperCase();
+                    const initials = getInitials(player.full_name);
                     return (
                       <div
                         key={player.id}

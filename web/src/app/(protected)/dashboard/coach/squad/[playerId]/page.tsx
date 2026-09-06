@@ -10,6 +10,7 @@ import { RatingRing } from "@/components/ui/rating-ring";
 import { StatBar } from "@/components/ui/stat-bar";
 import { POSITIONS, FEET } from "@/lib/types";
 import { ATTR_META, type AttrKey } from "@/lib/attributes";
+import { calculateAge, getInitials } from "@/lib/player";
 import { RemovePlayerButton } from "../remove-player-button";
 import { RatingEditRow } from "./rating-edit-row";
 import { PlayerAttributesForm } from "./player-attributes-form";
@@ -161,10 +162,8 @@ export default async function PlayerDetailPage({
 
   const posLabel = POSITIONS.find((p) => p.value === player.position)?.label ?? "—";
   const footLabel = FEET.find((f) => f.value === player.preferred_foot)?.label;
-  const age = player.date_of_birth
-    ? Math.floor((Date.now() - new Date(player.date_of_birth).getTime()) / 31_557_600_000)
-    : null;
-  const initials = player.full_name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
+  const age = calculateAge(player.date_of_birth);
+  const initials = getInitials(player.full_name);
 
   return (
     <div className="space-y-6">

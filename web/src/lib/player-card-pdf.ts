@@ -9,6 +9,7 @@ import {
   popGraphicsState,
 } from "pdf-lib";
 import QRCode from "qrcode";
+import { getInitials } from "@/lib/player";
 
 /**
  * Generates a printable player registration card that mirrors the layout of
@@ -88,7 +89,7 @@ export async function generatePlayerCardPdf(
     });
     page.pushOperators(popGraphicsState());
   } else {
-    const initials = data.fullName.split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+    const initials = getInitials(data.fullName);
     page.drawText(initials, {
       x: photoX + photoW / 2 - bold.widthOfTextAtSize(initials, 28) / 2,
       y: photoY + photoH / 2 - 10, size: 28, font: bold, color: rgb(0.6, 0.62, 0.72),

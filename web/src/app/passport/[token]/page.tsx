@@ -10,6 +10,7 @@ import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { POSITIONS, FEET } from "@/lib/types";
 import { ATTR_META, type AttrKey } from "@/lib/attributes";
+import { calculateAge, getInitials } from "@/lib/player";
 import QRCode from "qrcode";
 
 export const revalidate = 60;
@@ -74,10 +75,8 @@ export default async function PublicPassportPage({
   const posLabel = POSITIONS.find((p) => p.value === passport.position)?.label ?? "—";
   const secPosLabel = POSITIONS.find((p) => p.value === passport.secondary_pos)?.label;
   const footLabel = FEET.find((f) => f.value === passport.preferred_foot)?.label;
-  const age = passport.date_of_birth
-    ? Math.floor((Date.now() - new Date(passport.date_of_birth).getTime()) / 31_557_600_000)
-    : null;
-  const initials = passport.full_name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
+  const age = calculateAge(passport.date_of_birth);
+  const initials = getInitials(passport.full_name);
 
   const ltpdPhase = (() => {
     if (!age) return null;

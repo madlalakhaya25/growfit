@@ -12,6 +12,7 @@ import { MediaGallery } from "@/components/media/media-gallery";
 import { MatchAttendanceForm } from "@/components/attendance/match-attendance-form";
 import { MatchReportPanel } from "@/components/ai/match-report-panel";
 import { fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
+import { getInitials } from "@/lib/player";
 
 export default async function FixtureDetailPage({
   params,
@@ -217,7 +218,7 @@ export default async function FixtureDetailPage({
               const player = Array.isArray(a.players) ? a.players[0] : a.players;
               if (!player) return null;
               const rating = ratingsMap.get(player.id);
-              const initials = player.full_name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
+              const initials = getInitials(player.full_name);
               return (
                 <div key={i} className="flex items-center gap-3 px-4 py-3">
                   <span className="grid size-9 shrink-0 place-items-center rounded-full bg-brand/15 text-xs font-bold text-primary">

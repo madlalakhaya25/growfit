@@ -173,14 +173,13 @@ improvement, not a gap.
   the smoke suite, not by design. Worth a quick audit of `proxy.ts`'s
   `PUBLIC_PATHS` against every top-level route now that a test exists to
   catch the next one automatically.
-- **Delete `DEFAULT_ACADEMY_ID`.** Confirmed dead — unreferenced outside
-  `src/lib/constants.ts` — now that multi-academy registration is the real
-  path.
-- **Attendance marking must surface a failed save.** `markTrainingAttendance`
-  and the match equivalent can fail (network, RLS) and the coach-facing
-  form currently swallows the error silently — the button just stops
-  spinning and the coach believes it saved. On one bar of signal pitchside,
-  this is the single most-used write path in the whole app.
+- ~~**Delete `DEFAULT_ACADEMY_ID`.**~~ **Done.** `src/lib/constants.ts` had
+  no other importer at all (`PILOT_JOIN_CODE` was equally dead), so the
+  whole file is gone rather than leaving one dead export behind.
+- ~~**Attendance marking must surface a failed save.**~~ **Done.** Both
+  attendance forms now distinguish a real write failure (shown inline,
+  optimistic state rolled back) from a network failure (queued to retry,
+  not silently dropped) — see the offline write queue below.
 
 ### Medium term
 
@@ -199,10 +198,12 @@ improvement, not a gap.
   would unlock testing the flows that actually break in production:
   attendance under a bad connection, PDF import misattributing a photo, a
   cancelled fixture's reason reaching a parent.
-- **Offline attendance queueing.** The service worker only ever handled GET
-  requests — an attendance mark made with no signal currently goes nowhere,
-  silently (compounds with the error-swallowing bug above). A real fix
-  needs a write queue (IndexedDB) and background sync, not just a UI fix.
+- ~~**Offline attendance queueing.**~~ **Done.** A network failure (not an
+  app-level rejection — RLS/validation errors still surface immediately)
+  now queues the write to IndexedDB (`lib/offline-attendance-queue.ts`) and
+  retries it on the browser's `online` event or the next mount. Background
+  Sync was deliberately not used — no iOS Safari support, and this app
+  can't assume Android.
 - **A U15/U13/U11-scale document-status view for admins.** "Which players
   still owe a signed form, tonight" currently means opening players one at
   a time or downloading a CSV on a phone at night. The per-player document
@@ -238,13 +239,13 @@ improvement, not a gap.
 
 | Item | Priority | Notes |
 |---|---|---|
-| Delete `DEFAULT_ACADEMY_ID` | Low effort, do soon | Confirmed dead code |
-| `profiles(id, role, academy_id)` index | Medium | RLS helper functions hit this table on every query |
-| Move auth-route rate limiting off in-memory | Medium | Silently under-counts once there's more than one server instance; `proxy.ts` already flags this in a comment |
-| Offline write queue (IndexedDB + background sync) | Medium–High | Needed for real offline attendance capture, not just a UI fix |
-| Seed Supabase test project + Playwright auth states | Medium | Unlocks real E2E coverage of the flows that actually break |
-| Realtime for announcements | Low | Same pattern already used for fixture notifications; no schema change needed |
-| i18n scaffolding | Low, rising | Cost compounds the longer it's deferred |
+| ~~Delete `DEFAULT_ACADEMY_ID`~~ | Done | Whole `constants.ts` removed — no importers left at all |
+| ~~`profiles(id, role, academy_id)` index~~ | Done | Migration `022_profiles_covering_index.sql` written — **needs to be run against the live Supabase project**, nothing in this environment applies it |
+| ~~Realtime for announcements~~ | Done | `AnnouncementNotifier`, same `postgres_changes` pattern as fixture notifications, wired into both player and parent layouts |
+| ~~Offline write queue (attendance)~~ | Done | IndexedDB queue + retry-on-reconnect, scoped to attendance rather than a generic write layer — see Next → Medium term |
+| Move auth-route rate limiting off in-memory | Medium | Needs a real shared store (e.g. Upstash Redis) and credentials this environment doesn't have; `proxy.ts` already flags this in a comment |
+| Seed Supabase test project + Playwright auth states | Medium | Needs a real (test) Supabase project and credentials this environment doesn't have |
+| i18n scaffolding | Low, rising | Cost compounds the longer it's deferred; not started this pass — everything above it was higher-signal for the time available |
 
 ---
 
