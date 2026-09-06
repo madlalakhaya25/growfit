@@ -44,6 +44,17 @@ export async function askCoachAssistant(params: {
     // Keep the transcript bounded so long chats stay cheap and fast.
     const history = params.history.slice(-8);
 
+    // Gemini requires turns to strictly alternate user/model. A question that
+    // errored client-side stays in the transcript with no matching model
+    // reply (so the failed question is still visible to the coach) — but
+    // resending it as history here would put two "user" turns back to back
+    // right before the new question, and Gemini rejects that with a 400
+    // INVALID_ARGUMENT. Drop any trailing unanswered user turn(s) so history
+    // always ends on a model turn (or is empty).
+    while (history.length > 0 && history[history.length - 1].role === "user") {
+      history.pop();
+    }
+
     const contents = [
       {
         role: "user" as const,
