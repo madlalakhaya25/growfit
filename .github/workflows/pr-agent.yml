@@ -78,8 +78,8 @@ jobs:
             --config.git_provider=github \
             --github.deployment_type=user \
             --config.model="openrouter/qwen/qwen-2.5-coder-32b-instruct:free" \
-            --pr_reviewer.extra_instructions="Sign off as 'Qwen2.5-Coder (via OpenRouter)' so it's clear which reviewer this is." \
-            review
+            review \
+            --pr_reviewer.extra_instructions="Sign off as 'Qwen2.5-Coder (via OpenRouter)' so it's clear which reviewer this is."
 
       - name: Suggestions (Qwen2.5-Coder via OpenRouter, free tier)
         if: steps.key.outputs.available == 'true'
@@ -132,8 +132,8 @@ jobs:
             --config.git_provider=github \
             --github.deployment_type=user \
             --config.model="gemini/gemini-3.6-flash" \
-            --pr_reviewer.extra_instructions="Sign off as 'Gemini Flash' so it's clear which reviewer this is." \
-            review
+            review \
+            --pr_reviewer.extra_instructions="Sign off as 'Gemini Flash' so it's clear which reviewer this is."
 
       - name: Suggestions (Gemini)
         if: steps.key.outputs.available == 'true'
