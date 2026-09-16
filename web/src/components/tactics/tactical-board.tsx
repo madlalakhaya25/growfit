@@ -5,6 +5,7 @@ import {
   MousePointer2, Eraser, Undo2, Redo2, RotateCcw, Users, Circle,
   ArrowUpRight, Minus, Waves, Pencil, Download, Tag, Grid3x3,
   Play, Square, Plus, Save, FolderOpen, Send, Trash2, Film, Video, Sparkles, Swords,
+  ChevronUp, ChevronDown, Copy,
 } from "lucide-react";
 import { POSITIONS } from "@/lib/types";
 import { FORMATIONS, FORMATION_SIZES, type Formation } from "@/lib/formations";
@@ -17,7 +18,7 @@ import { PLAY_TEMPLATES, expandTemplate } from "@/lib/play-templates";
 import { drawBoard, pickRecorderMime } from "@/lib/board-render";
 import { framesFromShapes } from "@/lib/play-motion";
 import {
-  BOARD_W, BOARD_H, dribblePath, polyPath, shapeColor, interpolateFrames, totalDurationMs,
+  BOARD_W, BOARD_H, dribblePath, polyPath, shapeColor, interpolateFrames, totalDurationMs, DEFAULT_FRAME_DURATION_MS,
   getPitch, PITCHES, toBoardSpace, EQUIPMENT_SPECS, type EquipmentKind, type BoardObject,
   type Token, type Shape, type ShapeKind, type Frame as ModelFrame,
 } from "@/lib/board-model";
@@ -217,6 +218,12 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   // Animation
   const [frames, setFrames] = useState<Frame[]>([]);
   const [playing, setPlaying] = useState(false);
+  // Scrub preview: dragging the timeline sets `anim` to the interpolated
+  // pose at that instant (read-only preview), exactly like playback does —
+  // it never touches `state`/undo history. To actually edit a step's pose,
+  // jump to it with gotoFrame(), which does commit to state.
+  const [scrubMs, setScrubMs] = useState(0);
+  const [scrubbing, setScrubbing] = useState(false);
   const [recording, setRecording] = useState(false);
   // Equipment doesn't move during playback, so the animated snapshot only
   // ever carries tokens/shapes — objects always come from live state.
@@ -331,6 +338,45 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   function deleteFrame(i: number) {
     setFrames((fs) => fs.filter((_, idx) => idx !== i));
   }
+  /** Swap a step with its neighbour — the reorder control on the timeline. */
+  function moveFrame(i: number, dir: -1 | 1) {
+    setFrames((fs) => {
+      const j = i + dir;
+      if (j < 0 || j >= fs.length) return fs;
+      const next = [...fs];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  }
+  /** Copy a step in place, right after itself — a quick way to hold a pose
+   * longer (duplicate, then shorten the original's duration to 0 or leave
+   * both) or to start editing a variation without losing the original. */
+  function duplicateFrame(i: number) {
+    setFrames((fs) => {
+      const src = fs[i];
+      if (!src) return fs;
+      const copy: Frame = { ...src, id: uid("f") };
+      return [...fs.slice(0, i + 1), copy, ...fs.slice(i + 1)];
+    });
+  }
+  /** Capture the board's current live pose as a new step inserted right
+   * after index i, rather than always appended at the end like
+   * captureFrame(). */
+  function insertFrameAfter(i: number) {
+    const f: Frame = {
+      id: uid("f"),
+      tokens: state.tokens.map((t) => ({ id: t.id, x: t.x, y: t.y })),
+      shapes: JSON.parse(JSON.stringify(state.shapes)) as Shape[],
+    };
+    setFrames((fs) => [...fs.slice(0, i + 1), f, ...fs.slice(i + 1)]);
+    setNotice(`Step inserted after ${i + 1}.`);
+  }
+  function setFrameDuration(i: number, ms: number) {
+    setFrames((fs) => fs.map((f, idx) => (idx === i ? { ...f, durationMs: Math.max(100, ms) } : f)));
+  }
+  function setFrameEase(i: number, ease: NonNullable<Frame["ease"]>) {
+    setFrames((fs) => fs.map((f, idx) => (idx === i ? { ...f, ease } : f)));
+  }
   /** Jump the board to a stored step so the coach can edit it. */
   function gotoFrame(i: number) {
     const f = frames[i];
@@ -350,6 +396,23 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
     setPlaying(false);
+    setScrubbing(false);
+    setAnim(null);
+  }
+
+  /** Preview the pose at an exact point in the sequence without touching
+   * live state — dragging the scrub bar calls this on every move. */
+  function scrubTo(ms: number) {
+    if (frames.length < 2) return;
+    stopPlayback();
+    setScrubbing(true);
+    setScrubMs(ms);
+    const { tokens, shapes } = interpolateFrames(state.tokens, frames, ms);
+    setAnim({ tokens, shapes });
+  }
+  /** Release the scrub bar — return to the live, editable board. */
+  function endScrub() {
+    setScrubbing(false);
     setAnim(null);
   }
 
@@ -1308,16 +1371,66 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                 </button>
               )}
             </div>
+
+            {frames.length >= 2 && (
+              <div className="space-y-1">
+                <input
+                  type="range"
+                  min={0}
+                  max={totalDurationMs(frames)}
+                  step={10}
+                  value={scrubMs}
+                  onChange={(e) => scrubTo(Number(e.target.value))}
+                  onPointerUp={endScrub}
+                  disabled={playing}
+                  aria-label="Scrub the sequence"
+                  className="w-full accent-primary disabled:opacity-50"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  {scrubbing ? "Previewing — drag to scrub, editing a pose needs Step ▸ below." : "Drag to preview the sequence at any point."}
+                </p>
+              </div>
+            )}
+
             {frames.length === 0 ? (
               <p className="text-xs text-muted-foreground">No steps captured yet.</p>
             ) : (
               <ol className="space-y-1">
                 {frames.map((f, i) => (
-                  <li key={f.id} className="flex items-center gap-1.5">
-                    <button type="button" onClick={() => gotoFrame(i)} disabled={playing} className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-left text-xs hover:bg-muted disabled:opacity-50">
+                  <li key={f.id} className="flex flex-wrap items-center gap-1.5 rounded-md border border-border bg-background/50 p-1.5">
+                    <div className="flex flex-col">
+                      <button type="button" onClick={() => moveFrame(i, -1)} disabled={playing || i === 0} title="Move earlier" className="rounded px-0.5 hover:bg-muted disabled:opacity-30">
+                        <ChevronUp className="size-3" aria-hidden="true" />
+                      </button>
+                      <button type="button" onClick={() => moveFrame(i, 1)} disabled={playing || i === frames.length - 1} title="Move later" className="rounded px-0.5 hover:bg-muted disabled:opacity-30">
+                        <ChevronDown className="size-3" aria-hidden="true" />
+                      </button>
+                    </div>
+                    <button type="button" onClick={() => gotoFrame(i)} disabled={playing} className="flex-1 min-w-[4rem] rounded-md border border-border bg-background px-2 py-1 text-left text-xs hover:bg-muted disabled:opacity-50">
                       Step {i + 1}
                     </button>
+                    {i > 0 && (
+                      <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <input
+                          type="number"
+                          min={100}
+                          step={100}
+                          value={f.durationMs ?? DEFAULT_FRAME_DURATION_MS}
+                          onChange={(e) => setFrameDuration(i, Number(e.target.value))}
+                          disabled={playing}
+                          aria-label={`Step ${i + 1} duration in milliseconds`}
+                          className="w-16 rounded border border-border bg-background px-1 py-0.5 text-[10px] disabled:opacity-50"
+                        />
+                        ms
+                      </label>
+                    )}
                     <button type="button" onClick={() => updateFrame(i)} disabled={playing} title="Update this step to the current board" className="rounded-md border border-border bg-background px-1.5 py-1 text-[10px] hover:bg-muted disabled:opacity-50">Set</button>
+                    <button type="button" onClick={() => insertFrameAfter(i)} disabled={playing} title="Insert the current board as a new step after this one" className="rounded-md border border-border bg-background px-1.5 py-1 text-[10px] hover:bg-muted disabled:opacity-50">
+                      <Plus className="size-3" aria-hidden="true" />
+                    </button>
+                    <button type="button" onClick={() => duplicateFrame(i)} disabled={playing} title="Duplicate step" className="rounded-md border border-border bg-background px-1.5 py-1 hover:bg-muted disabled:opacity-50">
+                      <Copy className="size-3" aria-hidden="true" />
+                    </button>
                     <button type="button" onClick={() => deleteFrame(i)} disabled={playing} title="Delete step" className="rounded-md border border-border bg-background px-2 py-2 sm:py-1 hover:bg-muted disabled:opacity-50">
                       <Trash2 className="size-3" aria-hidden="true" />
                     </button>
