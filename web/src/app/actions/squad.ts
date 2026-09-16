@@ -168,44 +168,28 @@ export async function createTeam(formData: FormData) {
   redirect("/dashboard/coach");
 }
 
+/**
+ * Redeem a team's player invite code. Routed through the `redeem_access_code`
+ * RPC rather than a direct client insert — `team_member_staff_write` only
+ * lets an admin/coach insert into `team_members`, so a plain player's own
+ * insert here was always going to be rejected by RLS regardless of anything
+ * else in this function. The RPC runs SECURITY DEFINER, so it can actually
+ * do the write.
+ */
 export async function joinByInviteCode(inviteCode: string) {
-  const { supabase, user } = await requireUser();
+  const { supabase } = await requireUser();
 
-  const { data: team } = await supabase
-    .from("teams")
-    .select("id, name")
-    .eq("invite_code", inviteCode.toUpperCase())
-    .eq("active", true)
-    .single();
+  const { data, error } = await supabase.rpc("redeem_access_code", { p_code: inviteCode });
+  if (error) return { error: error.message };
 
-  if (!team) return { error: "Team not found. Check the invite code and try again." };
-
-  const { data: player } = await supabase
-    .from("players")
-    .select("id")
-    .eq("profile_id", user.id)
-    .eq("active", true)
-    .single();
-
-  if (!player) return { error: "No player profile found. Ask your coach to create your profile first." };
-
-  const { data: existing } = await supabase
-    .from("team_members")
-    .select("id, active")
-    .eq("team_id", team.id)
-    .eq("player_id", player.id)
-    .maybeSingle();
-
-  if (existing?.active) return { error: "You are already a member of this team.", teamName: team.name };
-
-  if (existing && !existing.active) {
-    await supabase.from("team_members").update({ active: true }).eq("id", existing.id);
-  } else {
-    await supabase.from("team_members").insert({ team_id: team.id, player_id: player.id });
+  const res = data as { error?: string; team_name?: string; already?: boolean; kind?: string };
+  if (res?.error) return { error: res.error };
+  if (res?.kind !== "team_player") {
+    return { error: "That code isn't a squad invite code." };
   }
 
   revalidatePath("/dashboard/player", "page");
-  return { success: true, teamName: team.name };
+  return { success: true, teamName: res.team_name, already: res.already ?? false };
 }
 
 /** Join a team using the coach code an admin gave you. */

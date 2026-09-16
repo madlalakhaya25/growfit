@@ -60,9 +60,28 @@ export function LoginForm() {
       .eq("id", user.id)
       .single();
 
+    // handle_new_user() always inserts a role now, so this branch is really
+    // just a defensive fallback (a profile row that somehow never got
+    // created) rather than the everyday path it used to be relied on for.
     if (!profileData?.role) {
       const pendingCreate = user.user_metadata?.pending_club_create === true;
       router.push(pendingCreate ? "/register-club" : "/auth/role");
+      return;
+    }
+
+    // A code entered at registration couldn't be applied yet if email
+    // confirmation was required — signUp() only stores it as metadata, it
+    // never redeems it. This is the first moment there's a real session, so
+    // redeem it now. The (protected) layout re-checks academy_id server-side
+    // regardless, so a failed redeem here still lands the user somewhere
+    // that can recover (/auth/role), not silently on the wrong dashboard.
+    const pendingCode = user.user_metadata?.pending_access_code;
+    if (!profileData.academy_id && typeof pendingCode === "string" && pendingCode) {
+      await supabase.rpc("redeem_access_code", { p_code: pendingCode, p_role: profileData.role });
+    }
+
+    if (user.user_metadata?.pending_club_create === true && !profileData.academy_id) {
+      router.push("/register-club");
       return;
     }
 
