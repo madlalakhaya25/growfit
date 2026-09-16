@@ -563,7 +563,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   // ── Saved plays ────────────────────────────────────────────────
   async function refreshPlays(id = teamId) {
     if (!id) return;
-    const res = await listPlays(id);
+    const res = await listPlays(id, "pitch");
     if (res.plays) setPlays(res.plays);
   }
   useEffect(() => {

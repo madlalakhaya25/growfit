@@ -16,6 +16,11 @@ export interface SavedPlaySummary {
   shared: boolean;
   share_token: string | null;
   voice_url: string | null;
+  /** 'pitch' (the tactical board) or 'film' (a video/still telestration) —
+   * see migration 028. Everything else about which kind a play is lives
+   * inside its own `data` blob; this column exists purely so the list view
+   * can tell them apart without fetching that (potentially large) blob. */
+  surface: "pitch" | "film";
 }
 
 export interface LinkTarget {
@@ -46,6 +51,7 @@ export async function savePlay(input: {
   conceptIds?: string[];
   sessionId?: string | null;
   fixtureId?: string | null;
+  surface?: "pitch" | "film";
 }): Promise<{ id?: string; error?: string }> {
   const name = input.name.trim();
   if (!name) return { error: "Give the play a name." };
@@ -61,6 +67,7 @@ export async function savePlay(input: {
     concept_ids: input.conceptIds ?? [],
     session_id: input.sessionId || null,
     fixture_id: input.fixtureId || null,
+    surface: input.surface ?? "pitch",
   };
 
   if (input.playId) {
@@ -89,13 +96,14 @@ export async function savePlay(input: {
   return { id: data.id };
 }
 
-export async function listPlays(teamId: string): Promise<{ plays?: SavedPlaySummary[]; error?: string }> {
+export async function listPlays(teamId: string, surface?: "pitch" | "film"): Promise<{ plays?: SavedPlaySummary[]; error?: string }> {
   const { supabase } = await requireUser();
-  const { data, error } = await supabase
+  let query = supabase
     .from("tactic_plays")
-    .select("id, name, notes, team_id, updated_at, concept_ids, session_id, fixture_id, shared, share_token, voice_url")
-    .eq("team_id", teamId)
-    .order("updated_at", { ascending: false });
+    .select("id, name, notes, team_id, updated_at, concept_ids, session_id, fixture_id, shared, share_token, voice_url, surface")
+    .eq("team_id", teamId);
+  if (surface) query = query.eq("surface", surface);
+  const { data, error } = await query.order("updated_at", { ascending: false });
   if (error) return { error: error.message };
   return { plays: (data ?? []) as SavedPlaySummary[] };
 }
