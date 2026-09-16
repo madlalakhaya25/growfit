@@ -10,7 +10,7 @@ export function EquipmentLayer({
   onPointerDown,
 }: {
   objects: BoardObject[];
-  onPointerDown?: (e: React.PointerEvent, id: string) => void;
+  onPointerDown?: (e: React.PointerEvent, obj: BoardObject) => void;
 }) {
   return (
     <>
@@ -20,7 +20,7 @@ export function EquipmentLayer({
           <g
             key={o.id}
             transform={`translate(${o.x} ${o.y}) rotate(${o.rotation ?? 0})`}
-            onPointerDown={onPointerDown ? (e) => onPointerDown(e, o.id) : undefined}
+            onPointerDown={onPointerDown ? (e) => onPointerDown(e, o) : undefined}
             style={{ cursor: onPointerDown ? "grab" : "default" }}
           >
             <EquipmentGlyph kind={o.kind} color={spec.color} w={spec.w} h={spec.h} />

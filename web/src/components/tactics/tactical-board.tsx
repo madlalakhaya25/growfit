@@ -18,8 +18,11 @@ import { drawBoard, pickRecorderMime } from "@/lib/board-render";
 import { framesFromShapes } from "@/lib/play-motion";
 import {
   BOARD_W, BOARD_H, dribblePath, polyPath, shapeColor, interpolateFrames, totalDurationMs,
+  getPitch, PITCHES, toBoardSpace, EQUIPMENT_SPECS, type EquipmentKind, type BoardObject,
   type Token, type Shape, type ShapeKind, type Frame as ModelFrame,
 } from "@/lib/board-model";
+import { PitchLayer } from "@/components/tactics/pitch-layer";
+import { EquipmentLayer } from "@/components/tactics/equipment-layer";
 
 // ── Types ────────────────────────────────────────────────────────
 // Token, Shape, ShapeKind and the Frame shape all come from board-model.ts
@@ -42,8 +45,22 @@ export interface BoardTeam {
 interface BoardState {
   tokens: Token[];
   shapes: Shape[];
+  /** Placed training equipment — new, additive. A play saved before this
+   * existed has none, and every reader treats that the same as []. */
+  objects: BoardObject[];
 }
 type Mode = "move" | "run" | "pass" | "dribble" | "free" | "erase";
+
+/**
+ * Pitches offered in the switcher for this pass: the full pitch (today's
+ * default, unchanged) plus the two training grids. Half-pitch and
+ * attacking-third are modelled in board-model.ts but held back here — their
+ * viewBox is genuinely smaller than the 100×150 formation space, so a
+ * player placed near a deep position would render outside the visible area
+ * rather than being clipped in a way that's obviously a "different view";
+ * that needs a visual check this environment can't do before it ships.
+ */
+const SWITCHABLE_PITCHES = PITCHES.filter((p) => p.id === "full" || !p.supportsFormations);
 
 /** One step of a play: where every token sits, plus the lines drawn at that step. */
 type Frame = ModelFrame;
@@ -191,15 +208,19 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const [mode, setMode] = useState<Mode>("move");
   const [showNames, setShowNames] = useState(true);
   const [overlay, setOverlay] = useState<Overlay>("none");
+  const [pitchId, setPitchIdState] = useState("full");
+  const [equipmentKind, setEquipmentKind] = useState<EquipmentKind>("cone");
 
-  const [state, setState] = useState<BoardState>({ tokens: [], shapes: [] });
+  const [state, setState] = useState<BoardState>({ tokens: [], shapes: [], objects: [] });
   const [draft, setDraft] = useState<Shape | null>(null);
 
   // Animation
   const [frames, setFrames] = useState<Frame[]>([]);
   const [playing, setPlaying] = useState(false);
   const [recording, setRecording] = useState(false);
-  const [anim, setAnim] = useState<BoardState | null>(null);
+  // Equipment doesn't move during playback, so the animated snapshot only
+  // ever carries tokens/shapes — objects always come from live state.
+  const [anim, setAnim] = useState<Pick<BoardState, "tokens" | "shapes"> | null>(null);
   const rafRef = useRef<number | null>(null);
 
   // Saved plays
@@ -225,12 +246,17 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
 
   const stateRef = useRef(state);
   stateRef.current = state;
+  const pitchIdRef = useRef(pitchId);
+  pitchIdRef.current = pitchId;
   const past = useRef<BoardState[]>([]);
   const future = useRef<BoardState[]>([]);
+  const pastPitch = useRef<string[]>([]);
+  const futurePitch = useRef<string[]>([]);
   const [, forceRender] = useState(0);
 
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<{ id: string; dx: number; dy: number; startX: number; startY: number; moved: boolean } | null>(null);
+  const dragObj = useRef<{ id: string; dx: number; dy: number } | null>(null);
   const drawing = useRef(false);
 
   const team = teams.find((t) => t.id === teamId);
@@ -245,26 +271,40 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const bench = roster.filter((p) => !placed.has(p.id));
 
   /** What the pitch renders: the animated snapshot while playing, else live state. */
-  const view = anim ?? state;
+  const view = anim ? { ...state, tokens: anim.tokens, shapes: anim.shapes } : state;
+
+  const pitch = getPitch(pitchId);
 
   // ── History ────────────────────────────────────────────────────
+  // pastPitch/futurePitch track the pitch id alongside each board snapshot,
+  // in lockstep with past/future, so switching pitches (which clears the
+  // board — see setPitch below) is a single undoable step like any other
+  // edit, not a separate un-undoable mode switch.
   function snapshot() {
     past.current.push(JSON.parse(JSON.stringify(stateRef.current)) as BoardState);
-    if (past.current.length > 40) past.current.shift();
+    pastPitch.current.push(pitchIdRef.current);
+    if (past.current.length > 40) { past.current.shift(); pastPitch.current.shift(); }
     future.current = [];
+    futurePitch.current = [];
   }
   function undo() {
     const prev = past.current.pop();
+    const prevPitch = pastPitch.current.pop();
     if (!prev) return;
     future.current.push(JSON.parse(JSON.stringify(stateRef.current)) as BoardState);
+    futurePitch.current.push(pitchIdRef.current);
     setState(prev);
+    if (prevPitch) setPitchIdState(prevPitch);
     forceRender((n) => n + 1);
   }
   function redo() {
     const next = future.current.pop();
+    const nextPitch = futurePitch.current.pop();
     if (!next) return;
     past.current.push(JSON.parse(JSON.stringify(stateRef.current)) as BoardState);
+    pastPitch.current.push(pitchIdRef.current);
     setState(next);
+    if (nextPitch) setPitchIdState(nextPitch);
     forceRender((n) => n + 1);
   }
 
@@ -297,6 +337,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     if (!f) return;
     snapshot();
     setState((st) => ({
+      ...st,
       tokens: st.tokens.map((t) => {
         const p = f.tokens.find((ft) => ft.id === t.id);
         return p ? { ...t, x: p.x, y: p.y } : t;
@@ -371,6 +412,15 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
    * canvas stream, so the export matches exactly what playback shows.
    */
   async function recordAnimation() {
+    // drawBoard() (board-render.ts) always paints the fixed full-pitch
+    // background — it has no idea a training grid exists — so recording on
+    // one would silently composite the wrong surface behind the drill.
+    // Rather than ship that mismatch, video export stays full-pitch-only
+    // until the canvas recorder is taught about Pitch too.
+    if (!pitch.supportsFormations) {
+      setNotice("Video recording is only available on the full pitch for now — export a PNG instead.");
+      return;
+    }
     let seqFrames = frames;
     if (seqFrames.length < 2) {
       const derived = framesFromShapes(state.tokens, state.shapes) as Frame[];
@@ -462,7 +512,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       playId: currentPlayId ?? undefined,
       teamId,
       name,
-      data: { tokens: state.tokens, shapes: state.shapes, frames, homeFormationId, awayFormationId },
+      data: { tokens: state.tokens, shapes: state.shapes, objects: state.objects, pitchId, frames, homeFormationId, awayFormationId },
       conceptIds,
       sessionId: sessionId || null,
       fixtureId: fixtureId || null,
@@ -479,9 +529,10 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     const res = await loadPlay(id);
     setBusy(null);
     if (res.error || !res.data) { setNotice(res.error ?? "Could not load play."); return; }
-    const d = res.data as Partial<BoardState & { frames: Frame[]; homeFormationId: string; awayFormationId: string }>;
+    const d = res.data as Partial<BoardState & { frames: Frame[]; homeFormationId: string; awayFormationId: string; pitchId: string }>;
     snapshot();
-    setState({ tokens: d.tokens ?? [], shapes: d.shapes ?? [] });
+    setState({ tokens: d.tokens ?? [], shapes: d.shapes ?? [], objects: d.objects ?? [] });
+    setPitchIdState(d.pitchId ?? "full");
     setFrames(d.frames ?? []);
     if (d.homeFormationId) setHomeFormationId(d.homeFormationId);
     if (d.awayFormationId) setAwayFormationId(d.awayFormationId);
@@ -503,7 +554,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     if (!tpl) return;
     const { tokens, shapes, frames: tplFrames } = expandTemplate(tpl);
     snapshot();
-    setState({ tokens: tokens as typeof state.tokens, shapes: shapes as typeof state.shapes });
+    setState({ tokens: tokens as typeof state.tokens, shapes: shapes as typeof state.shapes, objects: [] });
+    setPitchIdState("full");
     setFrames(tplFrames as typeof frames);
     setConceptIds([tpl.conceptId]);
     setCurrentPlayId(null);
@@ -608,12 +660,12 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   }
 
   // ── Coordinates ────────────────────────────────────────────────
+  // Clamped to the *current* pitch's dimensions, not the fixed 100×150 —
+  // the SVG's viewBox below tracks the same pitch, so this always matches
+  // what's actually visible.
   function toBoard(clientX: number, clientY: number) {
     const rect = svgRef.current!.getBoundingClientRect();
-    return {
-      x: Math.max(2, Math.min(W - 2, ((clientX - rect.left) / rect.width) * W)),
-      y: Math.max(2, Math.min(H - 2, ((clientY - rect.top) / rect.height) * H)),
-    };
+    return toBoardSpace(rect, clientX, clientY, pitch.w, pitch.h);
   }
 
   // ── Setup actions ──────────────────────────────────────────────
@@ -742,11 +794,35 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   }
   function clearAll() {
     snapshot();
-    setState({ tokens: [], shapes: [] });
+    setState({ tokens: [], shapes: [], objects: [] });
   }
   function clearDrawings() {
     snapshot();
     setState((st) => ({ ...st, shapes: [] }));
+  }
+  function addEquipment(kind: EquipmentKind) {
+    snapshot();
+    setState((st) => ({
+      ...st,
+      objects: [...st.objects, { id: uid("o"), kind, x: pitch.w / 2, y: pitch.h / 2 }],
+    }));
+  }
+  /**
+   * Switches which Pitch is painted behind the board. Full/half/third-style
+   * pitches and the training grids are genuinely different coordinate
+   * spaces (see SWITCHABLE_PITCHES above) — a token placed near a deep
+   * position on the full pitch would sit off the edge of a 60×60 grid, so
+   * rather than leave tokens somewhere invisible, switching clears the
+   * board. One undo (Ctrl/Cmd+Z equivalent, the Undo button) brings
+   * everything back exactly as it was.
+   */
+  function setPitch(id: string) {
+    if (id === pitchId) return;
+    snapshot();
+    setState({ tokens: [], shapes: [], objects: [] });
+    setPitchIdState(id);
+    setFrames([]);
+    setNotice("Switched pitch — the board was cleared for the new surface. Undo to get it back.");
   }
 
   // ── Pointer handling ───────────────────────────────────────────
@@ -780,8 +856,19 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
         ...st,
         tokens: st.tokens.map((t) =>
           t.id === d.id
-            ? { ...t, x: Math.max(2, Math.min(W - 2, x + d.dx)), y: Math.max(2, Math.min(H - 2, y + d.dy)) }
+            ? { ...t, x: Math.max(2, Math.min(pitch.w - 2, x + d.dx)), y: Math.max(2, Math.min(pitch.h - 2, y + d.dy)) }
             : t
+        ),
+      }));
+    } else if (dragObj.current) {
+      const { x, y } = toBoard(e.clientX, e.clientY);
+      const d = dragObj.current;
+      setState((st) => ({
+        ...st,
+        objects: st.objects.map((o) =>
+          o.id === d.id
+            ? { ...o, x: Math.max(2, Math.min(pitch.w - 2, x + d.dx)), y: Math.max(2, Math.min(pitch.h - 2, y + d.dy)) }
+            : o
         ),
       }));
     } else if (drawing.current) {
@@ -802,6 +889,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       );
     }
     drag.current = null;
+    dragObj.current = null;
     if (drawing.current && draft) {
       const a = draft.pts[0], b = draft.pts[draft.pts.length - 1];
       if (Math.hypot(b.x - a.x, b.y - a.y) > 3) {
@@ -819,22 +907,43 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     snapshot();
     setState((st) => ({ ...st, shapes: st.shapes.filter((s2) => s2.id !== id) }));
   }
+  function onObjectDown(e: React.PointerEvent, obj: BoardObject) {
+    if (mode === "erase") {
+      e.stopPropagation();
+      snapshot();
+      setState((st) => ({ ...st, objects: st.objects.filter((o) => o.id !== obj.id) }));
+      return;
+    }
+    if (mode !== "move") return;
+    e.stopPropagation();
+    const { x, y } = toBoard(e.clientX, e.clientY);
+    snapshot();
+    dragObj.current = { id: obj.id, dx: obj.x - x, dy: obj.y - y };
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+  }
 
   // ── Export ─────────────────────────────────────────────────────
   function exportPng() {
     const svg = svgRef.current;
     if (!svg) return;
+    // Scaled off the *current* pitch's own dimensions, not the fixed
+    // 100×150 — otherwise a training grid (e.g. 60×80) exported at a fixed
+    // 800×1200 raster would come out letterboxed instead of filling the
+    // frame. exportPng serialises the live SVG (which PitchLayer already
+    // draws correctly for any pitch), so this is the only place that
+    // needed to change.
+    const pngW = pitch.w * 8, pngH = pitch.h * 8;
     const clone = svg.cloneNode(true) as SVGSVGElement;
     clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    clone.setAttribute("width", String(W * 8));
-    clone.setAttribute("height", String(H * 8));
+    clone.setAttribute("width", String(pngW));
+    clone.setAttribute("height", String(pngH));
     const xml = new XMLSerializer().serializeToString(clone);
     const url = URL.createObjectURL(new Blob([xml], { type: "image/svg+xml;charset=utf-8" }));
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement("canvas");
-      canvas.width = W * 8;
-      canvas.height = H * 8;
+      canvas.width = pngW;
+      canvas.height = pngH;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       ctx.drawImage(img, 0, 0);
@@ -934,7 +1043,9 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           <button
             type="button"
             onClick={setUpHome}
-            className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+            disabled={!pitch.supportsFormations}
+            title={pitch.supportsFormations ? undefined : "Formations need the full pitch — switch pitch below"}
+            className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Users className="size-3.5" aria-hidden="true" />
             Set up my XI
@@ -948,12 +1059,38 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           <button
             type="button"
             onClick={setUpAway}
-            className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm font-semibold hover:bg-muted"
+            disabled={!pitch.supportsFormations}
+            title={pitch.supportsFormations ? undefined : "Formations need the full pitch — switch pitch below"}
+            className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm font-semibold hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Circle className="size-3.5" aria-hidden="true" />
             Set up opponent XI
           </button>
         </div>
+      </div>
+
+      {/* Pitch */}
+      <div className="rounded-xl border border-border bg-card p-3">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Surface</p>
+        <div className="flex flex-wrap gap-1.5">
+          {SWITCHABLE_PITCHES.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => setPitch(p.id)}
+              className={`inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-xs font-medium ${
+                pitchId === p.id ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border hover:bg-muted"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {!pitch.supportsFormations && (
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            A training grid — formations and pitch overlays are off. Place equipment and draw the drill.
+          </p>
+        )}
       </div>
 
       {/* Tools */}
@@ -969,6 +1106,27 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
         <button type="button" onClick={addOpponent} title="Add one opponent" className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
           <Circle className="size-3.5" aria-hidden="true" /> +1
         </button>
+        <span className="mx-1 h-6 w-px bg-border" />
+        <span className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background pl-2 pr-1 text-xs">
+          <select
+            value={equipmentKind}
+            onChange={(e) => setEquipmentKind(e.target.value as EquipmentKind)}
+            aria-label="Equipment"
+            className="bg-transparent py-1 text-xs focus:outline-none"
+          >
+            {Object.values(EQUIPMENT_SPECS).map((spec) => (
+              <option key={spec.kind} value={spec.kind}>{spec.label}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => addEquipment(equipmentKind)}
+            title="Add equipment"
+            className="inline-flex h-7 items-center gap-1 rounded px-1.5 text-xs hover:bg-muted"
+          >
+            <Plus className="size-3.5" aria-hidden="true" /> Add
+          </button>
+        </span>
         <span className="mx-1 h-6 w-px bg-border" />
         <button type="button" onClick={undo} title="Undo" className="inline-flex h-10 sm:h-9 items-center rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted"><Undo2 className="size-3.5" aria-hidden="true" /></button>
         <button type="button" onClick={redo} title="Redo" className="inline-flex h-10 sm:h-9 items-center rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted"><Redo2 className="size-3.5" aria-hidden="true" /></button>
@@ -1005,7 +1163,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           <div className="aspect-[2/3] w-full overflow-hidden rounded-xl border border-border">
             <svg
               ref={svgRef}
-              viewBox={`0 0 ${W} ${H}`}
+              viewBox={`0 0 ${pitch.w} ${pitch.h}`}
               className="h-full w-full touch-none select-none"
               onPointerDown={onSvgDown}
               onPointerMove={onSvgMove}
@@ -1016,33 +1174,18 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                 <marker id="tb-arrow" viewBox="0 0 10 10" refX={8} refY={5} markerWidth={4.5} markerHeight={4.5} orient="auto-start-reverse">
                   <path d="M0,0 L10,5 L0,10 z" fill="#fde047" />
                 </marker>
-                <pattern id="tb-stripe" width={100} height={12.5} patternUnits="userSpaceOnUse">
-                  <rect width={100} height={12.5} fill="#15803d" />
-                  <rect width={100} height={6.25} fill="#166f36" />
-                </pattern>
               </defs>
 
-              <rect x={0} y={0} width={W} height={H} fill="url(#tb-stripe)" />
+              <PitchLayer pitch={pitch} stripeId="tb-stripe" />
 
-              <OverlayLayer overlay={overlay} />
-
-              {/* Markings */}
-              <g stroke="rgba(255,255,255,0.55)" strokeWidth={0.5} fill="none">
-                <rect x={2} y={2} width={W - 4} height={H - 4} rx={1} />
-                <line x1={2} y1={H / 2} x2={W - 2} y2={H / 2} />
-                <circle cx={W / 2} cy={H / 2} r={11} />
-                <circle cx={W / 2} cy={H / 2} r={0.8} fill="rgba(255,255,255,0.55)" />
-                <rect x={26} y={2} width={48} height={20} />
-                <rect x={38} y={2} width={24} height={8} />
-                <rect x={26} y={H - 22} width={48} height={20} />
-                <rect x={38} y={H - 10} width={24} height={8} />
-                <circle cx={W / 2} cy={16} r={0.8} fill="rgba(255,255,255,0.55)" />
-                <circle cx={W / 2} cy={H - 16} r={0.8} fill="rgba(255,255,255,0.55)" />
-              </g>
+              {pitch.supportsFormations && <OverlayLayer overlay={overlay} />}
 
               {/* Shapes */}
               {view.shapes.map((sh) => renderShape(sh))}
               {draft && renderShape(draft, true)}
+
+              {/* Equipment */}
+              <EquipmentLayer objects={view.objects} onPointerDown={onObjectDown} />
 
               {/* Tokens */}
               {view.tokens.map((tok) => (
@@ -1152,8 +1295,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               <button
                 type="button"
                 onClick={recordAnimation}
-                disabled={state.tokens.length === 0 || playing || recording}
-                title="Record the sequence as a video"
+                disabled={state.tokens.length === 0 || playing || recording || !pitch.supportsFormations}
+                title={pitch.supportsFormations ? "Record the sequence as a video" : "Video recording needs the full pitch"}
                 className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50"
               >
                 <Video className="size-3 text-primary" aria-hidden="true" />
