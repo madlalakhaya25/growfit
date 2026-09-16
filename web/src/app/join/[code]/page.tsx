@@ -14,7 +14,11 @@ export default async function JoinPage({
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect(`/auth/login?next=/join/${code}`);
+    // `code` is a raw, attacker-controlled route segment — encode it before
+    // it goes anywhere near a redirect target rather than trusting it's a
+    // clean path component (login-form.tsx's safeNext() is the other half
+    // of this: it only ever follows `next` back to a same-origin path).
+    redirect(`/auth/login?next=${encodeURIComponent(`/join/${code}`)}`);
   }
 
   // Read-only preview of what the code grants — no write here. The actual

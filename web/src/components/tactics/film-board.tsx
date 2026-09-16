@@ -10,7 +10,7 @@ import {
   type Shape, type ShapeKind,
 } from "@/lib/board-model";
 import { captureVideoFrame, loadImageFile } from "@/lib/image-capture";
-import { parseEmbedUrl, type EmbedProvider } from "@/lib/video-embed";
+import { parseEmbedUrl, isTrustedEmbedUrl, type EmbedProvider } from "@/lib/video-embed";
 import { savePlay, listPlays, loadPlay, deletePlay, sharePlayToSquad, type SavedPlaySummary } from "@/app/actions/tactic-plays";
 import { VoiceNoteRecorder } from "@/components/tactics/voice-note-recorder";
 
@@ -323,8 +323,12 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
     setVideoUrl(null);
     setSourceKind(d.sourceKind ?? "local-image");
     setFrame(d.frameImage ? { dataUrl: d.frameImage, w: d.frameW ?? 1280, h: d.frameH ?? 720 } : null);
-    setEmbedUrl(d.embedUrl ?? null);
-    setEmbedProvider(d.embedProvider ?? null);
+    // Stored data is arbitrary JSONB (see app/actions/tactic-plays.ts) —
+    // never load a saved embedUrl into the iframe without re-confirming
+    // it's still one of the two hosts parseEmbedUrl() actually produces.
+    const trustedEmbedUrl = isTrustedEmbedUrl(d.embedUrl) ? d.embedUrl! : null;
+    setEmbedUrl(trustedEmbedUrl);
+    setEmbedProvider(trustedEmbedUrl ? d.embedProvider ?? null : null);
     setEmbedInteractive(false);
     setShapes(d.shapes ?? []);
     past.current = [];

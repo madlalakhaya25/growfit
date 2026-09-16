@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { isTrustedEmbedUrl } from "@/lib/video-embed";
 
 export interface SavedPlaySummary {
   id: string;
@@ -60,10 +61,24 @@ export async function savePlay(input: {
   const { supabase, user, team } = await requireCoachTeam(input.teamId);
   if (!team) return { error: "You don't coach this team." };
 
+  // `data` is otherwise-unvalidated JSONB rendered back out verbatim —
+  // for a film play specifically, embedUrl becomes an <iframe src> shown
+  // to whoever opens it (film-board.tsx, film-viewer.tsx), including
+  // players/parents via a share link. Strip anything that isn't actually
+  // one of the two hosts video-embed.ts's own parser ever produces, rather
+  // than trusting the client sent back what it was given.
+  let playData = input.data;
+  if (input.surface === "film" && playData && typeof playData === "object") {
+    const d = playData as Record<string, unknown>;
+    if (typeof d.embedUrl === "string" && !isTrustedEmbedUrl(d.embedUrl)) {
+      playData = { ...d, embedUrl: undefined, embedProvider: undefined };
+    }
+  }
+
   const fields = {
     name,
     notes: input.notes?.trim() || null,
-    data: input.data,
+    data: playData,
     concept_ids: input.conceptIds ?? [],
     session_id: input.sessionId || null,
     fixture_id: input.fixtureId || null,

@@ -15,6 +15,27 @@ export interface ParsedEmbed {
   embedUrl: string;
 }
 
+/** The only hosts parseEmbedUrl() ever produces. A saved play's `embedUrl`
+ * is stored in `tactic_plays.data` (arbitrary JSONB — see
+ * app/actions/tactic-plays.ts) and later rendered straight into an
+ * `<iframe src>` for whoever opens the play, including players and parents
+ * via a share link. Nothing enforces at write time that `embedUrl` was ever
+ * produced by parseEmbedUrl() rather than typed/replayed directly, so every
+ * render site must re-check the URL is still one of these two hosts before
+ * trusting it as an iframe source — never render a stored embedUrl without
+ * calling this first. */
+const TRUSTED_EMBED_HOSTS = new Set(["www.youtube-nocookie.com", "player.vimeo.com"]);
+
+export function isTrustedEmbedUrl(raw: string | null | undefined): boolean {
+  if (!raw) return false;
+  try {
+    const url = new URL(raw);
+    return url.protocol === "https:" && TRUSTED_EMBED_HOSTS.has(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 /** Pure URL parsing — no DOM, so this is unit-tested unlike the
  * canvas-dependent capture helpers in image-capture.ts. */
 export function parseEmbedUrl(raw: string): ParsedEmbed | null {

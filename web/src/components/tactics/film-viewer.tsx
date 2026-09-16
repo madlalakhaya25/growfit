@@ -1,4 +1,5 @@
 import { dribblePath, polyPath, shapeColor, shapeWidth, type Shape } from "@/lib/board-model";
+import { isTrustedEmbedUrl } from "@/lib/video-embed";
 
 /** Same fixed percentage space FilmBoard draws an embed's annotations in —
  * see EMBED_CANVAS in film-board.tsx. Must match exactly, or a shared
@@ -49,6 +50,13 @@ function renderShape(sh: Shape, w: number) {
  */
 export function FilmViewer({ data }: { data: FilmViewerData }) {
   const shapes = data.shapes ?? [];
+
+  // `data` is arbitrary stored JSONB (see app/actions/tactic-plays.ts) —
+  // never render an embedUrl as an iframe source without confirming it's
+  // still one of the two hosts parseEmbedUrl() actually produces.
+  if (data.embedUrl && !isTrustedEmbedUrl(data.embedUrl)) {
+    return <p className="text-sm text-muted-foreground">This breakdown&apos;s video link isn&apos;t from a supported source.</p>;
+  }
 
   if (data.embedUrl) {
     const { w, h } = EMBED_CANVAS;
