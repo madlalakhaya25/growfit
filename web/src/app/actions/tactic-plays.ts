@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { isTrustedEmbedUrl } from "@/lib/video-embed";
 
 export interface SavedPlaySummary {
   id: string;
@@ -16,6 +17,11 @@ export interface SavedPlaySummary {
   shared: boolean;
   share_token: string | null;
   voice_url: string | null;
+  /** 'pitch' (the tactical board) or 'film' (a video/still telestration) —
+   * see migration 028. Everything else about which kind a play is lives
+   * inside its own `data` blob; this column exists purely so the list view
+   * can tell them apart without fetching that (potentially large) blob. */
+  surface: "pitch" | "film";
 }
 
 export interface LinkTarget {
@@ -46,6 +52,7 @@ export async function savePlay(input: {
   conceptIds?: string[];
   sessionId?: string | null;
   fixtureId?: string | null;
+  surface?: "pitch" | "film";
 }): Promise<{ id?: string; error?: string }> {
   const name = input.name.trim();
   if (!name) return { error: "Give the play a name." };
@@ -54,13 +61,28 @@ export async function savePlay(input: {
   const { supabase, user, team } = await requireCoachTeam(input.teamId);
   if (!team) return { error: "You don't coach this team." };
 
+  // `data` is otherwise-unvalidated JSONB rendered back out verbatim —
+  // for a film play specifically, embedUrl becomes an <iframe src> shown
+  // to whoever opens it (film-board.tsx, film-viewer.tsx), including
+  // players/parents via a share link. Strip anything that isn't actually
+  // one of the two hosts video-embed.ts's own parser ever produces, rather
+  // than trusting the client sent back what it was given.
+  let playData = input.data;
+  if (input.surface === "film" && playData && typeof playData === "object") {
+    const d = playData as Record<string, unknown>;
+    if (typeof d.embedUrl === "string" && !isTrustedEmbedUrl(d.embedUrl)) {
+      playData = { ...d, embedUrl: undefined, embedProvider: undefined };
+    }
+  }
+
   const fields = {
     name,
     notes: input.notes?.trim() || null,
-    data: input.data,
+    data: playData,
     concept_ids: input.conceptIds ?? [],
     session_id: input.sessionId || null,
     fixture_id: input.fixtureId || null,
+    surface: input.surface ?? "pitch",
   };
 
   if (input.playId) {
@@ -89,13 +111,14 @@ export async function savePlay(input: {
   return { id: data.id };
 }
 
-export async function listPlays(teamId: string): Promise<{ plays?: SavedPlaySummary[]; error?: string }> {
+export async function listPlays(teamId: string, surface?: "pitch" | "film"): Promise<{ plays?: SavedPlaySummary[]; error?: string }> {
   const { supabase } = await requireUser();
-  const { data, error } = await supabase
+  let query = supabase
     .from("tactic_plays")
-    .select("id, name, notes, team_id, updated_at, concept_ids, session_id, fixture_id, shared, share_token, voice_url")
-    .eq("team_id", teamId)
-    .order("updated_at", { ascending: false });
+    .select("id, name, notes, team_id, updated_at, concept_ids, session_id, fixture_id, shared, share_token, voice_url, surface")
+    .eq("team_id", teamId);
+  if (surface) query = query.eq("surface", surface);
+  const { data, error } = await query.order("updated_at", { ascending: false });
   if (error) return { error: error.message };
   return { plays: (data ?? []) as SavedPlaySummary[] };
 }

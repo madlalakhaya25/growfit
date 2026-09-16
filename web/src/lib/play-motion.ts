@@ -13,6 +13,8 @@
 // Arrows are applied in the order they were drawn, each becoming one step, so a
 // sequence a coach drew reads back as a sequence.
 
+import type { ShapeKind } from "@/lib/board-model";
+
 export interface MotionToken {
   id: string;
   x: number;
@@ -21,7 +23,7 @@ export interface MotionToken {
 }
 export interface MotionShape {
   id: string;
-  kind: "run" | "pass" | "dribble" | "free";
+  kind: ShapeKind;
   pts: { x: number; y: number }[];
 }
 export interface MotionFrame {
@@ -33,6 +35,14 @@ export interface MotionFrame {
 /** How close an arrow's start must be to a token to be treated as its movement. */
 const GRAB_RADIUS = 10;
 
+// Only these three kinds describe a movement — everything else (freehand,
+// a filled zone, a spotlight, a text label) is annotation, not motion, and
+// must never be read as "player runs here". Explicit allow-list rather than
+// excluding "free": a zone/spotlight/text shape has fewer than 2 points or
+// a meaning unrelated to movement, so treating "not free" as "is an arrow"
+// would have silently mistreated them as runs the moment they existed.
+const ARROW_KINDS: ReadonlySet<ShapeKind> = new Set(["run", "pass", "dribble"]);
+
 let seq = 0;
 const fid = () => `auto-f-${++seq}`;
 
@@ -40,7 +50,7 @@ export function framesFromShapes(
   tokens: MotionToken[],
   shapes: MotionShape[]
 ): MotionFrame[] {
-  const arrows = shapes.filter((s) => s.kind !== "free" && s.pts.length >= 2);
+  const arrows = shapes.filter((s) => ARROW_KINDS.has(s.kind) && s.pts.length >= 2);
   if (arrows.length === 0 || tokens.length === 0) return [];
 
   const ball = tokens.find((t) => t.kind === "ball");

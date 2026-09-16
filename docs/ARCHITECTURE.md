@@ -1,10 +1,12 @@
 # System Design & Architecture
 
-*Last updated 2026-09-06. This file was substantially out of date before this
-pass — it still described the app under its original working name
-("FootballPath"), a 12-table schema, and no AI, tactics, PDF, or testing
-layers. All of those exist now; this rewrite reflects the app as it actually
-runs today.*
+*Last updated 2026-09-16. Updated this pass for the access-code flow fix
+(migration 027) and the tactics studio's expansion into a full pitch-diagram
+animation tool — pitch sizes/training equipment, a real keyframe timeline,
+player spotlight/per-player notes, and a second "Match Film" surface for
+telestrating over video/photos/embeds. Previous rewrite (2026-09-06) moved
+this off the app's original working name ("FootballPath") and a 12-table
+schema with no AI, tactics, PDF, or testing layers described at all.*
 
 ## Overview
 
@@ -115,6 +117,25 @@ than player with no academy → also `/auth/role`.
 5. If `role = parent` with a `share_token` → looks up the player → upserts
    `parent_player_links`
 
+**Access-code redemption (migration 027)**: three lookalike 6-character
+codes exist — an academy join code, a team coach code, and a team player
+invite code — and a human can't tell them apart on sight. Redemption now
+goes through one SECURITY DEFINER RPC, `redeem_access_code(p_code, p_role,
+p_expect_kind)`, which looks the code up across all three tables, confirms
+the caller-supplied `p_expect_kind` before making any write (closing a hole
+where a player invite code silently worked as a coach-role assignment), and
+refuses `p_role = 'coach'` on the academy-code branch entirely — a coach
+seat is only ever granted by a *team* coach code, never a club-wide one.
+`handle_new_user()` only honours `role ∈ {player, parent}` from signup
+metadata; `coach`/`admin` can never be self-assigned through the trigger.
+A code is validated with `peek_access_code()` *before* `signUp()` runs, so
+a mistyped or wrong-kind code no longer creates an orphaned, unrecoverable
+account. `profiles` gained an INSERT policy (`profile_insert_own`) and a
+`WITH CHECK` on its UPDATE policy restricting which columns a user can
+self-edit — closing both "the recovery screen's upsert always failed with
+a raw RLS error" and "any authenticated user could PATCH their own role to
+admin."
+
 **Password reset** uses the standard Supabase PKCE flow:
 `resetPasswordForEmail` → email link → `/auth/reset-password?code=…` →
 `exchangeCodeForSession` → `updateUser`.
@@ -168,8 +189,9 @@ Media & communication
   announcements / announcement_reads — team broadcasts + per-reader read state
 
 Tactics
-  tactic_plays                    — JSONB board state (tokens, drawn shapes, animation frames), concept
-                                     tags, optional session/fixture link, share token for the player-facing
+  tactic_plays                    — JSONB board state (tokens, drawn shapes, animation frames, placed
+                                     equipment, per-player notes, pitch/surface choice), concept tags,
+                                     optional session/fixture link, share token for the player-facing
                                      view, optional coach voice note
 ```
 
@@ -322,12 +344,44 @@ to).
 
 ## Tactics board
 
-An interactive board (`src/components/tactics/`) covering:
+An interactive board (`src/components/tactics/`) built as a pitch-diagram
+*animation studio* — the target was feature parity with dedicated tools
+like The Tactics App and Final Third, not just a static drawing surface.
+
+`src/lib/board-model.ts` is the single shared source of truth for shape
+kinds, pitch/equipment definitions, and frame-interpolation math — both the
+interactive SVG board (`tactical-board.tsx`) and the read-only shared view
+(`play-viewer.tsx`) render off it, and the canvas recorder
+(`lib/board-render.ts`) draws the same picture for video export. This
+replaced three previously-diverging copies of the same drawing logic.
 
 - 16 formation presets from 5-a-side to 11-a-side, with automatic player
   assignment by position and opponent set-up in the opposing half
-- Drawing tools (runs, passes, dribbles, freehand) with undo/redo
+- Switchable pitch sizes (full/half/third) and training grids, plus a
+  placeable, draggable training-equipment set (cones, markers, mannequins,
+  goals, bibs, poles, ladders, hurdles) — the board can lay out a training
+  drill, not just a match shape. Formation presets are absolute coordinates
+  in the canonical 100×150 board space, so only pitch-shaped surfaces
+  (full/half/third) support them; training grids get their own space and
+  deliberately don't
+- Drawing tools (runs, passes, dribbles, freehand, zones, text) with
+  undo/redo covering every board edit — including frame reordering,
+  duplication, and duration changes, not just drawing
 - Pitch overlays: thirds, half-spaces/channels, zone 14, cut-back zones
+- A real keyframe timeline: per-frame `durationMs`/`ease` (old saved plays
+  without them fall back to the original hardcoded 1100ms so they keep
+  playing back identically), frame reorder/duplicate/insert, and a scrub
+  bar that seeks to any point and lets a coach edit the pose at that exact
+  frame. `interpolateFrames()` in `board-model.ts` is the one place
+  playback, recording, and scrubbing all compute position — previously
+  playback and recording each reimplemented the same easing math
+- Player spotlight: a highlight shape bound to a token's `playerId` (not a
+  fixed coordinate), so it follows that player through every frame
+- Per-player notes, attached to a `playerId` inside the play's `data`
+  rather than one free-text field for the whole play. `get_shared_play()`
+  (migration 029) filters these before they ever leave the database — a
+  viewer sees notes about themself (or, for a parent, their linked child)
+  only; coaches/admins see all of them
 - Frame-by-frame animation with playback, PNG export, and video recording —
   movement is derived from the arrows a coach actually draws
   (`src/lib/play-motion.ts`), not a separate manual "capture steps" step
@@ -336,6 +390,21 @@ An interactive board (`src/components/tactics/`) covering:
   optional coach voice note
 - A tactical concept library, positional-role explainers, and a player
   position guide, all backed by the AI layer above
+
+### Match Film (`tactics/film-board.tsx`)
+
+A second, separate surface on the same `tactic_plays` table
+(`surface = 'film'`, migration 028) for telestrating over a real moment
+instead of a diagram: a locally-captured phone-clip frame or photo
+(`lib/image-capture.ts`, resized client-side, never uploaded as video — only
+the frozen frame is saved), or a live YouTube/Vimeo embed
+(`lib/video-embed.ts`) drawn over with the same tool set, minus spotlight
+(there's no token to bind it to). An embedded video is a cross-origin
+`iframe` — the browser exposes no pixels to canvas for it, so freeze-frame
+and PNG export are only available for the local-capture path; an embed can
+only ever carry a live, transparent drawing overlay, which is a platform
+constraint, not an oversight. Shared and viewed read-only via
+`film-viewer.tsx`, branched on `surface` from `play-viewer.tsx`'s route.
 
 ---
 
@@ -415,7 +484,7 @@ web/
 │       ├── player-card-pdf.ts      ← SAFA-style card PDF generation
 │       ├── offline-attendance-queue.ts ← IndexedDB queue for attendance writes made offline
 │       └── supabase/{client,server}.ts
-└── supabase/migrations/           ← 26 sequentially-numbered files, checked in but NOT auto-applied — see the gotcha below
+└── supabase/migrations/           ← 29 sequentially-numbered files, checked in but NOT auto-applied — see the gotcha below
 ```
 
 ---
@@ -446,7 +515,7 @@ implemented — see the roadmap.
 | Clickjacking | `X-Frame-Options: DENY` |
 | MIME sniffing | `X-Content-Type-Options: nosniff` |
 | SECURITY DEFINER functions | All set `search_path = public, pg_temp` |
-| Auth brute-forcing | Per-IP rate limit on `/auth/login`, `/auth/verify` in `proxy.ts` (in-memory; needs a shared store like Upstash Redis beyond a single instance) |
+| Auth brute-forcing | Per-IP rate limit on `/auth/login`, `/auth/register` in `proxy.ts` (in-memory; needs a shared store like Upstash Redis beyond a single instance). `/auth/verify` was dropped from this list — dead Expo-OTP-era route, never existed as a page |
 | Minors' data (POPIA) | ID numbers, medical notes, and addresses are staff-only; the public passport RPC deliberately excludes them (only derived age, never raw date of birth) — but photo-consent is captured and **not yet enforced** before display anywhere; see roadmap |
 
 ---

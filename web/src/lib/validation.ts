@@ -12,8 +12,11 @@ export const registerSchema = z.object({
   full_name: z.string().min(2, "Enter your full name"),
   email: z.string().email("Enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
-  role: z.enum(["player", "coach", "parent", "admin"], { error: "Choose a role" }),
-  club_code: z.string().length(6, "Join code must be exactly 6 characters"),
+  role: z.enum(["player", "coach", "parent"], { error: "Choose a role" }),
+  // Optional at the schema level — a player may continue without a code
+  // (the "waiting to be added" state /auth/role also allows). Register.page
+  // still requires it for coach/parent in the UI itself.
+  club_code: z.string().length(6, "Code must be exactly 6 characters").optional().or(z.literal("")),
   share_token: z.string().optional(),
 });
 export type RegisterInput = z.infer<typeof registerSchema>;

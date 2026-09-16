@@ -5,6 +5,7 @@ import {
   MousePointer2, Eraser, Undo2, Redo2, RotateCcw, Users, Circle,
   ArrowUpRight, Minus, Waves, Pencil, Download, Tag, Grid3x3,
   Play, Square, Plus, Save, FolderOpen, Send, Trash2, Film, Video, Sparkles, Swords,
+  ChevronUp, ChevronDown, Copy, Target, MessageSquare,
 } from "lucide-react";
 import { POSITIONS } from "@/lib/types";
 import { FORMATIONS, FORMATION_SIZES, type Formation } from "@/lib/formations";
@@ -16,8 +17,24 @@ import { TACTICAL_CONCEPTS, TACTICAL_CATEGORIES, getConcept } from "@/lib/tactic
 import { PLAY_TEMPLATES, expandTemplate } from "@/lib/play-templates";
 import { drawBoard, pickRecorderMime } from "@/lib/board-render";
 import { framesFromShapes } from "@/lib/play-motion";
+import {
+  BOARD_W, BOARD_H, dribblePath, polyPath, shapeColor, interpolateFrames, totalDurationMs, DEFAULT_FRAME_DURATION_MS,
+  getPitch, PITCHES, toBoardSpace, EQUIPMENT_SPECS, resolveSpotlightCenter, RECORDABLE_SHAPE_KINDS,
+  GROUP_COLOR,
+  type EquipmentKind, type BoardObject, type PlayerNote,
+  type Token, type Shape, type ShapeKind, type Frame as ModelFrame,
+} from "@/lib/board-model";
+import { PitchLayer } from "@/components/tactics/pitch-layer";
+import { EquipmentLayer } from "@/components/tactics/equipment-layer";
 
 // ── Types ────────────────────────────────────────────────────────
+// Token, Shape, ShapeKind and the Frame shape all come from board-model.ts
+// now — the one place they're defined, shared with the read-only viewer and
+// the canvas recorder. This board's own drawing tools produce
+// run/pass/dribble/free/spotlight; zone/text exist in the shared ShapeKind
+// for the film board's tools (components/tactics/film-board.tsx), not this
+// one — RECORDABLE_SHAPE_KINDS is what actually gates what the canvas
+// recorder here can draw, not this board's own tool set.
 export interface BoardPlayer {
   id: string;
   full_name: string;
@@ -29,48 +46,49 @@ export interface BoardTeam {
   age_group: string | null;
   players: BoardPlayer[];
 }
-interface Token {
-  id: string;
-  label: string;
-  x: number;
-  y: number;
-  kind: "player" | "opponent" | "ball";
-  group: string;
-  playerId?: string;
-}
-type ShapeKind = "run" | "pass" | "dribble" | "free";
-interface Shape {
-  id: string;
-  kind: ShapeKind;
-  pts: { x: number; y: number }[];
-}
 interface BoardState {
   tokens: Token[];
   shapes: Shape[];
+  /** Placed training equipment — new, additive. A play saved before this
+   * existed has none, and every reader treats that the same as []. */
+  objects: BoardObject[];
+  /** Coach notes about individual players — new, additive, same reasoning
+   * as objects above. */
+  playerNotes: PlayerNote[];
 }
-type Mode = "move" | "run" | "pass" | "dribble" | "free" | "erase";
+type Mode = "move" | "run" | "pass" | "dribble" | "free" | "spotlight" | "erase";
+
+/** A captured-but-not-yet-committed undo entry — see captureSnapshot()/
+ * commitSnapshot() below. */
+interface SnapshotEntry {
+  state: BoardState;
+  pitch: string;
+  frames: Frame[];
+}
+
+/**
+ * Every modelled pitch is offered in the switcher. Half-pitch and
+ * attacking-third were held back in an earlier pass over a clipping risk —
+ * a full-XI formation placed near a deep position could render outside a
+ * cropped viewBox — but that's now resolved at the source: both are marked
+ * `supportsFormations: false` in board-model.ts, so "Set up my XI" is
+ * disabled there exactly like it already is on a training grid, and manual
+ * placement centres on the pitch actually showing (see placePlayer/
+ * addBall/addOpponent). Nothing here still needs the visual check that
+ * held them back — it needs one anyway before real use, same as everything
+ * else in this file that can't be rendered in this environment.
+ */
+const SWITCHABLE_PITCHES = PITCHES;
 
 /** One step of a play: where every token sits, plus the lines drawn at that step. */
-interface Frame {
-  id: string;
-  tokens: { id: string; x: number; y: number }[];
-  shapes: Shape[];
-}
+type Frame = ModelFrame;
 type Overlay = "none" | "thirds" | "channels" | "zone14";
 
 // ── Pitch geometry (attacking upward) ────────────────────────────
-const W = 100;
-const H = 150;
+const W = BOARD_W;
+const H = BOARD_H;
 
 const GROUP_ORDER = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
-const GROUP_COLOR: Record<string, string> = {
-  Goalkeeper: "#f59e0b",
-  Defender: "#3b82f6",
-  Midfielder: "#22c55e",
-  Forward: "#ef4444",
-  Opponent: "#0f172a",
-  Ball: "#f8fafc",
-};
 
 function groupOf(position: string | null): string {
   if (!position) return "Midfielder";
@@ -127,22 +145,6 @@ function compress(slot: { x: number; y: number }, side: "home" | "away"): { x: n
     : { x: W - slot.x, y: 4 + t * 68 };     // 4 (their goal) → 72, mirrored across
 }
 
-/** Wavy path for a dribble line. */
-function dribblePath(x1: number, y1: number, x2: number, y2: number): string {
-  const dx = x2 - x1, dy = y2 - y1;
-  const len = Math.hypot(dx, dy);
-  if (len < 1) return `M${x1},${y1}`;
-  const px = -dy / len, py = dx / len;
-  const n = Math.max(2, Math.round(len / 3.2));
-  let d = `M${x1},${y1}`;
-  for (let i = 1; i < n; i++) {
-    const t = i / n;
-    const cx = x1 + dx * t, cy = y1 + dy * t;
-    const off = (i % 2 === 0 ? 1 : -1) * 1.5;
-    d += ` L${(cx + px * off).toFixed(2)},${(cy + py * off).toFixed(2)}`;
-  }
-  return d + ` L${x2},${y2}`;
-}
 /**
  * Tactical overlays. Half-spaces are the two channels between the centre and
  * the wings — the highest-value areas to attack from, and the thing coaches
@@ -209,11 +211,6 @@ function OverlayLayer({ overlay }: { overlay: Overlay }) {
   );
 }
 
-function polyPath(pts: { x: number; y: number }[]): string {
-  if (pts.length === 0) return "";
-  return pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
-}
-
 export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const [teamId, setTeamId] = useState(teams[0]?.id ?? "");
   const [homeFormationId, setHomeFormationId] = useState("11-4-3-3");
@@ -221,15 +218,25 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const [mode, setMode] = useState<Mode>("move");
   const [showNames, setShowNames] = useState(true);
   const [overlay, setOverlay] = useState<Overlay>("none");
+  const [pitchId, setPitchIdState] = useState("full");
+  const [equipmentKind, setEquipmentKind] = useState<EquipmentKind>("cone");
 
-  const [state, setState] = useState<BoardState>({ tokens: [], shapes: [] });
+  const [state, setState] = useState<BoardState>({ tokens: [], shapes: [], objects: [], playerNotes: [] });
   const [draft, setDraft] = useState<Shape | null>(null);
 
   // Animation
   const [frames, setFrames] = useState<Frame[]>([]);
   const [playing, setPlaying] = useState(false);
+  // Scrub preview: dragging the timeline sets `anim` to the interpolated
+  // pose at that instant (read-only preview), exactly like playback does —
+  // it never touches `state`/undo history. To actually edit a step's pose,
+  // jump to it with gotoFrame(), which does commit to state.
+  const [scrubMs, setScrubMs] = useState(0);
+  const [scrubbing, setScrubbing] = useState(false);
   const [recording, setRecording] = useState(false);
-  const [anim, setAnim] = useState<BoardState | null>(null);
+  // Equipment doesn't move during playback, so the animated snapshot only
+  // ever carries tokens/shapes — objects always come from live state.
+  const [anim, setAnim] = useState<Pick<BoardState, "tokens" | "shapes"> | null>(null);
   const rafRef = useRef<number | null>(null);
 
   // Saved plays
@@ -252,15 +259,25 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const [voiceUrl, setVoiceUrl] = useState<string | null>(null);
   // Tapping a player selects them; tapping a bench player then swaps the two.
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
 
   const stateRef = useRef(state);
   stateRef.current = state;
+  const pitchIdRef = useRef(pitchId);
+  pitchIdRef.current = pitchId;
+  const framesRef = useRef(frames);
+  framesRef.current = frames;
   const past = useRef<BoardState[]>([]);
   const future = useRef<BoardState[]>([]);
+  const pastPitch = useRef<string[]>([]);
+  const futurePitch = useRef<string[]>([]);
+  const pastFrames = useRef<Frame[][]>([]);
+  const futureFrames = useRef<Frame[][]>([]);
   const [, forceRender] = useState(0);
 
   const svgRef = useRef<SVGSVGElement>(null);
-  const drag = useRef<{ id: string; dx: number; dy: number; startX: number; startY: number; moved: boolean } | null>(null);
+  const drag = useRef<{ id: string; dx: number; dy: number; startX: number; startY: number; moved: boolean; pending: SnapshotEntry } | null>(null);
+  const dragObj = useRef<{ id: string; dx: number; dy: number; startX: number; startY: number; moved: boolean; pending: SnapshotEntry } | null>(null);
   const drawing = useRef(false);
 
   const team = teams.find((t) => t.id === teamId);
@@ -275,31 +292,76 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const bench = roster.filter((p) => !placed.has(p.id));
 
   /** What the pitch renders: the animated snapshot while playing, else live state. */
-  const view = anim ?? state;
+  const view = anim ? { ...state, tokens: anim.tokens, shapes: anim.shapes } : state;
+
+  const pitch = getPitch(pitchId);
 
   // ── History ────────────────────────────────────────────────────
-  function snapshot() {
-    past.current.push(JSON.parse(JSON.stringify(stateRef.current)) as BoardState);
-    if (past.current.length > 40) past.current.shift();
+  // pastPitch/futurePitch and pastFrames/futureFrames track the pitch id
+  // and the captured-steps timeline alongside each board snapshot, in
+  // lockstep with past/future, so switching pitches (which clears the
+  // board — see setPitch below) and every timeline edit (capture/reorder/
+  // duplicate/insert/delete/duration — see captureFrame() etc. below,
+  // which all call this first) are single undoable steps like any other
+  // edit, not state that sits outside undo/redo entirely.
+  /** Captures the pre-edit state without pushing it to history yet — used
+   * by a drag (token/equipment) that snapshots on pointer-down but should
+   * only actually cost a history entry if the pointer really moves. A tap
+   * that only selects/substitutes a player used to snapshot unconditionally
+   * on down, so a few taps could evict real history under the 40-entry cap
+   * with nothing to undo for them. */
+  function captureSnapshot(): SnapshotEntry {
+    return {
+      state: JSON.parse(JSON.stringify(stateRef.current)) as BoardState,
+      pitch: pitchIdRef.current,
+      frames: JSON.parse(JSON.stringify(framesRef.current)) as Frame[],
+    };
+  }
+  function commitSnapshot(entry: SnapshotEntry) {
+    past.current.push(entry.state);
+    pastPitch.current.push(entry.pitch);
+    pastFrames.current.push(entry.frames);
+    if (past.current.length > 40) { past.current.shift(); pastPitch.current.shift(); pastFrames.current.shift(); }
     future.current = [];
+    futurePitch.current = [];
+    futureFrames.current = [];
+  }
+  function snapshot() {
+    commitSnapshot(captureSnapshot());
   }
   function undo() {
     const prev = past.current.pop();
+    const prevPitch = pastPitch.current.pop();
+    const prevFrames = pastFrames.current.pop();
     if (!prev) return;
     future.current.push(JSON.parse(JSON.stringify(stateRef.current)) as BoardState);
+    futurePitch.current.push(pitchIdRef.current);
+    futureFrames.current.push(JSON.parse(JSON.stringify(framesRef.current)) as Frame[]);
     setState(prev);
+    if (prevPitch) setPitchIdState(prevPitch);
+    if (prevFrames) setFrames(prevFrames);
     forceRender((n) => n + 1);
   }
   function redo() {
     const next = future.current.pop();
+    const nextPitch = futurePitch.current.pop();
+    const nextFrames = futureFrames.current.pop();
     if (!next) return;
     past.current.push(JSON.parse(JSON.stringify(stateRef.current)) as BoardState);
+    pastPitch.current.push(pitchIdRef.current);
+    pastFrames.current.push(JSON.parse(JSON.stringify(framesRef.current)) as Frame[]);
     setState(next);
+    if (nextPitch) setPitchIdState(nextPitch);
+    if (nextFrames) setFrames(nextFrames);
     forceRender((n) => n + 1);
   }
 
   // ── Animation ──────────────────────────────────────────────────
+  // Every one of these snapshots first — frame edits used to sit entirely
+  // outside undo/redo, so reordering, deleting, or clearing a hand-built
+  // timeline had no way back.
   function captureFrame() {
+    snapshot();
     const f: Frame = {
       id: uid("f"),
       tokens: state.tokens.map((t) => ({ id: t.id, x: t.x, y: t.y })),
@@ -309,6 +371,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setNotice(`Step ${frames.length + 1} captured.`);
   }
   function updateFrame(i: number) {
+    snapshot();
     setFrames((fs) =>
       fs.map((f, idx) =>
         idx === i
@@ -319,7 +382,56 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setNotice(`Step ${i + 1} updated.`);
   }
   function deleteFrame(i: number) {
+    snapshot();
     setFrames((fs) => fs.filter((_, idx) => idx !== i));
+  }
+  /** Swap a step with its neighbour — the reorder control on the timeline. */
+  function moveFrame(i: number, dir: -1 | 1) {
+    const j = i + dir;
+    if (j < 0 || j >= frames.length) return; // out of range — nothing to snapshot
+    snapshot();
+    setFrames((fs) => {
+      const next = [...fs];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  }
+  /** Copy a step in place, right after itself — a quick way to hold a pose
+   * longer (duplicate, then shorten the original's duration to 0 or leave
+   * both) or to start editing a variation without losing the original. */
+  function duplicateFrame(i: number) {
+    if (!frames[i]) return;
+    snapshot();
+    setFrames((fs) => {
+      const src = fs[i];
+      if (!src) return fs;
+      const copy: Frame = { ...src, id: uid("f") };
+      return [...fs.slice(0, i + 1), copy, ...fs.slice(i + 1)];
+    });
+  }
+  /** Capture the board's current live pose as a new step inserted right
+   * after index i, rather than always appended at the end like
+   * captureFrame(). */
+  function insertFrameAfter(i: number) {
+    snapshot();
+    const f: Frame = {
+      id: uid("f"),
+      tokens: state.tokens.map((t) => ({ id: t.id, x: t.x, y: t.y })),
+      shapes: JSON.parse(JSON.stringify(state.shapes)) as Shape[],
+    };
+    setFrames((fs) => [...fs.slice(0, i + 1), f, ...fs.slice(i + 1)]);
+    setNotice(`Step inserted after ${i + 1}.`);
+  }
+  // Deliberately not snapshotted, unlike the structural edits above: this
+  // fires on every keystroke of the duration input, and snapshotting per
+  // keystroke would flood the 40-entry undo history in a few seconds of
+  // typing. A mistyped duration is trivially re-typed; it doesn't need undo
+  // the way a deleted or reordered step does.
+  function setFrameDuration(i: number, ms: number) {
+    setFrames((fs) => fs.map((f, idx) => (idx === i ? { ...f, durationMs: Math.max(100, ms) } : f)));
+  }
+  function setFrameEase(i: number, ease: NonNullable<Frame["ease"]>) {
+    setFrames((fs) => fs.map((f, idx) => (idx === i ? { ...f, ease } : f)));
   }
   /** Jump the board to a stored step so the coach can edit it. */
   function gotoFrame(i: number) {
@@ -327,6 +439,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     if (!f) return;
     snapshot();
     setState((st) => ({
+      ...st,
       tokens: st.tokens.map((t) => {
         const p = f.tokens.find((ft) => ft.id === t.id);
         return p ? { ...t, x: p.x, y: p.y } : t;
@@ -339,6 +452,23 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
     setPlaying(false);
+    setScrubbing(false);
+    setAnim(null);
+  }
+
+  /** Preview the pose at an exact point in the sequence without touching
+   * live state — dragging the scrub bar calls this on every move. */
+  function scrubTo(ms: number) {
+    if (frames.length < 2) return;
+    stopPlayback();
+    setScrubbing(true);
+    setScrubMs(ms);
+    const { tokens, shapes } = interpolateFrames(state.tokens, frames, ms);
+    setAnim({ tokens, shapes });
+  }
+  /** Release the scrub bar — return to the live, editable board. */
+  function endScrub() {
+    setScrubbing(false);
     setAnim(null);
   }
 
@@ -364,34 +494,23 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     stopPlayback();
     setPlaying(true);
 
-    const SEG = 1100; // ms per step
+    // Stepping/easing come from interpolateFrames() in board-model.ts — the
+    // same function the video recorder and the read-only player-facing
+    // viewer use, so a fix to the maths reaches all three instead of one.
+    const total = totalDurationMs(seqFrames);
     // The timestamp a rAF callback receives is when that frame began, which can
     // predate a performance.now() taken in the click handler. That made elapsed
     // negative, seg -1, and seqFrames[-1] undefined — the callback threw on its
     // first frame and playback silently died. Take the clock from the first tick.
     let start: number | null = null;
-    const total = SEG * (seqFrames.length - 1);
-    const ease = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
 
     const tick = (now: number) => {
       if (start === null) start = now;
       const elapsed = Math.max(0, now - start);
       const clamped = Math.min(elapsed, total);
-      const seg = Math.max(0, Math.min(Math.floor(clamped / SEG), seqFrames.length - 2));
-      const local = ease(Math.min((clamped - seg * SEG) / SEG, 1));
+      const { tokens, shapes } = interpolateFrames(state.tokens, seqFrames, clamped);
 
-      const from = seqFrames[seg];
-      const to = seqFrames[seg + 1];
-
-      setAnim({
-        tokens: state.tokens.map((t) => {
-          const a = from.tokens.find((ft) => ft.id === t.id);
-          const b = to.tokens.find((ft) => ft.id === t.id);
-          if (!a || !b) return t;
-          return { ...t, x: a.x + (b.x - a.x) * local, y: a.y + (b.y - a.y) * local };
-        }),
-        shapes: to.shapes,
-      });
+      setAnim({ tokens, shapes });
 
       if (elapsed < total) {
         rafRef.current = requestAnimationFrame(tick);
@@ -412,6 +531,15 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
    * canvas stream, so the export matches exactly what playback shows.
    */
   async function recordAnimation() {
+    // drawBoard() (board-render.ts) always paints the fixed full-pitch
+    // background — it has no idea a training grid exists — so recording on
+    // one would silently composite the wrong surface behind the drill.
+    // Rather than ship that mismatch, video export stays full-pitch-only
+    // until the canvas recorder is taught about Pitch too.
+    if (!pitch.supportsFormations) {
+      setNotice("Video recording is only available on the full pitch for now — export a PNG instead.");
+      return;
+    }
     let seqFrames = frames;
     if (seqFrames.length < 2) {
       const derived = framesFromShapes(state.tokens, state.shapes) as Frame[];
@@ -446,28 +574,22 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     const stopped = new Promise<void>((res) => { rec.onstop = () => res(); });
     rec.start();
 
-    const SEG = 1100;
-    const total = SEG * (seqFrames.length - 1);
-    const ease = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
+    // Same interpolateFrames() as playAnimation() and the shared viewer use
+    // — the recording now matches on-screen playback exactly, including any
+    // per-step timing a future timeline editor sets.
+    const total = totalDurationMs(seqFrames);
     let startedAt: number | null = null;
 
     await new Promise<void>((resolve) => {
       const tick = (now: number) => {
         if (startedAt === null) startedAt = now;
         const elapsed = Math.min(Math.max(0, now - startedAt), total);
-        const seg = Math.max(0, Math.min(Math.floor(elapsed / SEG), seqFrames.length - 2));
-        const local = ease(Math.min((elapsed - seg * SEG) / SEG, 1));
-        const from = seqFrames[seg];
-        const to = seqFrames[seg + 1];
+        const { tokens, shapes } = interpolateFrames(state.tokens, seqFrames, elapsed);
+        // drawBoard() has no polygon/text rendering (see RECORDABLE_SHAPE_KINDS)
+        // — a zone or a label would draw as a stray line without this filter.
+        const recordable = shapes.filter((sh) => RECORDABLE_SHAPE_KINDS.has(sh.kind));
 
-        const tokens = state.tokens.map((t) => {
-          const a = from.tokens.find((ft) => ft.id === t.id);
-          const b = to.tokens.find((ft) => ft.id === t.id);
-          if (!a || !b) return t;
-          return { ...t, x: a.x + (b.x - a.x) * local, y: a.y + (b.y - a.y) * local };
-        });
-
-        drawBoard(ctx, { tokens, shapes: to.shapes, overlay, showNames, scale });
+        drawBoard(ctx, { tokens, shapes: recordable, overlay, showNames, scale });
 
         if (now - startedAt < total) requestAnimationFrame(tick);
         else resolve();
@@ -495,7 +617,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   // ── Saved plays ────────────────────────────────────────────────
   async function refreshPlays(id = teamId) {
     if (!id) return;
-    const res = await listPlays(id);
+    const res = await listPlays(id, "pitch");
     if (res.plays) setPlays(res.plays);
   }
   useEffect(() => {
@@ -512,7 +634,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       playId: currentPlayId ?? undefined,
       teamId,
       name,
-      data: { tokens: state.tokens, shapes: state.shapes, frames, homeFormationId, awayFormationId },
+      data: { tokens: state.tokens, shapes: state.shapes, objects: state.objects, playerNotes: state.playerNotes, pitchId, frames, homeFormationId, awayFormationId },
       conceptIds,
       sessionId: sessionId || null,
       fixtureId: fixtureId || null,
@@ -529,9 +651,10 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     const res = await loadPlay(id);
     setBusy(null);
     if (res.error || !res.data) { setNotice(res.error ?? "Could not load play."); return; }
-    const d = res.data as Partial<BoardState & { frames: Frame[]; homeFormationId: string; awayFormationId: string }>;
+    const d = res.data as Partial<BoardState & { frames: Frame[]; homeFormationId: string; awayFormationId: string; pitchId: string }>;
     snapshot();
-    setState({ tokens: d.tokens ?? [], shapes: d.shapes ?? [] });
+    setState({ tokens: d.tokens ?? [], shapes: d.shapes ?? [], objects: d.objects ?? [], playerNotes: d.playerNotes ?? [] });
+    setPitchIdState(d.pitchId ?? "full");
     setFrames(d.frames ?? []);
     if (d.homeFormationId) setHomeFormationId(d.homeFormationId);
     if (d.awayFormationId) setAwayFormationId(d.awayFormationId);
@@ -553,7 +676,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     if (!tpl) return;
     const { tokens, shapes, frames: tplFrames } = expandTemplate(tpl);
     snapshot();
-    setState({ tokens: tokens as typeof state.tokens, shapes: shapes as typeof state.shapes });
+    setState({ tokens: tokens as typeof state.tokens, shapes: shapes as typeof state.shapes, objects: [], playerNotes: [] });
+    setPitchIdState("full");
     setFrames(tplFrames as typeof frames);
     setConceptIds([tpl.conceptId]);
     setCurrentPlayId(null);
@@ -619,15 +743,29 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     }
     if (ball) lines.push(`Ball starts in the ${side(ball.x)} ${zone(ball.y)}.`);
 
-    if (state.shapes.length) {
+    // Spotlights aren't a line from A to B (they're one point, a ring on a
+    // player) — describe them separately rather than as a degenerate
+    // "freehand mark from X to X" the arrow-description below would read.
+    const lineShapes = state.shapes.filter((sh) => sh.kind !== "spotlight");
+    const spotlights = state.shapes.filter((sh) => sh.kind === "spotlight");
+
+    if (lineShapes.length) {
       lines.push("Lines drawn:");
-      state.shapes.forEach((sh) => {
+      lineShapes.forEach((sh) => {
         const a = sh.pts[0], b = sh.pts[sh.pts.length - 1];
         const kind = sh.kind === "run" ? "a run" : sh.kind === "pass" ? "a pass" : sh.kind === "dribble" ? "a dribble" : "a freehand mark";
         lines.push(`- ${kind} from the ${side(a.x)} ${zone(a.y)} to the ${side(b.x)} ${zone(b.y)}`);
       });
     } else {
       lines.push("No runs or passes drawn.");
+    }
+
+    if (spotlights.length) {
+      lines.push("Players highlighted:");
+      spotlights.forEach((sh) => {
+        const p = state.tokens.find((t) => t.playerId === sh.playerId);
+        lines.push(`- ${p?.label ?? "a player"}`);
+      });
     }
 
     lines.push(frames.length >= 2
@@ -658,12 +796,12 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   }
 
   // ── Coordinates ────────────────────────────────────────────────
+  // Clamped to the *current* pitch's dimensions, not the fixed 100×150 —
+  // the SVG's viewBox below tracks the same pitch, so this always matches
+  // what's actually visible.
   function toBoard(clientX: number, clientY: number) {
     const rect = svgRef.current!.getBoundingClientRect();
-    return {
-      x: Math.max(2, Math.min(W - 2, ((clientX - rect.left) / rect.width) * W)),
-      y: Math.max(2, Math.min(H - 2, ((clientY - rect.top) / rect.height) * H)),
-    };
+    return toBoardSpace(rect, clientX, clientY, pitch.w, pitch.h);
   }
 
   // ── Setup actions ──────────────────────────────────────────────
@@ -767,7 +905,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setState((st) => ({
       ...st,
       tokens: [...st.tokens, {
-        id: uid("h"), label: shortLabel(p.full_name), x: 50, y: 75,
+        id: uid("h"), label: shortLabel(p.full_name), x: pitch.w / 2, y: pitch.h / 2,
         kind: "player", group: groupOf(p.position), playerId: p.id,
       }],
     }));
@@ -777,7 +915,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setState((st) => ({
       ...st,
       tokens: [...st.tokens.filter((t) => t.kind !== "ball"), {
-        id: uid("b"), label: "", x: 50, y: 75, kind: "ball", group: "Ball",
+        id: uid("b"), label: "", x: pitch.w / 2, y: pitch.h / 2, kind: "ball", group: "Ball",
       }],
     }));
   }
@@ -786,17 +924,64 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setState((st) => ({
       ...st,
       tokens: [...st.tokens, {
-        id: uid("a"), label: "", x: 50, y: 40, kind: "opponent", group: "Opponent",
+        // Placed higher up than centre, same 40/150 ratio the full pitch
+        // always used — keeps an added opponent visually "further away"
+        // on any pitch instead of landing on top of the ball at centre.
+        id: uid("a"), label: "", x: pitch.w / 2, y: pitch.h * (40 / 150), kind: "opponent", group: "Opponent",
       }],
     }));
   }
   function clearAll() {
     snapshot();
-    setState({ tokens: [], shapes: [] });
+    setState({ tokens: [], shapes: [], objects: [], playerNotes: [] });
   }
   function clearDrawings() {
     snapshot();
     setState((st) => ({ ...st, shapes: [] }));
+  }
+  function addEquipment(kind: EquipmentKind) {
+    snapshot();
+    setState((st) => ({
+      ...st,
+      objects: [...st.objects, { id: uid("o"), kind, x: pitch.w / 2, y: pitch.h / 2 }],
+    }));
+  }
+  /**
+   * A note about one player. Kept general rather than pinned to a step —
+   * the frameId field exists in the model for a future per-step version,
+   * but this pass keeps it simple: one running set of notes per player
+   * about this play, shown to them in the shared player-facing view.
+   */
+  function addPlayerNote(playerId: string, body: string) {
+    const trimmed = body.trim();
+    if (!trimmed) return;
+    snapshot();
+    setState((st) => ({
+      ...st,
+      playerNotes: [...st.playerNotes, { id: uid("n"), playerId, frameId: null, body: trimmed }],
+    }));
+  }
+  function deletePlayerNote(id: string) {
+    snapshot();
+    setState((st) => ({ ...st, playerNotes: st.playerNotes.filter((n) => n.id !== id) }));
+  }
+  /**
+   * Switches which Pitch is painted behind the board. Full/half/third-style
+   * pitches and the training grids are genuinely different coordinate
+   * spaces (see SWITCHABLE_PITCHES above) — a token placed near a deep
+   * position on the full pitch would sit off the edge of a 60×60 grid, so
+   * rather than leave tokens somewhere invisible, switching clears the
+   * board. One undo (Ctrl/Cmd+Z equivalent, the Undo button) brings
+   * everything back exactly as it was.
+   */
+  function setPitch(id: string) {
+    if (id === pitchId) return;
+    stopPlayback();
+    snapshot();
+    setState({ tokens: [], shapes: [], objects: [], playerNotes: [] });
+    setPitchIdState(id);
+    setFrames([]);
+    setNotice("Switched pitch — the board was cleared for the new surface. Undo to get it back.");
   }
 
   // ── Pointer handling ───────────────────────────────────────────
@@ -807,15 +992,42 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       setState((st) => ({ ...st, tokens: st.tokens.filter((t) => t.id !== tok.id) }));
       return;
     }
+    if (mode === "spotlight") {
+      // Bound by playerId, not by this token's own id or the clicked point —
+      // resolveSpotlightCenter() (board-model.ts) then draws the ring at
+      // wherever that player currently is, every frame, including after a
+      // substitution changes their token id. stopPropagation() happens
+      // before the early return: without it, tapping the ball or an
+      // opponent (neither has a playerId) let the event bubble to
+      // onSvgDown, which had no spotlight guard of its own and created an
+      // *unbound* spotlight at that point — and since the toggle-off check
+      // below matches on playerId, a second such tap deleted every unbound
+      // spotlight on the board at once.
+      e.stopPropagation();
+      if (!tok.playerId) return;
+      const { x, y } = toBoard(e.clientX, e.clientY);
+      drawing.current = true;
+      setDraft({ id: "draft", kind: "spotlight", pts: [{ x: tok.x, y: tok.y }, { x, y }], playerId: tok.playerId });
+      svgRef.current?.setPointerCapture?.(e.pointerId);
+      return;
+    }
     if (mode !== "move") return;
     e.stopPropagation();
     const { x, y } = toBoard(e.clientX, e.clientY);
-    snapshot();
-    drag.current = { id: tok.id, dx: tok.x - x, dy: tok.y - y, startX: x, startY: y, moved: false };
+    // Captured now (so it reflects the true pre-drag position) but not
+    // committed to history until onSvgMove confirms real movement —
+    // otherwise a tap that only selects/substitutes a player (see onSvgUp)
+    // pushed an identical, useless history entry every time, which could
+    // evict real edits once the 40-entry cap was reached.
+    drag.current = { id: tok.id, dx: tok.x - x, dy: tok.y - y, startX: x, startY: y, moved: false, pending: captureSnapshot() };
     (e.target as Element).setPointerCapture?.(e.pointerId);
   }
   function onSvgDown(e: React.PointerEvent) {
-    if (mode === "move" || mode === "erase") return;
+    // Spotlight only ever makes sense bound to a player — see onTokenDown,
+    // which is the only place a spotlight draft is created. A background
+    // (or ball/opponent) tap in this mode does nothing, rather than
+    // creating an unbound ring with no playerId to follow.
+    if (mode === "move" || mode === "erase" || mode === "spotlight") return;
     const { x, y } = toBoard(e.clientX, e.clientY);
     drawing.current = true;
     setDraft({ id: "draft", kind: mode, pts: [{ x, y }, { x, y }] });
@@ -825,13 +1037,34 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     if (drag.current) {
       const { x, y } = toBoard(e.clientX, e.clientY);
       const d = drag.current;
-      if (Math.hypot(x - d.startX, y - d.startY) > 1.5) d.moved = true;
+      if (!d.moved && Math.hypot(x - d.startX, y - d.startY) > 1.5) {
+        // First real movement past the tap threshold — this is the moment
+        // the pre-drag snapshot captured at pointer-down actually becomes
+        // a real, undoable edit.
+        d.moved = true;
+        commitSnapshot(d.pending);
+      }
       setState((st) => ({
         ...st,
         tokens: st.tokens.map((t) =>
           t.id === d.id
-            ? { ...t, x: Math.max(2, Math.min(W - 2, x + d.dx)), y: Math.max(2, Math.min(H - 2, y + d.dy)) }
+            ? { ...t, x: Math.max(2, Math.min(pitch.w - 2, x + d.dx)), y: Math.max(2, Math.min(pitch.h - 2, y + d.dy)) }
             : t
+        ),
+      }));
+    } else if (dragObj.current) {
+      const { x, y } = toBoard(e.clientX, e.clientY);
+      const d = dragObj.current;
+      if (!d.moved && Math.hypot(x - d.startX, y - d.startY) > 1.5) {
+        d.moved = true;
+        commitSnapshot(d.pending);
+      }
+      setState((st) => ({
+        ...st,
+        objects: st.objects.map((o) =>
+          o.id === d.id
+            ? { ...o, x: Math.max(2, Math.min(pitch.w - 2, x + d.dx)), y: Math.max(2, Math.min(pitch.h - 2, y + d.dy)) }
+            : o
         ),
       }));
     } else if (drawing.current) {
@@ -852,9 +1085,27 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       );
     }
     drag.current = null;
+    dragObj.current = null;
     if (drawing.current && draft) {
       const a = draft.pts[0], b = draft.pts[draft.pts.length - 1];
-      if (Math.hypot(b.x - a.x, b.y - a.y) > 3) {
+      const dist = Math.hypot(b.x - a.x, b.y - a.y);
+      if (draft.kind === "spotlight") {
+        // A plain click (no drag) still creates a usable ring at a sensible
+        // default radius — dragging just lets a coach size it bigger.
+        snapshot();
+        const shape: Shape = { id: uid("s"), kind: "spotlight", pts: [a], playerId: draft.playerId, radius: Math.max(4, dist) };
+        setState((st) => {
+          // One spotlight per player: clicking an already-spotlighted
+          // player again toggles it off rather than stacking rings.
+          const already = st.shapes.some((s) => s.kind === "spotlight" && s.playerId === draft.playerId);
+          return {
+            ...st,
+            shapes: already
+              ? st.shapes.filter((s) => !(s.kind === "spotlight" && s.playerId === draft.playerId))
+              : [...st.shapes, shape],
+          };
+        });
+      } else if (dist > 3) {
         snapshot();
         const shape = { ...draft, id: uid("s") };
         setState((st) => ({ ...st, shapes: [...st.shapes, shape] }));
@@ -869,22 +1120,43 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     snapshot();
     setState((st) => ({ ...st, shapes: st.shapes.filter((s2) => s2.id !== id) }));
   }
+  function onObjectDown(e: React.PointerEvent, obj: BoardObject) {
+    if (mode === "erase") {
+      e.stopPropagation();
+      snapshot();
+      setState((st) => ({ ...st, objects: st.objects.filter((o) => o.id !== obj.id) }));
+      return;
+    }
+    if (mode !== "move") return;
+    e.stopPropagation();
+    const { x, y } = toBoard(e.clientX, e.clientY);
+    // Same lazy-commit pattern as onTokenDown above.
+    dragObj.current = { id: obj.id, dx: obj.x - x, dy: obj.y - y, startX: x, startY: y, moved: false, pending: captureSnapshot() };
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+  }
 
   // ── Export ─────────────────────────────────────────────────────
   function exportPng() {
     const svg = svgRef.current;
     if (!svg) return;
+    // Scaled off the *current* pitch's own dimensions, not the fixed
+    // 100×150 — otherwise a training grid (e.g. 60×80) exported at a fixed
+    // 800×1200 raster would come out letterboxed instead of filling the
+    // frame. exportPng serialises the live SVG (which PitchLayer already
+    // draws correctly for any pitch), so this is the only place that
+    // needed to change.
+    const pngW = pitch.w * 8, pngH = pitch.h * 8;
     const clone = svg.cloneNode(true) as SVGSVGElement;
     clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    clone.setAttribute("width", String(W * 8));
-    clone.setAttribute("height", String(H * 8));
+    clone.setAttribute("width", String(pngW));
+    clone.setAttribute("height", String(pngH));
     const xml = new XMLSerializer().serializeToString(clone);
     const url = URL.createObjectURL(new Blob([xml], { type: "image/svg+xml;charset=utf-8" }));
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement("canvas");
-      canvas.width = W * 8;
-      canvas.height = H * 8;
+      canvas.width = pngW;
+      canvas.height = pngH;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       ctx.drawImage(img, 0, 0);
@@ -934,11 +1206,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     </select>
   );
 
-  const shapeStroke: Record<ShapeKind, string> = {
-    run: "#fde047", pass: "#fde047", dribble: "#38bdf8", free: "#f472b6",
-  };
   function renderShape(sh: Shape, isDraft = false) {
-    const stroke = shapeStroke[sh.kind];
+    const stroke = shapeColor(sh);
     const common = {
       stroke, strokeWidth: 1.2, fill: "none",
       strokeLinecap: "round" as const, strokeLinejoin: "round" as const,
@@ -947,6 +1216,13 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       onPointerDown: isDraft ? undefined : (e: React.PointerEvent) => onShapeDown(e, sh.id),
     };
     const a = sh.pts[0], b = sh.pts[sh.pts.length - 1];
+    if (sh.kind === "spotlight") {
+      // Centre comes from the live/animated token bound by playerId, not
+      // from the shape's own stored point — see resolveSpotlightCenter().
+      const c = resolveSpotlightCenter(sh, view.tokens) ?? a;
+      const r = isDraft ? Math.max(4, Math.hypot(b.x - a.x, b.y - a.y)) : (sh.radius ?? 8);
+      return <circle key={sh.id} cx={c.x} cy={c.y} r={r} strokeDasharray="1.5 1.2" {...common} />;
+    }
     if (sh.kind === "free") return <path key={sh.id} d={polyPath(sh.pts)} {...common} />;
     if (sh.kind === "dribble")
       return <path key={sh.id} d={dribblePath(a.x, a.y, b.x, b.y)} markerEnd="url(#tb-arrow)" {...common} />;
@@ -975,6 +1251,12 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                 setTeamId(e.target.value);
                 snapshot();
                 setState((st) => ({ ...st, tokens: st.tokens.filter((t) => t.kind !== "player") }));
+                // Without this, the next Save updates the *previous*
+                // team's play row with the new team's board content —
+                // savePlay()'s update path has no team check of its own,
+                // it trusts playId. A fresh team means a fresh play.
+                setCurrentPlayId(null);
+                setPlayName("");
               }}
               className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             >
@@ -987,7 +1269,9 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           <button
             type="button"
             onClick={setUpHome}
-            className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+            disabled={!pitch.supportsFormations}
+            title={pitch.supportsFormations ? undefined : "Formations need the full pitch — switch pitch below"}
+            className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Users className="size-3.5" aria-hidden="true" />
             Set up my XI
@@ -1001,12 +1285,38 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           <button
             type="button"
             onClick={setUpAway}
-            className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm font-semibold hover:bg-muted"
+            disabled={!pitch.supportsFormations}
+            title={pitch.supportsFormations ? undefined : "Formations need the full pitch — switch pitch below"}
+            className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm font-semibold hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Circle className="size-3.5" aria-hidden="true" />
             Set up opponent XI
           </button>
         </div>
+      </div>
+
+      {/* Pitch */}
+      <div className="rounded-xl border border-border bg-card p-3">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Surface</p>
+        <div className="flex flex-wrap gap-1.5">
+          {SWITCHABLE_PITCHES.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => setPitch(p.id)}
+              className={`inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-xs font-medium ${
+                pitchId === p.id ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border hover:bg-muted"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {!pitch.supportsFormations && (
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            A training grid — formations and pitch overlays are off. Place equipment and draw the drill.
+          </p>
+        )}
       </div>
 
       {/* Tools */}
@@ -1016,12 +1326,34 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
         {toolBtn("pass", Minus, "Pass")}
         {toolBtn("dribble", Waves, "Dribble")}
         {toolBtn("free", Pencil, "Draw")}
+        {toolBtn("spotlight", Target, "Spotlight")}
         {toolBtn("erase", Eraser, "Erase")}
         <span className="mx-1 h-6 w-px bg-border" />
         <button type="button" onClick={addBall} title="Add ball" className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">⚽ Ball</button>
         <button type="button" onClick={addOpponent} title="Add one opponent" className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
           <Circle className="size-3.5" aria-hidden="true" /> +1
         </button>
+        <span className="mx-1 h-6 w-px bg-border" />
+        <span className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background pl-2 pr-1 text-xs">
+          <select
+            value={equipmentKind}
+            onChange={(e) => setEquipmentKind(e.target.value as EquipmentKind)}
+            aria-label="Equipment"
+            className="bg-transparent py-1 text-xs focus:outline-none"
+          >
+            {Object.values(EQUIPMENT_SPECS).map((spec) => (
+              <option key={spec.kind} value={spec.kind}>{spec.label}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => addEquipment(equipmentKind)}
+            title="Add equipment"
+            className="inline-flex h-7 items-center gap-1 rounded px-1.5 text-xs hover:bg-muted"
+          >
+            <Plus className="size-3.5" aria-hidden="true" /> Add
+          </button>
+        </span>
         <span className="mx-1 h-6 w-px bg-border" />
         <button type="button" onClick={undo} title="Undo" className="inline-flex h-10 sm:h-9 items-center rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted"><Undo2 className="size-3.5" aria-hidden="true" /></button>
         <button type="button" onClick={redo} title="Redo" className="inline-flex h-10 sm:h-9 items-center rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted"><Redo2 className="size-3.5" aria-hidden="true" /></button>
@@ -1055,10 +1387,16 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       <div className="grid gap-4 lg:grid-cols-[1fr_16rem]">
         {/* Pitch */}
         <div className="mx-auto w-full max-w-md">
-          <div className="aspect-[2/3] w-full overflow-hidden rounded-xl border border-border">
+          {/* Aspect ratio driven off the *current* pitch, not a hardcoded
+              2:3 — a training grid or half/third pitch has a different
+              shape, and the viewBox below always matches pitch.w/pitch.h.
+              A mismatch here isn't just cosmetic letterboxing: toBoard()
+              assumes the viewBox fills this box exactly, so a wrong ratio
+              also means every click lands at the wrong coordinate. */}
+          <div className="w-full overflow-hidden rounded-xl border border-border" style={{ aspectRatio: `${pitch.w} / ${pitch.h}` }}>
             <svg
               ref={svgRef}
-              viewBox={`0 0 ${W} ${H}`}
+              viewBox={`0 0 ${pitch.w} ${pitch.h}`}
               className="h-full w-full touch-none select-none"
               onPointerDown={onSvgDown}
               onPointerMove={onSvgMove}
@@ -1069,33 +1407,18 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                 <marker id="tb-arrow" viewBox="0 0 10 10" refX={8} refY={5} markerWidth={4.5} markerHeight={4.5} orient="auto-start-reverse">
                   <path d="M0,0 L10,5 L0,10 z" fill="#fde047" />
                 </marker>
-                <pattern id="tb-stripe" width={100} height={12.5} patternUnits="userSpaceOnUse">
-                  <rect width={100} height={12.5} fill="#15803d" />
-                  <rect width={100} height={6.25} fill="#166f36" />
-                </pattern>
               </defs>
 
-              <rect x={0} y={0} width={W} height={H} fill="url(#tb-stripe)" />
+              <PitchLayer pitch={pitch} stripeId="tb-stripe" />
 
-              <OverlayLayer overlay={overlay} />
-
-              {/* Markings */}
-              <g stroke="rgba(255,255,255,0.55)" strokeWidth={0.5} fill="none">
-                <rect x={2} y={2} width={W - 4} height={H - 4} rx={1} />
-                <line x1={2} y1={H / 2} x2={W - 2} y2={H / 2} />
-                <circle cx={W / 2} cy={H / 2} r={11} />
-                <circle cx={W / 2} cy={H / 2} r={0.8} fill="rgba(255,255,255,0.55)" />
-                <rect x={26} y={2} width={48} height={20} />
-                <rect x={38} y={2} width={24} height={8} />
-                <rect x={26} y={H - 22} width={48} height={20} />
-                <rect x={38} y={H - 10} width={24} height={8} />
-                <circle cx={W / 2} cy={16} r={0.8} fill="rgba(255,255,255,0.55)" />
-                <circle cx={W / 2} cy={H - 16} r={0.8} fill="rgba(255,255,255,0.55)" />
-              </g>
+              {pitch.supportsFormations && <OverlayLayer overlay={overlay} />}
 
               {/* Shapes */}
               {view.shapes.map((sh) => renderShape(sh))}
               {draft && renderShape(draft, true)}
+
+              {/* Equipment */}
+              <EquipmentLayer objects={view.objects} onPointerDown={onObjectDown} />
 
               {/* Tokens */}
               {view.tokens.map((tok) => (
@@ -1172,6 +1495,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
             {mode === "pass" && "Drag to draw a pass (dashed arrow)."}
             {mode === "dribble" && "Drag to draw a dribble (wavy line)."}
             {mode === "free" && "Draw freehand to sketch a zone or shape."}
+            {mode === "spotlight" && "Tap a player to highlight them — it follows them through every frame. Tap again to remove."}
             {mode === "erase" && "Tap a player or a line to remove it."}
           </p>
         </div>
@@ -1205,29 +1529,104 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               <button
                 type="button"
                 onClick={recordAnimation}
-                disabled={state.tokens.length === 0 || playing || recording}
-                title="Record the sequence as a video"
+                disabled={state.tokens.length === 0 || playing || recording || !pitch.supportsFormations}
+                title={pitch.supportsFormations ? "Record the sequence as a video" : "Video recording needs the full pitch"}
                 className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50"
               >
                 <Video className="size-3 text-primary" aria-hidden="true" />
                 {recording ? "Recording…" : "Record"}
               </button>
               {frames.length > 0 && (
-                <button type="button" onClick={() => setFrames([])} disabled={playing || recording} className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
+                <button
+                  type="button"
+                  // Frame edits are now folded into the same undo/redo
+                  // history as tokens/shapes/objects (see snapshot()), so
+                  // this is one Undo away like every other destructive
+                  // action on the board — no separate confirm needed.
+                  onClick={() => { snapshot(); setFrames([]); }}
+                  disabled={playing || recording}
+                  className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50"
+                >
                   Clear
                 </button>
               )}
             </div>
+
+            {frames.length >= 2 && (
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min={0}
+                    max={totalDurationMs(frames)}
+                    step={10}
+                    value={scrubMs}
+                    onChange={(e) => scrubTo(Number(e.target.value))}
+                    onPointerUp={endScrub}
+                    disabled={playing}
+                    aria-label="Scrub the sequence"
+                    className="flex-1 accent-primary disabled:opacity-50"
+                  />
+                  {/* A pointer drag ends preview on release (onPointerUp
+                      above), but arrow-key/Home/End interaction with the
+                      slider never fires a pointer event at all — without
+                      this, a keyboard user had no way back to the live,
+                      editable board once they'd touched the scrub bar. */}
+                  {scrubbing && (
+                    <button
+                      type="button"
+                      onClick={endScrub}
+                      className="shrink-0 rounded-md border border-border bg-background px-2 py-1 text-[10px] hover:bg-muted"
+                    >
+                      Done previewing
+                    </button>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {scrubbing ? "Previewing — drag to scrub, editing a pose needs Step ▸ below." : "Drag to preview the sequence at any point."}
+                </p>
+              </div>
+            )}
+
             {frames.length === 0 ? (
               <p className="text-xs text-muted-foreground">No steps captured yet.</p>
             ) : (
               <ol className="space-y-1">
                 {frames.map((f, i) => (
-                  <li key={f.id} className="flex items-center gap-1.5">
-                    <button type="button" onClick={() => gotoFrame(i)} disabled={playing} className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-left text-xs hover:bg-muted disabled:opacity-50">
+                  <li key={f.id} className="flex flex-wrap items-center gap-1.5 rounded-md border border-border bg-background/50 p-1.5">
+                    <div className="flex flex-col">
+                      <button type="button" onClick={() => moveFrame(i, -1)} disabled={playing || i === 0} title="Move earlier" className="rounded px-0.5 hover:bg-muted disabled:opacity-30">
+                        <ChevronUp className="size-3" aria-hidden="true" />
+                      </button>
+                      <button type="button" onClick={() => moveFrame(i, 1)} disabled={playing || i === frames.length - 1} title="Move later" className="rounded px-0.5 hover:bg-muted disabled:opacity-30">
+                        <ChevronDown className="size-3" aria-hidden="true" />
+                      </button>
+                    </div>
+                    <button type="button" onClick={() => gotoFrame(i)} disabled={playing} className="flex-1 min-w-[4rem] rounded-md border border-border bg-background px-2 py-1 text-left text-xs hover:bg-muted disabled:opacity-50">
                       Step {i + 1}
                     </button>
+                    {i > 0 && (
+                      <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <input
+                          type="number"
+                          min={100}
+                          step={100}
+                          value={f.durationMs ?? DEFAULT_FRAME_DURATION_MS}
+                          onChange={(e) => setFrameDuration(i, Number(e.target.value))}
+                          disabled={playing}
+                          aria-label={`Step ${i + 1} duration in milliseconds`}
+                          className="w-16 rounded border border-border bg-background px-1 py-0.5 text-[10px] disabled:opacity-50"
+                        />
+                        ms
+                      </label>
+                    )}
                     <button type="button" onClick={() => updateFrame(i)} disabled={playing} title="Update this step to the current board" className="rounded-md border border-border bg-background px-1.5 py-1 text-[10px] hover:bg-muted disabled:opacity-50">Set</button>
+                    <button type="button" onClick={() => insertFrameAfter(i)} disabled={playing} title="Insert the current board as a new step after this one" className="rounded-md border border-border bg-background px-1.5 py-1 text-[10px] hover:bg-muted disabled:opacity-50">
+                      <Plus className="size-3" aria-hidden="true" />
+                    </button>
+                    <button type="button" onClick={() => duplicateFrame(i)} disabled={playing} title="Duplicate step" className="rounded-md border border-border bg-background px-1.5 py-1 hover:bg-muted disabled:opacity-50">
+                      <Copy className="size-3" aria-hidden="true" />
+                    </button>
                     <button type="button" onClick={() => deleteFrame(i)} disabled={playing} title="Delete step" className="rounded-md border border-border bg-background px-2 py-2 sm:py-1 hover:bg-muted disabled:opacity-50">
                       <Trash2 className="size-3" aria-hidden="true" />
                     </button>
@@ -1406,6 +1805,104 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
             )}
             {notice && <p className="text-[11px] text-muted-foreground pt-1">{notice}</p>}
           </div>
+
+          {/* ── Player notes ──────────────────────────────────── */}
+          {selectedTokenId && (() => {
+            const tok = state.tokens.find((t) => t.id === selectedTokenId);
+            if (!tok?.playerId) return null;
+            const playerId = tok.playerId;
+            const notes = state.playerNotes.filter((n) => n.playerId === playerId);
+            return (
+              <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <MessageSquare className="size-3.5 text-primary" aria-hidden="true" />
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    Notes for {tok.label}
+                  </p>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Shown to {tok.label} in their own view of this play — real coaching feedback, not just a diagram.
+                </p>
+                {notes.length > 0 && (
+                  <ul className="space-y-1">
+                    {notes.map((n) => (
+                      <li key={n.id} className="flex items-start gap-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-xs">
+                        <span className="flex-1">{n.body}</span>
+                        <button type="button" onClick={() => deletePlayerNote(n.id)} title="Delete note" className="text-muted-foreground hover:text-destructive">
+                          <Trash2 className="size-3" aria-hidden="true" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="flex gap-1.5">
+                  <input
+                    type="text"
+                    value={noteDraft}
+                    onChange={(e) => setNoteDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && noteDraft.trim()) {
+                        addPlayerNote(playerId, noteDraft);
+                        setNoteDraft("");
+                      }
+                    }}
+                    placeholder="e.g. Stay wide here to stretch their back line"
+                    maxLength={280}
+                    className="flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { addPlayerNote(playerId, noteDraft); setNoteDraft(""); }}
+                    disabled={!noteDraft.trim()}
+                    className="rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Notes for a player who's been subbed off (or never placed)
+              since their note was written — the panel above only shows
+              while their token is selected, so without this a note becomes
+              unreachable the moment they leave the pitch. Still shown
+              correctly to that player in their own view either way; this
+              is only about being able to see/delete it from the editor. */}
+          {(() => {
+            const onBoardPlayerIds = new Set(state.tokens.map((t) => t.playerId).filter((id): id is string => !!id));
+            const offBoard = state.playerNotes.filter((n) => !onBoardPlayerIds.has(n.playerId));
+            if (offBoard.length === 0) return null;
+            return (
+              <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <MessageSquare className="size-3.5 text-muted-foreground" aria-hidden="true" />
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    Notes for players not on the pitch
+                  </p>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Bring a player back on to add another note for them.
+                </p>
+                <ul className="space-y-1">
+                  {offBoard.map((n) => {
+                    const player = roster.find((p) => p.id === n.playerId);
+                    return (
+                      <li key={n.id} className="flex items-start gap-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-xs">
+                        <span className="flex-1">
+                          <span className="font-semibold">{player ? shortLabel(player.full_name) : "A player"}: </span>
+                          {n.body}
+                        </span>
+                        <button type="button" onClick={() => deletePlayerNote(n.id)} title="Delete note" className="text-muted-foreground hover:text-destructive">
+                          <Trash2 className="size-3" aria-hidden="true" />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })()}
 
           <div>
             <div className="mb-2">

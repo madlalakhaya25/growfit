@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getSharedPlay } from "@/app/actions/tactic-plays";
 import { PlayViewer, type PlayData } from "@/components/tactics/play-viewer";
+import { FilmViewer, type FilmViewerData } from "@/components/tactics/film-viewer";
 import { getConcept } from "@/lib/tactics";
 import { Badge } from "@/components/ui/badge";
 
@@ -63,11 +64,16 @@ export default async function PlayerPlayPage({
         </div>
       )}
 
-      <PlayViewer data={play.data as PlayData} />
-
-      <p className="text-center text-xs text-muted-foreground">
-        Yellow lines are runs and passes. Blue is a dribble. Watch where you should be at each moment.
-      </p>
+      {(play.data as { surface?: string })?.surface === "film" ? (
+        <FilmViewer data={play.data as FilmViewerData} />
+      ) : (
+        <>
+          <PlayViewer data={play.data as PlayData} />
+          <p className="text-center text-xs text-muted-foreground">
+            Yellow lines are runs and passes. Blue is a dribble. Watch where you should be at each moment.
+          </p>
+        </>
+      )}
     </div>
   );
 }

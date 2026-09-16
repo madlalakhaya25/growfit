@@ -117,6 +117,44 @@ memory of what was planned.
 - Tactical concept library, positional-role explainers, player position
   guide
 
+### Tactics studio parity pass (this cycle)
+Target was feature parity with dedicated pitch-diagram tools (The Tactics
+App, Final Third), plus a video-telestration surface neither of them has.
+- **Pitch sizes, training grids, and equipment.** Full/half/third pitches
+  and sized training grids, a placeable/draggable equipment set (cones,
+  markers, mannequins, goals, bibs, poles, ladders, hurdles) — the board
+  can now lay out a Wednesday training drill, not just Sunday's match shape
+- **A real keyframe timeline.** Per-frame duration and easing, reorder,
+  duplicate, insert, and a scrub bar that seeks to any point and edits the
+  pose at that exact frame — replacing a hardcoded, un-editable segment
+  duration. Frame-list edits are now undoable like every other board
+  action, not a separate un-tracked path
+- **Player spotlight and per-player notes.** A highlight that follows a
+  specific player's token through the whole animation, and coaching notes
+  attached to a player rather than one free-text field for the whole play
+  — pushed to that player's own shared view, filtered so a note is only
+  ever seen by the player (or parent) it's about, never the whole squad
+- **Match Film.** A second telestration surface for a captured phone-clip
+  frame, a photo, or a live YouTube/Vimeo embed — draw over a real moment
+  and share the breakdown to the squad, alongside the existing diagram-only
+  saved plays
+- **Shared drawing core.** The SVG board, the read-only shared view, and
+  the canvas video recorder previously diverged into three separate
+  implementations of the same shapes and math; consolidated into one
+  (`lib/board-model.ts`) so a new shape or pitch is defined once
+
+### Access-code flow fix (this cycle)
+A coach entering their team's join/coach code at registration could
+previously end up in an unrecoverable state — wrong role assigned, no
+academy attached, and no working self-service recovery screen (the one
+that existed had no database policy allowing the write it tried to make).
+Rebuilt around one validated RPC (`redeem_access_code`) that checks a code
+against all three lookalike code types before any write happens, and
+closed two real privilege-escalation paths found in review: a coach role
+could previously be granted through a code path that was never meant to
+grant it, and a client-controlled field could reach further into a
+profile update than intended.
+
 ### Squad-aware AI (13 capabilities, also unmentioned in the prior roadmap)
 - Shared squad-context brief (real ratings, form, attendance, results) —
   every AI feature answers with actual players and numbers, never invented

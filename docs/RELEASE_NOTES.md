@@ -6,6 +6,51 @@ releases yet. Newest first.
 
 ---
 
+## 2026-09-16 — Tactics studio parity, Match Film, and a coach-lockout fix
+
+**Fixed**
+- A coach given their team's join/coach code at registration could
+  previously end up with an unrecoverable account — wrong role, no
+  academy attached, and no working way to self-heal (the recovery screen
+  existed but had no database policy allowing the write it tried to make,
+  so it just surfaced a raw permissions error). Registration now validates
+  a code *before* the account is created, and redemption goes through one
+  RPC (`redeem_access_code`) that checks which of the three lookalike code
+  types it actually is before writing anything.
+- Two privilege-escalation gaps found in review while fixing the above: a
+  coach role could be granted through a code path never meant to grant it,
+  and a client-controlled field on the profile-update path reached further
+  than intended. Both closed.
+- A play shared to a squad leaked every player's individual coaching notes
+  to the whole squad, not just the player (or parent) each note was about
+  — despite the UI's own copy promising otherwise. Caught in review before
+  this reached a live database; `get_shared_play()` now filters notes to
+  the viewer.
+
+**Added**
+- **Pitch sizes, training grids, and equipment** on the tactics board —
+  full/half/third pitches, sized training grids, and a placeable,
+  draggable equipment set (cones, markers, mannequins, goals, bibs, poles,
+  ladders, hurdles). The board can now lay out an actual training drill,
+  not only a match shape.
+- **A real keyframe timeline** — per-frame duration and easing, reorder,
+  duplicate, insert, and a scrub bar that edits the pose at any point in
+  the animation — replacing a fixed, un-editable segment length.
+- **Player spotlight and per-player notes** — a highlight that follows one
+  player's token through an entire animation, and coaching notes attached
+  to a specific player rather than one note field for the whole play.
+- **Match Film** — a second telestration surface for drawing over a
+  captured phone-clip frame, a photo, or a live YouTube/Vimeo embed, saved
+  and shared to the squad the same way a diagram play is.
+
+**Behind the scenes**: the SVG drawing board, the read-only shared-play
+view, and the canvas video recorder had each grown their own copy of the
+same shape and animation logic; consolidated into one shared module
+(`lib/board-model.ts`) so a new shape, pitch, or equipment kind is defined
+once instead of three times.
+
+---
+
 ## 2026-09-06 — Safeguarding, data rights, and a real registration-flow bug
 
 Closes out every item on the "Near term" roadmap from the previous pass.

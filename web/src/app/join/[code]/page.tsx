@@ -1,10 +1,8 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { joinByInviteCode } from "@/app/actions/squad";
-import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
+import { ConfirmJoinButton } from "./confirm-join-button";
 
 export default async function JoinPage({
   params,
@@ -16,11 +14,22 @@ export default async function JoinPage({
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect(`/auth/login?next=/join/${code}`);
+    // `code` is a raw, attacker-controlled route segment — encode it before
+    // it goes anywhere near a redirect target rather than trusting it's a
+    // clean path component (login-form.tsx's safeNext() is the other half
+    // of this: it only ever follows `next` back to a same-origin path).
+    redirect(`/auth/login?next=${encodeURIComponent(`/join/${code}`)}`);
   }
 
-  // Attempt to join
-  const result = await joinByInviteCode(code);
+  // Read-only preview of what the code grants — no write here. The actual
+  // redeem only happens once the visitor clicks confirm (see the gotcha
+  // this fixed: a GET that redeemed the code on render meant any link
+  // prefetch, crawler, or chat preview bot silently consumed the invite).
+  // peek_access_code() no longer returns a name (it was an unrate-limited
+  // code→name oracle for anon — see migration 027), so there's no team name
+  // to preview here any more; ConfirmJoinButton falls back to generic copy.
+  // joinByInviteCode() itself still validates kind==='team_player' before
+  // ever writing, so a non-squad code confirmed here errors, not mutates.
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -35,30 +44,7 @@ export default async function JoinPage({
           <span className="mx-auto grid size-14 place-items-center rounded-full bg-brand/15">
             <Users className="size-7 text-primary" aria-hidden="true" />
           </span>
-
-          {result.error ? (
-            <>
-              <div>
-                <h1 className="text-xl font-bold">Couldn&apos;t join</h1>
-                <p className="mt-2 text-sm text-muted-foreground">{result.error}</p>
-              </div>
-              <Button asChild variant="outline" className="w-full">
-                <Link href="/dashboard/player">Go to dashboard</Link>
-              </Button>
-            </>
-          ) : (
-            <>
-              <div>
-                <h1 className="text-xl font-bold">You&apos;re in!</h1>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  You have joined <span className="font-semibold text-foreground">{result.teamName}</span>. Welcome to the squad.
-                </p>
-              </div>
-              <Button asChild className="w-full">
-                <Link href="/dashboard/player">Go to my dashboard</Link>
-              </Button>
-            </>
-          )}
+          <ConfirmJoinButton code={code} />
         </div>
       </main>
     </div>

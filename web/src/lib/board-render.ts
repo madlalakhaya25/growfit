@@ -4,20 +4,24 @@
 // canvas: MediaRecorder captures a canvas stream directly, with no per-frame
 // SVG serialise/decode round-trip. This module draws the same picture with the
 // 2D API so a play can be recorded as a video.
+//
+// Shape colours and the wavy dribble-path construction come from
+// board-model.ts, the one place those are defined now — see that file's
+// header for why.
 
-export const BOARD_W = 100;
-export const BOARD_H = 150;
+import { BOARD_W, BOARD_H, GROUP_COLOR, shapeColor, type ShapeKind } from "@/lib/board-model";
 
-export const BOARD_GROUP_COLOR: Record<string, string> = {
-  Goalkeeper: "#f59e0b",
-  Defender: "#3b82f6",
-  Midfielder: "#22c55e",
-  Forward: "#ef4444",
-  Opponent: "#0f172a",
-  Ball: "#f8fafc",
-};
+export { BOARD_W, BOARD_H };
+export const BOARD_GROUP_COLOR = GROUP_COLOR;
 
-export type RenderShapeKind = "run" | "pass" | "dribble" | "free";
+// Accepts the full shared ShapeKind so a caller can pass a board's real
+// Shape[] without a type error — but the draw loop below only has distinct
+// branches for "free" and "dribble"; zone/spotlight/text (both the pitch
+// board's spotlight tool and the film board's zone/text tools can produce
+// these now) draw as a stray line/arrow instead of the real shape. Filter
+// with RECORDABLE_SHAPE_KINDS (board-model.ts) before calling drawBoard —
+// tactical-board.tsx's recorder already does.
+export type RenderShapeKind = ShapeKind;
 export type RenderOverlay = "none" | "thirds" | "channels" | "zone14";
 
 export interface RenderToken {
@@ -31,13 +35,6 @@ export interface RenderShape {
   kind: RenderShapeKind;
   pts: { x: number; y: number }[];
 }
-
-const SHAPE_STROKE: Record<RenderShapeKind, string> = {
-  run: "#fde047",
-  pass: "#fde047",
-  dribble: "#38bdf8",
-  free: "#f472b6",
-};
 
 function arrowHead(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number, color: string, s: number) {
   const ang = Math.atan2(y2 - y1, x2 - x1);
@@ -147,7 +144,7 @@ export function drawBoard(
   ctx.lineJoin = "round";
   for (const sh of shapes) {
     if (sh.pts.length < 2) continue;
-    const color = SHAPE_STROKE[sh.kind];
+    const color = shapeColor(sh);
     ctx.strokeStyle = color;
     ctx.lineWidth = 1.2 * s;
     ctx.setLineDash(sh.kind === "pass" ? [3 * s, 2 * s] : []);

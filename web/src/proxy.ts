@@ -8,13 +8,17 @@ import { NextResponse, type NextRequest } from "next/server";
 // `/offline`). `/register-club` was found the same way: a brand new visitor
 // with no session at all could never reach the self-service academy signup
 // page without this entry, silently defeating the whole feature.
-const PUBLIC_PATHS = ["/auth/login", "/auth/verify", "/auth/role", "/auth/register", "/auth/forgot-password", "/auth/reset-password", "/", "/passport", "/offline", "/register-club"];
+// "/auth/verify" was an Expo-app OTP leftover — that route doesn't exist in
+// this app (no page ever rendered there), so it was dead weight here.
+const PUBLIC_PATHS = ["/auth/login", "/auth/role", "/auth/register", "/auth/forgot-password", "/auth/reset-password", "/", "/passport", "/offline", "/register-club"];
 
 // Simple in-memory rate limiter (per process instance)
 // For multi-instance deployments, replace with a shared store like Upstash Redis
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const AUTH_RATE_LIMIT = { windowMs: 60_000, max: 10 };
-const AUTH_PATHS = ["/auth/login", "/auth/verify"];
+// /auth/register now calls peek_access_code before signUp — rate limit it
+// alongside login so a code can't be brute-forced through the register form.
+const AUTH_PATHS = ["/auth/login", "/auth/register"];
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
