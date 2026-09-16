@@ -121,6 +121,14 @@ export function shapeWidth(sh: Pick<Shape, "width">): number {
   return sh.width ?? DEFAULT_SHAPE_WIDTH;
 }
 
+/** Kinds board-render.ts's canvas drawBoard() actually knows how to draw
+ * (its "free"/"dribble" branches, plus the generic arrow line for
+ * run/pass) — it has no polygon-fill or text-label rendering. A caller
+ * feeding it a full Shape[] should filter to this set first; passing a
+ * zone/spotlight/text through unfiltered doesn't error, it silently draws
+ * as a stray line/arrow between the shape's first and last point. */
+export const RECORDABLE_SHAPE_KINDS: ReadonlySet<ShapeKind> = new Set(["run", "pass", "dribble", "free"]);
+
 /**
  * Where a spotlight actually draws: it follows the player it's bound to,
  * not a fixed point. A token surviving a substitution gets a new board id
@@ -234,7 +242,11 @@ export function interpolateFrames<T extends { id: string }>(
       if (!a || !b) return t as T & Point;
       return { ...t, x: a.x + (b.x - a.x) * local, y: a.y + (b.y - a.y) * local };
     }),
-    shapes: to.shapes,
+    // Defensive: a stored frame missing `shapes` (shouldn't happen from
+    // this app's own writers, but this reads data saved months apart by
+    // different code) shows nothing instead of throwing downstream where
+    // a caller maps over this array.
+    shapes: to.shapes ?? [],
   };
 }
 

@@ -30,7 +30,9 @@ export type AccessCodeKind = "team_coach" | "team_player" | "academy";
 export interface PeekAccessCodeResult {
   valid: boolean;
   kind?: AccessCodeKind;
-  label?: string;
+  // No `label` (club/team name) here on purpose — see peek_access_code's
+  // own comment in migration 027. Returning it made this anonymous,
+  // unrate-limited RPC a code→name oracle over the whole 6-hex-char space.
 }
 
 export interface RedeemAccessCodeResult {

@@ -19,7 +19,8 @@ import { drawBoard, pickRecorderMime } from "@/lib/board-render";
 import { framesFromShapes } from "@/lib/play-motion";
 import {
   BOARD_W, BOARD_H, dribblePath, polyPath, shapeColor, interpolateFrames, totalDurationMs, DEFAULT_FRAME_DURATION_MS,
-  getPitch, PITCHES, toBoardSpace, EQUIPMENT_SPECS, resolveSpotlightCenter,
+  getPitch, PITCHES, toBoardSpace, EQUIPMENT_SPECS, resolveSpotlightCenter, RECORDABLE_SHAPE_KINDS,
+  GROUP_COLOR,
   type EquipmentKind, type BoardObject, type PlayerNote,
   type Token, type Shape, type ShapeKind, type Frame as ModelFrame,
 } from "@/lib/board-model";
@@ -29,10 +30,11 @@ import { EquipmentLayer } from "@/components/tactics/equipment-layer";
 // ── Types ────────────────────────────────────────────────────────
 // Token, Shape, ShapeKind and the Frame shape all come from board-model.ts
 // now — the one place they're defined, shared with the read-only viewer and
-// the canvas recorder. ShapeKind there is wider than the four this board's
-// drawing tools can currently produce (run/pass/dribble/free); the extra
-// kinds (zone/spotlight/text) exist for a future tool, not yet wired up
-// here, and are harmless to have in scope early.
+// the canvas recorder. This board's own drawing tools produce
+// run/pass/dribble/free/spotlight; zone/text exist in the shared ShapeKind
+// for the film board's tools (components/tactics/film-board.tsx), not this
+// one — RECORDABLE_SHAPE_KINDS is what actually gates what the canvas
+// recorder here can draw, not this board's own tool set.
 export interface BoardPlayer {
   id: string;
   full_name: string;
@@ -79,14 +81,6 @@ const W = BOARD_W;
 const H = BOARD_H;
 
 const GROUP_ORDER = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
-const GROUP_COLOR: Record<string, string> = {
-  Goalkeeper: "#f59e0b",
-  Defender: "#3b82f6",
-  Midfielder: "#22c55e",
-  Forward: "#ef4444",
-  Opponent: "#0f172a",
-  Ball: "#f8fafc",
-};
 
 function groupOf(position: string | null): string {
   if (!position) return "Midfielder";
@@ -537,8 +531,11 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
         if (startedAt === null) startedAt = now;
         const elapsed = Math.min(Math.max(0, now - startedAt), total);
         const { tokens, shapes } = interpolateFrames(state.tokens, seqFrames, elapsed);
+        // drawBoard() has no polygon/text rendering (see RECORDABLE_SHAPE_KINDS)
+        // — a zone or a label would draw as a stray line without this filter.
+        const recordable = shapes.filter((sh) => RECORDABLE_SHAPE_KINDS.has(sh.kind));
 
-        drawBoard(ctx, { tokens, shapes, overlay, showNames, scale });
+        drawBoard(ctx, { tokens, shapes: recordable, overlay, showNames, scale });
 
         if (now - startedAt < total) requestAnimationFrame(tick);
         else resolve();
@@ -692,15 +689,29 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     }
     if (ball) lines.push(`Ball starts in the ${side(ball.x)} ${zone(ball.y)}.`);
 
-    if (state.shapes.length) {
+    // Spotlights aren't a line from A to B (they're one point, a ring on a
+    // player) — describe them separately rather than as a degenerate
+    // "freehand mark from X to X" the arrow-description below would read.
+    const lineShapes = state.shapes.filter((sh) => sh.kind !== "spotlight");
+    const spotlights = state.shapes.filter((sh) => sh.kind === "spotlight");
+
+    if (lineShapes.length) {
       lines.push("Lines drawn:");
-      state.shapes.forEach((sh) => {
+      lineShapes.forEach((sh) => {
         const a = sh.pts[0], b = sh.pts[sh.pts.length - 1];
         const kind = sh.kind === "run" ? "a run" : sh.kind === "pass" ? "a pass" : sh.kind === "dribble" ? "a dribble" : "a freehand mark";
         lines.push(`- ${kind} from the ${side(a.x)} ${zone(a.y)} to the ${side(b.x)} ${zone(b.y)}`);
       });
     } else {
       lines.push("No runs or passes drawn.");
+    }
+
+    if (spotlights.length) {
+      lines.push("Players highlighted:");
+      spotlights.forEach((sh) => {
+        const p = state.tokens.find((t) => t.playerId === sh.playerId);
+        lines.push(`- ${p?.label ?? "a player"}`);
+      });
     }
 
     lines.push(frames.length >= 2
@@ -930,9 +941,15 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       // Bound by playerId, not by this token's own id or the clicked point —
       // resolveSpotlightCenter() (board-model.ts) then draws the ring at
       // wherever that player currently is, every frame, including after a
-      // substitution changes their token id.
-      if (!tok.playerId) return;
+      // substitution changes their token id. stopPropagation() happens
+      // before the early return: without it, tapping the ball or an
+      // opponent (neither has a playerId) let the event bubble to
+      // onSvgDown, which had no spotlight guard of its own and created an
+      // *unbound* spotlight at that point — and since the toggle-off check
+      // below matches on playerId, a second such tap deleted every unbound
+      // spotlight on the board at once.
       e.stopPropagation();
+      if (!tok.playerId) return;
       const { x, y } = toBoard(e.clientX, e.clientY);
       drawing.current = true;
       setDraft({ id: "draft", kind: "spotlight", pts: [{ x: tok.x, y: tok.y }, { x, y }], playerId: tok.playerId });
@@ -947,7 +964,11 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     (e.target as Element).setPointerCapture?.(e.pointerId);
   }
   function onSvgDown(e: React.PointerEvent) {
-    if (mode === "move" || mode === "erase") return;
+    // Spotlight only ever makes sense bound to a player — see onTokenDown,
+    // which is the only place a spotlight draft is created. A background
+    // (or ball/opponent) tap in this mode does nothing, rather than
+    // creating an unbound ring with no playerId to follow.
+    if (mode === "move" || mode === "erase" || mode === "spotlight") return;
     const { x, y } = toBoard(e.clientX, e.clientY);
     drawing.current = true;
     setDraft({ id: "draft", kind: mode, pts: [{ x, y }, { x, y }] });
@@ -1161,6 +1182,12 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                 setTeamId(e.target.value);
                 snapshot();
                 setState((st) => ({ ...st, tokens: st.tokens.filter((t) => t.kind !== "player") }));
+                // Without this, the next Save updates the *previous*
+                // team's play row with the new team's board content —
+                // savePlay()'s update path has no team check of its own,
+                // it trusts playId. A fresh team means a fresh play.
+                setCurrentPlayId(null);
+                setPlayName("");
               }}
               className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             >
@@ -1291,7 +1318,13 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       <div className="grid gap-4 lg:grid-cols-[1fr_16rem]">
         {/* Pitch */}
         <div className="mx-auto w-full max-w-md">
-          <div className="aspect-[2/3] w-full overflow-hidden rounded-xl border border-border">
+          {/* Aspect ratio driven off the *current* pitch, not a hardcoded
+              2:3 — a training grid or half/third pitch has a different
+              shape, and the viewBox below always matches pitch.w/pitch.h.
+              A mismatch here isn't just cosmetic letterboxing: toBoard()
+              assumes the viewBox fills this box exactly, so a wrong ratio
+              also means every click lands at the wrong coordinate. */}
+          <div className="w-full overflow-hidden rounded-xl border border-border" style={{ aspectRatio: `${pitch.w} / ${pitch.h}` }}>
             <svg
               ref={svgRef}
               viewBox={`0 0 ${pitch.w} ${pitch.h}`}
@@ -1435,7 +1468,18 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                 {recording ? "Recording…" : "Record"}
               </button>
               {frames.length > 0 && (
-                <button type="button" onClick={() => setFrames([])} disabled={playing || recording} className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
+                <button
+                  type="button"
+                  // Frame edits (capture/reorder/duplicate/insert/delete)
+                  // live in `frames`, not `state` — they're outside the
+                  // undo/redo history that covers tokens/shapes/objects,
+                  // so this destroys a hand-built timeline with no way
+                  // back. A confirm is the cheap guard until frames get
+                  // folded into that history properly.
+                  onClick={() => { if (window.confirm(`Clear all ${frames.length} captured steps? This can't be undone.`)) setFrames([]); }}
+                  disabled={playing || recording}
+                  className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50"
+                >
                   Clear
                 </button>
               )}
@@ -1443,18 +1487,34 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
 
             {frames.length >= 2 && (
               <div className="space-y-1">
-                <input
-                  type="range"
-                  min={0}
-                  max={totalDurationMs(frames)}
-                  step={10}
-                  value={scrubMs}
-                  onChange={(e) => scrubTo(Number(e.target.value))}
-                  onPointerUp={endScrub}
-                  disabled={playing}
-                  aria-label="Scrub the sequence"
-                  className="w-full accent-primary disabled:opacity-50"
-                />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min={0}
+                    max={totalDurationMs(frames)}
+                    step={10}
+                    value={scrubMs}
+                    onChange={(e) => scrubTo(Number(e.target.value))}
+                    onPointerUp={endScrub}
+                    disabled={playing}
+                    aria-label="Scrub the sequence"
+                    className="flex-1 accent-primary disabled:opacity-50"
+                  />
+                  {/* A pointer drag ends preview on release (onPointerUp
+                      above), but arrow-key/Home/End interaction with the
+                      slider never fires a pointer event at all — without
+                      this, a keyboard user had no way back to the live,
+                      editable board once they'd touched the scrub bar. */}
+                  {scrubbing && (
+                    <button
+                      type="button"
+                      onClick={endScrub}
+                      className="shrink-0 rounded-md border border-border bg-background px-2 py-1 text-[10px] hover:bg-muted"
+                    >
+                      Done previewing
+                    </button>
+                  )}
+                </div>
                 <p className="text-[10px] text-muted-foreground">
                   {scrubbing ? "Previewing — drag to scrub, editing a pose needs Step ▸ below." : "Drag to preview the sequence at any point."}
                 </p>

@@ -77,7 +77,17 @@ export function LoginForm() {
     // that can recover (/auth/role), not silently on the wrong dashboard.
     const pendingCode = user.user_metadata?.pending_access_code;
     if (!profileData.academy_id && typeof pendingCode === "string" && pendingCode) {
+      // A failure here isn't shown inline — this navigates away right
+      // after, and (protected)/layout.tsx's own academy_id check already
+      // sends a coach with no academy to /auth/role for a real second
+      // attempt. The code is cleared from metadata regardless of outcome:
+      // it's readable in the user's own JWT, and — for a coach code
+      // specifically — leaving a failed one in place would mean it
+      // silently retries on every future login while academy_id stays
+      // null, effectively a reusable coach-seat credential sitting in the
+      // token indefinitely.
       await supabase.rpc("redeem_access_code", { p_code: pendingCode, p_role: profileData.role });
+      await supabase.auth.updateUser({ data: { pending_access_code: null } });
     }
 
     if (user.user_metadata?.pending_club_create === true && !profileData.academy_id) {

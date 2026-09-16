@@ -15,8 +15,8 @@ import { normalizeAccessCode, describeAccessCodeKind, type PeekAccessCodeResult 
 const INPUT_CLASS =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
+// No 'admin' key — RegisterInput["role"] can't be admin (see below).
 const ROLE_ROUTES: Record<string, string> = {
-  admin: "/dashboard/admin",
   coach: "/dashboard/coach",
   player: "/dashboard/player",
   parent: "/dashboard/parent",
@@ -83,8 +83,16 @@ export default function RegisterPage() {
         setServerError("That code doesn't match a club or team. Check it with your admin.");
         return;
       }
-      if (data.role === "coach" && peek.kind !== "team_coach" && peek.kind !== "academy") {
-        setServerError("That's a squad invite code, not a coach code — check it with your admin.");
+      // A coach seat only ever comes from a real team coach code — never
+      // from the academy join code, which is handed to every parent and
+      // player. redeem_access_code() enforces this server-side too; this
+      // is just a clearer error before the account is even created.
+      if (data.role === "coach" && peek.kind !== "team_coach") {
+        setServerError(
+          peek.kind === "academy"
+            ? "A club code can't make you a coach — ask your admin for your team's coach code instead."
+            : "That's a squad invite code, not a coach code — check it with your admin."
+        );
         return;
       }
       if (data.role !== "coach" && peek.kind === "team_coach") {
@@ -317,7 +325,7 @@ export default function RegisterPage() {
               )}
               {clubCodeValue.length === 6 && !checkingCode && codePeek?.valid && (
                 <p className="text-xs text-primary">
-                  Matches {describeAccessCodeKind(codePeek.kind)}{codePeek.label ? `: ${codePeek.label}` : ""}.
+                  Matches {describeAccessCodeKind(codePeek.kind)}.
                 </p>
               )}
               {errors.club_code && <p role="alert" className="text-xs text-destructive">{errors.club_code.message}</p>}

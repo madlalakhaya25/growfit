@@ -92,7 +92,12 @@ export function PlayViewer({ data }: { data: PlayData }) {
   return (
     <div className="space-y-3">
       <div className="mx-auto w-full max-w-md">
-        <div className="aspect-[2/3] w-full overflow-hidden rounded-xl border border-border">
+        {/* Aspect ratio driven off the play's own Pitch — a hardcoded 2:3
+            here would letterbox anything but the full pitch, and (since
+            interactive scrub/click coordinates elsewhere assume the
+            viewBox fills this box exactly) is the kind of mismatch that
+            also throws off coordinates, not just the visual frame. */}
+        <div className="w-full overflow-hidden rounded-xl border border-border" style={{ aspectRatio: `${pitch.w} / ${pitch.h}` }}>
           <svg viewBox={`0 0 ${pitch.w} ${pitch.h}`} className="h-full w-full select-none">
             <defs>
               <marker id="pv-arrow" viewBox="0 0 10 10" refX={8} refY={5} markerWidth={4.5} markerHeight={4.5} orient="auto-start-reverse">

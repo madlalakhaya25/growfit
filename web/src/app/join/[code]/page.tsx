@@ -21,8 +21,11 @@ export default async function JoinPage({
   // redeem only happens once the visitor clicks confirm (see the gotcha
   // this fixed: a GET that redeemed the code on render meant any link
   // prefetch, crawler, or chat preview bot silently consumed the invite).
-  const { data: peek } = await supabase.rpc("peek_access_code", { p_code: code });
-  const teamLabel = peek?.valid && peek?.kind === "team_player" ? (peek.label as string) : undefined;
+  // peek_access_code() no longer returns a name (it was an unrate-limited
+  // code→name oracle for anon — see migration 027), so there's no team name
+  // to preview here any more; ConfirmJoinButton falls back to generic copy.
+  // joinByInviteCode() itself still validates kind==='team_player' before
+  // ever writing, so a non-squad code confirmed here errors, not mutates.
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -37,7 +40,7 @@ export default async function JoinPage({
           <span className="mx-auto grid size-14 place-items-center rounded-full bg-brand/15">
             <Users className="size-7 text-primary" aria-hidden="true" />
           </span>
-          <ConfirmJoinButton code={code} teamLabel={teamLabel} />
+          <ConfirmJoinButton code={code} />
         </div>
       </main>
     </div>

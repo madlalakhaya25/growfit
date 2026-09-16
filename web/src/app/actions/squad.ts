@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createPlayerSchema, createTeamSchema } from "@/lib/validation";
 import { requireUser } from "@/lib/auth";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { normalizeAccessCode } from "@/lib/access-codes";
 
 async function getCoachTeamById(teamId: string) {
   const { supabase, user } = await requireUser();
@@ -175,11 +176,22 @@ export async function createTeam(formData: FormData) {
  * insert here was always going to be rejected by RLS regardless of anything
  * else in this function. The RPC runs SECURITY DEFINER, so it can actually
  * do the write.
+ *
+ * p_expect_kind: 'team_player' tells the RPC this call only ever wants a
+ * squad invite code — it checks that *before* writing anything, not after.
+ * Without it, a coach code or academy code pasted into this flow (this is
+ * the only entry point for a bare 6-character code with no context on
+ * which kind it should be) would get applied in full — attaching the
+ * caller to that academy, or claiming a coach seat — and only then get
+ * reported back as "not a squad code", with the side effect already done.
  */
 export async function joinByInviteCode(inviteCode: string) {
   const { supabase } = await requireUser();
 
-  const { data, error } = await supabase.rpc("redeem_access_code", { p_code: inviteCode });
+  const { data, error } = await supabase.rpc("redeem_access_code", {
+    p_code: normalizeAccessCode(inviteCode),
+    p_expect_kind: "team_player",
+  });
   if (error) return { error: error.message };
 
   const res = data as { error?: string; team_name?: string; already?: boolean; kind?: string };

@@ -15,10 +15,12 @@ export { BOARD_W, BOARD_H };
 export const BOARD_GROUP_COLOR = GROUP_COLOR;
 
 // Accepts the full shared ShapeKind so a caller can pass a board's real
-// Shape[] without filtering first. The draw loop below only has distinct
-// branches for "free" and "dribble" today — anything else (including the
-// newer zone/spotlight/text kinds) draws as a plain line/arrow, which is a
-// visual no-op edge case: no drawing tool can produce those kinds yet.
+// Shape[] without a type error — but the draw loop below only has distinct
+// branches for "free" and "dribble"; zone/spotlight/text (both the pitch
+// board's spotlight tool and the film board's zone/text tools can produce
+// these now) draw as a stray line/arrow instead of the real shape. Filter
+// with RECORDABLE_SHAPE_KINDS (board-model.ts) before calling drawBoard —
+// tactical-board.tsx's recorder already does.
 export type RenderShapeKind = ShapeKind;
 export type RenderOverlay = "none" | "thirds" | "channels" | "zone14";
 
