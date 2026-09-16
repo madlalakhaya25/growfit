@@ -403,7 +403,11 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
           {notice && <p className="text-sm text-destructive">{notice}</p>}
         </div>
 
-        {videoUrl && (
+        {/* videoUrl only ever comes from URL.createObjectURL(file) below — a
+            local blob: URL, never a remote/attacker string — but pin that
+            explicitly right at the sink rather than trusting state never
+            drifts. */}
+        {videoUrl && videoUrl.startsWith("blob:") && (
           <div className="mx-auto w-full max-w-md space-y-3">
             <video ref={videoRef} src={videoUrl} controls playsInline className="w-full rounded-xl border border-border bg-black" />
             <button
@@ -535,7 +539,10 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
       <div className="grid gap-4 lg:grid-cols-[1fr_16rem]">
         <div className="mx-auto w-full max-w-2xl">
           <div className="relative overflow-hidden rounded-xl border border-border bg-black" style={{ aspectRatio: `${surface.w} / ${surface.h}` }}>
-            {embedUrl ? (
+            {/* embedUrl is only ever set from parseEmbedUrl()'s own output or
+                a load path already filtered through isTrustedEmbedUrl() —
+                re-check right at the sink rather than trusting that. */}
+            {embedUrl && isTrustedEmbedUrl(embedUrl) ? (
               <iframe
                 src={embedUrl}
                 title="Match video"
