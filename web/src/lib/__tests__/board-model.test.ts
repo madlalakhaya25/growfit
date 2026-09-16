@@ -1,6 +1,6 @@
 import {
   interpolateFrames, totalDurationMs, DEFAULT_FRAME_DURATION_MS,
-  shapeColor, shapeWidth, dribblePath, polyPath, getPitch, PITCHES,
+  shapeColor, shapeWidth, dribblePath, polyPath, getPitch, PITCHES, resolveSpotlightCenter,
   type Frame, type Shape,
 } from "@/lib/board-model";
 
@@ -121,5 +121,30 @@ describe("getPitch", () => {
       expect(p.h).toBeGreaterThan(0);
       expect(p.markings.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("resolveSpotlightCenter", () => {
+  const shape: Pick<Shape, "playerId" | "pts"> = { playerId: "p1", pts: [{ x: 1, y: 1 }] };
+
+  it("follows the token currently bound to the shape's playerId", () => {
+    const tokens = [{ playerId: "p1", x: 50, y: 60 }];
+    expect(resolveSpotlightCenter(shape, tokens)).toEqual({ x: 50, y: 60 });
+  });
+
+  it("still finds the player after a substitution changed their token id", () => {
+    // Substitution assigns a brand-new token id but keeps playerId — that's
+    // the whole point of resolving by playerId instead of a stored point.
+    const tokens = [{ playerId: "p1", x: 30, y: 40 }];
+    expect(resolveSpotlightCenter(shape, tokens)).toEqual({ x: 30, y: 40 });
+  });
+
+  it("falls back to the shape's stored point when the player isn't on the board", () => {
+    expect(resolveSpotlightCenter(shape, [])).toEqual({ x: 1, y: 1 });
+  });
+
+  it("falls back to the stored point when the shape has no playerId at all", () => {
+    const noPlayer: Pick<Shape, "playerId" | "pts"> = { pts: [{ x: 9, y: 9 }] };
+    expect(resolveSpotlightCenter(noPlayer, [{ playerId: "p1", x: 50, y: 60 }])).toEqual({ x: 9, y: 9 });
   });
 });

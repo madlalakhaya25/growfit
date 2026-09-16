@@ -5,7 +5,7 @@ import {
   MousePointer2, Eraser, Undo2, Redo2, RotateCcw, Users, Circle,
   ArrowUpRight, Minus, Waves, Pencil, Download, Tag, Grid3x3,
   Play, Square, Plus, Save, FolderOpen, Send, Trash2, Film, Video, Sparkles, Swords,
-  ChevronUp, ChevronDown, Copy,
+  ChevronUp, ChevronDown, Copy, Target, MessageSquare,
 } from "lucide-react";
 import { POSITIONS } from "@/lib/types";
 import { FORMATIONS, FORMATION_SIZES, type Formation } from "@/lib/formations";
@@ -19,7 +19,8 @@ import { drawBoard, pickRecorderMime } from "@/lib/board-render";
 import { framesFromShapes } from "@/lib/play-motion";
 import {
   BOARD_W, BOARD_H, dribblePath, polyPath, shapeColor, interpolateFrames, totalDurationMs, DEFAULT_FRAME_DURATION_MS,
-  getPitch, PITCHES, toBoardSpace, EQUIPMENT_SPECS, type EquipmentKind, type BoardObject,
+  getPitch, PITCHES, toBoardSpace, EQUIPMENT_SPECS, resolveSpotlightCenter,
+  type EquipmentKind, type BoardObject, type PlayerNote,
   type Token, type Shape, type ShapeKind, type Frame as ModelFrame,
 } from "@/lib/board-model";
 import { PitchLayer } from "@/components/tactics/pitch-layer";
@@ -49,8 +50,11 @@ interface BoardState {
   /** Placed training equipment — new, additive. A play saved before this
    * existed has none, and every reader treats that the same as []. */
   objects: BoardObject[];
+  /** Coach notes about individual players — new, additive, same reasoning
+   * as objects above. */
+  playerNotes: PlayerNote[];
 }
-type Mode = "move" | "run" | "pass" | "dribble" | "free" | "erase";
+type Mode = "move" | "run" | "pass" | "dribble" | "free" | "spotlight" | "erase";
 
 /**
  * Pitches offered in the switcher for this pass: the full pitch (today's
@@ -212,7 +216,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const [pitchId, setPitchIdState] = useState("full");
   const [equipmentKind, setEquipmentKind] = useState<EquipmentKind>("cone");
 
-  const [state, setState] = useState<BoardState>({ tokens: [], shapes: [], objects: [] });
+  const [state, setState] = useState<BoardState>({ tokens: [], shapes: [], objects: [], playerNotes: [] });
   const [draft, setDraft] = useState<Shape | null>(null);
 
   // Animation
@@ -250,6 +254,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const [voiceUrl, setVoiceUrl] = useState<string | null>(null);
   // Tapping a player selects them; tapping a bench player then swaps the two.
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -575,7 +580,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       playId: currentPlayId ?? undefined,
       teamId,
       name,
-      data: { tokens: state.tokens, shapes: state.shapes, objects: state.objects, pitchId, frames, homeFormationId, awayFormationId },
+      data: { tokens: state.tokens, shapes: state.shapes, objects: state.objects, playerNotes: state.playerNotes, pitchId, frames, homeFormationId, awayFormationId },
       conceptIds,
       sessionId: sessionId || null,
       fixtureId: fixtureId || null,
@@ -594,7 +599,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     if (res.error || !res.data) { setNotice(res.error ?? "Could not load play."); return; }
     const d = res.data as Partial<BoardState & { frames: Frame[]; homeFormationId: string; awayFormationId: string; pitchId: string }>;
     snapshot();
-    setState({ tokens: d.tokens ?? [], shapes: d.shapes ?? [], objects: d.objects ?? [] });
+    setState({ tokens: d.tokens ?? [], shapes: d.shapes ?? [], objects: d.objects ?? [], playerNotes: d.playerNotes ?? [] });
     setPitchIdState(d.pitchId ?? "full");
     setFrames(d.frames ?? []);
     if (d.homeFormationId) setHomeFormationId(d.homeFormationId);
@@ -617,7 +622,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     if (!tpl) return;
     const { tokens, shapes, frames: tplFrames } = expandTemplate(tpl);
     snapshot();
-    setState({ tokens: tokens as typeof state.tokens, shapes: shapes as typeof state.shapes, objects: [] });
+    setState({ tokens: tokens as typeof state.tokens, shapes: shapes as typeof state.shapes, objects: [], playerNotes: [] });
     setPitchIdState("full");
     setFrames(tplFrames as typeof frames);
     setConceptIds([tpl.conceptId]);
@@ -857,7 +862,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   }
   function clearAll() {
     snapshot();
-    setState({ tokens: [], shapes: [], objects: [] });
+    setState({ tokens: [], shapes: [], objects: [], playerNotes: [] });
   }
   function clearDrawings() {
     snapshot();
@@ -871,6 +876,25 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     }));
   }
   /**
+   * A note about one player. Kept general rather than pinned to a step —
+   * the frameId field exists in the model for a future per-step version,
+   * but this pass keeps it simple: one running set of notes per player
+   * about this play, shown to them in the shared player-facing view.
+   */
+  function addPlayerNote(playerId: string, body: string) {
+    const trimmed = body.trim();
+    if (!trimmed) return;
+    snapshot();
+    setState((st) => ({
+      ...st,
+      playerNotes: [...st.playerNotes, { id: uid("n"), playerId, frameId: null, body: trimmed }],
+    }));
+  }
+  function deletePlayerNote(id: string) {
+    snapshot();
+    setState((st) => ({ ...st, playerNotes: st.playerNotes.filter((n) => n.id !== id) }));
+  }
+  /**
    * Switches which Pitch is painted behind the board. Full/half/third-style
    * pitches and the training grids are genuinely different coordinate
    * spaces (see SWITCHABLE_PITCHES above) — a token placed near a deep
@@ -882,7 +906,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   function setPitch(id: string) {
     if (id === pitchId) return;
     snapshot();
-    setState({ tokens: [], shapes: [], objects: [] });
+    setState({ tokens: [], shapes: [], objects: [], playerNotes: [] });
     setPitchIdState(id);
     setFrames([]);
     setNotice("Switched pitch — the board was cleared for the new surface. Undo to get it back.");
@@ -894,6 +918,19 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       e.stopPropagation();
       snapshot();
       setState((st) => ({ ...st, tokens: st.tokens.filter((t) => t.id !== tok.id) }));
+      return;
+    }
+    if (mode === "spotlight") {
+      // Bound by playerId, not by this token's own id or the clicked point —
+      // resolveSpotlightCenter() (board-model.ts) then draws the ring at
+      // wherever that player currently is, every frame, including after a
+      // substitution changes their token id.
+      if (!tok.playerId) return;
+      e.stopPropagation();
+      const { x, y } = toBoard(e.clientX, e.clientY);
+      drawing.current = true;
+      setDraft({ id: "draft", kind: "spotlight", pts: [{ x: tok.x, y: tok.y }, { x, y }], playerId: tok.playerId });
+      svgRef.current?.setPointerCapture?.(e.pointerId);
       return;
     }
     if (mode !== "move") return;
@@ -955,7 +992,24 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     dragObj.current = null;
     if (drawing.current && draft) {
       const a = draft.pts[0], b = draft.pts[draft.pts.length - 1];
-      if (Math.hypot(b.x - a.x, b.y - a.y) > 3) {
+      const dist = Math.hypot(b.x - a.x, b.y - a.y);
+      if (draft.kind === "spotlight") {
+        // A plain click (no drag) still creates a usable ring at a sensible
+        // default radius — dragging just lets a coach size it bigger.
+        snapshot();
+        const shape: Shape = { id: uid("s"), kind: "spotlight", pts: [a], playerId: draft.playerId, radius: Math.max(4, dist) };
+        setState((st) => {
+          // One spotlight per player: clicking an already-spotlighted
+          // player again toggles it off rather than stacking rings.
+          const already = st.shapes.some((s) => s.kind === "spotlight" && s.playerId === draft.playerId);
+          return {
+            ...st,
+            shapes: already
+              ? st.shapes.filter((s) => !(s.kind === "spotlight" && s.playerId === draft.playerId))
+              : [...st.shapes, shape],
+          };
+        });
+      } else if (dist > 3) {
         snapshot();
         const shape = { ...draft, id: uid("s") };
         setState((st) => ({ ...st, shapes: [...st.shapes, shape] }));
@@ -1066,6 +1120,13 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       onPointerDown: isDraft ? undefined : (e: React.PointerEvent) => onShapeDown(e, sh.id),
     };
     const a = sh.pts[0], b = sh.pts[sh.pts.length - 1];
+    if (sh.kind === "spotlight") {
+      // Centre comes from the live/animated token bound by playerId, not
+      // from the shape's own stored point — see resolveSpotlightCenter().
+      const c = resolveSpotlightCenter(sh, view.tokens) ?? a;
+      const r = isDraft ? Math.max(4, Math.hypot(b.x - a.x, b.y - a.y)) : (sh.radius ?? 8);
+      return <circle key={sh.id} cx={c.x} cy={c.y} r={r} strokeDasharray="1.5 1.2" {...common} />;
+    }
     if (sh.kind === "free") return <path key={sh.id} d={polyPath(sh.pts)} {...common} />;
     if (sh.kind === "dribble")
       return <path key={sh.id} d={dribblePath(a.x, a.y, b.x, b.y)} markerEnd="url(#tb-arrow)" {...common} />;
@@ -1163,6 +1224,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
         {toolBtn("pass", Minus, "Pass")}
         {toolBtn("dribble", Waves, "Dribble")}
         {toolBtn("free", Pencil, "Draw")}
+        {toolBtn("spotlight", Target, "Spotlight")}
         {toolBtn("erase", Eraser, "Erase")}
         <span className="mx-1 h-6 w-px bg-border" />
         <button type="button" onClick={addBall} title="Add ball" className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">⚽ Ball</button>
@@ -1325,6 +1387,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
             {mode === "pass" && "Drag to draw a pass (dashed arrow)."}
             {mode === "dribble" && "Drag to draw a dribble (wavy line)."}
             {mode === "free" && "Draw freehand to sketch a zone or shape."}
+            {mode === "spotlight" && "Tap a player to highlight them — it follows them through every frame. Tap again to remove."}
             {mode === "erase" && "Tap a player or a line to remove it."}
           </p>
         </div>
@@ -1609,6 +1672,63 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
             )}
             {notice && <p className="text-[11px] text-muted-foreground pt-1">{notice}</p>}
           </div>
+
+          {/* ── Player notes ──────────────────────────────────── */}
+          {selectedTokenId && (() => {
+            const tok = state.tokens.find((t) => t.id === selectedTokenId);
+            if (!tok?.playerId) return null;
+            const playerId = tok.playerId;
+            const notes = state.playerNotes.filter((n) => n.playerId === playerId);
+            return (
+              <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <MessageSquare className="size-3.5 text-primary" aria-hidden="true" />
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    Notes for {tok.label}
+                  </p>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Shown to {tok.label} in their own view of this play — real coaching feedback, not just a diagram.
+                </p>
+                {notes.length > 0 && (
+                  <ul className="space-y-1">
+                    {notes.map((n) => (
+                      <li key={n.id} className="flex items-start gap-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-xs">
+                        <span className="flex-1">{n.body}</span>
+                        <button type="button" onClick={() => deletePlayerNote(n.id)} title="Delete note" className="text-muted-foreground hover:text-destructive">
+                          <Trash2 className="size-3" aria-hidden="true" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="flex gap-1.5">
+                  <input
+                    type="text"
+                    value={noteDraft}
+                    onChange={(e) => setNoteDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && noteDraft.trim()) {
+                        addPlayerNote(playerId, noteDraft);
+                        setNoteDraft("");
+                      }
+                    }}
+                    placeholder="e.g. Stay wide here to stretch their back line"
+                    maxLength={280}
+                    className="flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { addPlayerNote(playerId, noteDraft); setNoteDraft(""); }}
+                    disabled={!noteDraft.trim()}
+                    className="rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
 
           <div>
             <div className="mb-2">

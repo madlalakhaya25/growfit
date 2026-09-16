@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Play, Square, RotateCcw } from "lucide-react";
+import { Play, Square, RotateCcw, MessageSquare } from "lucide-react";
 import {
   GROUP_COLOR as BOARD_GROUP_COLOR,
-  dribblePath, polyPath, shapeColor, shapeWidth, interpolateFrames, totalDurationMs, getPitch,
+  dribblePath, polyPath, shapeColor, shapeWidth, interpolateFrames, totalDurationMs, getPitch, resolveSpotlightCenter,
   type Shape as ModelShape, type Frame as ModelFrame, type Token as ModelToken,
-  type BoardObject,
+  type BoardObject, type PlayerNote,
 } from "@/lib/board-model";
 import { PitchLayer } from "@/components/tactics/pitch-layer";
 import { EquipmentLayer } from "@/components/tactics/equipment-layer";
@@ -26,6 +26,9 @@ export interface PlayData {
    * exactly as it always did. */
   pitchId?: string;
   objects?: BoardObject[];
+  /** New, additive: coach notes about individual players in this play. A
+   * play saved before notes existed has none. */
+  playerNotes?: PlayerNote[];
 }
 
 export function PlayViewer({ data }: { data: PlayData }) {
@@ -40,6 +43,7 @@ export function PlayViewer({ data }: { data: PlayData }) {
       : (framesFromShapes(baseTokens, baseShapes) as VFrame[]);
   const pitch = getPitch(data.pitchId);
   const objects = data.objects ?? [];
+  const notes = data.playerNotes ?? [];
 
   const [tokens, setTokens] = useState<VToken[]>(baseTokens);
   const [shapes, setShapes] = useState<VShape[]>(baseShapes);
@@ -112,7 +116,8 @@ export function PlayViewer({ data }: { data: PlayData }) {
                 );
               }
               if (sh.kind === "spotlight") {
-                return <circle key={sh.id} cx={a.x} cy={a.y} r={sh.radius ?? 8} strokeDasharray="1.5 1.2" {...common} />;
+                const c = resolveSpotlightCenter(sh, tokens) ?? a;
+                return <circle key={sh.id} cx={c.x} cy={c.y} r={sh.radius ?? 8} strokeDasharray="1.5 1.2" {...common} />;
               }
               if (!b) return null;
               if (sh.kind === "free") {
@@ -157,6 +162,25 @@ export function PlayViewer({ data }: { data: PlayData }) {
           </svg>
         </div>
       </div>
+
+      {notes.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            <MessageSquare className="size-3.5" aria-hidden="true" /> Coach's notes
+          </p>
+          <ul className="space-y-1">
+            {notes.map((n) => {
+              const player = baseTokens.find((t) => t.playerId === n.playerId);
+              return (
+                <li key={n.id} className="rounded-md border border-border bg-card px-3 py-2 text-sm">
+                  <span className="font-semibold">{player?.label ?? "A player"}: </span>
+                  {n.body}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       {frames.length >= 2 ? (
         <div className="flex justify-center gap-2">

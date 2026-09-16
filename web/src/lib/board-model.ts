@@ -121,6 +121,39 @@ export function shapeWidth(sh: Pick<Shape, "width">): number {
   return sh.width ?? DEFAULT_SHAPE_WIDTH;
 }
 
+/**
+ * Where a spotlight actually draws: it follows the player it's bound to,
+ * not a fixed point. A token surviving a substitution gets a new board id
+ * (see tactical-board.tsx's substitute()) but keeps its playerId, so
+ * resolving by playerId — not by the shape's own stored point — is what
+ * makes a spotlight "outlive" a substitution and track the player through
+ * every frame of an animation rather than needing to be redrawn each step.
+ * Falls back to the shape's stored point if the player isn't on the board
+ * right now (subbed off, or viewing a step before they came on).
+ */
+export function resolveSpotlightCenter(
+  sh: Pick<Shape, "playerId" | "pts">,
+  tokens: Pick<Token, "playerId" | "x" | "y">[]
+): Point | undefined {
+  if (sh.playerId) {
+    const tok = tokens.find((t) => t.playerId === sh.playerId);
+    if (tok) return { x: tok.x, y: tok.y };
+  }
+  return sh.pts[0];
+}
+
+/** A coach's note about one player, optionally pinned to a specific step of
+ * a play/drill. Lives alongside a board's tokens/shapes/objects — kept as
+ * its own array (not folded into Shape) because a note has no geometry of
+ * its own and outlives whichever spotlight shape prompted it. */
+export interface PlayerNote {
+  id: string;
+  playerId: string;
+  /** null = a general note about the player, not tied to one step. */
+  frameId: string | null;
+  body: string;
+}
+
 // ── Tokens & frames ──────────────────────────────────────────────
 
 export interface Token {
