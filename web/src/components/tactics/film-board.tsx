@@ -409,6 +409,13 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
             drifts. */}
         {videoUrl && videoUrl.startsWith("blob:") && (
           <div className="mx-auto w-full max-w-md space-y-3">
+            {/* codeql[js/xss-through-dom] — CodeQL's file-input taint source
+                model flags this unconditionally; `file` never leaves this
+                browser (URL.createObjectURL produces a same-origin blob:
+                URL for a video the same user just picked from their own
+                disk), and the startsWith("blob:") check above pins the
+                scheme regardless. Not exploitable: there's no remote
+                attacker in this data flow, only the viewer's own file. */}
             <video ref={videoRef} src={videoUrl} controls playsInline className="w-full rounded-xl border border-border bg-black" />
             <button
               type="button"
@@ -539,9 +546,12 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
       <div className="grid gap-4 lg:grid-cols-[1fr_16rem]">
         <div className="mx-auto w-full max-w-2xl">
           <div className="relative overflow-hidden rounded-xl border border-border bg-black" style={{ aspectRatio: `${surface.w} / ${surface.h}` }}>
-            {/* embedUrl is only ever set from parseEmbedUrl()'s own output or
-                a load path already filtered through isTrustedEmbedUrl() —
-                re-check right at the sink rather than trusting that. */}
+            {/* codeql[js/xss-through-dom] — the guard on this line already
+                restricts embedUrl to exactly two hosts
+                (www.youtube-nocookie.com, player.vimeo.com — see
+                lib/video-embed.ts's isTrustedEmbedUrl), so this can never
+                render an arbitrary domain; CodeQL's taint model flags the
+                text-input source itself regardless of that runtime check. */}
             {embedUrl && isTrustedEmbedUrl(embedUrl) ? (
               <iframe
                 src={embedUrl}
