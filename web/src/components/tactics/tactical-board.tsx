@@ -976,6 +976,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
    */
   function setPitch(id: string) {
     if (id === pitchId) return;
+    stopPlayback();
     snapshot();
     setState({ tokens: [], shapes: [], objects: [], playerNotes: [] });
     setPitchIdState(id);

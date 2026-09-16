@@ -15,7 +15,11 @@ export function EquipmentLayer({
   return (
     <>
       {objects.map((o) => {
+        // Loaded plays come back as unknown/Partial JSONB, so `o.kind` isn't
+        // guaranteed to still be a real key at runtime even though the type
+        // says so — an unrecognised kind here shouldn't crash the board.
         const spec = EQUIPMENT_SPECS[o.kind];
+        if (!spec) return null;
         return (
           <g
             key={o.id}
