@@ -16,8 +16,18 @@ import { TACTICAL_CONCEPTS, TACTICAL_CATEGORIES, getConcept } from "@/lib/tactic
 import { PLAY_TEMPLATES, expandTemplate } from "@/lib/play-templates";
 import { drawBoard, pickRecorderMime } from "@/lib/board-render";
 import { framesFromShapes } from "@/lib/play-motion";
+import {
+  BOARD_W, BOARD_H, dribblePath, polyPath, shapeColor, interpolateFrames, totalDurationMs,
+  type Token, type Shape, type ShapeKind, type Frame as ModelFrame,
+} from "@/lib/board-model";
 
 // ── Types ────────────────────────────────────────────────────────
+// Token, Shape, ShapeKind and the Frame shape all come from board-model.ts
+// now — the one place they're defined, shared with the read-only viewer and
+// the canvas recorder. ShapeKind there is wider than the four this board's
+// drawing tools can currently produce (run/pass/dribble/free); the extra
+// kinds (zone/spotlight/text) exist for a future tool, not yet wired up
+// here, and are harmless to have in scope early.
 export interface BoardPlayer {
   id: string;
   full_name: string;
@@ -29,21 +39,6 @@ export interface BoardTeam {
   age_group: string | null;
   players: BoardPlayer[];
 }
-interface Token {
-  id: string;
-  label: string;
-  x: number;
-  y: number;
-  kind: "player" | "opponent" | "ball";
-  group: string;
-  playerId?: string;
-}
-type ShapeKind = "run" | "pass" | "dribble" | "free";
-interface Shape {
-  id: string;
-  kind: ShapeKind;
-  pts: { x: number; y: number }[];
-}
 interface BoardState {
   tokens: Token[];
   shapes: Shape[];
@@ -51,16 +46,12 @@ interface BoardState {
 type Mode = "move" | "run" | "pass" | "dribble" | "free" | "erase";
 
 /** One step of a play: where every token sits, plus the lines drawn at that step. */
-interface Frame {
-  id: string;
-  tokens: { id: string; x: number; y: number }[];
-  shapes: Shape[];
-}
+type Frame = ModelFrame;
 type Overlay = "none" | "thirds" | "channels" | "zone14";
 
 // ── Pitch geometry (attacking upward) ────────────────────────────
-const W = 100;
-const H = 150;
+const W = BOARD_W;
+const H = BOARD_H;
 
 const GROUP_ORDER = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
 const GROUP_COLOR: Record<string, string> = {
@@ -127,22 +118,6 @@ function compress(slot: { x: number; y: number }, side: "home" | "away"): { x: n
     : { x: W - slot.x, y: 4 + t * 68 };     // 4 (their goal) → 72, mirrored across
 }
 
-/** Wavy path for a dribble line. */
-function dribblePath(x1: number, y1: number, x2: number, y2: number): string {
-  const dx = x2 - x1, dy = y2 - y1;
-  const len = Math.hypot(dx, dy);
-  if (len < 1) return `M${x1},${y1}`;
-  const px = -dy / len, py = dx / len;
-  const n = Math.max(2, Math.round(len / 3.2));
-  let d = `M${x1},${y1}`;
-  for (let i = 1; i < n; i++) {
-    const t = i / n;
-    const cx = x1 + dx * t, cy = y1 + dy * t;
-    const off = (i % 2 === 0 ? 1 : -1) * 1.5;
-    d += ` L${(cx + px * off).toFixed(2)},${(cy + py * off).toFixed(2)}`;
-  }
-  return d + ` L${x2},${y2}`;
-}
 /**
  * Tactical overlays. Half-spaces are the two channels between the centre and
  * the wings — the highest-value areas to attack from, and the thing coaches
@@ -207,11 +182,6 @@ function OverlayLayer({ overlay }: { overlay: Overlay }) {
       <text x={50} y={52} fill="rgba(255,255,255,0.7)" fontSize={2.6} textAnchor="middle">cut-back zones shaded</text>
     </g>
   );
-}
-
-function polyPath(pts: { x: number; y: number }[]): string {
-  if (pts.length === 0) return "";
-  return pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
 }
 
 export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
@@ -364,34 +334,23 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     stopPlayback();
     setPlaying(true);
 
-    const SEG = 1100; // ms per step
+    // Stepping/easing come from interpolateFrames() in board-model.ts — the
+    // same function the video recorder and the read-only player-facing
+    // viewer use, so a fix to the maths reaches all three instead of one.
+    const total = totalDurationMs(seqFrames);
     // The timestamp a rAF callback receives is when that frame began, which can
     // predate a performance.now() taken in the click handler. That made elapsed
     // negative, seg -1, and seqFrames[-1] undefined — the callback threw on its
     // first frame and playback silently died. Take the clock from the first tick.
     let start: number | null = null;
-    const total = SEG * (seqFrames.length - 1);
-    const ease = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
 
     const tick = (now: number) => {
       if (start === null) start = now;
       const elapsed = Math.max(0, now - start);
       const clamped = Math.min(elapsed, total);
-      const seg = Math.max(0, Math.min(Math.floor(clamped / SEG), seqFrames.length - 2));
-      const local = ease(Math.min((clamped - seg * SEG) / SEG, 1));
+      const { tokens, shapes } = interpolateFrames(state.tokens, seqFrames, clamped);
 
-      const from = seqFrames[seg];
-      const to = seqFrames[seg + 1];
-
-      setAnim({
-        tokens: state.tokens.map((t) => {
-          const a = from.tokens.find((ft) => ft.id === t.id);
-          const b = to.tokens.find((ft) => ft.id === t.id);
-          if (!a || !b) return t;
-          return { ...t, x: a.x + (b.x - a.x) * local, y: a.y + (b.y - a.y) * local };
-        }),
-        shapes: to.shapes,
-      });
+      setAnim({ tokens, shapes });
 
       if (elapsed < total) {
         rafRef.current = requestAnimationFrame(tick);
@@ -446,28 +405,19 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     const stopped = new Promise<void>((res) => { rec.onstop = () => res(); });
     rec.start();
 
-    const SEG = 1100;
-    const total = SEG * (seqFrames.length - 1);
-    const ease = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
+    // Same interpolateFrames() as playAnimation() and the shared viewer use
+    // — the recording now matches on-screen playback exactly, including any
+    // per-step timing a future timeline editor sets.
+    const total = totalDurationMs(seqFrames);
     let startedAt: number | null = null;
 
     await new Promise<void>((resolve) => {
       const tick = (now: number) => {
         if (startedAt === null) startedAt = now;
         const elapsed = Math.min(Math.max(0, now - startedAt), total);
-        const seg = Math.max(0, Math.min(Math.floor(elapsed / SEG), seqFrames.length - 2));
-        const local = ease(Math.min((elapsed - seg * SEG) / SEG, 1));
-        const from = seqFrames[seg];
-        const to = seqFrames[seg + 1];
+        const { tokens, shapes } = interpolateFrames(state.tokens, seqFrames, elapsed);
 
-        const tokens = state.tokens.map((t) => {
-          const a = from.tokens.find((ft) => ft.id === t.id);
-          const b = to.tokens.find((ft) => ft.id === t.id);
-          if (!a || !b) return t;
-          return { ...t, x: a.x + (b.x - a.x) * local, y: a.y + (b.y - a.y) * local };
-        });
-
-        drawBoard(ctx, { tokens, shapes: to.shapes, overlay, showNames, scale });
+        drawBoard(ctx, { tokens, shapes, overlay, showNames, scale });
 
         if (now - startedAt < total) requestAnimationFrame(tick);
         else resolve();
@@ -934,11 +884,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     </select>
   );
 
-  const shapeStroke: Record<ShapeKind, string> = {
-    run: "#fde047", pass: "#fde047", dribble: "#38bdf8", free: "#f472b6",
-  };
   function renderShape(sh: Shape, isDraft = false) {
-    const stroke = shapeStroke[sh.kind];
+    const stroke = shapeColor(sh);
     const common = {
       stroke, strokeWidth: 1.2, fill: "none",
       strokeLinecap: "round" as const, strokeLinejoin: "round" as const,
