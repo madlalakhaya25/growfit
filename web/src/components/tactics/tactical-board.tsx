@@ -58,6 +58,14 @@ interface BoardState {
 }
 type Mode = "move" | "run" | "pass" | "dribble" | "free" | "spotlight" | "erase";
 
+/** A captured-but-not-yet-committed undo entry — see captureSnapshot()/
+ * commitSnapshot() below. */
+interface SnapshotEntry {
+  state: BoardState;
+  pitch: string;
+  frames: Frame[];
+}
+
 /**
  * Every modelled pitch is offered in the switcher. Half-pitch and
  * attacking-third were held back in an earlier pass over a clipping risk —
@@ -257,15 +265,19 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   stateRef.current = state;
   const pitchIdRef = useRef(pitchId);
   pitchIdRef.current = pitchId;
+  const framesRef = useRef(frames);
+  framesRef.current = frames;
   const past = useRef<BoardState[]>([]);
   const future = useRef<BoardState[]>([]);
   const pastPitch = useRef<string[]>([]);
   const futurePitch = useRef<string[]>([]);
+  const pastFrames = useRef<Frame[][]>([]);
+  const futureFrames = useRef<Frame[][]>([]);
   const [, forceRender] = useState(0);
 
   const svgRef = useRef<SVGSVGElement>(null);
-  const drag = useRef<{ id: string; dx: number; dy: number; startX: number; startY: number; moved: boolean } | null>(null);
-  const dragObj = useRef<{ id: string; dx: number; dy: number } | null>(null);
+  const drag = useRef<{ id: string; dx: number; dy: number; startX: number; startY: number; moved: boolean; pending: SnapshotEntry } | null>(null);
+  const dragObj = useRef<{ id: string; dx: number; dy: number; startX: number; startY: number; moved: boolean; pending: SnapshotEntry } | null>(null);
   const drawing = useRef(false);
 
   const team = teams.find((t) => t.id === teamId);
@@ -285,40 +297,71 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const pitch = getPitch(pitchId);
 
   // ── History ────────────────────────────────────────────────────
-  // pastPitch/futurePitch track the pitch id alongside each board snapshot,
-  // in lockstep with past/future, so switching pitches (which clears the
-  // board — see setPitch below) is a single undoable step like any other
-  // edit, not a separate un-undoable mode switch.
-  function snapshot() {
-    past.current.push(JSON.parse(JSON.stringify(stateRef.current)) as BoardState);
-    pastPitch.current.push(pitchIdRef.current);
-    if (past.current.length > 40) { past.current.shift(); pastPitch.current.shift(); }
+  // pastPitch/futurePitch and pastFrames/futureFrames track the pitch id
+  // and the captured-steps timeline alongside each board snapshot, in
+  // lockstep with past/future, so switching pitches (which clears the
+  // board — see setPitch below) and every timeline edit (capture/reorder/
+  // duplicate/insert/delete/duration — see captureFrame() etc. below,
+  // which all call this first) are single undoable steps like any other
+  // edit, not state that sits outside undo/redo entirely.
+  /** Captures the pre-edit state without pushing it to history yet — used
+   * by a drag (token/equipment) that snapshots on pointer-down but should
+   * only actually cost a history entry if the pointer really moves. A tap
+   * that only selects/substitutes a player used to snapshot unconditionally
+   * on down, so a few taps could evict real history under the 40-entry cap
+   * with nothing to undo for them. */
+  function captureSnapshot(): SnapshotEntry {
+    return {
+      state: JSON.parse(JSON.stringify(stateRef.current)) as BoardState,
+      pitch: pitchIdRef.current,
+      frames: JSON.parse(JSON.stringify(framesRef.current)) as Frame[],
+    };
+  }
+  function commitSnapshot(entry: SnapshotEntry) {
+    past.current.push(entry.state);
+    pastPitch.current.push(entry.pitch);
+    pastFrames.current.push(entry.frames);
+    if (past.current.length > 40) { past.current.shift(); pastPitch.current.shift(); pastFrames.current.shift(); }
     future.current = [];
     futurePitch.current = [];
+    futureFrames.current = [];
+  }
+  function snapshot() {
+    commitSnapshot(captureSnapshot());
   }
   function undo() {
     const prev = past.current.pop();
     const prevPitch = pastPitch.current.pop();
+    const prevFrames = pastFrames.current.pop();
     if (!prev) return;
     future.current.push(JSON.parse(JSON.stringify(stateRef.current)) as BoardState);
     futurePitch.current.push(pitchIdRef.current);
+    futureFrames.current.push(JSON.parse(JSON.stringify(framesRef.current)) as Frame[]);
     setState(prev);
     if (prevPitch) setPitchIdState(prevPitch);
+    if (prevFrames) setFrames(prevFrames);
     forceRender((n) => n + 1);
   }
   function redo() {
     const next = future.current.pop();
     const nextPitch = futurePitch.current.pop();
+    const nextFrames = futureFrames.current.pop();
     if (!next) return;
     past.current.push(JSON.parse(JSON.stringify(stateRef.current)) as BoardState);
     pastPitch.current.push(pitchIdRef.current);
+    pastFrames.current.push(JSON.parse(JSON.stringify(framesRef.current)) as Frame[]);
     setState(next);
     if (nextPitch) setPitchIdState(nextPitch);
+    if (nextFrames) setFrames(nextFrames);
     forceRender((n) => n + 1);
   }
 
   // ── Animation ──────────────────────────────────────────────────
+  // Every one of these snapshots first — frame edits used to sit entirely
+  // outside undo/redo, so reordering, deleting, or clearing a hand-built
+  // timeline had no way back.
   function captureFrame() {
+    snapshot();
     const f: Frame = {
       id: uid("f"),
       tokens: state.tokens.map((t) => ({ id: t.id, x: t.x, y: t.y })),
@@ -328,6 +371,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setNotice(`Step ${frames.length + 1} captured.`);
   }
   function updateFrame(i: number) {
+    snapshot();
     setFrames((fs) =>
       fs.map((f, idx) =>
         idx === i
@@ -338,13 +382,15 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setNotice(`Step ${i + 1} updated.`);
   }
   function deleteFrame(i: number) {
+    snapshot();
     setFrames((fs) => fs.filter((_, idx) => idx !== i));
   }
   /** Swap a step with its neighbour — the reorder control on the timeline. */
   function moveFrame(i: number, dir: -1 | 1) {
+    const j = i + dir;
+    if (j < 0 || j >= frames.length) return; // out of range — nothing to snapshot
+    snapshot();
     setFrames((fs) => {
-      const j = i + dir;
-      if (j < 0 || j >= fs.length) return fs;
       const next = [...fs];
       [next[i], next[j]] = [next[j], next[i]];
       return next;
@@ -354,6 +400,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
    * longer (duplicate, then shorten the original's duration to 0 or leave
    * both) or to start editing a variation without losing the original. */
   function duplicateFrame(i: number) {
+    if (!frames[i]) return;
+    snapshot();
     setFrames((fs) => {
       const src = fs[i];
       if (!src) return fs;
@@ -365,6 +413,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
    * after index i, rather than always appended at the end like
    * captureFrame(). */
   function insertFrameAfter(i: number) {
+    snapshot();
     const f: Frame = {
       id: uid("f"),
       tokens: state.tokens.map((t) => ({ id: t.id, x: t.x, y: t.y })),
@@ -373,6 +422,11 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setFrames((fs) => [...fs.slice(0, i + 1), f, ...fs.slice(i + 1)]);
     setNotice(`Step inserted after ${i + 1}.`);
   }
+  // Deliberately not snapshotted, unlike the structural edits above: this
+  // fires on every keystroke of the duration input, and snapshotting per
+  // keystroke would flood the 40-entry undo history in a few seconds of
+  // typing. A mistyped duration is trivially re-typed; it doesn't need undo
+  // the way a deleted or reordered step does.
   function setFrameDuration(i: number, ms: number) {
     setFrames((fs) => fs.map((f, idx) => (idx === i ? { ...f, durationMs: Math.max(100, ms) } : f)));
   }
@@ -959,8 +1013,12 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     if (mode !== "move") return;
     e.stopPropagation();
     const { x, y } = toBoard(e.clientX, e.clientY);
-    snapshot();
-    drag.current = { id: tok.id, dx: tok.x - x, dy: tok.y - y, startX: x, startY: y, moved: false };
+    // Captured now (so it reflects the true pre-drag position) but not
+    // committed to history until onSvgMove confirms real movement —
+    // otherwise a tap that only selects/substitutes a player (see onSvgUp)
+    // pushed an identical, useless history entry every time, which could
+    // evict real edits once the 40-entry cap was reached.
+    drag.current = { id: tok.id, dx: tok.x - x, dy: tok.y - y, startX: x, startY: y, moved: false, pending: captureSnapshot() };
     (e.target as Element).setPointerCapture?.(e.pointerId);
   }
   function onSvgDown(e: React.PointerEvent) {
@@ -978,7 +1036,13 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     if (drag.current) {
       const { x, y } = toBoard(e.clientX, e.clientY);
       const d = drag.current;
-      if (Math.hypot(x - d.startX, y - d.startY) > 1.5) d.moved = true;
+      if (!d.moved && Math.hypot(x - d.startX, y - d.startY) > 1.5) {
+        // First real movement past the tap threshold — this is the moment
+        // the pre-drag snapshot captured at pointer-down actually becomes
+        // a real, undoable edit.
+        d.moved = true;
+        commitSnapshot(d.pending);
+      }
       setState((st) => ({
         ...st,
         tokens: st.tokens.map((t) =>
@@ -990,6 +1054,10 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     } else if (dragObj.current) {
       const { x, y } = toBoard(e.clientX, e.clientY);
       const d = dragObj.current;
+      if (!d.moved && Math.hypot(x - d.startX, y - d.startY) > 1.5) {
+        d.moved = true;
+        commitSnapshot(d.pending);
+      }
       setState((st) => ({
         ...st,
         objects: st.objects.map((o) =>
@@ -1061,8 +1129,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     if (mode !== "move") return;
     e.stopPropagation();
     const { x, y } = toBoard(e.clientX, e.clientY);
-    snapshot();
-    dragObj.current = { id: obj.id, dx: obj.x - x, dy: obj.y - y };
+    // Same lazy-commit pattern as onTokenDown above.
+    dragObj.current = { id: obj.id, dx: obj.x - x, dy: obj.y - y, startX: x, startY: y, moved: false, pending: captureSnapshot() };
     (e.target as Element).setPointerCapture?.(e.pointerId);
   }
 
@@ -1470,13 +1538,11 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               {frames.length > 0 && (
                 <button
                   type="button"
-                  // Frame edits (capture/reorder/duplicate/insert/delete)
-                  // live in `frames`, not `state` — they're outside the
-                  // undo/redo history that covers tokens/shapes/objects,
-                  // so this destroys a hand-built timeline with no way
-                  // back. A confirm is the cheap guard until frames get
-                  // folded into that history properly.
-                  onClick={() => { if (window.confirm(`Clear all ${frames.length} captured steps? This can't be undone.`)) setFrames([]); }}
+                  // Frame edits are now folded into the same undo/redo
+                  // history as tokens/shapes/objects (see snapshot()), so
+                  // this is one Undo away like every other destructive
+                  // action on the board — no separate confirm needed.
+                  onClick={() => { snapshot(); setFrames([]); }}
                   disabled={playing || recording}
                   className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50"
                 >
@@ -1792,6 +1858,47 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                     Add
                   </button>
                 </div>
+              </div>
+            );
+          })()}
+
+          {/* Notes for a player who's been subbed off (or never placed)
+              since their note was written — the panel above only shows
+              while their token is selected, so without this a note becomes
+              unreachable the moment they leave the pitch. Still shown
+              correctly to that player in their own view either way; this
+              is only about being able to see/delete it from the editor. */}
+          {(() => {
+            const onBoardPlayerIds = new Set(state.tokens.map((t) => t.playerId).filter((id): id is string => !!id));
+            const offBoard = state.playerNotes.filter((n) => !onBoardPlayerIds.has(n.playerId));
+            if (offBoard.length === 0) return null;
+            return (
+              <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <MessageSquare className="size-3.5 text-muted-foreground" aria-hidden="true" />
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    Notes for players not on the pitch
+                  </p>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Bring a player back on to add another note for them.
+                </p>
+                <ul className="space-y-1">
+                  {offBoard.map((n) => {
+                    const player = roster.find((p) => p.id === n.playerId);
+                    return (
+                      <li key={n.id} className="flex items-start gap-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-xs">
+                        <span className="flex-1">
+                          <span className="font-semibold">{player ? shortLabel(player.full_name) : "A player"}: </span>
+                          {n.body}
+                        </span>
+                        <button type="button" onClick={() => deletePlayerNote(n.id)} title="Delete note" className="text-muted-foreground hover:text-destructive">
+                          <Trash2 className="size-3" aria-hidden="true" />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
             );
           })()}
