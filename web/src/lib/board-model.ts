@@ -272,7 +272,14 @@ export interface Pitch {
   w: number;
   h: number;
   /** Whether the 16 formation presets (in the fixed 100×150 space) are
-   * meaningful on this pitch — false for training grids. */
+   * meaningful on this pitch. Only true for the full pitch — a preset
+   * places a full XI across the whole 100×150 space (a goalkeeper as deep
+   * as y=142), which doesn't fit inside a cropped half/third viewBox any
+   * more than it fits a training grid's own, unrelated coordinate space.
+   * "Set up my XI" and video recording (board-render.ts's drawBoard isn't
+   * pitch-aware) are both disabled wherever this is false; manual
+   * placement (placePlayer/addBall/addOpponent) still works everywhere,
+   * centred on whichever pitch is current. */
   supportsFormations: boolean;
   markings: PitchMarking[];
 }
@@ -295,7 +302,7 @@ export const PITCHES: Pitch[] = [
   {
     id: "half",
     label: "Half pitch (attacking)",
-    w: BOARD_W, h: BOARD_H / 2, supportsFormations: true,
+    w: BOARD_W, h: BOARD_H / 2, supportsFormations: false,
     markings: [
       { kind: "rect", x: 2, y: 2, w: BOARD_W - 4, h: BOARD_H / 2 - 4 },
       { kind: "rect", x: 26, y: 2, w: 48, h: 20 },
@@ -307,7 +314,7 @@ export const PITCHES: Pitch[] = [
   {
     id: "third",
     label: "Attacking third",
-    w: BOARD_W, h: BOARD_H / 3, supportsFormations: true,
+    w: BOARD_W, h: BOARD_H / 3, supportsFormations: false,
     markings: [
       { kind: "rect", x: 2, y: 2, w: BOARD_W - 4, h: BOARD_H / 3 - 4 },
       { kind: "rect", x: 26, y: 2, w: 48, h: 20 },

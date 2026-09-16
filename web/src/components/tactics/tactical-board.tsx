@@ -57,15 +57,18 @@ interface BoardState {
 type Mode = "move" | "run" | "pass" | "dribble" | "free" | "spotlight" | "erase";
 
 /**
- * Pitches offered in the switcher for this pass: the full pitch (today's
- * default, unchanged) plus the two training grids. Half-pitch and
- * attacking-third are modelled in board-model.ts but held back here — their
- * viewBox is genuinely smaller than the 100×150 formation space, so a
- * player placed near a deep position would render outside the visible area
- * rather than being clipped in a way that's obviously a "different view";
- * that needs a visual check this environment can't do before it ships.
+ * Every modelled pitch is offered in the switcher. Half-pitch and
+ * attacking-third were held back in an earlier pass over a clipping risk —
+ * a full-XI formation placed near a deep position could render outside a
+ * cropped viewBox — but that's now resolved at the source: both are marked
+ * `supportsFormations: false` in board-model.ts, so "Set up my XI" is
+ * disabled there exactly like it already is on a training grid, and manual
+ * placement centres on the pitch actually showing (see placePlayer/
+ * addBall/addOpponent). Nothing here still needs the visual check that
+ * held them back — it needs one anyway before real use, same as everything
+ * else in this file that can't be rendered in this environment.
  */
-const SWITCHABLE_PITCHES = PITCHES.filter((p) => p.id === "full" || !p.supportsFormations);
+const SWITCHABLE_PITCHES = PITCHES;
 
 /** One step of a play: where every token sits, plus the lines drawn at that step. */
 type Frame = ModelFrame;
@@ -837,7 +840,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setState((st) => ({
       ...st,
       tokens: [...st.tokens, {
-        id: uid("h"), label: shortLabel(p.full_name), x: 50, y: 75,
+        id: uid("h"), label: shortLabel(p.full_name), x: pitch.w / 2, y: pitch.h / 2,
         kind: "player", group: groupOf(p.position), playerId: p.id,
       }],
     }));
@@ -847,7 +850,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setState((st) => ({
       ...st,
       tokens: [...st.tokens.filter((t) => t.kind !== "ball"), {
-        id: uid("b"), label: "", x: 50, y: 75, kind: "ball", group: "Ball",
+        id: uid("b"), label: "", x: pitch.w / 2, y: pitch.h / 2, kind: "ball", group: "Ball",
       }],
     }));
   }
@@ -856,7 +859,10 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setState((st) => ({
       ...st,
       tokens: [...st.tokens, {
-        id: uid("a"), label: "", x: 50, y: 40, kind: "opponent", group: "Opponent",
+        // Placed higher up than centre, same 40/150 ratio the full pitch
+        // always used — keeps an added opponent visually "further away"
+        // on any pitch instead of landing on top of the ball at centre.
+        id: uid("a"), label: "", x: pitch.w / 2, y: pitch.h * (40 / 150), kind: "opponent", group: "Opponent",
       }],
     }));
   }

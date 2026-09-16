@@ -3,14 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Upload, Video, Camera, ArrowUpRight, Minus, Waves, Pencil, Square as SquareIcon,
-  Type, Eraser, Undo2, Redo2, RotateCcw, Download, Save, FolderOpen, Trash2, Play as PlayIcon,
+  Type, Eraser, Undo2, Redo2, RotateCcw, Download, Save, FolderOpen, Trash2, Play as PlayIcon, Send,
 } from "lucide-react";
 import {
   dribblePath, polyPath, shapeColor, shapeWidth, toBoardSpace,
   type Shape, type ShapeKind,
 } from "@/lib/board-model";
 import { captureVideoFrame, loadImageFile } from "@/lib/image-capture";
-import { savePlay, listPlays, loadPlay, deletePlay, type SavedPlaySummary } from "@/app/actions/tactic-plays";
+import { parseEmbedUrl, type EmbedProvider } from "@/lib/video-embed";
+import { savePlay, listPlays, loadPlay, deletePlay, sharePlayToSquad, type SavedPlaySummary } from "@/app/actions/tactic-plays";
+import { VoiceNoteRecorder } from "@/components/tactics/voice-note-recorder";
 
 export interface FilmTeam {
   id: string;
@@ -23,16 +25,26 @@ export interface FilmTeam {
  * from the pitch board's tool set is. */
 type Mode = "run" | "pass" | "dribble" | "free" | "zone" | "text" | "erase";
 
+/** Width/height of the annotation percentage-space used for a live embed —
+ * there's no fixed pixel frame to size against (see EMBED_CANVAS below). */
+const EMBED_CANVAS = { w: 100, h: 56.25 }; // 16:9
+
 /** What a saved film play's `data` actually holds. `surface: "film"`
  * distinguishes it from a pitch play sharing the same tactic_plays row
- * shape; `sourceKind` records how the still was captured, purely for the
- * coach's own reference (re-opening never re-fetches the original video). */
+ * shape; `sourceKind` records how the breakdown was captured, purely for
+ * the coach's own reference (re-opening never re-fetches the original
+ * video, nor re-resolves an embed's provider). An 'embed' breakdown has no
+ * `frameImage` at all — a cross-origin iframe exposes no pixels to canvas,
+ * so there is no still to persist; only the live annotations + a deep link
+ * back to the original video are saved. */
 interface FilmData {
   surface: "film";
-  sourceKind: "local-video" | "local-image";
-  frameImage: string; // data URL — the only artefact actually persisted
-  frameW: number;
-  frameH: number;
+  sourceKind: "local-video" | "local-image" | "embed";
+  frameImage?: string; // data URL — present for local-video/local-image only
+  frameW?: number;
+  frameH?: number;
+  embedUrl?: string;   // present for embed only
+  embedProvider?: EmbedProvider;
   shapes: Shape[];
 }
 
@@ -50,6 +62,23 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  // A YouTube/Vimeo link — see the EMBED_CANVAS comment. The player and the
+  // drawing overlay can't both have pointer events at once (whichever sits
+  // on top intercepts them), so `embedInteractive` toggles which one does:
+  // off (default) draws, on lets the coach reach the video's own controls.
+  const [embedUrl, setEmbedUrl] = useState<string | null>(null);
+  const [embedProvider, setEmbedProvider] = useState<EmbedProvider | null>(null);
+  const [embedInput, setEmbedInput] = useState("");
+  const [embedInteractive, setEmbedInteractive] = useState(false);
+
+  /** The annotation surface's own size, in whatever units its shapes' `pts`
+   * are in — a captured frame's real pixel dimensions, or the fixed
+   * percentage space an embed's shapes are drawn in. Everything downstream
+   * (toBoard, rendering, export gating) reads this instead of `frame`
+   * directly so it works for either source. Named to avoid colliding with
+   * the *actual* `<canvas>` elements exportPng()/freezeFrame() create. */
+  const surface = frame ?? (embedUrl ? EMBED_CANVAS : null);
+
   // ── Drawing ───────────────────────────────────────────────────
   const [mode, setMode] = useState<Mode>("free");
   const [shapes, setShapes] = useState<Shape[]>([]);
@@ -64,6 +93,7 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
   const [playName, setPlayName] = useState("");
   const [currentPlayId, setCurrentPlayId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [voiceUrl, setVoiceUrl] = useState<string | null>(null);
 
   function handleFile(file: File) {
     setNotice(null);
@@ -96,11 +126,27 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
     setVideoUrl(null);
     setFrame(null);
     setSourceKind(null);
+    setEmbedUrl(null);
+    setEmbedProvider(null);
+    setEmbedInput("");
+    setEmbedInteractive(false);
     setShapes([]);
     past.current = [];
     future.current = [];
     setCurrentPlayId(null);
     setPlayName("");
+    setVoiceUrl(null);
+  }
+
+  function connectEmbed() {
+    const parsed = parseEmbedUrl(embedInput);
+    if (!parsed) { setNotice("That doesn't look like a YouTube or Vimeo link."); return; }
+    setNotice(null);
+    setSourceKind("embed");
+    setVideoUrl(null);
+    setFrame(null);
+    setEmbedUrl(parsed.embedUrl);
+    setEmbedProvider(parsed.provider);
   }
 
   // ── History ───────────────────────────────────────────────────
@@ -125,7 +171,7 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
   // ── Coordinates (board space = the still's own pixel dimensions) ──
   function toBoard(clientX: number, clientY: number) {
     const rect = svgRef.current!.getBoundingClientRect();
-    return toBoardSpace(rect, clientX, clientY, frame?.w ?? 1, frame?.h ?? 1);
+    return toBoardSpace(rect, clientX, clientY, surface?.w ?? 1, surface?.h ?? 1);
   }
 
   function onSvgDown(e: React.PointerEvent) {
@@ -154,7 +200,7 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
   function onSvgUp() {
     if (drawing.current && draft) {
       const a = draft.pts[0], b = draft.pts[draft.pts.length - 1];
-      if (Math.hypot(b.x - a.x, b.y - a.y) > (frame ? frame.w * 0.01 : 3)) {
+      if (Math.hypot(b.x - a.x, b.y - a.y) > (surface ? surface.w * 0.01 : 3)) {
         snapshot();
         setShapes((s) => [...s, { ...draft, id: uid("s") }]);
       }
@@ -176,7 +222,7 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
   function renderShape(sh: Shape, isDraft = false) {
     const stroke = shapeColor(sh);
     const common = {
-      stroke, strokeWidth: shapeWidth(sh) * (frame ? frame.w / 100 : 1), fill: "none",
+      stroke, strokeWidth: shapeWidth(sh) * (surface ? surface.w / 100 : 1), fill: "none",
       strokeLinecap: "round" as const, strokeLinejoin: "round" as const,
       opacity: isDraft ? 0.75 : 1,
       style: { cursor: mode === "erase" ? "pointer" : "default" },
@@ -185,7 +231,7 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
     const a = sh.pts[0], b = sh.pts[sh.pts.length - 1];
     if (!a) return null;
     if (sh.kind === "text") {
-      const size = (frame?.w ?? 100) * 0.03;
+      const size = (surface?.w ?? 100) * 0.03;
       return (
         <text key={sh.id} x={a.x} y={a.y} fontSize={size} fill={stroke} fontWeight="bold"
           style={{ paintOrder: "stroke", stroke: "rgba(0,0,0,0.7)", strokeWidth: size * 0.15, cursor: mode === "erase" ? "pointer" : "default" }}
@@ -200,7 +246,7 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
     if (sh.kind === "dribble") return <path key={sh.id} d={dribblePath(a.x, a.y, b.x, b.y)} markerEnd="url(#fb-arrow)" {...common} />;
     return (
       <line key={sh.id} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-        strokeDasharray={sh.kind === "pass" ? `${(frame?.w ?? 100) * 0.03} ${(frame?.w ?? 100) * 0.02}` : undefined}
+        strokeDasharray={sh.kind === "pass" ? `${(surface?.w ?? 100) * 0.03} ${(surface?.w ?? 100) * 0.02}` : undefined}
         markerEnd="url(#fb-arrow)" {...common} />
     );
   }
@@ -253,10 +299,12 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
   async function handleSave() {
     const name = playName.trim();
     if (!name) { setNotice("Give the breakdown a name first."); return; }
-    if (!frame || !sourceKind) { setNotice("Capture a frame before saving."); return; }
+    if (!sourceKind) { setNotice("Capture a frame or connect a video before saving."); return; }
     if (!teamId) { setNotice("Pick a team first."); return; }
     setBusy("save");
-    const data: FilmData = { surface: "film", sourceKind, frameImage: frame.dataUrl, frameW: frame.w, frameH: frame.h, shapes };
+    const data: FilmData = frame
+      ? { surface: "film", sourceKind, frameImage: frame.dataUrl, frameW: frame.w, frameH: frame.h, shapes }
+      : { surface: "film", sourceKind, embedUrl: embedUrl ?? undefined, embedProvider: embedProvider ?? undefined, shapes };
     const res = await savePlay({ playId: currentPlayId ?? undefined, teamId, name, data, surface: "film" });
     setBusy(null);
     if (res.error) { setNotice(res.error); return; }
@@ -275,11 +323,17 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
     setVideoUrl(null);
     setSourceKind(d.sourceKind ?? "local-image");
     setFrame(d.frameImage ? { dataUrl: d.frameImage, w: d.frameW ?? 1280, h: d.frameH ?? 720 } : null);
+    setEmbedUrl(d.embedUrl ?? null);
+    setEmbedProvider(d.embedProvider ?? null);
+    setEmbedInteractive(false);
     setShapes(d.shapes ?? []);
     past.current = [];
     future.current = [];
     setCurrentPlayId(id);
     setPlayName(res.name ?? "");
+    // loadPlay() only returns name/notes/data — voice_url lives on the
+    // already-fetched list summary, same pattern tactical-board.tsx uses.
+    setVoiceUrl(plays.find((p) => p.id === id)?.voice_url ?? null);
     setNotice(`Loaded "${res.name}".`);
   }
 
@@ -291,6 +345,16 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
     if (currentPlayId === id) setCurrentPlayId(null);
     setNotice("Breakdown deleted.");
     void refreshPlays();
+  }
+
+  async function handleShare() {
+    const name = playName.trim();
+    if (!name) { setNotice("Name and save the breakdown before sharing."); return; }
+    if (!currentPlayId) { setNotice("Save the breakdown before sharing it."); return; }
+    setBusy("share");
+    const res = await sharePlayToSquad({ teamId, playId: currentPlayId, playName: name });
+    setBusy(null);
+    setNotice(res.error ?? `Shared "${name}" with the squad.`);
   }
 
   const toolBtn = (m: Mode, Icon: typeof ArrowUpRight, label: string) => (
@@ -309,7 +373,7 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
   );
 
   // ── Source picker (no frame captured yet) ────────────────────────
-  if (!frame) {
+  if (!surface) {
     return (
       <div className="space-y-4">
         <div className="rounded-xl border border-border bg-card p-6 text-center space-y-4">
@@ -351,6 +415,34 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
           </div>
         )}
 
+        <div className="rounded-xl border border-border bg-card p-4 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Or draw over a YouTube / Vimeo video
+          </p>
+          <p className="text-xs text-muted-foreground">
+            A browser can&apos;t read pixels out of another site&apos;s video player, so there&apos;s
+            no still frame here — you draw on a live transparent layer over the playing video instead,
+            and only your drawing plus the link get saved (no PNG export for this source).
+          </p>
+          <div className="flex gap-1.5">
+            <input
+              type="text"
+              value={embedInput}
+              onChange={(e) => setEmbedInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") connectEmbed(); }}
+              placeholder="https://youtube.com/watch?v=… or https://vimeo.com/…"
+              className="flex-1 rounded-md border border-border bg-background px-2.5 py-2 text-sm"
+            />
+            <button
+              type="button"
+              onClick={connectEmbed}
+              className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground"
+            >
+              Connect
+            </button>
+          </div>
+        </div>
+
         {plays.length > 0 && (
           <SavedFilmList plays={plays} onLoad={handleLoad} />
         )}
@@ -381,10 +473,23 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
         <button type="button" onClick={handleSave} disabled={busy === "save"} className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-50">
           <Save className="size-3.5" aria-hidden="true" /> {busy === "save" ? "Saving…" : "Save"}
         </button>
+        <button
+          type="button"
+          onClick={handleShare}
+          disabled={busy === "share" || !currentPlayId}
+          title={currentPlayId ? "Share with the squad" : "Save the breakdown first"}
+          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm hover:bg-muted disabled:opacity-50"
+        >
+          <Send className="size-3.5 text-primary" aria-hidden="true" /> {busy === "share" ? "Sharing…" : "Share"}
+        </button>
         <button type="button" onClick={chooseAnotherSource} className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm hover:bg-muted">
           <Video className="size-3.5" aria-hidden="true" /> New source
         </button>
       </div>
+
+      {currentPlayId && (
+        <VoiceNoteRecorder playId={currentPlayId} initialUrl={voiceUrl} onChange={setVoiceUrl} />
+      )}
 
       <div className="flex flex-wrap items-center gap-1.5">
         {toolBtn("run", ArrowUpRight, "Run")}
@@ -400,18 +505,46 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
         <button type="button" onClick={clearShapes} className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
           <RotateCcw className="size-3.5" aria-hidden="true" /> Clear
         </button>
-        <button type="button" onClick={exportPng} className="inline-flex h-10 sm:h-9 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-semibold hover:bg-muted">
+        <button
+          type="button"
+          onClick={exportPng}
+          disabled={!frame}
+          title={frame ? undefined : "PNG export needs a captured frame — a live video embed has no still to export"}
+          className="inline-flex h-10 sm:h-9 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-semibold hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+        >
           <Download className="size-3.5 text-primary" aria-hidden="true" /> PNG
         </button>
+        {embedUrl && (
+          <button
+            type="button"
+            onClick={() => setEmbedInteractive((v) => !v)}
+            title="Toggle whether clicks reach the video's own controls or your drawing"
+            className={`inline-flex h-10 sm:h-9 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium ${
+              embedInteractive ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border hover:bg-muted"
+            }`}
+          >
+            <PlayIcon className="size-3.5" aria-hidden="true" /> {embedInteractive ? "Video controls" : "Drawing"}
+          </button>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_16rem]">
         <div className="mx-auto w-full max-w-2xl">
-          <div className="overflow-hidden rounded-xl border border-border" style={{ aspectRatio: `${frame.w} / ${frame.h}` }}>
+          <div className="relative overflow-hidden rounded-xl border border-border bg-black" style={{ aspectRatio: `${surface.w} / ${surface.h}` }}>
+            {embedUrl ? (
+              <iframe
+                src={embedUrl}
+                title="Match video"
+                allow="autoplay; encrypted-media; picture-in-picture"
+                allowFullScreen
+                className="absolute inset-0 h-full w-full border-0"
+              />
+            ) : null}
             <svg
               ref={svgRef}
-              viewBox={`0 0 ${frame.w} ${frame.h}`}
-              className="h-full w-full touch-none select-none"
+              viewBox={`0 0 ${surface.w} ${surface.h}`}
+              className="absolute inset-0 h-full w-full touch-none select-none"
+              style={embedUrl ? { pointerEvents: embedInteractive ? "none" : "auto" } : undefined}
               onPointerDown={onSvgDown}
               onPointerMove={onSvgMove}
               onPointerUp={onSvgUp}
@@ -422,19 +555,26 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
                   <path d="M0,0 L10,5 L0,10 z" fill="#fde047" />
                 </marker>
               </defs>
-              <image href={frame.dataUrl} x={0} y={0} width={frame.w} height={frame.h} preserveAspectRatio="xMidYMid slice" />
+              {frame && (
+                <image href={frame.dataUrl} x={0} y={0} width={frame.w} height={frame.h} preserveAspectRatio="xMidYMid slice" />
+              )}
               {shapes.map((sh) => renderShape(sh))}
               {draft && renderShape(draft, true)}
             </svg>
           </div>
           <p className="mt-2 text-center text-xs text-muted-foreground">
-            {mode === "run" && "Drag to draw a run (solid arrow)."}
-            {mode === "pass" && "Drag to draw a pass (dashed arrow)."}
-            {mode === "dribble" && "Drag to draw a dribble (wavy line)."}
-            {mode === "free" && "Draw freehand to circle or sketch."}
-            {mode === "zone" && "Draw freehand to shade a space."}
-            {mode === "text" && "Tap where you want a label."}
-            {mode === "erase" && "Tap a line or label to remove it."}
+            {embedUrl && embedInteractive
+              ? "Video controls active — play, pause or seek, then switch back to Drawing to keep annotating."
+              : <>
+                  {mode === "run" && "Drag to draw a run (solid arrow)."}
+                  {mode === "pass" && "Drag to draw a pass (dashed arrow)."}
+                  {mode === "dribble" && "Drag to draw a dribble (wavy line)."}
+                  {mode === "free" && "Draw freehand to circle or sketch."}
+                  {mode === "zone" && "Draw freehand to shade a space."}
+                  {mode === "text" && "Tap where you want a label."}
+                  {mode === "erase" && "Tap a line or label to remove it."}
+                </>
+            }
           </p>
           {notice && <p className="mt-1 text-center text-xs text-muted-foreground">{notice}</p>}
         </div>
