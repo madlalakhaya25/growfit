@@ -114,7 +114,7 @@ export default async function AdminPlayerDetailPage({
                 <p className="font-semibold">{ratings.length}</p>
               </div>
               <div>
-                <p className="text-muted-foreground text-xs">Share token</p>
+                <p className="text-muted-foreground text-xs">Public passport link</p>
                 <p className="font-mono font-semibold text-xs tracking-wide">{player.share_token}</p>
               </div>
             </div>

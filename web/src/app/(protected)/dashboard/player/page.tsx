@@ -277,7 +277,11 @@ export default async function PlayerDashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Share Passport</CardTitle>
-            <CardDescription>Your public page includes a QR code scouts can scan.</CardDescription>
+            <CardDescription>
+              Your public page includes a QR code scouts can scan. This code
+              identifies your passport — it does not give anyone access to your
+              records.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="rounded-md bg-muted px-4 py-3 text-center font-mono text-lg font-bold tracking-widest">

@@ -136,24 +136,11 @@ export default function RegisterPage() {
       .eq("id", user.id);
     if (profileError) { setServerError(profileError.message); return; }
 
-    if (data.role === "parent" && data.share_token && data.share_token.trim() !== "") {
-      const { data: player, error: playerError } = await supabase
-        .from("players")
-        .select("id")
-        .eq("share_token", data.share_token.trim().toLowerCase())
-        .single();
-
-      if (playerError || !player) {
-        setServerError("Child's player code not found — you can add it later from your dashboard.");
-      } else {
-        const { error: linkError } = await supabase
-          .from("parent_player_links")
-          .upsert({ parent_id: user.id, player_id: player.id }, { onConflict: "parent_id,player_id" });
-        if (linkError) {
-          setServerError("Could not link your child — you can add it later from your dashboard.");
-        }
-      }
-    }
+    // A parent used to be able to link themselves to a child here, from the
+    // browser, on the strength of the child's public share token alone. That
+    // was the second (undocumented) path into parent_player_links and it is
+    // gone — linking now requires a code a coach issued for that child. See
+    // migration 032. Parents land on their dashboard and link from there.
 
     router.push(ROLE_ROUTES[data.role]);
   }
@@ -338,22 +325,13 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {/* Player code — shown only for parents */}
+          {/* Parents link a child from their dashboard, with a code their
+              child's coach issues for that child specifically. */}
           {selectedRole === "parent" && (
-            <div className="space-y-1.5">
-              <label htmlFor="share_token" className="text-sm font-medium">
-                Child&apos;s player code <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
-              <input
-                id="share_token"
-                type="text"
-                autoComplete="off"
-                placeholder="e.g. a3f9b2c1d4"
-                {...register("share_token")}
-                className={INPUT_CLASS}
-              />
-              <p className="text-xs text-muted-foreground">You can also add this later from your dashboard.</p>
-            </div>
+            <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+              Once you have an account, ask your child&apos;s coach for a child
+              link code and add them from your dashboard.
+            </p>
           )}
 
           {serverError && (

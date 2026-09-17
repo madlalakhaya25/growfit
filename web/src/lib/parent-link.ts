@@ -92,3 +92,16 @@ export function isMissingParentLinkRpc(
 export const MISSING_PARENT_LINK_RPC_MESSAGE =
   "Linking a child is temporarily unavailable — an administrator needs to run " +
   "migration 032. Ask your child's coach to link you in the meantime.";
+
+/**
+ * True when a column added by migration 032 is not in the database yet.
+ * `42703` is Postgres' undefined_column; `PGRST204` is PostgREST's write-side
+ * equivalent. Same reasoning as `isMissingAttributeColumn` in attributes.ts: a
+ * wide SELECT naming a missing column fails outright rather than returning the
+ * columns that do exist, so it reads as "no data" instead of as an error.
+ */
+export function isMissingParentLinkColumn(
+  error: { code?: string } | null | undefined
+): boolean {
+  return error?.code === "42703" || error?.code === "PGRST204";
+}

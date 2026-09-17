@@ -28,6 +28,9 @@ import { DevelopmentPlanPanel } from "@/components/development/development-plan-
 import { MilestoneCard } from "@/components/development/milestone-card";
 import type { MilestoneCategory } from "@/app/actions/development";
 import { ClipsSection } from "./clips-section";
+import { ParentAccessCard, type LinkedAdult } from "@/components/records/parent-access-card";
+import { listParentLinkCodes } from "@/app/actions/parent";
+import { isMissingParentLinkColumn } from "@/lib/parent-link";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { PlayerPhotoUpload } from "@/components/player-photo-upload";
 import { ExtendedInfoForm } from "@/components/records/extended-info-form";
@@ -84,6 +87,42 @@ export default async function PlayerDetailPage({
   }
 
   if (!player) notFound();
+
+  // Who can currently see this child's records, and any unused link codes.
+  // Both are staff-only; `listParentLinkCodes` fails soft when migration 032
+  // has not been applied, so the card degrades to "linked adults" alone.
+  const [linksResult, codesResult] = await Promise.all([
+    supabase
+      .from("parent_player_links")
+      .select("parent_id, relationship, linked_at, verification_method, profiles ( full_name )")
+      .eq("player_id", playerId),
+    listParentLinkCodes(playerId),
+  ]);
+
+  // `verification_method` arrives with migration 032. Until that is applied the
+  // wide select above fails with 42703 and would read as "nobody is linked" —
+  // the worst possible thing for this card to say. Fall back to the columns
+  // that have always existed.
+  let linkRows = linksResult.data;
+  if (!linkRows && isMissingParentLinkColumn(linksResult.error)) {
+    const { data } = await supabase
+      .from("parent_player_links")
+      .select("parent_id, relationship, linked_at, profiles ( full_name )")
+      .eq("player_id", playerId);
+    linkRows = data as typeof linkRows;
+  }
+
+  const linkedAdults: LinkedAdult[] = (linkRows ?? []).map((row) => {
+    const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+    return {
+      parent_id: row.parent_id,
+      full_name: (profile as { full_name: string | null } | null)?.full_name ?? null,
+      relationship: row.relationship,
+      linked_at: row.linked_at,
+      verification_method:
+        (row as { verification_method?: string | null }).verification_method ?? null,
+    };
+  });
 
   const currentSeasonForRecords = new Date().getFullYear().toString();
 
@@ -231,7 +270,7 @@ export default async function PlayerDetailPage({
                 <p className="font-semibold">{ratings.length}</p>
               </div>
               <div>
-                <p className="text-muted-foreground text-xs">Public passport</p>
+                <p className="text-muted-foreground text-xs">Public passport link</p>
                 <Link
                   href={`/passport/${player.share_token}`}
                   target="_blank"
@@ -394,6 +433,14 @@ export default async function PlayerDetailPage({
           </section>
         );
       })()}
+
+      <ParentAccessCard
+        playerId={player.id}
+        playerName={player.full_name}
+        linkedAdults={linkedAdults}
+        codes={codesResult.codes ?? []}
+        loadError={codesResult.error}
+      />
 
       <ClipsSection
         playerId={player.id}

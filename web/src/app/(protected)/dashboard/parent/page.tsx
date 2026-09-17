@@ -80,7 +80,7 @@ export default async function ParentDashboardPage() {
           <div>
             <p className="font-medium">No children linked yet</p>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Enter your child&apos;s share code below to follow their progress.
+              Ask your child&apos;s coach for a link code, then add them below.
             </p>
           </div>
         </div>
@@ -135,7 +135,7 @@ export default async function ParentDashboardPage() {
         <CardHeader>
           <CardTitle className="text-base">Link a child</CardTitle>
           <CardDescription>
-            Enter the share code from your child&apos;s passport page, or ask their coach.
+            Enter the link code your child&apos;s coach gave you.
           </CardDescription>
         </CardHeader>
         <CardContent>
