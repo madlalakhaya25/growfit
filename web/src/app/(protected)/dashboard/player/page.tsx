@@ -11,16 +11,15 @@ import { POSITIONS } from "@/lib/types";
 import { calculateAge, getInitials } from "@/lib/player";
 import { RemovePlayerPhotoButton } from "@/components/remove-player-photo-button";
 import { CopyButton } from "@/components/copy-button";
+import { AttributeSummary } from "@/components/player/attribute-summary";
 import { ClaimProfileForm } from "./claim-profile-form";
 import { RatingChart } from "@/components/rating-chart";
 import { MediaGallery } from "@/components/media/media-gallery";
 import { MyPositionPanel } from "@/components/tactics/my-position-panel";
 import {
   ALL_ATTR_SELECT,
-  ATTR_META,
   averageAttributeRows,
   calculateOverall,
-  getPositionAttrKeys,
   type AttrKey,
 } from "@/lib/attributes";
 
@@ -137,10 +136,6 @@ export default async function PlayerDashboardPage() {
   const attrsOverall = calculateOverall(attrs, player.position);
   const overall = attrsOverall ?? matchAvg;
 
-  const summaryKeys = getPositionAttrKeys(player.position).filter(
-    (key) => typeof attrs?.[key] === "number"
-  );
-
   const positionEntry = POSITIONS.find((p) => p.value === player.position);
   const posLabel = positionEntry?.label ?? "—";
   const age = calculateAge(player.date_of_birth);
@@ -231,13 +226,11 @@ export default async function PlayerDashboardPage() {
                 </Badge>
               )}
             </div>
-            {summaryKeys.length > 0 && (
-              <div className="space-y-1.5 pt-2 border-t border-border">
-                {summaryKeys.map((key) => (
-                  <StatBar key={key} label={ATTR_META[key].label} value={attrs![key]!} />
-                ))}
-              </div>
-            )}
+            <AttributeSummary
+              attrs={attrs}
+              position={player.position}
+              className="space-y-1.5 pt-2 border-t border-border"
+            />
           </CardContent>
         </Card>
 

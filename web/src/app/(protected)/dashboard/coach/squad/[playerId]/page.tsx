@@ -10,7 +10,6 @@ import { RatingRing } from "@/components/ui/rating-ring";
 import { StatBar } from "@/components/ui/stat-bar";
 import { POSITIONS, FEET } from "@/lib/types";
 import {
-  ATTR_META,
   ALL_ATTR_SELECT,
   CORE_ATTR_SELECT,
   calculateOverall,
@@ -28,6 +27,7 @@ import { DevelopmentPlanPanel } from "@/components/development/development-plan-
 import { MilestoneCard } from "@/components/development/milestone-card";
 import type { MilestoneCategory } from "@/app/actions/development";
 import { ClipsSection } from "./clips-section";
+import { AttributeSummary } from "@/components/player/attribute-summary";
 import { ParentAccessCard, type LinkedAdult } from "@/components/records/parent-access-card";
 import { listParentLinkCodes } from "@/app/actions/parent";
 import { isMissingParentLinkColumn } from "@/lib/parent-link";
@@ -283,13 +283,11 @@ export default async function PlayerDetailPage({
             </div>
 
             {/* Attribute bars snapshot */}
-            {summaryKeys.length > 0 && (
-              <div className="space-y-1.5 pt-2 border-t border-border">
-                {summaryKeys.map((key) => (
-                  <StatBar key={key} label={ATTR_META[key].label} value={initialAttrs![key]!} />
-                ))}
-              </div>
-            )}
+            <AttributeSummary
+              attrs={initialAttrs}
+              position={player.position}
+              className="space-y-1.5 pt-2 border-t border-border"
+            />
 
             <div className="pt-2">
               <PlayerPhotoUpload playerId={player.id} />

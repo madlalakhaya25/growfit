@@ -6,16 +6,12 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RatingRing } from "@/components/ui/rating-ring";
-import { StatBar } from "@/components/ui/stat-bar";
+import { AttributeSummary } from "@/components/player/attribute-summary";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { POSITIONS, FEET } from "@/lib/types";
 import {
-  ATTR_CATEGORIES,
-  ATTR_META,
-  CATEGORY_LABELS,
   calculateOverall,
-  getPositionAttrKeys,
   type AttrKey,
 } from "@/lib/attributes";
 import { calculateAge, getInitials } from "@/lib/player";
@@ -233,24 +229,12 @@ export default async function PublicPassportPage({
                       {posLabel !== "—" ? posLabel.toLowerCase() : "player"} is
                       assessed on, rated 1–99 by their coaches.
                     </p>
-                    {ATTR_CATEGORIES.map((cat) => {
-                      // Only what this position is assessed on, and only what
-                      // a coach actually rated.
-                      const keys = getPositionAttrKeys(passport.position).filter(
-                        (k) => ATTR_META[k].category === cat && attrs[k] != null
-                      );
-                      if (keys.length === 0) return null;
-                      return (
-                        <div key={cat} className="space-y-1.5">
-                          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                            {CATEGORY_LABELS[cat]}
-                          </p>
-                          {keys.map((key) => (
-                            <StatBar key={key} label={ATTR_META[key].label} value={attrs[key]!} />
-                          ))}
-                        </div>
-                      );
-                    })}
+                    <AttributeSummary
+                      attrs={attrs}
+                      position={passport.position}
+                      grouped
+                      className="space-y-3"
+                    />
                   </div>
                 ) : (
                   <p className="text-xs text-muted-foreground pt-1">No ability assessment yet.</p>

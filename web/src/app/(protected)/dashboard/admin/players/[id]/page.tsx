@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RatingRing } from "@/components/ui/rating-ring";
-import { StatBar } from "@/components/ui/stat-bar";
 import { PlayerPhotoUpload } from "@/components/player-photo-upload";
 import { POSITIONS, FEET } from "@/lib/types";
 import { calculateAge, getInitials } from "@/lib/player";
@@ -14,12 +13,11 @@ import { ExtendedInfoForm } from "@/components/records/extended-info-form";
 import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
 import { DeletePlayerSection } from "@/components/records/delete-player-section";
+import { AttributeSummary } from "@/components/player/attribute-summary";
 import {
   ALL_ATTR_SELECT,
-  ATTR_META,
   averageAttributeRows,
   calculateOverall,
-  getPositionAttrKeys,
   type AttrKey,
 } from "@/lib/attributes";
 import { matchRatingAverage } from "@/lib/player";
@@ -77,9 +75,6 @@ export default async function AdminPlayerDetailPage({
   );
   const avg = calculateOverall(attrs, player.position) ?? matchAvg;
 
-  const summaryKeys = getPositionAttrKeys(player.position).filter(
-    (key) => typeof attrs?.[key] === "number"
-  );
   const posLabel = POSITIONS.find((p) => p.value === player.position)?.label ?? "—";
   const footLabel = FEET.find((f) => f.value === player.preferred_foot)?.label;
   const age = calculateAge(player.date_of_birth);
@@ -140,15 +135,13 @@ export default async function AdminPlayerDetailPage({
         </Card>
 
         {/* Attributes card */}
-        {summaryKeys.length > 0 && (
+        {attrs && (
           <Card>
             <CardHeader>
               <CardTitle>Attributes</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {summaryKeys.map((key) => (
-                <StatBar key={key} label={ATTR_META[key].label} value={attrs![key]!} />
-              ))}
+            <CardContent>
+              <AttributeSummary attrs={attrs} position={player.position} className="space-y-3" />
             </CardContent>
           </Card>
         )}

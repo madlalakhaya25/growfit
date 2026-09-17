@@ -24,38 +24,18 @@ ALTER TABLE player_attributes
   ADD COLUMN IF NOT EXISTS game_reading      smallint CHECK (game_reading      BETWEEN 1 AND 99),
   ADD COLUMN IF NOT EXISTS communication     smallint CHECK (communication     BETWEEN 1 AND 99);
 
--- The passport averages every attribute a coach has rated. Without this the
--- five new ones would be assessed by coaches and silently missing from the
--- public page.
---
--- Carries migration 032 forward byte-for-byte apart from the five added
--- averages: the photo-consent CASE (originally 023), the derived age in place
--- of raw date_of_birth, the dropped coach notes and internal UUID, and the
--- NULL return for an unknown token. Re-read 032's header before editing this.
-CREATE OR REPLACE FUNCTION get_public_passport(p_share_token TEXT)
+-- Only the averaging function changes. get_public_passport() calls this and is
+-- NOT redefined here — which is the point of the split made in 032. Every
+-- previous migration that touched the attribute model (031, 032) rewrote the
+-- whole passport function, re-copying its photo-consent enforcement by hand
+-- each time. That is the one piece that must never be dropped by accident, so
+-- it no longer sits in the blast radius of an attribute change.
+CREATE OR REPLACE FUNCTION player_attribute_averages(p_player_id UUID)
 RETURNS JSON LANGUAGE plpgsql
 SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
-  v_player players%ROWTYPE;
-  v_attrs  RECORD;
-  v_photo_consent BOOLEAN;
-  v_academy_name TEXT;
+  v_attrs RECORD;
 BEGIN
-  SELECT * INTO v_player
-  FROM players
-  WHERE share_token = lower(trim(p_share_token)) AND active = TRUE;
-
-  IF v_player.id IS NULL THEN
-    RETURN NULL::json;
-  END IF;
-
-  SELECT photo_consent INTO v_photo_consent
-  FROM player_consents
-  WHERE player_id = v_player.id
-    AND season = extract(year FROM now())::text;
-
-  SELECT name INTO v_academy_name FROM academies WHERE id = v_player.academy_id;
-
   SELECT
     round(avg(pace))::int              AS pace,
     round(avg(shooting))::int          AS shooting,
@@ -89,35 +69,17 @@ BEGIN
     round(avg(communication))::int     AS communication
   INTO v_attrs
   FROM player_attributes
-  WHERE player_id = v_player.id;
+  WHERE player_id = p_player_id;
 
-  RETURN json_build_object(
-    'full_name',      v_player.full_name,
-    'position',       v_player.position,
-    'secondary_pos',  v_player.secondary_pos,
-    'preferred_foot', v_player.preferred_foot,
-    'age',            CASE
-                        WHEN v_player.date_of_birth IS NULL THEN NULL
-                        ELSE date_part('year', age(v_player.date_of_birth))::int
-                      END,
-    'photo_url',      CASE WHEN v_photo_consent IS TRUE THEN v_player.photo_url ELSE NULL END,
-    'share_token',    v_player.share_token,
-    'academy_name',   v_academy_name,
-    'attributes',     row_to_json(v_attrs),
-    'ratings', (
-      SELECT COALESCE(json_agg(r ORDER BY r.created_at DESC), '[]'::json)
-      FROM (
-        SELECT pr.rating, pr.created_at,
-               f.opponent, f.fixture_date
-        FROM player_ratings pr
-        LEFT JOIN fixtures f ON f.id = pr.fixture_id
-        WHERE pr.player_id = v_player.id
-        ORDER BY pr.created_at DESC
-      ) r
-    )
-  );
+  RETURN row_to_json(v_attrs);
 END;
 $$;
+
+-- Only ever called from inside get_public_passport(), which is SECURITY
+-- DEFINER and so passes this permission check as its owner. Without this,
+-- CREATE FUNCTION's default grant to PUBLIC would let anyone call it directly
+-- with a player UUID and read their attributes without a share token.
+REVOKE EXECUTE ON FUNCTION player_attribute_averages(UUID) FROM PUBLIC;
 
 NOTIFY pgrst, 'reload schema';
 
@@ -127,6 +89,7 @@ NOTIFY pgrst, 'reload schema';
 --     AND column_name NOT IN ('id','player_id','coach_id','notes','assessed_at')
 --   ORDER BY column_name;
 --
--- And confirm 032's protections survived this CREATE OR REPLACE:
---   a player with photo_consent FALSE still gets photo_url NULL; no
---   date_of_birth and no ratings[].note anywhere in the returned JSON.
+-- And confirm 032's protections are untouched (they should be — this file no
+-- longer redefines get_public_passport at all): a player with photo_consent
+-- FALSE still gets photo_url NULL; no date_of_birth and no ratings[].note
+-- anywhere in the returned JSON.

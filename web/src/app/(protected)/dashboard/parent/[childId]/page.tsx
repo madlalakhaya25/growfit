@@ -5,7 +5,6 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RatingRing } from "@/components/ui/rating-ring";
-import { StatBar } from "@/components/ui/stat-bar";
 import { POSITIONS, FEET } from "@/lib/types";
 import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
 import { calculateAge, getInitials } from "@/lib/player";
@@ -13,9 +12,9 @@ import { RemovePlayerPhotoButton } from "@/components/remove-player-photo-button
 import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
 import { ParentReportPanel } from "@/components/ai/parent-report-panel";
+import { AttributeSummary } from "@/components/player/attribute-summary";
 import {
   ALL_ATTR_SELECT,
-  ATTR_META,
   averageAttributeRows,
   calculateOverall,
   getPositionAttrKeys,
@@ -275,13 +274,11 @@ export default async function ChildDetailPage({
                 </Link>
               </div>
             </div>
-            {summaryKeys.length > 0 && (
-              <div className="space-y-2 border-t border-border pt-3">
-                {summaryKeys.map((key) => (
-                  <StatBar key={key} label={ATTR_META[key].label} value={attrs![key]!} />
-                ))}
-              </div>
-            )}
+            <AttributeSummary
+              attrs={attrs}
+              position={player.position}
+              className="space-y-2 border-t border-border pt-3"
+            />
           </CardContent>
         </Card>
 

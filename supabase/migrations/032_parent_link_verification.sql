@@ -428,30 +428,24 @@ GRANT EXECUTE ON FUNCTION redeem_parent_link_code(TEXT, TEXT) TO authenticated;
 -- unchanged. Also returns NULL rather than an error object for an unknown
 -- token, so no future consumer repeats the truthy-error bug that made an
 -- invalid passport link throw a 500.
-CREATE OR REPLACE FUNCTION get_public_passport(p_share_token TEXT)
+/**
+ * Averaged attributes for one player, across every coach who assessed them.
+ *
+ * Split out of get_public_passport() so that adding an attribute is a change
+ * to THIS function only. The passport function was previously rewritten in
+ * full by every migration that touched the attribute model (031, 032, 033),
+ * which meant its photo-consent enforcement was re-copied by hand each time —
+ * the one piece of it that must never be dropped by accident.
+ *
+ * avg() skips NULLs, so an attribute no coach rated stays NULL in the result
+ * and the passport omits it rather than rendering a phantom value.
+ */
+CREATE OR REPLACE FUNCTION player_attribute_averages(p_player_id UUID)
 RETURNS JSON LANGUAGE plpgsql
 SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
-  v_player players%ROWTYPE;
-  v_attrs  RECORD;
-  v_photo_consent BOOLEAN;
-  v_academy_name TEXT;
+  v_attrs RECORD;
 BEGIN
-  SELECT * INTO v_player
-  FROM players
-  WHERE share_token = lower(trim(p_share_token)) AND active = TRUE;
-
-  IF v_player.id IS NULL THEN
-    RETURN NULL::json;
-  END IF;
-
-  SELECT photo_consent INTO v_photo_consent
-  FROM player_consents
-  WHERE player_id = v_player.id
-    AND season = extract(year FROM now())::text;
-
-  SELECT name INTO v_academy_name FROM academies WHERE id = v_player.academy_id;
-
   SELECT
     round(avg(pace))::int            AS pace,
     round(avg(shooting))::int        AS shooting,
@@ -480,7 +474,40 @@ BEGIN
     round(avg(handling))::int        AS handling
   INTO v_attrs
   FROM player_attributes
-  WHERE player_id = v_player.id;
+  WHERE player_id = p_player_id;
+
+  RETURN row_to_json(v_attrs);
+END;
+$$;
+
+-- Only ever called from inside get_public_passport(), which is SECURITY
+-- DEFINER and so passes this permission check as its owner. Without this,
+-- CREATE FUNCTION's default grant to PUBLIC would let anyone call it directly
+-- with a player UUID and read their attributes without a share token.
+REVOKE EXECUTE ON FUNCTION player_attribute_averages(UUID) FROM PUBLIC;
+
+CREATE OR REPLACE FUNCTION get_public_passport(p_share_token TEXT)
+RETURNS JSON LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE
+  v_player players%ROWTYPE;
+  v_photo_consent BOOLEAN;
+  v_academy_name TEXT;
+BEGIN
+  SELECT * INTO v_player
+  FROM players
+  WHERE share_token = lower(trim(p_share_token)) AND active = TRUE;
+
+  IF v_player.id IS NULL THEN
+    RETURN NULL::json;
+  END IF;
+
+  SELECT photo_consent INTO v_photo_consent
+  FROM player_consents
+  WHERE player_id = v_player.id
+    AND season = extract(year FROM now())::text;
+
+  SELECT name INTO v_academy_name FROM academies WHERE id = v_player.academy_id;
 
   RETURN json_build_object(
     'full_name',      v_player.full_name,
@@ -494,7 +521,7 @@ BEGIN
     'photo_url',      CASE WHEN v_photo_consent IS TRUE THEN v_player.photo_url ELSE NULL END,
     'share_token',    v_player.share_token,
     'academy_name',   v_academy_name,
-    'attributes',     row_to_json(v_attrs),
+    'attributes',     player_attribute_averages(v_player.id),
     'ratings', (
       SELECT COALESCE(json_agg(r ORDER BY r.created_at DESC), '[]'::json)
       FROM (
