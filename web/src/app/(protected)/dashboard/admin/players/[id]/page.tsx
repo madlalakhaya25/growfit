@@ -14,15 +14,15 @@ import { ExtendedInfoForm } from "@/components/records/extended-info-form";
 import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
 import { DeletePlayerSection } from "@/components/records/delete-player-section";
-
-const ATTRS = [
-  { key: "pace",      label: "Pace" },
-  { key: "shooting",  label: "Shooting" },
-  { key: "passing",   label: "Passing" },
-  { key: "dribbling", label: "Dribbling" },
-  { key: "defending", label: "Defending" },
-  { key: "physical",  label: "Physical" },
-] as const;
+import {
+  ALL_ATTR_SELECT,
+  ATTR_META,
+  averageAttributeRows,
+  calculateOverall,
+  getPositionAttrKeys,
+  type AttrKey,
+} from "@/lib/attributes";
+import { matchRatingAverage } from "@/lib/player";
 
 export default async function AdminPlayerDetailPage({
   params,
@@ -47,8 +47,8 @@ export default async function AdminPlayerDetailPage({
     .from("players")
     .select(`
       id, full_name, position, secondary_pos, preferred_foot, date_of_birth, photo_url, share_token, academy_id,
-      pace, shooting, passing, dribbling, defending, physical,
       school, home_address, id_number, mysafa_number,
+      player_attributes ( ${ALL_ATTR_SELECT} ),
       player_ratings (
         id, rating, note, created_at,
         fixtures ( opponent, fixture_date )
@@ -67,10 +67,19 @@ export default async function AdminPlayerDetailPage({
 
   type Rating = { id: string; rating: number; note: string | null; created_at: string; fixtures: { opponent: string; fixture_date: string } | { opponent: string; fixture_date: string }[] | null };
   const ratings: Rating[] = player.player_ratings ?? [];
-  const ratingValues = ratings.map((r) => r.rating);
-  const avg = ratingValues.length
-    ? Math.round((ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length) * 20)
-    : 0;
+  const matchAvg = matchRatingAverage(ratings.map((r) => r.rating));
+
+  // This page showed the raw match-rating average as "Overall" and never
+  // looked at attributes at all, so an admin saw a different number from the
+  // coach, the parent and the public passport for the same player.
+  const attrs = averageAttributeRows(
+    player.player_attributes as Partial<Record<AttrKey, number | null>>[] | null
+  );
+  const avg = calculateOverall(attrs, player.position) ?? matchAvg;
+
+  const summaryKeys = getPositionAttrKeys(player.position).filter(
+    (key) => typeof attrs?.[key] === "number"
+  );
   const posLabel = POSITIONS.find((p) => p.value === player.position)?.label ?? "—";
   const footLabel = FEET.find((f) => f.value === player.preferred_foot)?.label;
   const age = calculateAge(player.date_of_birth);
@@ -131,17 +140,15 @@ export default async function AdminPlayerDetailPage({
         </Card>
 
         {/* Attributes card */}
-        {ATTRS.some(({ key }) => player[key] != null) && (
+        {summaryKeys.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle>Attributes</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {ATTRS.map(({ key, label }) => {
-                const val = player[key as keyof typeof player] as number | null;
-                if (val == null) return null;
-                return <StatBar key={key} label={label} value={val} />;
-              })}
+              {summaryKeys.map((key) => (
+                <StatBar key={key} label={ATTR_META[key].label} value={attrs![key]!} />
+              ))}
             </CardContent>
           </Card>
         )}

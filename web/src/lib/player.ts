@@ -24,3 +24,13 @@ export function getInitials(fullName: string): string {
     .join("")
     .toUpperCase();
 }
+
+/**
+ * The headline number shown when a player has no attribute assessment yet:
+ * their mean match rating (out of 5) scaled to the same 0–100 the attribute
+ * ring uses. The identical expression was written out in five page files.
+ */
+export function matchRatingAverage(ratings: number[]): number {
+  if (ratings.length === 0) return 0;
+  return Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 20);
+}

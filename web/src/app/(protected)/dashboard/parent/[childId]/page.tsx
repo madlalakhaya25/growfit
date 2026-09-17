@@ -13,18 +13,15 @@ import { RemovePlayerPhotoButton } from "@/components/remove-player-photo-button
 import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
 import { ParentReportPanel } from "@/components/ai/parent-report-panel";
-
-const ATTR_KEYS = ["pace", "shooting", "passing", "dribbling", "defending", "physical"] as const;
-type AttrKey = (typeof ATTR_KEYS)[number];
-
-const ATTR_LABELS: Record<AttrKey, string> = {
-  pace: "Pace",
-  shooting: "Shooting",
-  passing: "Passing",
-  dribbling: "Dribbling",
-  defending: "Defending",
-  physical: "Physical",
-};
+import {
+  ALL_ATTR_SELECT,
+  ATTR_META,
+  averageAttributeRows,
+  calculateOverall,
+  getPositionAttrKeys,
+  type AttrKey,
+} from "@/lib/attributes";
+import { matchRatingAverage } from "@/lib/player";
 
 export default async function ChildDetailPage({
   params,
@@ -61,7 +58,7 @@ export default async function ChildDetailPage({
       .single(),
     supabase
       .from("player_attributes")
-      .select("pace, shooting, passing, dribbling, defending, physical")
+      .select(ALL_ATTR_SELECT)
       .eq("player_id", childId),
     supabase
       .from("team_members")
@@ -83,24 +80,19 @@ export default async function ChildDetailPage({
   };
   const ratings: Rating[] = player.player_ratings ?? [];
 
-  type AttrRow = Record<AttrKey, number>;
-  const attrs = (attrRows ?? []) as AttrRow[];
+  // Averaged across every coach who assessed this child, then narrowed to the
+  // attributes their position is actually assessed on. This page used to
+  // average a fixed six columns, so a parent saw a different Overall for their
+  // own child than the coach did.
+  const attrs = averageAttributeRows(
+    attrRows as Partial<Record<AttrKey, number | null>>[] | null
+  );
+  const matchAvg = matchRatingAverage(ratings.map((r) => r.rating));
+  const overall = calculateOverall(attrs, player.position) ?? matchAvg;
 
-  function attrsAvg(): number | null {
-    if (!attrs.length) return null;
-    const mean = (k: AttrKey) => attrs.reduce((s, r) => s + r[k], 0) / attrs.length;
-    return Math.round(ATTR_KEYS.reduce((s, k) => s + mean(k), 0) / ATTR_KEYS.length);
-  }
-
-  function attrMean(k: AttrKey) {
-    if (!attrs.length) return 0;
-    return Math.round(attrs.reduce((s, r) => s + r[k], 0) / attrs.length);
-  }
-
-  const matchAvg = ratings.length
-    ? Math.round((ratings.reduce((a, b) => a + b.rating, 0) / ratings.length) * 20)
-    : 0;
-  const overall = attrsAvg() ?? matchAvg;
+  const summaryKeys = getPositionAttrKeys(player.position).filter(
+    (key) => typeof attrs?.[key] === "number"
+  );
 
   const teamIds = (memberRows ?? []).map((m: { team_id: string }) => m.team_id);
   const teamMap = new Map(
@@ -271,13 +263,22 @@ export default async function ChildDetailPage({
               </div>
               <div>
                 <p className="text-muted-foreground text-xs">Public passport link</p>
-                <p className="font-mono font-semibold tracking-wide">{player.share_token}</p>
+                {/* The parent view showed the bare token as text with no link
+                    — the only one of the five surfaces that did. */}
+                <Link
+                  href={`/passport/${player.share_token}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-mono text-xs font-semibold tracking-wide text-primary hover:underline"
+                >
+                  {player.share_token} ↗
+                </Link>
               </div>
             </div>
-            {attrs.length > 0 && (
+            {summaryKeys.length > 0 && (
               <div className="space-y-2 border-t border-border pt-3">
-                {ATTR_KEYS.map((k) => (
-                  <StatBar key={k} label={ATTR_LABELS[k]} value={attrMean(k)} />
+                {summaryKeys.map((key) => (
+                  <StatBar key={key} label={ATTR_META[key].label} value={attrs![key]!} />
                 ))}
               </div>
             )}

@@ -192,6 +192,35 @@ export function getPositionAttrKeys(position: string | null | undefined): AttrKe
 }
 
 /**
+ * Collapse one row per assessing coach into a single averaged attribute set.
+ *
+ * Each attribute averages over the coaches who actually rated *it*, not over
+ * every row — a coach who left an attribute NULL has not said it is bad, they
+ * have said nothing. An attribute nobody rated stays absent, so the passport
+ * and the summary snapshot can tell "unrated" from "rated 50".
+ *
+ * Mirrors what `get_public_passport()` does in SQL with `avg()`, which skips
+ * NULLs for the same reason.
+ */
+export function averageAttributeRows(
+  rows: Partial<Record<AttrKey, number | null>>[] | null | undefined
+): Partial<Record<AttrKey, number>> | null {
+  if (!rows || rows.length === 0) return null;
+  const averaged: Partial<Record<AttrKey, number>> = {};
+  for (const key of ALL_ATTR_KEYS) {
+    const values = rows
+      .map((row) => row[key])
+      .filter((value): value is number => typeof value === "number");
+    if (values.length > 0) {
+      averaged[key] = Math.round(
+        values.reduce((sum, value) => sum + value, 0) / values.length
+      );
+    }
+  }
+  return averaged;
+}
+
+/**
  * Overall = mean of the attributes assessed for the player's own position.
  *
  * It deliberately does NOT average a fixed set of six columns. The form only

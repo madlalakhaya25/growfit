@@ -1,3 +1,4 @@
+import { matchRatingAverage } from "@/lib/player";
 import { cn } from "@/lib/utils";
 
 describe("cn()", () => {
@@ -28,5 +29,17 @@ describe("cn()", () => {
 
   it("returns empty string for no arguments", () => {
     expect(cn()).toBe("");
+  });
+});
+
+describe("matchRatingAverage", () => {
+  it("scales a 1-5 mean to the 0-100 the rating ring uses", () => {
+    expect(matchRatingAverage([5, 5, 5])).toBe(100);
+    expect(matchRatingAverage([3])).toBe(60);
+    expect(matchRatingAverage([4, 5])).toBe(90);
+  });
+
+  it("returns 0 rather than NaN when a player has no ratings", () => {
+    expect(matchRatingAverage([])).toBe(0);
   });
 });

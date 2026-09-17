@@ -9,11 +9,12 @@ import { POSITIONS } from "@/lib/types";
 import { calculateAge, getInitials } from "@/lib/player";
 import { LinkChildForm } from "./link-child-form";
 import {
-  ALL_ATTR_KEYS,
   ALL_ATTR_SELECT,
+  averageAttributeRows,
   calculateOverall,
   type AttrKey,
 } from "@/lib/attributes";
+import { matchRatingAverage } from "@/lib/player";
 
 
 export default async function ParentDashboardPage() {
@@ -46,27 +47,9 @@ export default async function ParentDashboardPage() {
 
   function childOverall(child: ChildPlayer) {
     const attrRows = child.player_attributes ?? [];
-    if (attrRows.length > 0) {
-      // Average each attribute over the coaches who actually rated it, then
-      // take the mean of the ones this child's position is assessed on.
-      const averaged: Partial<Record<AttrKey, number>> = {};
-      for (const key of ALL_ATTR_KEYS) {
-        const values = attrRows
-          .map((row) => row[key])
-          .filter((value): value is number => typeof value === "number");
-        if (values.length) {
-          averaged[key] = Math.round(
-            values.reduce((sum, value) => sum + value, 0) / values.length
-          );
-        }
-      }
-      const overall = calculateOverall(averaged, child.position);
-      if (overall !== null) return overall;
-    }
-    const ratings = child.player_ratings.map((r) => r.rating);
-    return ratings.length
-      ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 20)
-      : 0;
+    const overall = calculateOverall(averageAttributeRows(attrRows), child.position);
+    if (overall !== null) return overall;
+    return matchRatingAverage(child.player_ratings.map((r) => r.rating));
   }
 
   return (

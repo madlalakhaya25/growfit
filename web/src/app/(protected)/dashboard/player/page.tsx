@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ExternalLink, FileText, ChevronRight, Target } from "lucide-react";
+import { ExternalLink, FileText, ChevronRight, Target, Download } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -10,14 +10,15 @@ import { StatBar } from "@/components/ui/stat-bar";
 import { POSITIONS } from "@/lib/types";
 import { calculateAge, getInitials } from "@/lib/player";
 import { RemovePlayerPhotoButton } from "@/components/remove-player-photo-button";
+import { CopyButton } from "@/components/copy-button";
 import { ClaimProfileForm } from "./claim-profile-form";
 import { RatingChart } from "@/components/rating-chart";
 import { MediaGallery } from "@/components/media/media-gallery";
 import { MyPositionPanel } from "@/components/tactics/my-position-panel";
 import {
-  ALL_ATTR_KEYS,
   ALL_ATTR_SELECT,
   ATTR_META,
+  averageAttributeRows,
   calculateOverall,
   getPositionAttrKeys,
   type AttrKey,
@@ -126,26 +127,10 @@ export default async function PlayerDashboardPage() {
     ? Math.round((ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length) * 20)
     : 0;
 
-  // Attributes — average across all coaches who assessed this player. Only
-  // attributes a coach actually rated are populated, so each one averages over
-  // however many coaches rated it rather than assuming every row has a value.
+  // Attributes — averaged across every coach who assessed this player.
   type AttrRow = Partial<Record<AttrKey, number | null>>;
   const attrRows: AttrRow[] = (player.player_attributes ?? []) as AttrRow[];
-  const attrs = attrRows.length > 0
-    ? (Object.fromEntries(
-        ALL_ATTR_KEYS.map((key) => {
-          const values = attrRows
-            .map((row) => row[key])
-            .filter((value): value is number => typeof value === "number");
-          return [
-            key,
-            values.length
-              ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
-              : null,
-          ];
-        })
-      ) as Partial<Record<AttrKey, number | null>>)
-    : null;
+  const attrs = averageAttributeRows(attrRows);
 
   // Overall: mean of the attributes this position is assessed on, else the
   // match rating average.
@@ -284,14 +269,23 @@ export default async function PlayerDashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <p className="rounded-md bg-muted px-4 py-3 text-center font-mono text-lg font-bold tracking-widest">
-              {player.share_token}
-            </p>
+            <div className="flex items-center justify-center gap-2 rounded-md bg-muted px-4 py-3">
+              <p className="font-mono text-lg font-bold tracking-widest">
+                {player.share_token}
+              </p>
+              <CopyButton text={player.share_token} />
+            </div>
             <Button asChild variant="outline" size="sm" className="w-full gap-2">
               <Link href={`/passport/${player.share_token}`} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="size-4" aria-hidden="true" />
                 View public passport &amp; QR
               </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="w-full gap-2">
+              <a href={`/api/players/${player.id}/card`}>
+                <Download className="size-4" aria-hidden="true" />
+                Download player card
+              </a>
             </Button>
           </CardContent>
         </Card>

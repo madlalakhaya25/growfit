@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import { Star } from "lucide-react";
@@ -21,6 +22,58 @@ import { calculateAge, getInitials } from "@/lib/player";
 import QRCode from "qrcode";
 
 export const revalidate = 60;
+
+/**
+ * A passport is a link meant to be shared — with a parent, a coach at another
+ * club, a scout. Until now every one of them previewed as the generic site
+ * title from the root layout, because nothing in this app defined
+ * `generateMetadata`. A shared link showed "Growfit FA" rather than the
+ * player it is about.
+ *
+ * Deliberately narrow: name, position, age band and academy only. No photo in
+ * the OG image (photo consent gates the photo on the page itself, and a link
+ * preview is cached by every platform it passes through, well beyond our
+ * reach), and nothing here that the page does not already show publicly.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}): Promise<Metadata> {
+  const { token } = await params;
+  const supabase = await createClient();
+
+  const { data } = await supabase.rpc("get_public_passport", {
+    p_share_token: token.toLowerCase(),
+  });
+
+  if (!data || (data as { error?: string }).error) {
+    return { title: "Passport not found" };
+  }
+
+  const passport = data as PassportData;
+  const position = POSITIONS.find((p) => p.value === passport.position)?.label;
+  const age = passport.age ?? calculateAge(passport.date_of_birth ?? null);
+
+  const descriptor = [position, age ? `age ${age}` : null, passport.academy_name]
+    .filter(Boolean)
+    .join(" · ");
+
+  const title = passport.full_name;
+  const description = descriptor
+    ? `${descriptor} — player passport on Growfit FA.`
+    : "Player passport on Growfit FA.";
+
+  return {
+    title,
+    description,
+    openGraph: { type: "profile", title, description },
+    twitter: { card: "summary", title, description },
+    // A passport is public but not something to index and surface in search
+    // results for a child's name.
+    robots: { index: false, follow: false },
+  };
+}
 
 type AttrData = Partial<Record<AttrKey, number>> | null;
 
@@ -172,6 +225,14 @@ export default async function PublicPassportPage({
 
                 {attrs ? (
                   <div className="space-y-3 pt-1">
+                    {/* Overall has never been explained anywhere it appears,
+                        which invites reading it as a FIFA-style rating rather
+                        than what it is. */}
+                    <p className="text-xs text-muted-foreground">
+                      Overall is the average of the attributes a{" "}
+                      {posLabel !== "—" ? posLabel.toLowerCase() : "player"} is
+                      assessed on, rated 1–99 by their coaches.
+                    </p>
                     {ATTR_CATEGORIES.map((cat) => {
                       // Only what this position is assessed on, and only what
                       // a coach actually rated.

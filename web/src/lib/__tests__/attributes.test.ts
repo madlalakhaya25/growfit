@@ -1,5 +1,6 @@
 import {
   ALL_ATTR_KEYS,
+  averageAttributeRows,
   ATTR_CATEGORIES,
   ATTR_META,
   CATEGORY_LABELS,
@@ -198,5 +199,38 @@ describe("position sets stay honest", () => {
       const keys = getPositionAttrKeys(position);
       expect(new Set(keys).size).toBe(keys.length);
     }
+  });
+});
+
+describe("averageAttributeRows", () => {
+  it("averages each attribute over the coaches who rated it, not over every row", () => {
+    // Two coaches. Only one rated agility. Averaging over both rows would
+    // halve it; a coach leaving it blank has said nothing, not "low".
+    const rows = [
+      { pace: 80, agility: 90 },
+      { pace: 60, agility: null },
+    ];
+    const averaged = averageAttributeRows(rows)!;
+    expect(averaged.pace).toBe(70);
+    expect(averaged.agility).toBe(90);
+  });
+
+  it("omits an attribute nobody rated, so unrated stays distinguishable from 50", () => {
+    const averaged = averageAttributeRows([{ pace: 70, marking: null }])!;
+    expect(averaged.pace).toBe(70);
+    expect("marking" in averaged).toBe(false);
+  });
+
+  it("returns null for no assessments at all", () => {
+    expect(averageAttributeRows([])).toBeNull();
+    expect(averageAttributeRows(null)).toBeNull();
+    expect(averageAttributeRows(undefined)).toBeNull();
+  });
+
+  it("feeds calculateOverall so every surface agrees", () => {
+    const rows = [{ pace: 80 }, { pace: 60 }];
+    const averaged = averageAttributeRows(rows);
+    // Whatever the surface, the same two inputs must give the same number.
+    expect(calculateOverall(averaged, "st")).toBe(calculateOverall({ pace: 70 }, "st"));
   });
 });
