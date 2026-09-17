@@ -9,7 +9,13 @@ import { Button } from "@/components/ui/button";
 import { RatingRing } from "@/components/ui/rating-ring";
 import { StatBar } from "@/components/ui/stat-bar";
 import { POSITIONS, FEET } from "@/lib/types";
-import { ATTR_META, type AttrKey } from "@/lib/attributes";
+import {
+  ATTR_META,
+  ALL_ATTR_SELECT,
+  CORE_ATTR_SELECT,
+  isMissingAttributeColumn,
+  type AttrKey,
+} from "@/lib/attributes";
 import { calculateAge, getInitials } from "@/lib/player";
 import { RemovePlayerButton } from "../remove-player-button";
 import { RatingEditRow } from "./rating-edit-row";
@@ -39,7 +45,7 @@ export default async function PlayerDetailPage({
   const { supabase, user } = await requireUser();
   const myTeamIds = await getCoachedTeamIds(supabase, user.id);
 
-  const [{ data: player }, { data: myAttrs }, { data: coachTeams }, { data: memberships }] = await Promise.all([
+  const [{ data: player }, myAttrsResult, { data: coachTeams }, { data: memberships }] = await Promise.all([
     supabase
       .from("players")
       .select(`
@@ -54,13 +60,27 @@ export default async function PlayerDetailPage({
       .single(),
     supabase
       .from("player_attributes")
-      .select("pace, shooting, passing, dribbling, defending, physical, ball_control, crossing, heading, tackling, finishing, first_touch, stamina, agility, jumping, strength, positioning, decision_making, composure, work_rate, leadership, shot_stopping, reflexes, distribution, handling")
+      .select(ALL_ATTR_SELECT)
       .eq("player_id", playerId)
       .eq("coach_id", user.id)
       .single(),
     supabase.from("teams").select("id").in("id", myTeamIds).eq("active", true),
     supabase.from("team_members").select("team_id").eq("player_id", playerId).eq("active", true),
   ]);
+
+  // The expanded columns (migration 013) are missing on a project that never
+  // ran it, and the wide SELECT above then fails outright — which would blank
+  // out an assessment the coach really has. Re-read the always-present six.
+  let myAttrs = myAttrsResult.data;
+  if (!myAttrs && isMissingAttributeColumn(myAttrsResult.error)) {
+    const { data: coreAttrs } = await supabase
+      .from("player_attributes")
+      .select(CORE_ATTR_SELECT)
+      .eq("player_id", playerId)
+      .eq("coach_id", user.id)
+      .single();
+    myAttrs = coreAttrs;
+  }
 
   if (!player) notFound();
 

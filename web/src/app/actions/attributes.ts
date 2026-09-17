@@ -2,6 +2,12 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
+import {
+  CORE_ATTR_KEYS,
+  isMissingAttributeColumn,
+  MISSING_ATTR_COLUMNS_MESSAGE,
+  type AttrKey,
+} from "@/lib/attributes";
 
 const optionalAttr = z.number().int().min(1).max(99).optional();
 
@@ -47,7 +53,7 @@ export async function upsertPlayerAttributes(
     work_rate?: number; leadership?: number; shot_stopping?: number;
     reflexes?: number; distribution?: number; handling?: number;
   }
-) {
+): Promise<{ error?: string; success?: boolean; warning?: string }> {
   const { supabase, user } = await requireUser();
 
   const parsed = attributesSchema.safeParse({
@@ -59,21 +65,37 @@ export async function upsertPlayerAttributes(
     return { error: first ?? "Invalid input." };
   }
 
+  const base = {
+    player_id:   playerId,
+    coach_id:    user.id,
+    notes:       parsed.data.notes ?? null,
+    assessed_at: new Date().toISOString(),
+  };
+
   const { error } = await supabase
     .from("player_attributes")
-    .upsert(
-      {
-        player_id:   playerId,
-        coach_id:    user.id,
-        ...parsed.data,
-        notes:       parsed.data.notes ?? null,
-        assessed_at: new Date().toISOString(),
-      },
-      { onConflict: "player_id,coach_id" }
-    );
+    .upsert({ ...base, ...parsed.data, notes: base.notes }, { onConflict: "player_id,coach_id" });
 
-  if (error) return { error: error.message };
+  if (!error) {
+    revalidatePath(`/dashboard/coach/squad/${playerId}`);
+    return { success: true };
+  }
+
+  // Migration 013 was never applied to this project (or PostgREST is still
+  // serving a cache from before it was), so the expanded columns don't exist.
+  // Retry with the six the original schema guarantees rather than throwing the
+  // coach's whole assessment away, and say what needs fixing.
+  if (!isMissingAttributeColumn(error)) return { error: error.message };
+
+  const core: Partial<Record<AttrKey, number>> = {};
+  for (const key of CORE_ATTR_KEYS) core[key] = parsed.data[key];
+
+  const { error: coreError } = await supabase
+    .from("player_attributes")
+    .upsert({ ...base, ...core }, { onConflict: "player_id,coach_id" });
+
+  if (coreError) return { error: coreError.message };
 
   revalidatePath(`/dashboard/coach/squad/${playerId}`);
-  return { success: true };
+  return { success: true, warning: MISSING_ATTR_COLUMNS_MESSAGE };
 }
