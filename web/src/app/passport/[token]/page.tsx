@@ -23,7 +23,6 @@ export const revalidate = 60;
 type AttrData = Partial<Record<AttrKey, number>> | null;
 
 interface PassportData {
-  id: string;
   full_name: string;
   position: string | null;
   secondary_pos: string | null;
@@ -38,7 +37,12 @@ interface PassportData {
   photo_url: string | null;
   share_token: string;
   academy_name: string | null;
-  ratings: { rating: number; note: string | null; fixture_date: string | null; opponent: string | null; created_at: string }[];
+  /**
+   * `note` is a coach's free-text about a named child. Migration 032 stops
+   * returning it from this unauthenticated endpoint; it stays optional here so
+   * the page renders correctly before and after that migration is applied.
+   */
+  ratings: { rating: number; note?: string | null; fixture_date: string | null; opponent: string | null; created_at: string }[];
   attributes: AttrData;
 }
 
