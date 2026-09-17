@@ -8,9 +8,13 @@ import { Users } from "lucide-react";
 import { POSITIONS } from "@/lib/types";
 import { calculateAge, getInitials } from "@/lib/player";
 import { LinkChildForm } from "./link-child-form";
+import {
+  ALL_ATTR_KEYS,
+  ALL_ATTR_SELECT,
+  calculateOverall,
+  type AttrKey,
+} from "@/lib/attributes";
 
-const ATTR_KEYS = ["pace", "shooting", "passing", "dribbling", "defending", "physical"] as const;
-type AttrKey = (typeof ATTR_KEYS)[number];
 
 export default async function ParentDashboardPage() {
   const supabase = await createClient();
@@ -23,12 +27,12 @@ export default async function ParentDashboardPage() {
       players (
         id, full_name, position, date_of_birth, share_token,
         player_ratings ( rating ),
-        player_attributes ( pace, shooting, passing, dribbling, defending, physical )
+        player_attributes ( ${ALL_ATTR_SELECT} )
       )
     `)
     .eq("parent_id", user.id);
 
-  type AttrRow = Record<AttrKey, number>;
+  type AttrRow = Partial<Record<AttrKey, number | null>>;
   type ChildPlayer = {
     id: string; full_name: string; position: string | null;
     date_of_birth: string | null; share_token: string;
@@ -43,8 +47,21 @@ export default async function ParentDashboardPage() {
   function childOverall(child: ChildPlayer) {
     const attrRows = child.player_attributes ?? [];
     if (attrRows.length > 0) {
-      const avg = (key: AttrKey) => attrRows.reduce((s, r) => s + r[key], 0) / attrRows.length;
-      return Math.round(ATTR_KEYS.reduce((s, k) => s + avg(k), 0) / ATTR_KEYS.length);
+      // Average each attribute over the coaches who actually rated it, then
+      // take the mean of the ones this child's position is assessed on.
+      const averaged: Partial<Record<AttrKey, number>> = {};
+      for (const key of ALL_ATTR_KEYS) {
+        const values = attrRows
+          .map((row) => row[key])
+          .filter((value): value is number => typeof value === "number");
+        if (values.length) {
+          averaged[key] = Math.round(
+            values.reduce((sum, value) => sum + value, 0) / values.length
+          );
+        }
+      }
+      const overall = calculateOverall(averaged, child.position);
+      if (overall !== null) return overall;
     }
     const ratings = child.player_ratings.map((r) => r.rating);
     return ratings.length

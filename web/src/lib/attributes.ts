@@ -119,6 +119,40 @@ export function getPositionAttrs(position: string | null | undefined): PositionA
 export const ALL_ATTR_KEYS: AttrKey[] = Object.keys(ATTR_META) as AttrKey[];
 
 /**
+ * Every attribute the assessment form shows for a position, de-duplicated and
+ * in display order. This is the set a coach is actually asked to rate, which
+ * is what `calculateOverall` averages and what the summary snapshot shows.
+ */
+export function getPositionAttrKeys(position: string | null | undefined): AttrKey[] {
+  const set = getPositionAttrs(position);
+  return [...new Set([...set.technical, ...set.physical, ...set.mental])];
+}
+
+/**
+ * Overall = mean of the attributes assessed for the player's own position.
+ *
+ * It deliberately does NOT average a fixed set of six columns. The form only
+ * ever shows the position's attributes — for a goalkeeper that overlaps the
+ * legacy core six in exactly one place (`pace`) — so a fixed-six average was
+ * dominated by attributes nobody had rated, and barely moved when a coach
+ * edited the sliders in front of them.
+ *
+ * Returns null when nothing relevant has been assessed, so callers can fall
+ * back to a match-rating average.
+ */
+export function calculateOverall(
+  attrs: Partial<Record<AttrKey, number | null>> | null | undefined,
+  position: string | null | undefined
+): number | null {
+  if (!attrs) return null;
+  const values = getPositionAttrKeys(position)
+    .map((key) => attrs[key])
+    .filter((value): value is number => typeof value === "number");
+  if (values.length === 0) return null;
+  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+}
+
+/**
  * The six attributes that have existed since the original schema (migration
  * 001). They are NOT NULL with a default, so they are always safe to read and
  * write.
@@ -136,11 +170,18 @@ export const EXTENDED_ATTR_KEYS: AttrKey[] = ALL_ATTR_KEYS.filter(
   (key) => !CORE_ATTR_KEYS.includes(key)
 );
 
-/** Column list for a `.select()` covering every attribute. */
-export const ALL_ATTR_SELECT = ALL_ATTR_KEYS.join(", ");
+/**
+ * Column lists for `.select()`. Spelled out as literals rather than joined from
+ * the key arrays because supabase-js parses the select string in the *type*
+ * system — a runtime `.join()` erases to `string` and collapses the whole
+ * query's inferred row type to a ParserError. `attributes.test.ts` asserts
+ * these stay in step with the key arrays, so the duplication cannot drift.
+ */
+export const ALL_ATTR_SELECT =
+  "pace, shooting, passing, dribbling, defending, physical, ball_control, crossing, heading, tackling, finishing, first_touch, stamina, agility, jumping, strength, positioning, decision_making, composure, work_rate, leadership, shot_stopping, reflexes, distribution, handling";
 
-/** Column list for a `.select()` covering only the always-present six. */
-export const CORE_ATTR_SELECT = CORE_ATTR_KEYS.join(", ");
+export const CORE_ATTR_SELECT =
+  "pace, shooting, passing, dribbling, defending, physical";
 
 /**
  * True when a Supabase error means the expanded attribute columns are missing

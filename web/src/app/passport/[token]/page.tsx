@@ -9,7 +9,12 @@ import { StatBar } from "@/components/ui/stat-bar";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { POSITIONS, FEET } from "@/lib/types";
-import { ATTR_META, type AttrKey } from "@/lib/attributes";
+import {
+  ATTR_META,
+  calculateOverall,
+  getPositionAttrKeys,
+  type AttrKey,
+} from "@/lib/attributes";
 import { calculateAge, getInitials } from "@/lib/player";
 import QRCode from "qrcode";
 
@@ -59,14 +64,10 @@ export default async function PublicPassportPage({
     ? ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length
     : 0;
 
-  // Overall = mean of core ability attributes when assessed; falls back to match rating average
-  const coreKeys: AttrKey[] = ["pace", "shooting", "passing", "dribbling", "defending", "physical"];
-  const attrsOverall = attrs
-    ? (() => {
-        const vals = coreKeys.map((k) => attrs[k]).filter((v): v is number => v != null);
-        return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
-      })()
-    : null;
+  // Overall = mean of the attributes this player's position is assessed on;
+  // falls back to the match rating average. Matches the coach-side figure
+  // exactly, so a player's public number never contradicts their own page.
+  const attrsOverall = calculateOverall(attrs, passport.position);
   const overall = attrsOverall ?? matchAvg;
 
   const shareUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://growfitfa.com"}/passport/${passport.share_token}`;
@@ -156,7 +157,9 @@ export default async function PublicPassportPage({
                 {attrs ? (
                   <div className="space-y-3 pt-1">
                     {(["technical", "physical", "mental"] as const).map((cat) => {
-                      const keys = (Object.keys(ATTR_META) as AttrKey[]).filter(
+                      // Only what this position is assessed on, and only what
+                      // a coach actually rated.
+                      const keys = getPositionAttrKeys(passport.position).filter(
                         (k) => ATTR_META[k].category === cat && attrs[k] != null
                       );
                       if (keys.length === 0) return null;

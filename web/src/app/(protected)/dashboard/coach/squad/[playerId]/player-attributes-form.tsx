@@ -3,15 +3,23 @@ import { useState, useTransition } from "react";
 import { Check, Star } from "lucide-react";
 import { upsertPlayerAttributes } from "@/app/actions/attributes";
 import { addStandaloneRating } from "@/app/actions/ratings";
-import { getPositionAttrs, ATTR_META, ALL_ATTR_KEYS, type AttrKey } from "@/lib/attributes";
+import {
+  getPositionAttrs,
+  getPositionAttrKeys,
+  ATTR_META,
+  ALL_ATTR_KEYS,
+  type AttrKey,
+} from "@/lib/attributes";
 
 interface Props {
   playerId: string;
-  initial: Partial<Record<AttrKey, number>> | null;
+  initial: Partial<Record<AttrKey, number | null>> | null;
   position?: string | null;
 }
 
-function buildDefaults(initial: Partial<Record<AttrKey, number>> | null): Record<AttrKey, number> {
+function buildDefaults(
+  initial: Partial<Record<AttrKey, number | null>> | null
+): Record<AttrKey, number> {
   const defaults = {} as Record<AttrKey, number>;
   for (const key of ALL_ATTR_KEYS) {
     defaults[key] = initial?.[key] ?? 50;
@@ -30,6 +38,8 @@ export function PlayerAttributesForm({ playerId, initial, position }: Props) {
   const [isPending, startTransition] = useTransition();
 
   const posAttrs = getPositionAttrs(position);
+  // Exactly what this form renders — and so exactly what it is entitled to save.
+  const shownKeys = getPositionAttrKeys(position);
 
   function handleChange(key: AttrKey, value: number) {
     setSaved(false);
@@ -46,8 +56,11 @@ export function PlayerAttributesForm({ playerId, initial, position }: Props) {
     setWarning("");
     setSaved(false);
     startTransition(async () => {
+      const assessed: Partial<Record<AttrKey, number>> = {};
+      for (const key of shownKeys) assessed[key] = values[key];
+
       const [attrsResult, ratingResult] = await Promise.all([
-        upsertPlayerAttributes(playerId, { ...values, notes: notes || undefined }),
+        upsertPlayerAttributes(playerId, { ...assessed, notes: notes || undefined }),
         rating > 0 ? addStandaloneRating(playerId, { rating, note: notes || undefined }) : Promise.resolve(null),
       ]);
       const err = attrsResult?.error ?? ratingResult?.error;

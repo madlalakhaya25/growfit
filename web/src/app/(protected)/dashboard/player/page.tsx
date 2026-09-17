@@ -14,14 +14,16 @@ import { ClaimProfileForm } from "./claim-profile-form";
 import { RatingChart } from "@/components/rating-chart";
 import { MediaGallery } from "@/components/media/media-gallery";
 import { MyPositionPanel } from "@/components/tactics/my-position-panel";
+import {
+  ALL_ATTR_KEYS,
+  ALL_ATTR_SELECT,
+  ATTR_META,
+  calculateOverall,
+  getPositionAttrKeys,
+  type AttrKey,
+} from "@/lib/attributes";
 
-const ATTR_KEYS = ["pace", "shooting", "passing", "dribbling", "defending", "physical"] as const;
-type AttrKey = (typeof ATTR_KEYS)[number];
 
-const ATTR_LABELS: Record<AttrKey, string> = {
-  pace: "Pace", shooting: "Shooting", passing: "Passing",
-  dribbling: "Dribbling", defending: "Defending", physical: "Physical",
-};
 
 export default async function PlayerDashboardPage() {
   const supabase = await createClient();
@@ -33,7 +35,7 @@ export default async function PlayerDashboardPage() {
     .select(`
       id, full_name, position, preferred_foot, date_of_birth, photo_url, share_token, mysafa_number, id_number,
       player_ratings ( rating, created_at, fixtures ( opponent, fixture_date ) ),
-      player_attributes ( pace, shooting, passing, dribbling, defending, physical )
+      player_attributes ( ${ALL_ATTR_SELECT} )
     `)
     .eq("profile_id", user.id)
     .single();
@@ -124,23 +126,35 @@ export default async function PlayerDashboardPage() {
     ? Math.round((ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length) * 20)
     : 0;
 
-  // Attributes — average across all coaches who assessed this player
-  type AttrRow = Record<AttrKey, number>;
+  // Attributes — average across all coaches who assessed this player. Only
+  // attributes a coach actually rated are populated, so each one averages over
+  // however many coaches rated it rather than assuming every row has a value.
+  type AttrRow = Partial<Record<AttrKey, number | null>>;
   const attrRows: AttrRow[] = (player.player_attributes ?? []) as AttrRow[];
   const attrs = attrRows.length > 0
-    ? Object.fromEntries(
-        ATTR_KEYS.map((key) => [
-          key,
-          Math.round(attrRows.reduce((s, r) => s + r[key], 0) / attrRows.length),
-        ])
-      ) as Record<AttrKey, number>
+    ? (Object.fromEntries(
+        ALL_ATTR_KEYS.map((key) => {
+          const values = attrRows
+            .map((row) => row[key])
+            .filter((value): value is number => typeof value === "number");
+          return [
+            key,
+            values.length
+              ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
+              : null,
+          ];
+        })
+      ) as Partial<Record<AttrKey, number | null>>)
     : null;
 
-  // Overall: average of attributes if assessed, else match rating average
-  const attrsOverall = attrs
-    ? Math.round(ATTR_KEYS.reduce((s, k) => s + attrs[k], 0) / ATTR_KEYS.length)
-    : null;
+  // Overall: mean of the attributes this position is assessed on, else the
+  // match rating average.
+  const attrsOverall = calculateOverall(attrs, player.position);
   const overall = attrsOverall ?? matchAvg;
+
+  const summaryKeys = getPositionAttrKeys(player.position).filter(
+    (key) => typeof attrs?.[key] === "number"
+  );
 
   const positionEntry = POSITIONS.find((p) => p.value === player.position);
   const posLabel = positionEntry?.label ?? "—";
@@ -232,10 +246,10 @@ export default async function PlayerDashboardPage() {
                 </Badge>
               )}
             </div>
-            {attrs && (
+            {summaryKeys.length > 0 && (
               <div className="space-y-1.5 pt-2 border-t border-border">
-                {ATTR_KEYS.map((key) => (
-                  <StatBar key={key} label={ATTR_LABELS[key]} value={attrs[key]} />
+                {summaryKeys.map((key) => (
+                  <StatBar key={key} label={ATTR_META[key].label} value={attrs![key]!} />
                 ))}
               </div>
             )}

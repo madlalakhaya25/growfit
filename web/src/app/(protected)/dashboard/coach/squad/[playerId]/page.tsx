@@ -13,6 +13,8 @@ import {
   ATTR_META,
   ALL_ATTR_SELECT,
   CORE_ATTR_SELECT,
+  calculateOverall,
+  getPositionAttrKeys,
   isMissingAttributeColumn,
   type AttrKey,
 } from "@/lib/attributes";
@@ -32,7 +34,6 @@ import { ExtendedInfoForm } from "@/components/records/extended-info-form";
 import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
 
-const CORE_ATTR_KEYS: AttrKey[] = ["pace", "shooting", "passing", "dribbling", "defending", "physical"];
 
 export default async function PlayerDetailPage({
   params,
@@ -71,7 +72,7 @@ export default async function PlayerDetailPage({
   // The expanded columns (migration 013) are missing on a project that never
   // ran it, and the wide SELECT above then fails outright — which would blank
   // out an assessment the coach really has. Re-read the always-present six.
-  let myAttrs = myAttrsResult.data;
+  let myAttrs: Partial<Record<AttrKey, number | null>> | null = myAttrsResult.data;
   if (!myAttrs && isMissingAttributeColumn(myAttrsResult.error)) {
     const { data: coreAttrs } = await supabase
       .from("player_attributes")
@@ -164,21 +165,25 @@ export default async function PlayerDetailPage({
       };
     });
 
-  const initialAttrs = myAttrs as Record<AttrKey, number> | null;
+  // Expanded columns are nullable, and are only populated for the attributes
+  // this player's position is actually assessed on.
+  const initialAttrs = myAttrs;
 
   const ratingValues = ratings.map((r) => r.rating);
   const matchAvg = ratingValues.length
     ? Math.round((ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length) * 20)
     : 0;
 
-  // Overall = mean of ability attributes when assessed; falls back to match rating average
-  const attrsOverall = initialAttrs
-    ? Math.round(
-        (initialAttrs.pace + initialAttrs.shooting + initialAttrs.passing +
-         initialAttrs.dribbling + initialAttrs.defending + initialAttrs.physical) / 6
-      )
-    : null;
+  // Overall = mean of the attributes this position is assessed on; falls back
+  // to the match rating average when nothing relevant has been rated yet.
+  const attrsOverall = calculateOverall(initialAttrs, player.position);
   const overall = attrsOverall ?? matchAvg;
+
+  // The snapshot mirrors the assessment form, so what a coach rates is what
+  // they see summarised here.
+  const summaryKeys = getPositionAttrKeys(player.position).filter(
+    (key) => typeof initialAttrs?.[key] === "number"
+  );
 
   const posLabel = POSITIONS.find((p) => p.value === player.position)?.label ?? "—";
   const footLabel = FEET.find((f) => f.value === player.preferred_foot)?.label;
@@ -239,10 +244,10 @@ export default async function PlayerDetailPage({
             </div>
 
             {/* Attribute bars snapshot */}
-            {initialAttrs && (
+            {summaryKeys.length > 0 && (
               <div className="space-y-1.5 pt-2 border-t border-border">
-                {CORE_ATTR_KEYS.map((key) => (
-                  <StatBar key={key} label={ATTR_META[key].label} value={initialAttrs[key]} />
+                {summaryKeys.map((key) => (
+                  <StatBar key={key} label={ATTR_META[key].label} value={initialAttrs![key]!} />
                 ))}
               </div>
             )}
