@@ -3,6 +3,12 @@
 import { GoogleGenAI } from "@google/genai";
 import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
+import {
+  ALL_ATTR_KEYS,
+  ALL_ATTR_SELECT,
+  CORE_ATTR_SELECT,
+  isMissingAttributeColumn,
+} from "@/lib/attributes";
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY!,
@@ -36,7 +42,7 @@ export async function getPlayerInsights(playerId: string): Promise<{
 
       supabase
         .from("player_attributes")
-        .select("pace, shooting, passing, dribbling, defending, physical, ball_control, crossing, heading, tackling, finishing, first_touch, stamina, agility, jumping, strength, positioning, decision_making, composure, work_rate, leadership, shot_stopping, reflexes, distribution, handling")
+        .select(ALL_ATTR_SELECT)
         .eq("player_id", playerId),
 
       supabase
@@ -51,7 +57,17 @@ export async function getPlayerInsights(playerId: string): Promise<{
 
     const player = playerResult?.data;
     const ratings = ratingsResult?.data;
-    const attrs = attrsResult?.data;
+    // A project that never ran migration 013 has none of the expanded columns,
+    // and the wide SELECT above fails rather than returning the six that do
+    // exist — fall back so the brief still has something to reason about.
+    let attrs = attrsResult?.data;
+    if (!attrs?.length && isMissingAttributeColumn(attrsResult?.error)) {
+      const { data: coreAttrs } = await supabase
+        .from("player_attributes")
+        .select(CORE_ATTR_SELECT)
+        .eq("player_id", playerId);
+      attrs = coreAttrs;
+    }
     const milestones = milestonesResult?.data;
 
     if (!player) return { error: "Player not found." };
@@ -64,14 +80,6 @@ export async function getPlayerInsights(playerId: string): Promise<{
       : null;
 
     const attrRows = attrs ?? [];
-
-    const ALL_ATTR_KEYS = [
-      "pace", "shooting", "passing", "dribbling", "defending", "physical",
-      "ball_control", "crossing", "heading", "tackling", "finishing", "first_touch",
-      "stamina", "agility", "jumping", "strength",
-      "positioning", "decision_making", "composure", "work_rate", "leadership",
-      "shot_stopping", "reflexes", "distribution", "handling",
-    ];
 
     const ATTR_LABELS: Record<string, string> = {
       pace: "Pace", shooting: "Shooting", passing: "Passing", dribbling: "Dribbling",

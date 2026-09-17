@@ -29,6 +29,26 @@ or `supabase db push` from a machine that has the CLI installed and linked)
 before the code that depends on it will actually work. Check the latest
 existing number before adding a new file.
 
+This has already bitten once in production: migration `013` (the 19 expanded
+player attributes) was never run, so saving a coach assessment failed with
+`Could not find the 'agility' column of 'player_attributes' in the schema
+cache` — PostgREST's `PGRST204`. The same message appears for a *different*
+cause: the columns exist, but PostgREST is still serving a schema cache from
+before they were added. `NOTIFY pgrst, 'reload schema';` is the fix for that
+second case and is a no-op for the first, so
+`030_repair_expanded_attributes.sql` does both and is safe to re-run.
+
+Two lessons worth generalising. **A column added by a later migration is
+optional at runtime, not guaranteed** — `src/lib/attributes.ts` splits the
+attribute keys into `CORE_ATTR_KEYS` (migration 001, always there) and
+`EXTENDED_ATTR_KEYS` (013, may not be), and both the write path and the wide
+reads fall back to the core six via `isMissingAttributeColumn()` rather than
+failing whole. And **a wide `SELECT` naming a missing column fails outright
+rather than returning the columns that do exist** (`42703`), which reads as
+"this player has no assessment" instead of as an error — silently wrong, not
+visibly broken. Prefer a shared select-list constant over a copy-pasted
+column string so the fallback only has to be written once.
+
 ## Supabase auth degrades gracefully on a fake/unreachable project
 
 `supabase.auth.getUser()` against a placeholder URL like

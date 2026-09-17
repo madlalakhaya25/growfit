@@ -117,3 +117,51 @@ export function getPositionAttrs(position: string | null | undefined): PositionA
 }
 
 export const ALL_ATTR_KEYS: AttrKey[] = Object.keys(ATTR_META) as AttrKey[];
+
+/**
+ * The six attributes that have existed since the original schema (migration
+ * 001). They are NOT NULL with a default, so they are always safe to read and
+ * write.
+ */
+export const CORE_ATTR_KEYS: AttrKey[] = [
+  "pace", "shooting", "passing", "dribbling", "defending", "physical",
+];
+
+/**
+ * Everything added by migration 013. Nullable — and absent from the table
+ * entirely on a project where that migration was never applied, which is the
+ * failure mode `isMissingAttributeColumn` below detects.
+ */
+export const EXTENDED_ATTR_KEYS: AttrKey[] = ALL_ATTR_KEYS.filter(
+  (key) => !CORE_ATTR_KEYS.includes(key)
+);
+
+/** Column list for a `.select()` covering every attribute. */
+export const ALL_ATTR_SELECT = ALL_ATTR_KEYS.join(", ");
+
+/** Column list for a `.select()` covering only the always-present six. */
+export const CORE_ATTR_SELECT = CORE_ATTR_KEYS.join(", ");
+
+/**
+ * True when a Supabase error means the expanded attribute columns are missing
+ * from the live database, or exist but aren't in PostgREST's schema cache.
+ *
+ * `PGRST204` is PostgREST's write-side "Could not find the 'X' column of
+ * 'player_attributes' in the schema cache"; `42703` is Postgres' own
+ * undefined_column, which a wide SELECT raises. Both mean the same thing here:
+ * `supabase/migrations/030_repair_expanded_attributes.sql` has not been run.
+ */
+export function isMissingAttributeColumn(
+  error: { code?: string } | null | undefined
+): boolean {
+  return error?.code === "PGRST204" || error?.code === "42703";
+}
+
+/**
+ * Shown to a coach whose assessment only partially saved because of the above.
+ * Names the remedy, since the coach can't apply a migration themselves.
+ */
+export const MISSING_ATTR_COLUMNS_MESSAGE =
+  "Saved the six core attributes only. The expanded attributes could not be " +
+  "saved because this database is missing those columns — an administrator " +
+  "needs to run the pending migration (030_repair_expanded_attributes.sql).";

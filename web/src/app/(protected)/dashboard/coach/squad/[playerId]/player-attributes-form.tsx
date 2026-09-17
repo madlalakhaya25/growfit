@@ -25,6 +25,7 @@ export function PlayerAttributesForm({ playerId, initial, position }: Props) {
   const [rating, setRating] = useState(0);
   const [ratingHovered, setRatingHovered] = useState(0);
   const [error, setError] = useState("");
+  const [warning, setWarning] = useState("");
   const [saved, setSaved] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -42,6 +43,7 @@ export function PlayerAttributesForm({ playerId, initial, position }: Props) {
 
   function handleSubmit() {
     setError("");
+    setWarning("");
     setSaved(false);
     startTransition(async () => {
       const [attrsResult, ratingResult] = await Promise.all([
@@ -53,6 +55,7 @@ export function PlayerAttributesForm({ playerId, initial, position }: Props) {
         setError(err);
       } else {
         setSaved(true);
+        if (attrsResult?.warning) setWarning(attrsResult.warning);
         if (rating > 0) setRating(0);
       }
     });
@@ -163,6 +166,7 @@ export function PlayerAttributesForm({ playerId, initial, position }: Props) {
       />
 
       {error && <p className="text-xs text-destructive">{error}</p>}
+      {warning && <p className="text-xs text-amber-600">{warning}</p>}
 
       <div className="flex items-center gap-3">
         <button
