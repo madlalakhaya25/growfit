@@ -28,7 +28,13 @@ interface PassportData {
   position: string | null;
   secondary_pos: string | null;
   preferred_foot: string | null;
-  date_of_birth: string | null;
+  /**
+   * Derived age, once migration 032 lands. Raw `date_of_birth` is an
+   * identity-document field and stops being returned then; read `age` first and
+   * fall back, so this page is correct before and after the migration runs.
+   */
+  age?: number | null;
+  date_of_birth?: string | null;
   photo_url: string | null;
   share_token: string;
   academy_name: string | null;
@@ -48,7 +54,11 @@ export default async function PublicPassportPage({
     p_share_token: token.toLowerCase(),
   });
 
-  if (!data) notFound();
+  // The RPC signals an unknown token with `{ error: "Player not found." }`,
+  // which is truthy — so a bare `!data` check let execution run on with every
+  // field undefined, and `getInitials` (which does not guard null) threw a
+  // TypeError. An invalid token rendered the 500 page instead of a 404.
+  if (!data || (data as { error?: string }).error) notFound();
 
   // RPC returns JSON — cast it
   const passport = data as PassportData;
@@ -76,7 +86,7 @@ export default async function PublicPassportPage({
   const posLabel = POSITIONS.find((p) => p.value === passport.position)?.label ?? "—";
   const secPosLabel = POSITIONS.find((p) => p.value === passport.secondary_pos)?.label;
   const footLabel = FEET.find((f) => f.value === passport.preferred_foot)?.label;
-  const age = calculateAge(passport.date_of_birth);
+  const age = passport.age ?? calculateAge(passport.date_of_birth ?? null);
   const initials = getInitials(passport.full_name);
 
   const ltpdPhase = (() => {

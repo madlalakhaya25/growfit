@@ -18,6 +18,10 @@ export default function PublicPassportScreen() {
       const { data, error } = await supabase
         .rpc('get_public_passport', { p_share_token: token });
       if (error) throw error;
+      // An unknown token comes back as `{ error: "Player not found." }`, which
+      // is truthy — without this the "Passport Not Found" branch below never
+      // fires and the screen renders with every field undefined.
+      if (!data || (data as { error?: string }).error) return null;
       return data;
     },
   });
