@@ -10,7 +10,9 @@ import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { POSITIONS, FEET } from "@/lib/types";
 import {
+  ATTR_CATEGORIES,
   ATTR_META,
+  CATEGORY_LABELS,
   calculateOverall,
   getPositionAttrKeys,
   type AttrKey,
@@ -170,7 +172,7 @@ export default async function PublicPassportPage({
 
                 {attrs ? (
                   <div className="space-y-3 pt-1">
-                    {(["technical", "physical", "mental"] as const).map((cat) => {
+                    {ATTR_CATEGORIES.map((cat) => {
                       // Only what this position is assessed on, and only what
                       // a coach actually rated.
                       const keys = getPositionAttrKeys(passport.position).filter(
@@ -180,7 +182,7 @@ export default async function PublicPassportPage({
                       return (
                         <div key={cat} className="space-y-1.5">
                           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                            {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                            {CATEGORY_LABELS[cat]}
                           </p>
                           {keys.map((key) => (
                             <StatBar key={key} label={ATTR_META[key].label} value={attrs[key]!} />

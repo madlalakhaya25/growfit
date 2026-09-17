@@ -1,5 +1,8 @@
 import {
   ALL_ATTR_KEYS,
+  ATTR_CATEGORIES,
+  ATTR_META,
+  CATEGORY_LABELS,
   ALL_ATTR_SELECT,
   CORE_ATTR_KEYS,
   CORE_ATTR_SELECT,
@@ -65,7 +68,7 @@ describe("getPositionAttrKeys", () => {
     const set = getPositionAttrs("st");
     const keys = getPositionAttrKeys("st");
     expect(keys).toEqual([
-      ...new Set([...set.technical, ...set.physical, ...set.mental]),
+      ...new Set(ATTR_CATEGORIES.flatMap((category) => set[category])),
     ]);
     expect(new Set(keys).size).toBe(keys.length);
   });
@@ -122,5 +125,78 @@ describe("select constants stay in step with the key arrays", () => {
 
   it("CORE_ATTR_SELECT matches CORE_ATTR_KEYS", () => {
     expect(CORE_ATTR_SELECT).toBe(CORE_ATTR_KEYS.join(", "));
+  });
+});
+
+describe("the five corners", () => {
+  // These must match development_milestone_templates.category (migration 012).
+  // If attributes and milestones drift apart again, the platform is describing
+  // a player's development in two different vocabularies.
+  it("matches the milestone categories exactly", () => {
+    expect(ATTR_CATEGORIES).toEqual([
+      "technical", "tactical", "physical", "mental", "leadership",
+    ]);
+  });
+
+  it("labels every corner", () => {
+    for (const category of ATTR_CATEGORIES) {
+      expect(CATEGORY_LABELS[category]).toBeTruthy();
+    }
+  });
+
+  it("partitions every attribute into exactly one corner", () => {
+    const counts = new Map<string, number>();
+    for (const key of ALL_ATTR_KEYS) {
+      const category = ATTR_META[key].category;
+      expect(ATTR_CATEGORIES).toContain(category);
+      counts.set(category, (counts.get(category) ?? 0) + 1);
+    }
+    // Nothing orphaned into a corner that is never displayed.
+    const total = [...counts.values()].reduce((sum, n) => sum + n, 0);
+    expect(total).toBe(ALL_ATTR_KEYS.length);
+  });
+
+  it("puts game understanding in tactical, not mental", () => {
+    expect(ATTR_META.positioning.category).toBe("tactical");
+    expect(ATTR_META.decision_making.category).toBe("tactical");
+    // Psychology stays mental.
+    expect(ATTR_META.composure.category).toBe("mental");
+    expect(ATTR_META.work_rate.category).toBe("mental");
+    // Leadership is its own milestone category, so it is its own corner.
+    expect(ATTR_META.leadership.category).toBe("leadership");
+  });
+
+  it("gives every position a tactical corner", () => {
+    for (const position of ["gk", "cb", "lb", "cdm", "cm", "cam", "lw", "st", "ss", null]) {
+      const set = getPositionAttrs(position);
+      expect(set.tactical.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("attribute labels", () => {
+  it("are unique, so two sliders can never read the same", () => {
+    // `physical` and `strength` both read "Strength" before migration 033 —
+    // latent, because no position set showed `physical`, but a trap for any
+    // future set that did.
+    const labels = ALL_ATTR_KEYS.map((key) => ATTR_META[key].label);
+    expect(new Set(labels).size).toBe(labels.length);
+  });
+});
+
+describe("position sets stay honest", () => {
+  it("reference only real attribute keys", () => {
+    for (const position of Object.keys(ATTR_META).concat(["gk", "st", "unknown", ""])) {
+      for (const key of getPositionAttrKeys(position)) {
+        expect(ALL_ATTR_KEYS).toContain(key);
+      }
+    }
+  });
+
+  it("never show the same attribute twice on one form", () => {
+    for (const position of ["gk", "cb", "lb", "lwb", "cdm", "cm", "lm", "cam", "lw", "st", "ss", null]) {
+      const keys = getPositionAttrKeys(position);
+      expect(new Set(keys).size).toBe(keys.length);
+    }
   });
 });

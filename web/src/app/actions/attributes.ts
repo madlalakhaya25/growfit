@@ -38,6 +38,11 @@ const attributesSchema = z.object({
   reflexes:         optionalAttr,
   distribution:     optionalAttr,
   handling:         optionalAttr,
+  marking:           optionalAttr,
+  pressing:          optionalAttr,
+  off_ball_movement: optionalAttr,
+  game_reading:      optionalAttr,
+  communication:     optionalAttr,
 });
 
 export async function upsertPlayerAttributes(

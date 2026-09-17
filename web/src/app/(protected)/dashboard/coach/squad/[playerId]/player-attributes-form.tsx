@@ -6,8 +6,10 @@ import { addStandaloneRating } from "@/app/actions/ratings";
 import {
   getPositionAttrs,
   getPositionAttrKeys,
+  ATTR_CATEGORIES,
   ATTR_META,
   ALL_ATTR_KEYS,
+  CATEGORY_LABELS,
   type AttrKey,
 } from "@/lib/attributes";
 
@@ -74,11 +76,12 @@ export function PlayerAttributesForm({ playerId, initial, position }: Props) {
     });
   }
 
-  const GROUPS: { label: string; keys: AttrKey[] }[] = [
-    { label: "Technical", keys: posAttrs.technical },
-    { label: "Physical",  keys: posAttrs.physical },
-    { label: "Mental",    keys: posAttrs.mental },
-  ];
+  // Five corners, matching the milestone categories. A position with nothing
+  // in a corner (most outfield players have no leadership attributes) simply
+  // does not show that group.
+  const GROUPS: { label: string; keys: AttrKey[] }[] = ATTR_CATEGORIES
+    .map((category) => ({ label: CATEGORY_LABELS[category], keys: posAttrs[category] }))
+    .filter((group) => group.keys.length > 0);
 
   const displayRating = ratingHovered || rating;
 
