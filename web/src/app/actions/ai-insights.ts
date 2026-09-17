@@ -8,6 +8,7 @@ import {
   ALL_ATTR_SELECT,
   CORE_ATTR_SELECT,
   isMissingAttributeColumn,
+  type AttrKey,
 } from "@/lib/attributes";
 
 const ai = new GoogleGenAI({
@@ -60,7 +61,8 @@ export async function getPlayerInsights(playerId: string): Promise<{
     // A project that never ran migration 013 has none of the expanded columns,
     // and the wide SELECT above fails rather than returning the six that do
     // exist — fall back so the brief still has something to reason about.
-    let attrs = attrsResult?.data;
+    let attrs: Partial<Record<AttrKey, number | null>>[] | null | undefined =
+      attrsResult?.data;
     if (!attrs?.length && isMissingAttributeColumn(attrsResult?.error)) {
       const { data: coreAttrs } = await supabase
         .from("player_attributes")

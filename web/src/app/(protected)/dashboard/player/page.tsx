@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ExternalLink, FileText, ChevronRight, Target } from "lucide-react";
+import { ExternalLink, FileText, ChevronRight, Target, Download } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -10,18 +10,20 @@ import { StatBar } from "@/components/ui/stat-bar";
 import { POSITIONS } from "@/lib/types";
 import { calculateAge, getInitials } from "@/lib/player";
 import { RemovePlayerPhotoButton } from "@/components/remove-player-photo-button";
+import { CopyButton } from "@/components/copy-button";
+import { AttributeSummary } from "@/components/player/attribute-summary";
 import { ClaimProfileForm } from "./claim-profile-form";
 import { RatingChart } from "@/components/rating-chart";
 import { MediaGallery } from "@/components/media/media-gallery";
 import { MyPositionPanel } from "@/components/tactics/my-position-panel";
+import {
+  ALL_ATTR_SELECT,
+  averageAttributeRows,
+  calculateOverall,
+  type AttrKey,
+} from "@/lib/attributes";
 
-const ATTR_KEYS = ["pace", "shooting", "passing", "dribbling", "defending", "physical"] as const;
-type AttrKey = (typeof ATTR_KEYS)[number];
 
-const ATTR_LABELS: Record<AttrKey, string> = {
-  pace: "Pace", shooting: "Shooting", passing: "Passing",
-  dribbling: "Dribbling", defending: "Defending", physical: "Physical",
-};
 
 export default async function PlayerDashboardPage() {
   const supabase = await createClient();
@@ -33,7 +35,7 @@ export default async function PlayerDashboardPage() {
     .select(`
       id, full_name, position, preferred_foot, date_of_birth, photo_url, share_token, mysafa_number, id_number,
       player_ratings ( rating, created_at, fixtures ( opponent, fixture_date ) ),
-      player_attributes ( pace, shooting, passing, dribbling, defending, physical )
+      player_attributes ( ${ALL_ATTR_SELECT} )
     `)
     .eq("profile_id", user.id)
     .single();
@@ -124,22 +126,14 @@ export default async function PlayerDashboardPage() {
     ? Math.round((ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length) * 20)
     : 0;
 
-  // Attributes — average across all coaches who assessed this player
-  type AttrRow = Record<AttrKey, number>;
+  // Attributes — averaged across every coach who assessed this player.
+  type AttrRow = Partial<Record<AttrKey, number | null>>;
   const attrRows: AttrRow[] = (player.player_attributes ?? []) as AttrRow[];
-  const attrs = attrRows.length > 0
-    ? Object.fromEntries(
-        ATTR_KEYS.map((key) => [
-          key,
-          Math.round(attrRows.reduce((s, r) => s + r[key], 0) / attrRows.length),
-        ])
-      ) as Record<AttrKey, number>
-    : null;
+  const attrs = averageAttributeRows(attrRows);
 
-  // Overall: average of attributes if assessed, else match rating average
-  const attrsOverall = attrs
-    ? Math.round(ATTR_KEYS.reduce((s, k) => s + attrs[k], 0) / ATTR_KEYS.length)
-    : null;
+  // Overall: mean of the attributes this position is assessed on, else the
+  // match rating average.
+  const attrsOverall = calculateOverall(attrs, player.position);
   const overall = attrsOverall ?? matchAvg;
 
   const positionEntry = POSITIONS.find((p) => p.value === player.position);
@@ -232,13 +226,11 @@ export default async function PlayerDashboardPage() {
                 </Badge>
               )}
             </div>
-            {attrs && (
-              <div className="space-y-1.5 pt-2 border-t border-border">
-                {ATTR_KEYS.map((key) => (
-                  <StatBar key={key} label={ATTR_LABELS[key]} value={attrs[key]} />
-                ))}
-              </div>
-            )}
+            <AttributeSummary
+              attrs={attrs}
+              position={player.position}
+              className="space-y-1.5 pt-2 border-t border-border"
+            />
           </CardContent>
         </Card>
 
@@ -263,17 +255,30 @@ export default async function PlayerDashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Share Passport</CardTitle>
-            <CardDescription>Your public page includes a QR code scouts can scan.</CardDescription>
+            <CardDescription>
+              Your public page includes a QR code scouts can scan. This code
+              identifies your passport — it does not give anyone access to your
+              records.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <p className="rounded-md bg-muted px-4 py-3 text-center font-mono text-lg font-bold tracking-widest">
-              {player.share_token}
-            </p>
+            <div className="flex items-center justify-center gap-2 rounded-md bg-muted px-4 py-3">
+              <p className="font-mono text-lg font-bold tracking-widest">
+                {player.share_token}
+              </p>
+              <CopyButton text={player.share_token} />
+            </div>
             <Button asChild variant="outline" size="sm" className="w-full gap-2">
               <Link href={`/passport/${player.share_token}`} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="size-4" aria-hidden="true" />
                 View public passport &amp; QR
               </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="w-full gap-2">
+              <a href={`/api/players/${player.id}/card`}>
+                <Download className="size-4" aria-hidden="true" />
+                Download player card
+              </a>
             </Button>
           </CardContent>
         </Card>

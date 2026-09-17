@@ -3,6 +3,12 @@
 import { GoogleGenAI } from "@google/genai";
 import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
+import {
+  ALL_ATTR_SELECT,
+  ATTR_META,
+  getPositionAttrKeys,
+  type AttrKey,
+} from "@/lib/attributes";
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY!,
@@ -30,7 +36,7 @@ export async function generateDevelopmentPlan(playerId: string): Promise<{
 
       supabase
         .from("player_attributes")
-        .select("pace, shooting, passing, dribbling, defending, physical, assessed_at")
+        .select(`${ALL_ATTR_SELECT}, assessed_at`)
         .eq("player_id", playerId)
         .order("assessed_at", { ascending: false })
         .limit(1)
@@ -84,18 +90,21 @@ export async function generateDevelopmentPlan(playerId: string): Promise<{
         )
       : null;
 
-    // Build sorted attributes (strongest to weakest)
+    // Build sorted attributes (strongest to weakest) from what this player's
+    // position is actually assessed on — a hardcoded core six fed the model
+    // attributes nobody had rated, which for a goalkeeper was five of them.
     let attrSummary = "No attribute assessments yet";
     if (attrs) {
-      const attrEntries = [
-        { label: "Pace", value: attrs.pace },
-        { label: "Shooting", value: attrs.shooting },
-        { label: "Passing", value: attrs.passing },
-        { label: "Dribbling", value: attrs.dribbling },
-        { label: "Defending", value: attrs.defending },
-        { label: "Physical", value: attrs.physical },
-      ].sort((a, b) => b.value - a.value);
-      attrSummary = attrEntries.map((e) => `${e.label}: ${e.value}`).join(", ");
+      const row = attrs as Partial<Record<AttrKey, number | null>>;
+      const attrEntries = getPositionAttrKeys(player.position)
+        .map((key) => ({ label: ATTR_META[key].label, value: row[key] }))
+        .filter((entry): entry is { label: string; value: number } =>
+          typeof entry.value === "number"
+        )
+        .sort((a, b) => b.value - a.value);
+      if (attrEntries.length) {
+        attrSummary = attrEntries.map((e) => `${e.label}: ${e.value}`).join(", ");
+      }
     }
 
     // Build ratings summary

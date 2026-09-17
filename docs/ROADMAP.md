@@ -37,12 +37,40 @@ memory of what was planned.
 ### Player passport & attributes
 - Public passport at `/passport/:token`, no login required; QR code
   generation from the share token
-- 25 attribute columns (6 core + 19 position-specific — tackling,
-  first_touch, shot_stopping, etc.), 1–99 scale, coach-assessed
+- 30 attribute columns, 1–99 scale, coach-assessed, grouped into the same
+  five corners as the development milestones (technical, tactical, physical,
+  mental, leadership). The original 6 were the EA FC card face stats rather
+  than a coaching model — one of them, `physical`, duplicated `strength`'s
+  label and no position set ever showed it. Migration 013 added 19 more, and
+  033 added the tactical and leadership corners. **Needs migrations 030, 031
+  and 033 run against the live project**
+- Overall is the mean of the attributes a player's *position* is assessed on,
+  shared by all five surfaces that show it (public passport, coach, player,
+  parent, admin). It previously averaged a fixed six columns, which for a
+  goalkeeper overlapped their assessed set in exactly one place
 - Rating history + a rating trend chart
 - Claim an unclaimed profile by share token; narrow self-service edit of
   MySAFA/ID numbers only (added after discovering the general self-edit
   path was silently broken post-claim)
+- Per-player link previews when a passport URL is shared, and the player
+  card PDF is reachable by the player and their linked parents rather than
+  admins only
+
+### Safeguarding: parent links no longer key off the public share token
+`players.share_token` is the public passport URL and is printed on every PDF
+player card — and it was also the credential `linkChild` accepted to attach
+an adult to a child, with an RLS policy that checked only that the caller was
+*some* parent. Anyone who saw a shared passport link could self-register,
+link themselves, and read *and write* the child's medical record
+(`parents_manage_child_medical` is `FOR ALL`).
+
+Migration `032` replaces that with a single-use, expiring, revocable code
+issued per child by a coach or admin, hashed at rest and throttled in the
+database. Existing links are grandfathered, and the file ships with an audit
+query to run *before* applying it. The same migration stops the public
+passport publishing a minor's raw date of birth and the coach's free-text
+rating notes. **Needs the migration run against the live project — this is
+enforced by Postgres, so the app changes alone do not close it.**
 
 ### Parent engagement
 - Link a child by share token at registration or from the dashboard

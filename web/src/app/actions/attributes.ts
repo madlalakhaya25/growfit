@@ -12,13 +12,13 @@ import {
 const optionalAttr = z.number().int().min(1).max(99).optional();
 
 const attributesSchema = z.object({
-  pace:             z.number().int().min(1).max(99),
-  shooting:         z.number().int().min(1).max(99),
-  passing:          z.number().int().min(1).max(99),
-  dribbling:        z.number().int().min(1).max(99),
-  defending:        z.number().int().min(1).max(99),
-  physical:         z.number().int().min(1).max(99),
   notes:            z.string().max(300).optional(),
+  pace:             optionalAttr,
+  shooting:         optionalAttr,
+  passing:          optionalAttr,
+  dribbling:        optionalAttr,
+  defending:        optionalAttr,
+  physical:         optionalAttr,
   ball_control:     optionalAttr,
   crossing:         optionalAttr,
   heading:          optionalAttr,
@@ -38,21 +38,16 @@ const attributesSchema = z.object({
   reflexes:         optionalAttr,
   distribution:     optionalAttr,
   handling:         optionalAttr,
+  marking:           optionalAttr,
+  pressing:          optionalAttr,
+  off_ball_movement: optionalAttr,
+  game_reading:      optionalAttr,
+  communication:     optionalAttr,
 });
 
 export async function upsertPlayerAttributes(
   playerId: string,
-  payload: {
-    pace: number; shooting: number; passing: number;
-    dribbling: number; defending: number; physical: number;
-    notes?: string;
-    ball_control?: number; crossing?: number; heading?: number;
-    tackling?: number; finishing?: number; first_touch?: number;
-    stamina?: number; agility?: number; jumping?: number; strength?: number;
-    positioning?: number; decision_making?: number; composure?: number;
-    work_rate?: number; leadership?: number; shot_stopping?: number;
-    reflexes?: number; distribution?: number; handling?: number;
-  }
+  payload: Partial<Record<AttrKey, number>> & { notes?: string }
 ): Promise<{ error?: string; success?: boolean; warning?: string }> {
   const { supabase, user } = await requireUser();
 
@@ -65,16 +60,22 @@ export async function upsertPlayerAttributes(
     return { error: first ?? "Invalid input." };
   }
 
+  const { notes, ...attrValues } = parsed.data;
+
   const base = {
     player_id:   playerId,
     coach_id:    user.id,
-    notes:       parsed.data.notes ?? null,
+    notes:       notes ?? null,
     assessed_at: new Date().toISOString(),
   };
 
+  // Only the attributes the form actually showed are written. Columns left out
+  // keep whatever they already held (PostgREST's upsert updates named columns
+  // only), so a goalkeeper's row never gains a fabricated "Shooting: 50" for an
+  // attribute their coach was never asked about.
   const { error } = await supabase
     .from("player_attributes")
-    .upsert({ ...base, ...parsed.data, notes: base.notes }, { onConflict: "player_id,coach_id" });
+    .upsert({ ...base, ...attrValues }, { onConflict: "player_id,coach_id" });
 
   if (!error) {
     revalidatePath(`/dashboard/coach/squad/${playerId}`);
@@ -88,7 +89,10 @@ export async function upsertPlayerAttributes(
   if (!isMissingAttributeColumn(error)) return { error: error.message };
 
   const core: Partial<Record<AttrKey, number>> = {};
-  for (const key of CORE_ATTR_KEYS) core[key] = parsed.data[key];
+  for (const key of CORE_ATTR_KEYS) {
+    const value = attrValues[key];
+    if (typeof value === "number") core[key] = value;
+  }
 
   const { error: coreError } = await supabase
     .from("player_attributes")

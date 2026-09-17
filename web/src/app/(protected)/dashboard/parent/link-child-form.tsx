@@ -3,39 +3,26 @@
 import { useState, useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { linkChild } from "@/app/actions/parent";
-import { cn } from "@/lib/utils";
-
-const METHODS = [
-  {
-    value: "share_token",
-    label: "Share code",
-    placeholder: "e.g. a1b2c3d4",
-    hint: "Found on your child's passport page or given by their coach.",
-    inputMode: "text" as const,
-    autoCapitalize: "none",
-  },
-  {
-    value: "id_number",
-    label: "SA ID / birth cert no.",
-    placeholder: "13-digit ID number",
-    hint: "Must match the ID number your child entered on their profile.",
-    inputMode: "numeric" as const,
-    autoCapitalize: "off",
-  },
-  {
-    value: "mysafa_number",
-    label: "MySAFA number",
-    placeholder: "e.g. SA-2024-00123",
-    hint: "The SAFA/GDFA registration number your child entered on their profile.",
-    inputMode: "text" as const,
-    autoCapitalize: "off",
-  },
-] as const;
+import {
+  PARENT_LINK_CODE_LENGTH,
+  formatParentLinkCode,
+  isCompleteParentLinkCode,
+  looksLikeAccessCode,
+  normalizeParentLinkCode,
+} from "@/lib/parent-link";
 
 const RELATIONSHIPS = ["Parent", "Guardian", "Grandparent", "Sibling", "Other"];
 
+/**
+ * One input, one kind of code.
+ *
+ * This form used to offer three ways to find a child — share code, SA ID
+ * number, MySAFA number — any of which linked an adult to a child with no
+ * further check. Those are all things a stranger can come by; the share code
+ * is the public passport URL. See migration 032.
+ */
 export function LinkChildForm() {
-  const [method, setMethod] = useState<typeof METHODS[number]["value"]>("share_token");
+  const [code, setCode] = useState("");
 
   const [state, formAction, pending] = useActionState(
     async (_prev: { error?: string } | null, formData: FormData) =>
@@ -43,55 +30,52 @@ export function LinkChildForm() {
     null
   );
 
-  const active = METHODS.find((m) => m.value === method)!;
+  const normalized = normalizeParentLinkCode(code);
+  const complete = isCompleteParentLinkCode(code);
+  // Tell someone who pasted a club code what they actually have, before they
+  // submit and before the server has to guess.
+  const clubCodeHint = looksLikeAccessCode(code);
 
   return (
     <form action={formAction} className="space-y-4 max-w-sm">
-      {/* Method selector */}
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Find child by</p>
-        <div className="flex rounded-lg border border-border overflow-hidden">
-          {METHODS.map((m) => (
-            <button
-              key={m.value}
-              type="button"
-              onClick={() => setMethod(m.value)}
-              className={cn(
-                "flex-1 px-2 py-2 text-xs font-medium transition-colors",
-                method === m.value
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-background text-muted-foreground hover:bg-muted"
-              )}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Hidden lookup type */}
-      <input type="hidden" name="lookup_type" value={method} />
-
-      {/* Lookup value */}
       <div className="space-y-1.5">
-        <label htmlFor="lookup_value" className="text-sm font-medium">
-          {active.label}
+        <label htmlFor="code" className="text-sm font-medium">
+          Child link code
         </label>
         <input
-          key={method}
-          id="lookup_value"
-          name="lookup_value"
+          id="code"
+          name="code"
           type="text"
-          placeholder={active.placeholder}
-          inputMode={active.inputMode}
-          autoCapitalize={active.autoCapitalize}
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder="e.g. 7F3A2-9C1B4"
+          inputMode="text"
+          autoCapitalize="characters"
           autoComplete="off"
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm font-mono placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-describedby="code-hint"
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm font-mono uppercase placeholder:text-muted-foreground placeholder:normal-case focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
-        <p className="text-xs text-muted-foreground">{active.hint}</p>
+        <p id="code-hint" className="text-xs text-muted-foreground">
+          {clubCodeHint ? (
+            <span className="text-amber-600">
+              That looks like a club or team code. A child link code is{" "}
+              {PARENT_LINK_CODE_LENGTH} characters — ask your child&apos;s coach for one.
+            </span>
+          ) : normalized && !complete ? (
+            <>
+              {normalized.length} of {PARENT_LINK_CODE_LENGTH} characters.
+            </>
+          ) : complete ? (
+            <>Reads as {formatParentLinkCode(code)}.</>
+          ) : (
+            <>
+              Ask your child&apos;s coach for a link code. It works once and expires
+              after 14 days.
+            </>
+          )}
+        </p>
       </div>
 
-      {/* Relationship */}
       <div className="space-y-1.5">
         <label htmlFor="relationship" className="text-sm font-medium">Relationship</label>
         <select
@@ -108,8 +92,8 @@ export function LinkChildForm() {
         <p role="alert" className="text-sm text-destructive">{state.error}</p>
       )}
 
-      <Button type="submit" disabled={pending} size="sm">
-        {pending ? "Searching…" : "Link child"}
+      <Button type="submit" disabled={pending || !complete} size="sm">
+        {pending ? "Linking…" : "Link child"}
       </Button>
     </form>
   );

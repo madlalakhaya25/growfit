@@ -202,8 +202,13 @@ tables.
 
 ### Key invariants
 
-- `players.share_token` is globally unique — public passport URLs and parent
-  linking both key off it
+- `players.share_token` is globally unique, and is a **public identifier, not
+  a credential**. Nothing may grant access on the strength of it alone. It is
+  the public passport URL segment and is printed on every PDF player card, so
+  treat it as known to anyone. This was previously listed here as an invariant
+  that "public passport URLs and parent linking both key off it" — that double
+  duty was the vulnerability migration 032 closes; parent linking now requires
+  a staff-issued, single-use code
 - `player_ratings`: fixture-linked ratings have a
   `UNIQUE(fixture_id, player_id, coach_id)` partial index; standalone ratings
   are unrestricted
@@ -235,7 +240,8 @@ tables.
 | `auth_role()` | Returns the calling user's role from `profiles` |
 | `auth_academy_id()` | Returns the calling user's `academy_id` |
 | `is_admin_or_coach()` | Boolean role check |
-| `get_public_passport(token)` | Bypasses RLS to serve the public passport page; also enforces photo consent (023) — nulls `photo_url` unless `photo_consent` is true for the current season, inside the function itself so it can't be skipped by a future caller |
+| `get_public_passport(token)` | Bypasses RLS to serve the public passport page; enforces photo consent (023) — nulls `photo_url` unless `photo_consent` is true for the current season, inside the function itself so it can't be skipped by a future caller. Since 032 it returns a derived integer `age` rather than raw `date_of_birth`, omits the coach's free-text rating notes and the internal player UUID, and returns `NULL` (not an error object) for an unknown token |
+| `redeem_parent_link_code(code)` | The only way a parent may attach themselves to a child (032). Single-use, expiring, throttled; the code is issued per child by a coach or admin |
 | `claim_player_profile(token)` | Atomically links a player record to a user |
 | `log_match_result(...)` | Atomic match logging: result + status + appearances + ratings in one transaction |
 | `update_own_registration_numbers(mysafa, id)` | Narrow, field-limited self-edit for a claimed player — added after discovering the general player self-edit path was silently broken for anyone past the initial claim (020) |
@@ -516,7 +522,8 @@ implemented — see the roadmap.
 | MIME sniffing | `X-Content-Type-Options: nosniff` |
 | SECURITY DEFINER functions | All set `search_path = public, pg_temp` |
 | Auth brute-forcing | Per-IP rate limit on `/auth/login`, `/auth/register` in `proxy.ts` (in-memory; needs a shared store like Upstash Redis beyond a single instance). `/auth/verify` was dropped from this list — dead Expo-OTP-era route, never existed as a page |
-| Minors' data (POPIA) | ID numbers, medical notes, and addresses are staff-only; the public passport RPC deliberately excludes them (only derived age, never raw date of birth) — but photo-consent is captured and **not yet enforced** before display anywhere; see roadmap |
+| Minors' data (POPIA) | ID numbers, medical notes and addresses are staff-only. The public passport RPC returns a derived integer age, never raw date of birth — true since migration 032; before that this row claimed it while the function returned the raw DOB. Coach rating notes are also no longer returned (032), and photo consent **is** enforced inside the RPC (023) |
+| Access to a child's records | A parent link requires a single-use code issued per child by a coach or admin (032). Before that, `share_token` — the public passport URL, printed on every player card — was accepted as the credential, and `parents_manage_child_medical` is `FOR ALL`, so a self-linked stranger could read *and write* a child's medical record |
 
 ---
 
