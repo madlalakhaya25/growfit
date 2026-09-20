@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { MessageSquare, Send, ListChecks, ClipboardList, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { askCoachAssistant, suggestLineup, generateMatchPlan, type CoachMessage } from "@/app/actions/coach-assistant";
 import { SpeakButton } from "@/components/tactics/speak-button";
 import { FORMATIONS } from "@/lib/formations";
@@ -51,6 +52,7 @@ export function CoachAssistantPanel({
       const res = await askCoachAssistant({ teamId, history: messages, question: q });
       if (res.error) {
         setError(res.error);
+        toast.error(res.error);
         setMessages(next);
         return;
       }
@@ -63,7 +65,7 @@ export function CoachAssistantPanel({
     setOutput(null);
     const res = await suggestLineup({ teamId, fixtureId: fixtureId || undefined, formation });
     setBusy(null);
-    if (res.error) { setError(res.error); return; }
+    if (res.error) { setError(res.error); toast.error(res.error); return; }
     setOutput({ title: "Suggested XI", text: res.lineup ?? "" });
   }
 
@@ -73,7 +75,7 @@ export function CoachAssistantPanel({
     setOutput(null);
     const res = await generateMatchPlan({ teamId, fixtureId });
     setBusy(null);
-    if (res.error) { setError(res.error); return; }
+    if (res.error) { setError(res.error); toast.error(res.error); return; }
     setOutput({ title: "Match plan", text: res.plan ?? "" });
   }
 

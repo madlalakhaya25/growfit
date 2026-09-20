@@ -1,6 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { Plus, Star, X } from "lucide-react";
+import { toast } from "sonner";
 import { addStandaloneRating } from "@/app/actions/ratings";
 
 export function StandaloneRatingForm({ playerId }: { playerId: string }) {
@@ -25,7 +26,9 @@ export function StandaloneRatingForm({ playerId }: { playerId: string }) {
       const result = await addStandaloneRating(playerId, { rating, note });
       if (result?.error) {
         setError(result.error);
+        toast.error(result.error);
       } else {
+        toast.success("Rating saved.");
         reset();
       }
     });

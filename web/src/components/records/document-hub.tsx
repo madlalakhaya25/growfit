@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 import { signDocumentDigitally, signConsentDocument, uploadDocumentScan } from "@/app/actions/records";
 import { DOCUMENTS } from "@/lib/document-definitions";
 import type { DocDef } from "@/lib/document-definitions";
@@ -105,7 +106,9 @@ function SigningModal({
       }
       if (result?.error) {
         setSignError(result.error);
+        toast.error(result.error);
       } else {
+        toast.success(`${def.label} signed.`);
         onSigned();
         onClose();
       }
@@ -279,8 +282,10 @@ function DocumentRow({
       const result = await uploadDocumentScan(formData);
       if (result?.error) {
         setUploadError(result.error);
+        toast.error(result.error);
       } else {
         setUploadSuccess(true);
+        toast.success("Uploaded successfully.");
         setUploadOpen(false);
         form.reset();
       }

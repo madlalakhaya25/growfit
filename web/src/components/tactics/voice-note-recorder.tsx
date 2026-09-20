@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Mic, Square, Trash2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { uploadPlayVoiceNote, deletePlayVoiceNote } from "@/app/actions/tactic-plays";
 
 const MAX_SECONDS = 120;
@@ -76,11 +77,13 @@ export function VoiceNoteRecorder({
         fd.append("play_id", playId);
         fd.append("file", new File([blob], `voice-note.${ext}`, { type: mime }));
         const res = await uploadPlayVoiceNote(fd);
-        if (res.error) { setError(res.error); return; }
+        if (res.error) { setError(res.error); toast.error(res.error); return; }
         setUrl(res.url ?? null);
         onChange?.(res.url ?? null);
       } catch (err) {
-        setError(err instanceof Error ? `Could not save the recording: ${err.message}` : "Could not save the recording.");
+        const message = err instanceof Error ? `Could not save the recording: ${err.message}` : "Could not save the recording.";
+        setError(message);
+        toast.error(message);
       } finally {
         setBusy(false);
       }
@@ -107,11 +110,13 @@ export function VoiceNoteRecorder({
     setBusy(true);
     try {
       const res = await deletePlayVoiceNote(playId);
-      if (res.error) { setError(res.error); return; }
+      if (res.error) { setError(res.error); toast.error(res.error); return; }
       setUrl(null);
       onChange?.(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not delete the recording.");
+      const message = err instanceof Error ? err.message : "Could not delete the recording.";
+      setError(message);
+      toast.error(message);
     } finally {
       setBusy(false);
     }

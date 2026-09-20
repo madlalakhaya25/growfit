@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { Camera } from "lucide-react";
+import { toast } from "sonner";
 import { uploadMedia } from "@/app/actions/media";
 import { Button } from "@/components/ui/button";
 
@@ -58,8 +59,10 @@ export function MediaUploadForm({
       const result = await uploadMedia(finalFd);
       if (result?.error) {
         setStatus({ error: result.error });
+        toast.error(result.error);
       } else {
         setStatus({ success: true });
+        toast.success("Uploaded!");
         formRef.current?.reset();
         setFileName(null);
         setSelectedPlayers([]);

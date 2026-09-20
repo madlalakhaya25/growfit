@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { KeyRound, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
 import { claimTeamByCoachCode } from "@/app/actions/squad";
 
 /**
@@ -25,16 +26,18 @@ export function JoinTeamForm({ compact = false }: { compact?: boolean }) {
     start(async () => {
       try {
         const res = await claimTeamByCoachCode(code.trim());
-        if (res.error) { setError(res.error); return; }
-        setDone(
-          res.already
-            ? `You already coach ${res.teamName}.`
-            : `You're now coaching ${res.teamName}.`
-        );
+        if (res.error) { setError(res.error); toast.error(res.error); return; }
+        const message = res.already
+          ? `You already coach ${res.teamName}.`
+          : `You're now coaching ${res.teamName}.`;
+        setDone(message);
+        toast.success(message);
         setCode("");
         router.refresh();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not join that team.");
+        const message = err instanceof Error ? err.message : "Could not join that team.";
+        setError(message);
+        toast.error(message);
       }
     });
   }

@@ -2,6 +2,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { deleteTrainingSession } from "@/app/actions/training";
 
@@ -13,7 +14,8 @@ export function DeleteSessionButton({ id }: { id: string }) {
     if (!confirm("Delete this training session and all its drills?")) return;
     startTransition(async () => {
       const result = await deleteTrainingSession(id);
-      if (!result?.error) router.push("/dashboard/coach/training");
+      if (result?.error) toast.error(result.error);
+      else router.push("/dashboard/coach/training");
     });
   }
 

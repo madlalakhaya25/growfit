@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Wand2 } from "lucide-react";
+import { toast } from "sonner";
 import { generateSessionPlan } from "@/app/actions/session-generator";
 
 interface Props {
@@ -30,7 +31,7 @@ export function SessionGeneratorPanel({ sessionId, teamId: _teamId }: Props) {
         squadSize,
         sessionId,
       });
-      if (result.error) setError(result.error);
+      if (result.error) { setError(result.error); toast.error(result.error); }
       else setPlan(result.plan ?? null);
     });
   }

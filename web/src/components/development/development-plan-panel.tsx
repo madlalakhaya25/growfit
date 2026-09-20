@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Target } from "lucide-react";
+import { toast } from "sonner";
 import { generateDevelopmentPlan } from "@/app/actions/development-plan";
 
 export function DevelopmentPlanPanel({ playerId }: { playerId: string }) {
@@ -13,7 +14,7 @@ export function DevelopmentPlanPanel({ playerId }: { playerId: string }) {
     setError(null);
     startTransition(async () => {
       const result = await generateDevelopmentPlan(playerId);
-      if (result.error) setError(result.error);
+      if (result.error) { setError(result.error); toast.error(result.error); }
       else setPlan(result.plan ?? null);
     });
   }

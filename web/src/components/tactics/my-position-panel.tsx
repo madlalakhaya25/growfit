@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { UserCircle, Play, Lightbulb } from "lucide-react";
+import { toast } from "sonner";
 import { conceptsForPositionGroup, youtubeSearchUrl } from "@/lib/tactics";
 import { explainPositionalRole } from "@/app/actions/tactics";
 
@@ -29,7 +30,7 @@ export function MyPositionPanel({
     setError(null);
     start(async () => {
       const res = await explainPositionalRole({ positionLabel, ageGroup });
-      if (res.error) setError(res.error);
+      if (res.error) { setError(res.error); toast.error(res.error); }
       else setExplanation(res.explanation ?? null);
     });
   }

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Activity } from "lucide-react";
+import { toast } from "sonner";
 import { generateAcademyHealthReport } from "@/app/actions/academy-health";
 
 export function AcademyHealthPanel() {
@@ -13,7 +14,7 @@ export function AcademyHealthPanel() {
     setError(null);
     startTransition(async () => {
       const result = await generateAcademyHealthReport();
-      if (result.error) setError(result.error);
+      if (result.error) { setError(result.error); toast.error(result.error); }
       else setReport(result.report ?? null);
     });
   }

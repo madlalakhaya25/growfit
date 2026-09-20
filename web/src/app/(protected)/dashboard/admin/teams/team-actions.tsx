@@ -1,6 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { Pencil, Trash2, X, Check } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { updateTeam, deleteTeam } from "@/app/actions/squad";
 import { AGE_GROUPS } from "@/lib/types";
@@ -22,14 +23,19 @@ export function TeamActions({
     setError(null);
     start(async () => {
       const res = await updateTeam(teamId, formData);
-      if (res?.error) { setError(res.error); return; }
+      if (res?.error) { setError(res.error); toast.error(res.error); return; }
       setEditing(false);
     });
   }
 
   function handleDelete() {
     if (!confirm(`Delete team "${name}"? This cannot be undone.`)) return;
-    start(async () => { await deleteTeam(teamId); });
+    start(async () => {
+      // On success deleteTeam calls redirect(), which never returns here —
+      // it navigates away instead. Only a failure returns normally.
+      const res = await deleteTeam(teamId);
+      if (res?.error) toast.error(res.error);
+    });
   }
 
   if (editing) {
