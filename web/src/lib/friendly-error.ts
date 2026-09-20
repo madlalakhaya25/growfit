@@ -82,6 +82,11 @@ const MESSAGE_PATTERNS: [RegExp, string][] = [
 export function friendlyError(error: unknown, fallback: string = DEFAULT_FALLBACK): string {
   if (!error) return fallback;
 
+  // Logged unconditionally, before any translation — this is exactly the raw
+  // detail a user shouldn't see, but it needs to be somewhere for whoever
+  // investigates next, whether or not the error below is one we recognise.
+  console.error("[friendlyError]", error);
+
   if (typeof error === "object") {
     const err = error as PostgrestLikeError;
     if (err.code && CODE_MESSAGES[err.code]) {
@@ -94,8 +99,5 @@ export function friendlyError(error: unknown, fallback: string = DEFAULT_FALLBAC
     }
   }
 
-  // Logged, not shown — this is exactly the raw detail a user shouldn't see,
-  // but it needs to be somewhere for whoever investigates next.
-  console.error("[friendlyError] unrecognised error:", error);
   return fallback;
 }
