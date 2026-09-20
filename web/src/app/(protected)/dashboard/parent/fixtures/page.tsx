@@ -4,13 +4,7 @@ import Link from "next/link";
 import { MapPin, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-
-const STATUS_VARIANT = {
-  upcoming:  "neutral",
-  completed: "success",
-  cancelled: "danger",
-  postponed: "warning",
-} as const;
+import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
 
 export default async function ParentFixturesPage() {
   const supabase = await createClient();
@@ -46,7 +40,7 @@ export default async function ParentFixturesPage() {
   const { data: fixtures } = teamIds.length
     ? await supabase
         .from("fixtures")
-        .select("id, opponent, venue, fixture_date, is_home, status, team_id, teams ( name )")
+        .select("id, opponent, venue, fixture_date, is_home, status, cancellation_reason, team_id, teams ( name )")
         .in("team_id", teamIds)
         .order("fixture_date", { ascending: true })
     : { data: [] };
@@ -63,14 +57,14 @@ export default async function ParentFixturesPage() {
 
   type Fixture = {
     id: string; opponent: string; venue: string | null;
-    fixture_date: string; is_home: boolean; status: string;
+    fixture_date: string; is_home: boolean; status: string; cancellation_reason: string | null;
     team_id: string;
     teams: { name: string } | { name: string }[] | null;
   };
 
   const allFixtures = (fixtures ?? []) as Fixture[];
-  const upcoming = allFixtures.filter((f) => f.status === "upcoming");
-  const past     = allFixtures.filter((f) => f.status !== "upcoming");
+  const upcoming = allFixtures.filter((f) => !isFixturePast(f));
+  const past     = allFixtures.filter((f) => isFixturePast(f));
 
   function FixtureRow({ f }: { f: Fixture }) {
     const teamName = Array.isArray(f.teams) ? f.teams[0]?.name : f.teams?.name;
@@ -87,8 +81,8 @@ export default async function ParentFixturesPage() {
               {teamName}{childNames.length > 0 ? ` · ${childNames.join(", ")}` : ""}
             </p>
           </div>
-          <Badge variant={STATUS_VARIANT[f.status as keyof typeof STATUS_VARIANT] ?? "neutral"} className="shrink-0 capitalize">
-            {f.status}
+          <Badge variant={fixtureStatusVariant(f)} className="shrink-0 capitalize">
+            {fixtureStatusLabel(f)}
           </Badge>
         </div>
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
@@ -105,6 +99,9 @@ export default async function ParentFixturesPage() {
             </span>
           )}
         </div>
+        {f.status === "cancelled" && f.cancellation_reason && (
+          <p className="text-xs text-destructive">Cancelled: {f.cancellation_reason}</p>
+        )}
       </div>
     );
   }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Upload, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button";
 import { RemovePlayerButton } from "./remove-player-button";
 import { CopyInviteLinkButton } from "@/components/copy-invite-link-button";
 import { POSITIONS } from "@/lib/types";
+import { calculateAge, getInitials } from "@/lib/player";
 import { cn } from "@/lib/utils";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
 
 export default async function SquadPage({
   searchParams,
@@ -24,7 +26,7 @@ export default async function SquadPage({
   const { data: allTeams } = await supabase
     .from("teams")
     .select("id, name, age_group, invite_code")
-    .eq("coach_id", user.id)
+    .in("id", await getCoachedTeamIds(supabase, user.id))
     .eq("active", true)
     .order("created_at");
 
@@ -32,7 +34,17 @@ export default async function SquadPage({
 
   const team = allTeams.find((t: { id: string; name: string; age_group: string | null; invite_code: string }) => t.id === teamParam) ?? allTeams[0];
 
-  const { data: members } = await supabase
+  // Capture and check the error rather than only destructuring data — a
+  // failed query and a genuinely empty squad both leave `members` null/[],
+  // and silently rendering "No players yet, add your first player" for a
+  // real failure sent a coach looking at a squad the dashboard card had just
+  // correctly counted straight into re-adding players who were already
+  // there. See the identical fix on the player dashboard for the mechanism
+  // this most plausibly was: a lagging migration failing a query outright
+  // rather than degrading — this query doesn't touch the attribute columns
+  // that bit that page, but the same "never let data go silently null" rule
+  // applies to any query whose failure could be mistaken for an empty state.
+  const { data: members, error: membersError } = await supabase
     .from("team_members")
     .select(`
       player_id, joined_at,
@@ -60,20 +72,24 @@ export default async function SquadPage({
     const avg = ratings.length
       ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1)
       : null;
-    const age = p.date_of_birth
-      ? Math.floor((Date.now() - new Date(p.date_of_birth).getTime()) / 31_557_600_000)
-      : null;
+    const age = calculateAge(p.date_of_birth);
     return { ...p, avg, ratingsCount: ratings.length, age, joinedAt: m.joined_at };
   }).filter(Boolean);
 
+  // Group by position group rather than the raw value. Players now carry
+  // specific roles (cb, lb, cdm, …) as well as the five legacy ones, and
+  // grouping on the raw value meant every specific role fell outside the
+  // render order and simply never appeared.
   const byPosition: Record<string, typeof squad> = {};
   for (const p of squad) {
-    const pos = p?.position ?? "unassigned";
-    if (!byPosition[pos]) byPosition[pos] = [];
-    byPosition[pos].push(p);
+    const group = p?.position
+      ? POSITIONS.find((x) => x.value === p.position)?.group ?? "Unassigned"
+      : "Unassigned";
+    if (!byPosition[group]) byPosition[group] = [];
+    byPosition[group].push(p);
   }
 
-  const posOrder = ["goalkeeper", "defender", "midfielder", "winger", "striker", "unassigned"];
+  const posOrder = ["Goalkeeper", "Defender", "Midfielder", "Forward", "Unassigned"];
 
   return (
     <div className="space-y-6">
@@ -100,11 +116,18 @@ export default async function SquadPage({
         <div>
           <h1 className="text-2xl font-bold">Squad</h1>
           <p className="text-sm text-muted-foreground">
-            {team.name}{team.age_group && ` · ${team.age_group}`} · {squad.length} {squad.length === 1 ? "player" : "players"}
+            {team.name}{team.age_group && ` · ${team.age_group}`}
+            {!membersError && ` · ${squad.length} ${squad.length === 1 ? "player" : "players"}`}
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
           <CopyInviteLinkButton inviteCode={team.invite_code} />
+          <Button asChild variant="outline" className="shrink-0">
+            <Link href={`/dashboard/coach/squad/import?team=${team.id}`}>
+              <Upload className="size-4" aria-hidden="true" />
+              Import
+            </Link>
+          </Button>
           <Button asChild className="shrink-0">
             <Link href={`/dashboard/coach/squad/add?team=${team.id}`}>
               <Plus className="size-4" aria-hidden="true" />
@@ -114,7 +137,17 @@ export default async function SquadPage({
         </div>
       </div>
 
-      {squad.length === 0 ? (
+      {membersError ? (
+        <Card className="border-destructive/50">
+          <CardHeader>
+            <CardTitle>Couldn&apos;t load this squad</CardTitle>
+            <CardDescription>
+              Something went wrong reading the player list — this isn&apos;t an empty
+              squad. Try reloading; if it keeps happening, tell your admin.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : squad.length === 0 ? (
         <Card>
           <CardHeader>
             <CardTitle>No players yet</CardTitle>
@@ -136,17 +169,12 @@ export default async function SquadPage({
             .map((pos) => (
               <section key={pos}>
                 <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  {POSITIONS.find((p) => p.value === pos)?.label ?? "Unassigned"} · {byPosition[pos].length}
+                  {pos} · {byPosition[pos].length}
                 </h2>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {byPosition[pos].map((player) => {
                     if (!player) return null;
-                    const initials = player.full_name
-                      .split(" ")
-                      .slice(0, 2)
-                      .map((w: string) => w[0])
-                      .join("")
-                      .toUpperCase();
+                    const initials = getInitials(player.full_name);
                     return (
                       <div
                         key={player.id}

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, FileText, ChevronRight, Target, Download } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -8,47 +8,114 @@ import { Button } from "@/components/ui/button";
 import { RatingRing } from "@/components/ui/rating-ring";
 import { StatBar } from "@/components/ui/stat-bar";
 import { POSITIONS } from "@/lib/types";
+import { calculateAge, getInitials } from "@/lib/player";
+import { RemovePlayerPhotoButton } from "@/components/remove-player-photo-button";
+import { CopyButton } from "@/components/copy-button";
+import { AttributeSummary } from "@/components/player/attribute-summary";
 import { ClaimProfileForm } from "./claim-profile-form";
 import { RatingChart } from "@/components/rating-chart";
 import { MediaGallery } from "@/components/media/media-gallery";
-import { DocumentHub } from "@/components/records/document-hub";
-import { PlayerIdentityForm } from "@/components/records/player-identity-form";
-import type { MilestoneCategory } from "@/app/actions/development";
-import { DevelopmentPlanPanel } from "@/components/development/development-plan-panel";
+import { MyPositionPanel } from "@/components/tactics/my-position-panel";
+import {
+  ALL_ATTR_SELECT,
+  CORE_ATTR_SELECT,
+  averageAttributeRows,
+  calculateOverall,
+  isMissingAttributeColumn,
+  type AttrKey,
+} from "@/lib/attributes";
 
-const ATTR_KEYS = ["pace", "shooting", "passing", "dribbling", "defending", "physical"] as const;
-type AttrKey = (typeof ATTR_KEYS)[number];
 
-const ATTR_LABELS: Record<AttrKey, string> = {
-  pace: "Pace", shooting: "Shooting", passing: "Passing",
-  dribbling: "Dribbling", defending: "Defending", physical: "Physical",
-};
 
 export default async function PlayerDashboardPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
 
-  const { data: player } = await supabase
+  // player_attributes is fetched separately from the base player row, not
+  // embedded in one combined select. It used to be embedded — but a lagging
+  // migration (attribute columns are optional at runtime; see
+  // isMissingAttributeColumn below) failed the WHOLE query when embedded,
+  // which made a genuinely linked player's entire passport disappear behind
+  // the "not yet linked, waiting to be added" screen. Same fix already
+  // applied on the coach's player-detail page; see isMissingAttributeColumn's
+  // doc comment in lib/attributes.ts for the general pattern.
+  //
+  // player_attributes.player_id refers to players.id, not this profile's own
+  // id, so it can't be fetched in parallel with the row that resolves it —
+  // this has to run after `player` comes back.
+  const { data: player, error: playerError } = await supabase
     .from("players")
     .select(`
       id, full_name, position, preferred_foot, date_of_birth, photo_url, share_token, mysafa_number, id_number,
-      player_ratings ( rating, created_at, fixtures ( opponent, fixture_date ) ),
-      player_attributes ( pace, shooting, passing, dribbling, defending, physical )
+      player_ratings ( rating, created_at, fixtures ( opponent, fixture_date ) )
     `)
     .eq("profile_id", user.id)
     .single();
 
   if (!player) {
+    // .single() also errors (PGRST116) when it simply finds no matching row —
+    // that's the genuine "this account isn't linked to a player yet" case.
+    // Any other error means the query itself failed (RLS, network, a lagging
+    // migration), and showing the same "waiting to be added" screen for that
+    // is exactly the bug this page was already fixed for once: a real query
+    // failure made a genuinely linked player look unclaimed.
+    const notYetLinked = !playerError || playerError.code === "PGRST116";
+    if (!notYetLinked) {
+      console.error("[player dashboard] failed to load player row:", playerError);
+    }
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">My Passport</h1>
-        <p className="text-muted-foreground text-sm">
-          Your coach has added you to the squad. Enter the share token they gave you to link your profile.
-        </p>
-        <ClaimProfileForm />
+
+        {notYetLinked ? (
+          <>
+            <div className="rounded-xl border border-border bg-card p-6 space-y-2">
+              <p className="text-base font-semibold">You&apos;re all set — waiting to be added</p>
+              <p className="text-sm text-muted-foreground">
+                Your account is ready. As soon as your coach adds you to a squad, your
+                passport, ratings and fixtures appear here automatically. If your coach
+                has already given you a share token, enter it below to link your profile now.
+              </p>
+            </div>
+
+            <ClaimProfileForm />
+          </>
+        ) : (
+          <div className="rounded-xl border border-destructive/50 bg-card p-6 space-y-2">
+            <p className="text-base font-semibold">Couldn&apos;t load your passport</p>
+            <p className="text-sm text-muted-foreground">
+              Something went wrong loading your profile. Try refreshing the
+              page — if it keeps happening, let your coach or administrator know.
+            </p>
+          </div>
+        )}
       </div>
     );
+  }
+
+  const wideAttrs = await supabase
+    .from("player_attributes")
+    .select(ALL_ATTR_SELECT)
+    .eq("player_id", player.id);
+
+  let attrsData: Partial<Record<AttrKey, number | null>>[] | null = wideAttrs.data;
+  let attrsError = wideAttrs.error;
+  if (isMissingAttributeColumn(wideAttrs.error)) {
+    const coreAttrs = await supabase
+      .from("player_attributes")
+      .select(CORE_ATTR_SELECT)
+      .eq("player_id", player.id);
+    attrsData = coreAttrs.data;
+    attrsError = coreAttrs.error;
+  }
+  if (attrsError) {
+    // Not a missing-column case (that's handled above) — a genuine failure.
+    // Degrade to "no attribute ratings shown" rather than taking the whole
+    // passport down, but don't drop it silently: log it, and say so near the
+    // attribute summary below rather than rendering it identically to "no
+    // assessment yet".
+    console.error("[player dashboard] failed to load attributes:", attrsError);
   }
 
   const currentSeason = new Date().getFullYear().toString();
@@ -118,28 +185,22 @@ export default async function PlayerDashboardPage() {
     ? Math.round((ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length) * 20)
     : 0;
 
-  // Attributes — average across all coaches who assessed this player
-  type AttrRow = Record<AttrKey, number>;
-  const attrRows: AttrRow[] = (player.player_attributes ?? []) as AttrRow[];
-  const attrs = attrRows.length > 0
-    ? Object.fromEntries(
-        ATTR_KEYS.map((key) => [
-          key,
-          Math.round(attrRows.reduce((s, r) => s + r[key], 0) / attrRows.length),
-        ])
-      ) as Record<AttrKey, number>
-    : null;
+  // Attributes — averaged across every coach who assessed this player.
+  type AttrRow = Partial<Record<AttrKey, number | null>>;
+  const attrRows: AttrRow[] = (attrsData ?? []) as AttrRow[];
+  const attrs = averageAttributeRows(attrRows);
 
-  // Overall: average of attributes if assessed, else match rating average
-  const attrsOverall = attrs
-    ? Math.round(ATTR_KEYS.reduce((s, k) => s + attrs[k], 0) / ATTR_KEYS.length)
-    : null;
+  // Overall: mean of the attributes this position is assessed on, else the
+  // match rating average.
+  const attrsOverall = calculateOverall(attrs, player.position);
   const overall = attrsOverall ?? matchAvg;
 
-  const posLabel = POSITIONS.find((p) => p.value === player.position)?.label ?? "—";
-  const age = player.date_of_birth
-    ? Math.floor((Date.now() - new Date(player.date_of_birth).getTime()) / 31_557_600_000)
-    : null;
+  const positionEntry = POSITIONS.find((p) => p.value === player.position);
+  const posLabel = positionEntry?.label ?? "—";
+  const age = calculateAge(player.date_of_birth);
+  // Age band for the positional guide: round up to the next odd year, giving
+  // U11 / U13 / U15 etc. Falls back to U15 when we have no date of birth.
+  const playerAgeGroup = age ? `U${age % 2 === 1 ? age : age + 1}` : "U15";
 
   // Normalize media tag items
   type RawMediaUpload = {
@@ -165,6 +226,16 @@ export default async function PlayerDashboardPage() {
   });
 
   const needsRegistration = !player.mysafa_number && !player.id_number;
+  const docsSigned = (myDocuments ?? []).filter(
+    (d: { status: string }) => d.status === "signed" || d.status === "uploaded"
+  ).length;
+  const docsOutstanding = Math.max(0, 6 - docsSigned);
+  const milestoneTotal = (milestoneTemplates ?? []).length;
+  const milestoneDone = (() => {
+    const done = new Set(((myCompletions ?? []) as { template_id: string }[]).map((c) => c.template_id));
+    return ((milestoneTemplates ?? []) as { id: string }[]).filter((t) => done.has(t.id)).length;
+  })();
+  const milestonePct = milestoneTotal > 0 ? Math.round((milestoneDone / milestoneTotal) * 100) : 0;
 
   return (
     <div className="space-y-6">
@@ -188,13 +259,23 @@ export default async function PlayerDashboardPage() {
         <Card className="overflow-hidden sm:col-span-2 lg:col-span-1">
           <div className="h-1 bg-brand" />
           <CardHeader className="flex-row items-center justify-between">
-            <div>
-              <CardTitle>{player.full_name}</CardTitle>
-              <CardDescription>{posLabel}</CardDescription>
+            <div className="flex items-center gap-3">
+              {player.photo_url ? (
+                <img src={player.photo_url} alt={player.full_name} className="size-12 rounded-full object-cover" />
+              ) : (
+                <span className="grid size-12 shrink-0 place-items-center rounded-full bg-brand/20 text-sm font-bold text-primary">
+                  {getInitials(player.full_name)}
+                </span>
+              )}
+              <div>
+                <CardTitle>{player.full_name}</CardTitle>
+                <CardDescription>{posLabel}</CardDescription>
+              </div>
             </div>
             <RatingRing value={overall} size={84} />
           </CardHeader>
           <CardContent className="space-y-3">
+            {player.photo_url && <RemovePlayerPhotoButton playerId={player.id} />}
             <div className="flex flex-wrap gap-2">
               <Badge variant="brand">{posLabel}</Badge>
               {age && <Badge variant="neutral">Age {age}</Badge>}
@@ -204,13 +285,16 @@ export default async function PlayerDashboardPage() {
                 </Badge>
               )}
             </div>
-            {attrs && (
-              <div className="space-y-1.5 pt-2 border-t border-border">
-                {ATTR_KEYS.map((key) => (
-                  <StatBar key={key} label={ATTR_LABELS[key]} value={attrs[key]} />
-                ))}
-              </div>
+            {attrsError && (
+              <p className="text-xs text-muted-foreground pt-2 border-t border-border">
+                Couldn&apos;t load your attribute ratings right now.
+              </p>
             )}
+            <AttributeSummary
+              attrs={attrs}
+              position={player.position}
+              className="space-y-1.5 pt-2 border-t border-border"
+            />
           </CardContent>
         </Card>
 
@@ -235,161 +319,63 @@ export default async function PlayerDashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Share Passport</CardTitle>
-            <CardDescription>Your public page includes a QR code scouts can scan.</CardDescription>
+            <CardDescription>
+              Your public page includes a QR code scouts can scan. This code
+              identifies your passport — it does not give anyone access to your
+              records.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <p className="rounded-md bg-muted px-4 py-3 text-center font-mono text-lg font-bold tracking-widest">
-              {player.share_token}
-            </p>
+            <div className="flex items-center justify-center gap-2 rounded-md bg-muted px-4 py-3">
+              <p className="font-mono text-lg font-bold tracking-widest">
+                {player.share_token}
+              </p>
+              <CopyButton text={player.share_token} />
+            </div>
             <Button asChild variant="outline" size="sm" className="w-full gap-2">
               <Link href={`/passport/${player.share_token}`} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="size-4" aria-hidden="true" />
                 View public passport &amp; QR
               </Link>
             </Button>
+            <Button asChild variant="outline" size="sm" className="w-full gap-2">
+              <a href={`/api/players/${player.id}/card`}>
+                <Download className="size-4" aria-hidden="true" />
+                Download player card
+              </a>
+            </Button>
           </CardContent>
         </Card>
       </div>
 
-      {(milestoneTemplates ?? []).length > 0 && (() => {
-        type MilestoneTemplate = {
-          id: string;
-          title: string;
-          description: string | null;
-          category: MilestoneCategory;
-          position: string | null;
-          age_group: string | null;
-          sort_order: number;
-        };
-        type Completion = { template_id: string; note: string | null };
+      {/* Development lives on its own page — this page is about who you are as a player. */}
+      <Link
+        href="/dashboard/player/development"
+        className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:bg-muted/40 transition-colors"
+      >
+        <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+          <Target className="size-5" aria-hidden="true" />
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="block font-semibold text-sm">My Development</span>
+          <span className="block text-xs text-muted-foreground">
+            {milestoneTotal > 0
+              ? `${milestoneDone} of ${milestoneTotal} milestones done · ${milestonePct}%`
+              : "Milestones and your development plan"}
+          </span>
+        </span>
+        <ChevronRight className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
+      </Link>
 
-        const templates = milestoneTemplates as MilestoneTemplate[];
-        const completionSet = new Set(
-          (myCompletions as Completion[] ?? []).map((c) => c.template_id)
-        );
-
-        const CATEGORIES: MilestoneCategory[] = ["technical", "tactical", "physical", "mental", "leadership"];
-        const CATEGORY_LABELS: Record<MilestoneCategory, string> = {
-          technical: "Technical", tactical: "Tactical", physical: "Physical",
-          mental: "Mental", leadership: "Leadership",
-        };
-        const CATEGORY_STYLES: Record<MilestoneCategory, string> = {
-          technical: "bg-blue-500/15 text-blue-700 border-transparent",
-          tactical: "bg-violet-500/15 text-violet-700 border-transparent",
-          physical: "bg-orange-500/15 text-orange-700 border-transparent",
-          mental: "bg-teal-500/15 text-teal-700 border-transparent",
-          leadership: "bg-amber-500/15 text-amber-700 border-transparent",
-        };
-
-        const totalCount = templates.length;
-        const doneCount = templates.filter((t) => completionSet.has(t.id)).length;
-        const overallPct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
-
-        const CATEGORY_BAR_COLORS: Record<MilestoneCategory, string> = {
-          technical: "bg-blue-500",
-          tactical: "bg-violet-500",
-          physical: "bg-orange-500",
-          mental: "bg-teal-500",
-          leadership: "bg-amber-500",
-        };
-
-        return (
-          <section className="space-y-4">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-base font-semibold">My Development</h2>
-              <span className="text-sm text-muted-foreground font-medium">
-                {doneCount}/{totalCount} &middot; {overallPct}%
-              </span>
-            </div>
-
-            {/* Overall progress bar */}
-            <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-                <span>Overall progress</span>
-                <span>{overallPct}% complete</span>
-              </div>
-              <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-primary transition-all"
-                  style={{ width: `${overallPct}%` }}
-                />
-              </div>
-              <div className="grid grid-cols-5 gap-1.5 pt-1">
-                {CATEGORIES.map((cat) => {
-                  const catItems = templates.filter((t) => t.category === cat);
-                  if (catItems.length === 0) return null;
-                  const catDone = catItems.filter((t) => completionSet.has(t.id)).length;
-                  const catPct = Math.round((catDone / catItems.length) * 100);
-                  return (
-                    <div key={cat} className="space-y-1">
-                      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${CATEGORY_BAR_COLORS[cat]}`}
-                          style={{ width: `${catPct}%` }}
-                        />
-                      </div>
-                      <p className="text-[9px] text-center text-muted-foreground uppercase tracking-wide truncate">
-                        {CATEGORY_LABELS[cat]}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {CATEGORIES.map((cat) => {
-              const items = templates.filter((t) => t.category === cat);
-              if (items.length === 0) return null;
-              return (
-                <div key={cat} className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                      {CATEGORY_LABELS[cat]}
-                    </p>
-                    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${CATEGORY_STYLES[cat]}`}>
-                      {items.filter((t) => completionSet.has(t.id)).length}/{items.length}
-                    </span>
-                  </div>
-                  <div className="space-y-2">
-                    {items.map((t) => {
-                      const done = completionSet.has(t.id);
-                      return (
-                        <div key={t.id} className="flex gap-3 rounded-xl border border-border bg-card p-4">
-                          <div className="mt-0.5 flex-shrink-0 size-5 rounded-full border-2 border-border flex items-center justify-center"
-                            style={done ? { backgroundColor: "currentColor", borderColor: "currentColor" } : undefined}>
-                            {done && (
-                              <svg viewBox="0 0 12 12" className="size-full text-white" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                                <path d="M2 6l3 3 5-5" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0 space-y-1">
-                            <div className="flex items-start justify-between gap-2">
-                              <p className={`text-sm font-medium leading-snug ${done ? "text-muted-foreground" : ""}`}>
-                                {t.title}
-                              </p>
-                              <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium shrink-0 ${CATEGORY_STYLES[cat]}`}>
-                                {CATEGORY_LABELS[cat]}
-                              </span>
-                            </div>
-                            {t.description && (
-                              <p className="text-xs text-muted-foreground leading-snug">{t.description}</p>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </section>
-        );
-      })()}
-
-      <section className="space-y-3">
-        <DevelopmentPlanPanel playerId={player.id} />
-      </section>
+      {positionEntry && (
+        <section className="space-y-3">
+          <MyPositionPanel
+            positionLabel={positionEntry.label}
+            positionGroup={positionEntry.group}
+            ageGroup={playerAgeGroup}
+          />
+        </section>
+      )}
 
       {chartData.length >= 2 ? (
         <section className="rounded-xl border border-border bg-card p-4 space-y-2">
@@ -450,28 +436,23 @@ export default async function PlayerDashboardPage() {
         </section>
       )}
 
-      <section id="registration" className="space-y-3">
-        <div>
-          <h2 className="text-base font-semibold">My Registration Numbers</h2>
-          <p className="text-sm text-muted-foreground">
-            Keep these up to date so your parent can link their account to your profile.
-          </p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4">
-          <PlayerIdentityForm
-            playerId={player.id}
-            initial={{ mysafa_number: player.mysafa_number, id_number: player.id_number }}
-          />
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <div>
-          <h2 className="text-base font-semibold">Documents &amp; Contracts</h2>
-          <p className="text-sm text-muted-foreground">{currentSeason} season — your parent or guardian signs these on your behalf.</p>
-        </div>
-        <DocumentHub playerId={player.id} season={currentSeason} documents={myDocuments ?? []} readOnly />
-      </section>
+      {/* Paperwork lives on its own page so the passport stays about football. */}
+      <Link
+        href="/dashboard/player/records"
+        className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:bg-muted/40 transition-colors"
+      >
+        <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+          <FileText className="size-5" aria-hidden="true" />
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="block font-semibold text-sm">My Records</span>
+          <span className="block text-xs text-muted-foreground">
+            Registration numbers and {currentSeason} season documents
+            {docsOutstanding > 0 ? ` · ${docsOutstanding} still outstanding` : ""}
+          </span>
+        </span>
+        <ChevronRight className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
+      </Link>
     </div>
   );
 }

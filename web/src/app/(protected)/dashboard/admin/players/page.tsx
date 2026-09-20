@@ -1,10 +1,14 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { Upload, CreditCard } from "lucide-react";
+import { listUnassignedPlayers } from "@/app/actions/squad";
+import { UnassignedPlayersPanel, type AssignTeam } from "@/components/records/unassigned-players-panel";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { POSITIONS } from "@/lib/types";
+import { calculateAge, getInitials } from "@/lib/player";
 import { AdminPlayerSearch } from "./admin-player-search";
 
 export default async function AdminPlayersPage({
@@ -57,12 +61,47 @@ export default async function AdminPlayersPage({
     }
   }
 
+  const [{ players: unassigned }, { data: assignTeams }] = await Promise.all([
+    listUnassignedPlayers(),
+    supabase
+      .from("teams")
+      .select("id, name, age_group")
+      .eq("academy_id", profile.academy_id)
+      .eq("active", true)
+      .order("name"),
+  ]);
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Players</h1>
-        <p className="text-sm text-muted-foreground">{players?.length ?? 0} active players</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Players</h1>
+          <p className="text-sm text-muted-foreground">{players?.length ?? 0} active players</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/dashboard/admin/players/new-card"
+            className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-4 text-sm font-semibold hover:bg-muted"
+          >
+            <CreditCard className="size-4 text-primary" aria-hidden="true" />
+            Create card
+          </Link>
+          <Link
+            href="/dashboard/admin/players/import"
+            className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+          >
+            <Upload className="size-4" aria-hidden="true" />
+            Import players
+          </Link>
+        </div>
       </div>
+
+      {(unassigned ?? []).length > 0 && (
+        <UnassignedPlayersPanel
+          players={unassigned ?? []}
+          teams={(assignTeams ?? []) as AssignTeam[]}
+        />
+      )}
 
       <Suspense fallback={null}>
         <AdminPlayerSearch initialQ={q} />
@@ -87,10 +126,8 @@ export default async function AdminPlayersPage({
               ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1)
               : null;
             const posLabel = POSITIONS.find((pos) => pos.value === p.position)?.label;
-            const age = p.date_of_birth
-              ? Math.floor((Date.now() - new Date(p.date_of_birth).getTime()) / 31_557_600_000)
-              : null;
-            const initials = p.full_name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
+            const age = calculateAge(p.date_of_birth);
+            const initials = getInitials(p.full_name);
             const docsComplete = docCountMap.get(p.id) ?? 0;
             const allDocsDone = docsComplete >= TOTAL_DOCS;
 

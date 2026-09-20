@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { NewFixtureForm } from "./new-fixture-form";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
 
 export default async function NewFixturePage({
   searchParams,
@@ -18,7 +19,7 @@ export default async function NewFixturePage({
   const { data: allTeams } = await supabase
     .from("teams")
     .select("id, name, age_group")
-    .eq("coach_id", user.id)
+    .in("id", await getCoachedTeamIds(supabase, user.id))
     .eq("active", true)
     .order("created_at");
 

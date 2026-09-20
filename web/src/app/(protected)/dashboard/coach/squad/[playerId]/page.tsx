@@ -9,7 +9,15 @@ import { Button } from "@/components/ui/button";
 import { RatingRing } from "@/components/ui/rating-ring";
 import { StatBar } from "@/components/ui/stat-bar";
 import { POSITIONS, FEET } from "@/lib/types";
-import { ATTR_META, type AttrKey } from "@/lib/attributes";
+import {
+  ALL_ATTR_SELECT,
+  CORE_ATTR_SELECT,
+  calculateOverall,
+  getPositionAttrKeys,
+  isMissingAttributeColumn,
+  type AttrKey,
+} from "@/lib/attributes";
+import { calculateAge, getInitials } from "@/lib/player";
 import { RemovePlayerButton } from "../remove-player-button";
 import { RatingEditRow } from "./rating-edit-row";
 import { PlayerAttributesForm } from "./player-attributes-form";
@@ -19,8 +27,16 @@ import { DevelopmentPlanPanel } from "@/components/development/development-plan-
 import { MilestoneCard } from "@/components/development/milestone-card";
 import type { MilestoneCategory } from "@/app/actions/development";
 import { ClipsSection } from "./clips-section";
+import { AttributeSummary } from "@/components/player/attribute-summary";
+import { ParentAccessCard, type LinkedAdult } from "@/components/records/parent-access-card";
+import { listParentLinkCodes } from "@/app/actions/parent";
+import { isMissingParentLinkColumn } from "@/lib/parent-link";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { PlayerPhotoUpload } from "@/components/player-photo-upload";
+import { ExtendedInfoForm } from "@/components/records/extended-info-form";
+import { MedicalForm } from "@/components/records/medical-form";
+import { DocumentHub } from "@/components/records/document-hub";
 
-const CORE_ATTR_KEYS: AttrKey[] = ["pace", "shooting", "passing", "dribbling", "defending", "physical"];
 
 export default async function PlayerDetailPage({
   params,
@@ -31,12 +47,14 @@ export default async function PlayerDetailPage({
 }) {
   const [{ playerId }, { team: teamParam }] = await Promise.all([params, searchParams]);
   const { supabase, user } = await requireUser();
+  const myTeamIds = await getCoachedTeamIds(supabase, user.id);
 
-  const [{ data: player }, { data: myAttrs }, { data: coachTeams }, { data: memberships }] = await Promise.all([
+  const [{ data: player }, myAttrsResult, { data: coachTeams }, { data: memberships }] = await Promise.all([
     supabase
       .from("players")
       .select(`
         id, full_name, position, secondary_pos, preferred_foot, date_of_birth, photo_url, share_token,
+        school, home_address, id_number, mysafa_number,
         player_ratings (
           id, rating, note, created_at,
           fixtures ( opponent, fixture_date )
@@ -46,15 +64,67 @@ export default async function PlayerDetailPage({
       .single(),
     supabase
       .from("player_attributes")
-      .select("pace, shooting, passing, dribbling, defending, physical, ball_control, crossing, heading, tackling, finishing, first_touch, stamina, agility, jumping, strength, positioning, decision_making, composure, work_rate, leadership, shot_stopping, reflexes, distribution, handling")
+      .select(ALL_ATTR_SELECT)
       .eq("player_id", playerId)
       .eq("coach_id", user.id)
       .single(),
-    supabase.from("teams").select("id").eq("coach_id", user.id).eq("active", true),
+    supabase.from("teams").select("id").in("id", myTeamIds).eq("active", true),
     supabase.from("team_members").select("team_id").eq("player_id", playerId).eq("active", true),
   ]);
 
+  // The expanded columns (migration 013) are missing on a project that never
+  // ran it, and the wide SELECT above then fails outright — which would blank
+  // out an assessment the coach really has. Re-read the always-present six.
+  let myAttrs: Partial<Record<AttrKey, number | null>> | null = myAttrsResult.data;
+  if (!myAttrs && isMissingAttributeColumn(myAttrsResult.error)) {
+    const { data: coreAttrs } = await supabase
+      .from("player_attributes")
+      .select(CORE_ATTR_SELECT)
+      .eq("player_id", playerId)
+      .eq("coach_id", user.id)
+      .single();
+    myAttrs = coreAttrs;
+  }
+
   if (!player) notFound();
+
+  // Who can currently see this child's records, and any unused link codes.
+  // Both are staff-only; `listParentLinkCodes` fails soft when migration 032
+  // has not been applied, so the card degrades to "linked adults" alone.
+  const [linksResult, codesResult] = await Promise.all([
+    supabase
+      .from("parent_player_links")
+      .select("parent_id, relationship, linked_at, verification_method, profiles ( full_name )")
+      .eq("player_id", playerId),
+    listParentLinkCodes(playerId),
+  ]);
+
+  // `verification_method` arrives with migration 032. Until that is applied the
+  // wide select above fails with 42703 and would read as "nobody is linked" —
+  // the worst possible thing for this card to say. Fall back to the columns
+  // that have always existed.
+  let linkRows = linksResult.data;
+  if (!linkRows && isMissingParentLinkColumn(linksResult.error)) {
+    const { data } = await supabase
+      .from("parent_player_links")
+      .select("parent_id, relationship, linked_at, profiles ( full_name )")
+      .eq("player_id", playerId);
+    linkRows = data as typeof linkRows;
+  }
+
+  const linkedAdults: LinkedAdult[] = (linkRows ?? []).map((row) => {
+    const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+    return {
+      parent_id: row.parent_id,
+      full_name: (profile as { full_name: string | null } | null)?.full_name ?? null,
+      relationship: row.relationship,
+      linked_at: row.linked_at,
+      verification_method:
+        (row as { verification_method?: string | null }).verification_method ?? null,
+    };
+  });
+
+  const currentSeasonForRecords = new Date().getFullYear().toString();
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -72,10 +142,10 @@ export default async function PlayerDetailPage({
       ? teamParam
       : sharedTeamIds[0] ?? null;
 
-  const [{ data: medical }, { data: milestoneTemplates }, { data: completions }, { data: clips }, { data: recentFixtures }] = await Promise.all([
+  const [{ data: medical }, { data: milestoneTemplates }, { data: completions }, { data: clips }, { data: recentFixtures }, { data: docs }] = await Promise.all([
     supabase
       .from("player_medical")
-      .select("blood_type, allergies, chronic_conditions, current_medication, emergency_1_name, emergency_1_relationship, emergency_1_phone, emergency_2_name, emergency_2_relationship, emergency_2_phone, has_medical_aid, medical_aid_scheme, nearest_hospital, doctor_clinic")
+      .select("*")
       .eq("player_id", playerId)
       .maybeSingle(),
     profile?.academy_id
@@ -104,6 +174,11 @@ export default async function PlayerDetailPage({
           .order("fixture_date", { ascending: false })
           .limit(20)
       : Promise.resolve({ data: [] as { id: string; opponent: string; fixture_date: string }[] }),
+    supabase
+      .from("player_documents")
+      .select("document_type, status, signer_name, signed_at, uploaded_at, upload_url")
+      .eq("player_id", playerId)
+      .eq("season", currentSeasonForRecords),
   ]);
 
   type Rating = {
@@ -129,28 +204,30 @@ export default async function PlayerDetailPage({
       };
     });
 
-  const initialAttrs = myAttrs as Record<AttrKey, number> | null;
+  // Expanded columns are nullable, and are only populated for the attributes
+  // this player's position is actually assessed on.
+  const initialAttrs = myAttrs;
 
   const ratingValues = ratings.map((r) => r.rating);
   const matchAvg = ratingValues.length
     ? Math.round((ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length) * 20)
     : 0;
 
-  // Overall = mean of ability attributes when assessed; falls back to match rating average
-  const attrsOverall = initialAttrs
-    ? Math.round(
-        (initialAttrs.pace + initialAttrs.shooting + initialAttrs.passing +
-         initialAttrs.dribbling + initialAttrs.defending + initialAttrs.physical) / 6
-      )
-    : null;
+  // Overall = mean of the attributes this position is assessed on; falls back
+  // to the match rating average when nothing relevant has been rated yet.
+  const attrsOverall = calculateOverall(initialAttrs, player.position);
   const overall = attrsOverall ?? matchAvg;
+
+  // The snapshot mirrors the assessment form, so what a coach rates is what
+  // they see summarised here.
+  const summaryKeys = getPositionAttrKeys(player.position).filter(
+    (key) => typeof initialAttrs?.[key] === "number"
+  );
 
   const posLabel = POSITIONS.find((p) => p.value === player.position)?.label ?? "—";
   const footLabel = FEET.find((f) => f.value === player.preferred_foot)?.label;
-  const age = player.date_of_birth
-    ? Math.floor((Date.now() - new Date(player.date_of_birth).getTime()) / 31_557_600_000)
-    : null;
-  const initials = player.full_name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
+  const age = calculateAge(player.date_of_birth);
+  const initials = getInitials(player.full_name);
 
   return (
     <div className="space-y-6">
@@ -193,7 +270,7 @@ export default async function PlayerDetailPage({
                 <p className="font-semibold">{ratings.length}</p>
               </div>
               <div>
-                <p className="text-muted-foreground text-xs">Public passport</p>
+                <p className="text-muted-foreground text-xs">Public passport link</p>
                 <Link
                   href={`/passport/${player.share_token}`}
                   target="_blank"
@@ -206,13 +283,15 @@ export default async function PlayerDetailPage({
             </div>
 
             {/* Attribute bars snapshot */}
-            {initialAttrs && (
-              <div className="space-y-1.5 pt-2 border-t border-border">
-                {CORE_ATTR_KEYS.map((key) => (
-                  <StatBar key={key} label={ATTR_META[key].label} value={initialAttrs[key]} />
-                ))}
-              </div>
-            )}
+            <AttributeSummary
+              attrs={initialAttrs}
+              position={player.position}
+              className="space-y-1.5 pt-2 border-t border-border"
+            />
+
+            <div className="pt-2">
+              <PlayerPhotoUpload playerId={player.id} />
+            </div>
 
             {teamId && (
               <div className="pt-2">
@@ -353,6 +432,14 @@ export default async function PlayerDetailPage({
         );
       })()}
 
+      <ParentAccessCard
+        playerId={player.id}
+        playerName={player.full_name}
+        linkedAdults={linkedAdults}
+        codes={codesResult.codes ?? []}
+        loadError={codesResult.error}
+      />
+
       <ClipsSection
         playerId={player.id}
         clips={clips ?? []}
@@ -418,6 +505,36 @@ export default async function PlayerDetailPage({
           </div>
         </section>
       )}
+
+      <section className="space-y-6">
+        <h2 className="text-xl font-bold">Player Records</h2>
+
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+          <p className="font-semibold">Registration Details</p>
+          <ExtendedInfoForm
+            playerId={playerId}
+            initial={{ school: player.school, home_address: player.home_address, id_number: player.id_number, mysafa_number: player.mysafa_number }}
+          />
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="font-semibold">Medical &amp; Emergency</p>
+            {medical?.needs_renewal && (
+              <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-600">Renewal needed</span>
+            )}
+          </div>
+          <MedicalForm playerId={playerId} initial={medical as Record<string, unknown> | null} />
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+          <div>
+            <p className="font-semibold">Documents &amp; Contracts · {currentSeasonForRecords}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Signed by the player&apos;s parent or guardian. Read-only view.</p>
+          </div>
+          <DocumentHub playerId={playerId} season={currentSeasonForRecords} documents={docs ?? []} readOnly />
+        </div>
+      </section>
     </div>
   );
 }

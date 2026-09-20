@@ -2,17 +2,24 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
+import { friendlyError } from "@/lib/friendly-error";
+import {
+  CORE_ATTR_KEYS,
+  isMissingAttributeColumn,
+  MISSING_ATTR_COLUMNS_MESSAGE,
+  type AttrKey,
+} from "@/lib/attributes";
 
 const optionalAttr = z.number().int().min(1).max(99).optional();
 
 const attributesSchema = z.object({
-  pace:             z.number().int().min(1).max(99),
-  shooting:         z.number().int().min(1).max(99),
-  passing:          z.number().int().min(1).max(99),
-  dribbling:        z.number().int().min(1).max(99),
-  defending:        z.number().int().min(1).max(99),
-  physical:         z.number().int().min(1).max(99),
   notes:            z.string().max(300).optional(),
+  pace:             optionalAttr,
+  shooting:         optionalAttr,
+  passing:          optionalAttr,
+  dribbling:        optionalAttr,
+  defending:        optionalAttr,
+  physical:         optionalAttr,
   ball_control:     optionalAttr,
   crossing:         optionalAttr,
   heading:          optionalAttr,
@@ -32,22 +39,17 @@ const attributesSchema = z.object({
   reflexes:         optionalAttr,
   distribution:     optionalAttr,
   handling:         optionalAttr,
+  marking:           optionalAttr,
+  pressing:          optionalAttr,
+  off_ball_movement: optionalAttr,
+  game_reading:      optionalAttr,
+  communication:     optionalAttr,
 });
 
 export async function upsertPlayerAttributes(
   playerId: string,
-  payload: {
-    pace: number; shooting: number; passing: number;
-    dribbling: number; defending: number; physical: number;
-    notes?: string;
-    ball_control?: number; crossing?: number; heading?: number;
-    tackling?: number; finishing?: number; first_touch?: number;
-    stamina?: number; agility?: number; jumping?: number; strength?: number;
-    positioning?: number; decision_making?: number; composure?: number;
-    work_rate?: number; leadership?: number; shot_stopping?: number;
-    reflexes?: number; distribution?: number; handling?: number;
-  }
-) {
+  payload: Partial<Record<AttrKey, number>> & { notes?: string }
+): Promise<{ error?: string; success?: boolean; warning?: string }> {
   const { supabase, user } = await requireUser();
 
   const parsed = attributesSchema.safeParse({
@@ -59,21 +61,46 @@ export async function upsertPlayerAttributes(
     return { error: first ?? "Invalid input." };
   }
 
+  const { notes, ...attrValues } = parsed.data;
+
+  const base = {
+    player_id:   playerId,
+    coach_id:    user.id,
+    notes:       notes ?? null,
+    assessed_at: new Date().toISOString(),
+  };
+
+  // Only the attributes the form actually showed are written. Columns left out
+  // keep whatever they already held (PostgREST's upsert updates named columns
+  // only), so a goalkeeper's row never gains a fabricated "Shooting: 50" for an
+  // attribute their coach was never asked about.
   const { error } = await supabase
     .from("player_attributes")
-    .upsert(
-      {
-        player_id:   playerId,
-        coach_id:    user.id,
-        ...parsed.data,
-        notes:       parsed.data.notes ?? null,
-        assessed_at: new Date().toISOString(),
-      },
-      { onConflict: "player_id,coach_id" }
-    );
+    .upsert({ ...base, ...attrValues }, { onConflict: "player_id,coach_id" });
 
-  if (error) return { error: error.message };
+  if (!error) {
+    revalidatePath(`/dashboard/coach/squad/${playerId}`);
+    return { success: true };
+  }
+
+  // Migration 013 was never applied to this project (or PostgREST is still
+  // serving a cache from before it was), so the expanded columns don't exist.
+  // Retry with the six the original schema guarantees rather than throwing the
+  // coach's whole assessment away, and say what needs fixing.
+  if (!isMissingAttributeColumn(error)) return { error: friendlyError(error) };
+
+  const core: Partial<Record<AttrKey, number>> = {};
+  for (const key of CORE_ATTR_KEYS) {
+    const value = attrValues[key];
+    if (typeof value === "number") core[key] = value;
+  }
+
+  const { error: coreError } = await supabase
+    .from("player_attributes")
+    .upsert({ ...base, ...core }, { onConflict: "player_id,coach_id" });
+
+  if (coreError) return { error: coreError.message };
 
   revalidatePath(`/dashboard/coach/squad/${playerId}`);
-  return { success: true };
+  return { success: true, warning: MISSING_ATTR_COLUMNS_MESSAGE };
 }

@@ -1,6 +1,6 @@
-# FootballPath
+# Growfit FA
 
-A modern grassroots football platform for player development, team management, and talent visibility. Built for African football academies and designed for daily use by coaches, players, and parents.
+A grassroots football platform for player development, team management, and talent visibility. Built for South African football academies and designed for daily use by coaches, players, and parents.
 
 ---
 
@@ -8,10 +8,53 @@ A modern grassroots football platform for player development, team management, a
 
 | Role | Core capability |
 |------|----------------|
-| **Coach** | Manage squads across multiple teams, schedule fixtures and training sessions, post announcements, rate and assess players |
-| **Player** | View personal passport (position, attributes, match ratings), follow fixtures and training schedule, claim share token |
-| **Parent** | Link to a child's profile using a share code, track their progress and ratings |
-| **Admin** | Academy-wide player and team oversight |
+| **Coach** | Manage squads, fixtures, training and attendance; plan tactics on an interactive board; ask a squad-aware AI assistant for an XI, a match plan or advice |
+| **Player** | View personal passport (position, attributes, match ratings), watch plays the coach shares, learn what their position does, follow fixtures and training |
+| **Parent** | Link to a child's profile using a share code, track progress and ratings, sign documents digitally |
+| **Admin** | Academy-wide player and team oversight, SAFA document compliance, analytics |
+
+### Tactics
+
+A pitch-diagram animation studio, built to match the depth of dedicated
+tools like The Tactics App and Final Third rather than sit behind them:
+
+- 16 formation presets from 5-a-side to 11-a-side, automatic player
+  assignment by position, opponent set-up
+- Switchable pitch sizes — full, half, attacking third, and training
+  grids — plus a training-equipment palette (cones, markers, mannequins,
+  goals, bibs, poles, ladders, hurdles) for drawing an actual Wednesday
+  drill, not just a Sunday match shape
+- Drawing tools (runs, passes, dribbles, freehand, zones, text) with
+  undo/redo covering every board edit, including frame reordering
+- Pitch overlays for thirds / half-spaces / zone 14
+- A real keyframe timeline: reorder, duplicate, and insert frames, set a
+  per-frame duration and easing, and scrub to any point in the animation
+  to edit that pose directly
+- Player spotlight — a highlight bound to a specific player's token that
+  follows them through the whole animation — and per-player notes that
+  reach that player's own shared view, filtered so only the notes about
+  them (or their child, for a parent) are ever shown
+- PNG and video export, and saved plays that can be tagged by concept,
+  attached to a session or fixture, and shared to the squad with a
+  recorded voice note
+- **Match Film** — telestration over a real moment, not just a diagram:
+  draw over a captured phone-clip frame, a photo, or a live YouTube/Vimeo
+  embed, then save and share the breakdown to the squad
+
+### AI
+
+Thirteen AI capabilities grounded in the FIFA LTPD framework, the 4-Corner Model,
+SAFA's National Development Programme and CAF youth development principles:
+session planner, player insights, development plans, match and parent reports,
+academy health report, tactical concept and positional-role explainers, play
+describer, opponent counter-analysis, and a conversational coach assistant that
+suggests an XI and writes match plans.
+
+The assistant reads the academy's own data — real ratings, recent form, training
+attendance against the 75% policy, and past results — so its advice names actual
+players instead of generalising. It is explicitly constrained not to invent
+players or statistics, and treats the attendance threshold as a welfare trigger
+rather than a punishment.
 
 ---
 
@@ -59,7 +102,21 @@ football_path/
 │   └── migrations/
 │       ├── 001_schema.sql      # Complete base schema + RLS + helper functions
 │       ├── 002_phase1.sql      # Email auth trigger, announcements body limit
-│       └── 003_phase2.sql      # Training tables, profile fields, relationship column
+│       ├── 003_phase2.sql      # Training tables, profile fields, relationship column
+│       ├── 004–013             # Reads, attendance, realtime, records, media,
+│       │                       #   multi-club, documents, indexes, development,
+│       │                       #   expanded attributes
+│       ├── 014_claim_backfill_academy.sql  # Link academy on passport claim
+│       ├── 015_tactic_plays.sql            # Saved tactical board plays
+│       ├── 016_play_links_and_tags.sql     # Concept tags, session/fixture links, sharing
+│       ├── 017_play_voice_notes.sql        # Coach voice notes on plays
+│       ├── 018–026                         # Player import, team coach codes, player
+│       │                                   #   self-update, fixture cancellation reason,
+│       │                                   #   covering index, photo consent, welfare
+│       │                                   #   check-ins, parent photo delete, player erasure
+│       ├── 027_access_codes.sql            # Coach/admin access-code flow fix (see below)
+│       ├── 028_film_surface.sql            # Match Film surface on tactic_plays
+│       └── 029_shared_play_notes_privacy.sql # Filters per-player notes on a shared play
 ├── src/                        # Expo mobile app source
 ├── docs/
 │   ├── ARCHITECTURE.md         # System design and data flow
@@ -97,9 +154,22 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
 Run each migration file in order via the Supabase SQL Editor:
 
-1. `supabase/migrations/001_schema.sql` — base schema, RLS, functions
-2. `supabase/migrations/002_phase1.sql` — auth trigger, announcements constraint
-3. `supabase/migrations/003_phase2.sql` — training tables, profile columns
+Run every migration in `supabase/migrations/` in numerical order, from
+`001_schema.sql` through `029_shared_play_notes_privacy.sql`. Each one is
+idempotent, so re-running a migration is safe.
+
+The tactics features need `015`–`017` in particular: `015` creates saved
+plays, `016` adds concept tags, session/fixture links and player sharing, and
+`017` adds coach voice notes. `028` adds the `surface` column Match Film
+needs, and `029` is a required privacy fix — without it, a shared play's
+per-player coach notes are visible to the whole squad rather than filtered
+to the player (or parent) they're about.
+
+`027_access_codes.sql` fixes the coach/admin sign-up flow: previously a
+coach entering their team's join/coach code at registration could land on
+an unrecoverable account (wrong role, no academy, and no way to self-heal
+via `/auth/role`, which itself had no `profiles` INSERT policy to upsert
+against). Apply this before onboarding any coach.
 
 Then insert the seed academy:
 

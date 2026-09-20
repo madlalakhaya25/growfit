@@ -1,7 +1,12 @@
 "use client";
 import { useTransition, useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { markMatchAttendance } from "@/app/actions/attendance";
+import { getInitials } from "@/lib/player";
+import { enqueueAttendanceWrite } from "@/lib/offline-attendance-queue";
+import { useAttendanceQueueFlush } from "./use-attendance-queue-flush";
 
 type AttendanceStatus = "present" | "absent" | "late" | "excused";
 
@@ -54,15 +59,37 @@ const STATUS_CONFIG: {
 ];
 
 export function MatchAttendanceForm({ fixtureId, players, existing }: Props) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [statusMap, setStatusMap] = useState<Record<string, AttendanceStatus>>(
     () => Object.fromEntries(existing.map((r) => [r.player_id, r.status]))
   );
 
+  useAttendanceQueueFlush(() => router.refresh());
+
   function handleClick(playerId: string, status: AttendanceStatus) {
+    const previous = statusMap[playerId] ?? null;
     setStatusMap((prev) => ({ ...prev, [playerId]: status }));
     startTransition(async () => {
-      await markMatchAttendance(fixtureId, playerId, status);
+      try {
+        const res = await markMatchAttendance(fixtureId, playerId, status);
+        if (res?.error) {
+          setStatusMap((prev) => ({ ...prev, [playerId]: previous as AttendanceStatus }));
+          toast.error(res.error);
+        }
+      } catch {
+        // Network failure, not a rejected write — keep the optimistic mark
+        // and queue it to retry once the connection comes back.
+        await enqueueAttendanceWrite({
+          id: `match:${fixtureId}:${playerId}:${Date.now()}`,
+          kind: "match",
+          fixtureId,
+          playerId,
+          status,
+          queuedAt: new Date().toISOString(),
+        });
+        toast("Saved offline — will sync when you're back online", { duration: 5000 });
+      }
     });
   }
 
@@ -87,12 +114,7 @@ export function MatchAttendanceForm({ fixtureId, players, existing }: Props) {
       <div className="divide-y divide-border rounded-xl border border-border">
         {players.map((player) => {
           const current = statusMap[player.id] ?? null;
-          const initials = player.full_name
-            .split(" ")
-            .slice(0, 2)
-            .map((w) => w[0])
-            .join("")
-            .toUpperCase();
+          const initials = getInitials(player.full_name);
           return (
             <div key={player.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
               <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand/15 text-xs font-bold text-primary">

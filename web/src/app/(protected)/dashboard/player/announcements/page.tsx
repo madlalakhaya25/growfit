@@ -1,3 +1,4 @@
+import { LinkifiedText } from "@/components/linkified-text";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Megaphone } from "lucide-react";
@@ -119,7 +120,7 @@ export default async function PlayerAnnouncementsPage() {
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                    {a.body}
+                    <LinkifiedText text={a.body} />
                   </p>
                   <div className="flex flex-wrap items-center gap-2 pt-0.5">
                     {multiTeam && teamName && (

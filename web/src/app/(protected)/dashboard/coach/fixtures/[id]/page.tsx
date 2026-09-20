@@ -11,13 +11,8 @@ import { MediaUploadForm } from "@/components/media/media-upload-form";
 import { MediaGallery } from "@/components/media/media-gallery";
 import { MatchAttendanceForm } from "@/components/attendance/match-attendance-form";
 import { MatchReportPanel } from "@/components/ai/match-report-panel";
-
-const STATUS_VARIANT = {
-  upcoming: "neutral",
-  completed: "success",
-  cancelled: "danger",
-  postponed: "warning",
-} as const;
+import { fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
+import { getInitials } from "@/lib/player";
 
 export default async function FixtureDetailPage({
   params,
@@ -32,7 +27,7 @@ export default async function FixtureDetailPage({
   const { data: fixture } = await supabase
     .from("fixtures")
     .select(`
-      id, opponent, venue, fixture_date, is_home, status, notes, team_id,
+      id, opponent, venue, fixture_date, is_home, status, notes, cancellation_reason, team_id,
       match_results ( team_score, opponent_score, match_notes ),
       match_appearances (
         played,
@@ -145,15 +140,22 @@ export default async function FixtureDetailPage({
             {fixture.venue && ` · ${fixture.venue}`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant={STATUS_VARIANT[fixture.status as keyof typeof STATUS_VARIANT] ?? "neutral"} className="capitalize">
-            {fixture.status}
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={fixtureStatusVariant(fixture)} className="capitalize">
+            {fixtureStatusLabel(fixture)}
           </Badge>
           {fixture.status === "upcoming" && (
             <CancelFixtureButton fixtureId={id} />
           )}
         </div>
       </div>
+
+      {fixture.status === "cancelled" && fixture.cancellation_reason && (
+        <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          <span className="font-medium">Cancelled: </span>
+          {fixture.cancellation_reason}
+        </p>
+      )}
 
       {fixture.notes && (
         <p className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
@@ -216,7 +218,7 @@ export default async function FixtureDetailPage({
               const player = Array.isArray(a.players) ? a.players[0] : a.players;
               if (!player) return null;
               const rating = ratingsMap.get(player.id);
-              const initials = player.full_name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
+              const initials = getInitials(player.full_name);
               return (
                 <div key={i} className="flex items-center gap-3 px-4 py-3">
                   <span className="grid size-9 shrink-0 place-items-center rounded-full bg-brand/15 text-xs font-bold text-primary">

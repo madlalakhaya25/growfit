@@ -5,8 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Users, Calendar, Plus, Dumbbell, ChevronRight } from "lucide-react";
 import { CreateTeamForm } from "@/components/create-team-form";
+import { JoinTeamForm } from "@/components/join-team-form";
 import { CopyButton } from "@/components/copy-button";
 import { daysFromNow } from "@/lib/utils";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { getWelfareAlerts } from "@/app/actions/welfare";
+import { WelfareCheckinsPanel } from "@/components/welfare/welfare-checkins-panel";
 
 const SESSION_TYPE_LABEL: Record<string, string> = {
   general: "General", technical: "Technical", tactical: "Tactical",
@@ -19,11 +23,12 @@ export default async function CoachDashboardPage() {
   const { data: teamRows } = await supabase
     .from("teams")
     .select("id, name, age_group, invite_code")
-    .eq("coach_id", user.id)
+    .in("id", await getCoachedTeamIds(supabase, user.id))
     .eq("active", true);
 
   const rawTeams = teamRows ?? [];
   const teamIds = rawTeams.map((t) => t.id);
+  const now = new Date().toISOString();
 
   // Batch queries instead of O(2n) per-team round-trips
   const [{ data: memberRows }, { data: upcomingRows }] = await Promise.all([
@@ -31,7 +36,9 @@ export default async function CoachDashboardPage() {
       ? supabase.from("team_members").select("team_id").in("team_id", teamIds).eq("active", true)
       : Promise.resolve({ data: [] }),
     teamIds.length
-      ? supabase.from("fixtures").select("team_id").in("team_id", teamIds).eq("status", "upcoming")
+      // A fixture whose kickoff has passed isn't "upcoming" for this badge,
+      // even if the coach hasn't logged its result yet.
+      ? supabase.from("fixtures").select("team_id").in("team_id", teamIds).eq("status", "upcoming").gte("fixture_date", now)
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -45,7 +52,6 @@ export default async function CoachDashboardPage() {
     squadCount: squadCountMap.get(team.id) ?? 0,
     upcomingCount: upcomingCountMap.get(team.id) ?? 0,
   }));
-  const now = new Date().toISOString();
 
   const [{ data: nextFixtures }, { data: nextSessions }] = await Promise.all([
     teamIds.length
@@ -73,6 +79,9 @@ export default async function CoachDashboardPage() {
   const nextSession = nextSessions?.[0] ?? null;
   const multiTeam = allTeams.length > 1;
 
+  const welfareResult = teamIds.length ? await getWelfareAlerts() : { alerts: [] };
+  const welfareAlerts = "alerts" in welfareResult ? welfareResult.alerts : [];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -88,17 +97,34 @@ export default async function CoachDashboardPage() {
       </div>
 
       {allTeams.length === 0 ? (
-        <Card id="create-team">
-          <CardHeader>
-            <CardTitle>Create your first team</CardTitle>
-            <CardDescription>Set up a team to start managing your squad, fixtures, and training.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <CreateTeamForm />
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Join a team</CardTitle>
+              <CardDescription>
+                If your admin has already set up the teams, enter the coach code they
+                gave you. A team can have more than one coach.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <JoinTeamForm compact />
+            </CardContent>
+          </Card>
+
+          <Card id="create-team">
+            <CardHeader>
+              <CardTitle>Or create your own team</CardTitle>
+              <CardDescription>Set up a team to start managing your squad, fixtures, and training.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CreateTeamForm />
+            </CardContent>
+          </Card>
+        </div>
       ) : (
         <div className="space-y-6">
+
+          <WelfareCheckinsPanel alerts={welfareAlerts} />
 
           {/* ── What's Next ───────────────────────────────────────── */}
           {!nextFixture && !nextSession && (
@@ -244,8 +270,20 @@ export default async function CoachDashboardPage() {
               <CardTitle>Add another team</CardTitle>
               <CardDescription>Manage multiple squads from a single account.</CardDescription>
             </CardHeader>
-            <CardContent>
-              <CreateTeamForm />
+            <CardContent className="space-y-5">
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Join a team with a coach code</p>
+                <p className="text-xs text-muted-foreground">
+                  For a team your admin has already set up. A team can have more than
+                  one coach, so this works alongside whoever is already on it.
+                </p>
+                <JoinTeamForm compact />
+              </div>
+
+              <div className="border-t border-border pt-5 space-y-2">
+                <p className="text-sm font-medium">Or create a new team</p>
+                <CreateTeamForm />
+              </div>
             </CardContent>
           </Card>
         </div>

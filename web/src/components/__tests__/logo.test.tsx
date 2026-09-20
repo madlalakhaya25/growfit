@@ -7,9 +7,12 @@ describe("Logo", () => {
     expect(screen.getByText(/GrowFit/i)).toBeInTheDocument();
   });
 
-  it("renders the football emoji", () => {
+  it("renders the brand mark", () => {
     render(<Logo />);
-    expect(screen.getByText("⚽")).toBeInTheDocument();
+    expect(screen.getByAltText("Growfit FA")).toHaveAttribute(
+      "src",
+      "/growfit.png"
+    );
   });
 
   it("accepts a custom className", () => {

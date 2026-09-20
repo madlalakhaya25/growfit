@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, Target, Users, Building2, CheckCircle2, ArrowRight } from "lucide-react";
+import { Shield, Target, Users, CheckCircle2, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
@@ -9,10 +9,15 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/authStore";
 import type { AuthProfile } from "@/store/authStore";
+import { normalizeAccessCode } from "@/lib/access-codes";
 import type { UserRole } from "@/lib/types";
 
+/** The three roles a code can attach — never 'admin', which only ever comes
+ * from /register-club (creating a fresh academy via register_academy()). */
+type SelectableRole = "player" | "coach" | "parent";
+
 const ROLES: {
-  value: UserRole;
+  value: SelectableRole;
   label: string;
   tagline: string;
   description: string;
@@ -27,9 +32,9 @@ const ROLES: {
     description: "See your ratings, your milestones, and how you're growing as a player.",
     bullets: [
       "Digital passport with a shareable QR code",
-      "Match ratings and performance history",
-      "Development milestones across 5 categories",
-      "Training attendance and session records",
+      "Watch your coach's plays and hear their voice note",
+      "A guide to what your position actually does",
+      "Match ratings, milestones, and training records",
     ],
     color: "border-blue-500/50 bg-blue-500/5 ring-blue-500",
     Icon: Target,
@@ -40,10 +45,10 @@ const ROLES: {
     tagline: "Coach smarter.",
     description: "Plan sessions, rate players, log results and let the AI do the heavy lifting.",
     bullets: [
+      "AI assistant that knows your squad, suggests an XI, writes match plans",
+      "Tactical board: formations, animation, video export, shared plays",
       "AI session planner (FIFA LTPD phases, 4-Corner Model drills)",
-      "Player ratings, attribute assessments, and AI insights",
-      "Fixtures, training, attendance, and AI post-match reports",
-      "Squad management, announcements, and media uploads",
+      "Ratings, attendance, announcements, and AI post-match reports",
     ],
     color: "border-primary/50 bg-primary/5 ring-primary",
     Icon: Users,
@@ -62,24 +67,12 @@ const ROLES: {
     color: "border-green-500/50 bg-green-500/5 ring-green-500",
     Icon: Shield,
   },
-  {
-    value: "admin",
-    label: "Admin",
-    tagline: "Run your academy.",
-    description: "Manage teams, players, and documents, with compliance dashboards benchmarked to SAFA NDP standards.",
-    bullets: [
-      "SAFA document compliance dashboard (6 docs per player)",
-      "Academy health AI report with FIFA/SAFA benchmarks",
-      "Squad, team, and player management",
-      "Analytics: ratings, attendance, positions, top performers",
-    ],
-    color: "border-amber-500/50 bg-amber-500/5 ring-amber-500",
-    Icon: Building2,
-  },
+  // Admin isn't offered here — it's never granted by a code. An admin who
+  // reaches this page (e.g. a co-admin the founder hasn't set up yet) needs
+  // an academy created via /register-club, not a role picked here.
 ];
 
-const ROLE_ROUTES: Record<UserRole, string> = {
-  admin:  "/dashboard/admin",
+const ROLE_ROUTES: Partial<Record<UserRole, string>> = {
   coach:  "/dashboard/coach",
   player: "/dashboard/player",
   parent: "/dashboard/parent",
@@ -92,17 +85,28 @@ export default function RolePage() {
   const router = useRouter();
   const setProfile = useAuthStore((s) => s.setProfile);
 
-  const [selected, setSelected] = useState<UserRole | null>(null);
+  const [selected, setSelected] = useState<SelectableRole | null>(null);
   const [clubCode, setClubCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleContinue() {
     if (!selected) return;
-    if (!clubCode || clubCode.trim().length !== 6) {
-      setError("Club code must be exactly 6 characters.");
+
+    const code = normalizeAccessCode(clubCode);
+    const isPlayer = selected === "player";
+
+    // Players may continue without a code — they land in a "waiting to be
+    // added" state until their coach adds them. Every other role needs one.
+    if (code.length === 0 && !isPlayer) {
+      setError("Enter your club or team code to continue.");
       return;
     }
+    if (code.length > 0 && code.length !== 6) {
+      setError("Code must be exactly 6 characters.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     const supabase = createClient();
@@ -113,31 +117,32 @@ export default function RolePage() {
     }
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { router.push("/auth/login"); return; }
+    if (!user) { router.push("/auth/login"); setLoading(false); return; }
 
-    const { data: academyData, error: rpcError } = await supabase.rpc("find_academy_by_join_code", {
-      p_code: clubCode.toUpperCase(),
-    });
-    if (rpcError) { setError(rpcError.message); setLoading(false); return; }
-    if (academyData?.error || !academyData?.academy_id) {
-      setError("Invalid club code — double-check with your club admin.");
-      setLoading(false);
-      return;
+    // redeem_access_code works out what kind of code this is (academy join
+    // code, team coach code, or team invite code) and applies it — the same
+    // RPC registration and /join/[code] use, so there is one implementation
+    // of "what does this code do" instead of three that can drift apart.
+    // It never overwrites an existing role or academy_id (see migration 027),
+    // so this is safe to call even for a returning user who already has one.
+    if (code) {
+      const { data: redeemData, error: rpcError } = await supabase.rpc("redeem_access_code", {
+        p_code: code,
+        p_role: selected,
+      });
+      if (rpcError) { setError(rpcError.message); setLoading(false); return; }
+      const res = redeemData as { error?: string } | null;
+      if (res?.error) { setError(res.error); setLoading(false); return; }
     }
 
-    const { data, error: upsertErr } = await supabase
+    const { data, error: profileError } = await supabase
       .from("profiles")
-      .upsert({
-        id: user.id,
-        role: selected,
-        academy_id: academyData.academy_id,
-        full_name: user.email?.split("@")[0] ?? "New user",
-      })
       .select("id, role, academy_id, full_name")
+      .eq("id", user.id)
       .single();
 
-    if (upsertErr || !data) {
-      setError(upsertErr?.message ?? "Could not save profile.");
+    if (profileError || !data) {
+      setError(profileError?.message ?? "Could not load your profile.");
       setLoading(false);
       return;
     }
@@ -230,26 +235,38 @@ export default function RolePage() {
                 {selectedRole ? `Join ${selectedRole.label === "Admin" ? "your academy" : "your club"}` : "Join your club"}
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Your club admin will give you a 6-character code. Enter it here to connect your account to your academy.
+                {selected === "player"
+                  ? "Your club admin will give you a 6-character code. Have it? Enter it to link your academy now — otherwise you can continue without one."
+                  : "Your club admin will give you a 6-character code. Enter it here to connect your account to your academy."}
               </p>
             </div>
             <div className="space-y-1.5">
-              <label htmlFor="club_code" className="text-sm font-medium">Club join code</label>
+              <label htmlFor="club_code" className="text-sm font-medium">Club or team code</label>
               <input
                 id="club_code"
                 type="text"
                 autoComplete="off"
                 placeholder="e.g. ABC123"
-                maxLength={6}
+                // No maxLength: a browser-enforced maxLength truncates the
+                // raw pasted value *before* this onChange runs, so a pasted
+                // " ABC123" (7 raw chars) got cut to " ABC12" first and only
+                // then had its leading space stripped — five characters,
+                // read as "wrong length" instead of a valid code.
                 value={clubCode}
-                onChange={(e) => setClubCode(e.target.value.toUpperCase())}
+                onChange={(e) => setClubCode(normalizeAccessCode(e.target.value).slice(0, 6))}
                 className={INPUT_CLASS}
               />
               <p className="text-xs text-muted-foreground">
-                Don&apos;t have a code?{" "}
-                <Link href="/register-club" className="text-primary underline underline-offset-2">
-                  Register a new club instead
-                </Link>
+                {selected === "player" ? (
+                  <>Don&apos;t have a code yet? Continue without one — your coach will add you.</>
+                ) : (
+                  <>
+                    Don&apos;t have a code?{" "}
+                    <Link href="/register-club" className="text-primary underline underline-offset-2">
+                      Register a new club instead
+                    </Link>
+                  </>
+                )}
               </p>
             </div>
           </div>

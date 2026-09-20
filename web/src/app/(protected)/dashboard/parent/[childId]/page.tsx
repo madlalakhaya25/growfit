@@ -5,30 +5,22 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RatingRing } from "@/components/ui/rating-ring";
-import { StatBar } from "@/components/ui/stat-bar";
 import { POSITIONS, FEET } from "@/lib/types";
+import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
+import { calculateAge, getInitials } from "@/lib/player";
+import { RemovePlayerPhotoButton } from "@/components/remove-player-photo-button";
 import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
 import { ParentReportPanel } from "@/components/ai/parent-report-panel";
-
-const ATTR_KEYS = ["pace", "shooting", "passing", "dribbling", "defending", "physical"] as const;
-type AttrKey = (typeof ATTR_KEYS)[number];
-
-const ATTR_LABELS: Record<AttrKey, string> = {
-  pace: "Pace",
-  shooting: "Shooting",
-  passing: "Passing",
-  dribbling: "Dribbling",
-  defending: "Defending",
-  physical: "Physical",
-};
-
-const STATUS_VARIANT = {
-  upcoming:  "neutral",
-  completed: "success",
-  cancelled: "danger",
-  postponed: "warning",
-} as const;
+import { AttributeSummary } from "@/components/player/attribute-summary";
+import {
+  ALL_ATTR_SELECT,
+  averageAttributeRows,
+  calculateOverall,
+  getPositionAttrKeys,
+  type AttrKey,
+} from "@/lib/attributes";
+import { matchRatingAverage } from "@/lib/player";
 
 export default async function ChildDetailPage({
   params,
@@ -65,7 +57,7 @@ export default async function ChildDetailPage({
       .single(),
     supabase
       .from("player_attributes")
-      .select("pace, shooting, passing, dribbling, defending, physical")
+      .select(ALL_ATTR_SELECT)
       .eq("player_id", childId),
     supabase
       .from("team_members")
@@ -87,24 +79,19 @@ export default async function ChildDetailPage({
   };
   const ratings: Rating[] = player.player_ratings ?? [];
 
-  type AttrRow = Record<AttrKey, number>;
-  const attrs = (attrRows ?? []) as AttrRow[];
+  // Averaged across every coach who assessed this child, then narrowed to the
+  // attributes their position is actually assessed on. This page used to
+  // average a fixed six columns, so a parent saw a different Overall for their
+  // own child than the coach did.
+  const attrs = averageAttributeRows(
+    attrRows as Partial<Record<AttrKey, number | null>>[] | null
+  );
+  const matchAvg = matchRatingAverage(ratings.map((r) => r.rating));
+  const overall = calculateOverall(attrs, player.position) ?? matchAvg;
 
-  function attrsAvg(): number | null {
-    if (!attrs.length) return null;
-    const mean = (k: AttrKey) => attrs.reduce((s, r) => s + r[k], 0) / attrs.length;
-    return Math.round(ATTR_KEYS.reduce((s, k) => s + mean(k), 0) / ATTR_KEYS.length);
-  }
-
-  function attrMean(k: AttrKey) {
-    if (!attrs.length) return 0;
-    return Math.round(attrs.reduce((s, r) => s + r[k], 0) / attrs.length);
-  }
-
-  const matchAvg = ratings.length
-    ? Math.round((ratings.reduce((a, b) => a + b.rating, 0) / ratings.length) * 20)
-    : 0;
-  const overall = attrsAvg() ?? matchAvg;
+  const summaryKeys = getPositionAttrKeys(player.position).filter(
+    (key) => typeof attrs?.[key] === "number"
+  );
 
   const teamIds = (memberRows ?? []).map((m: { team_id: string }) => m.team_id);
   const teamMap = new Map(
@@ -118,7 +105,7 @@ export default async function ChildDetailPage({
     teamIds.length
       ? supabase
           .from("fixtures")
-          .select(`id, team_id, opponent, venue, fixture_date, is_home, status, match_results ( team_score, opponent_score )`)
+          .select(`id, team_id, opponent, venue, fixture_date, is_home, status, cancellation_reason, match_results ( team_score, opponent_score )`)
           .in("team_id", teamIds)
           .order("fixture_date", { ascending: false })
       : Promise.resolve({ data: [] }),
@@ -142,15 +129,13 @@ export default async function ChildDetailPage({
   );
 
   const allFixtures = fixtures ?? [];
-  const upcoming = allFixtures.filter((f) => f.status === "upcoming");
-  const past = allFixtures.filter((f) => f.status !== "upcoming");
+  const upcoming = allFixtures.filter((f) => !isFixturePast(f));
+  const past = allFixtures.filter((f) => isFixturePast(f));
 
   const posLabel = POSITIONS.find((p) => p.value === player.position)?.label ?? "—";
   const footLabel = FEET.find((f) => f.value === player.preferred_foot)?.label;
-  const age = player.date_of_birth
-    ? Math.floor((Date.now() - new Date(player.date_of_birth).getTime()) / 31_557_600_000)
-    : null;
-  const initials = player.full_name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
+  const age = calculateAge(player.date_of_birth);
+  const initials = getInitials(player.full_name);
 
   type Fixture = (typeof allFixtures)[number];
 
@@ -168,41 +153,43 @@ export default async function ChildDetailPage({
     const attendanceStatus = matchAttendanceMap.get(f.id);
     const teamInfo = teamMap.get(f.team_id) as { name: string; age_group: string | null } | null | undefined;
     return (
-      <div className="flex items-center justify-between px-4 py-3">
-        <div className="min-w-0">
-          <p className="font-medium">{f.is_home ? "vs" : "@"} {f.opponent}</p>
-          <p className="text-xs text-muted-foreground">
-            {date.toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short" })}
-            {f.venue && ` · ${f.venue}`}
-          </p>
-          {teamIds.length > 1 && teamInfo && (
-            <span className="text-xs text-muted-foreground">{teamInfo.name}</span>
-          )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {result && (
-            <span className="font-bold tabular-nums text-sm">
-              {f.is_home ? result.team_score : result.opponent_score}
-              {" – "}
-              {f.is_home ? result.opponent_score : result.team_score}
-            </span>
-          )}
-          {attendanceStatus ? (
-            <Badge variant={ATTENDANCE_VARIANT[attendanceStatus]} className="capitalize">
-              {attendanceStatus}
+      <div className="px-4 py-3 space-y-1">
+        <div className="flex items-center justify-between">
+          <div className="min-w-0">
+            <p className="font-medium">{f.is_home ? "vs" : "@"} {f.opponent}</p>
+            <p className="text-xs text-muted-foreground">
+              {date.toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short" })}
+              {f.venue && ` · ${f.venue}`}
+            </p>
+            {teamIds.length > 1 && teamInfo && (
+              <span className="text-xs text-muted-foreground">{teamInfo.name}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {result && (
+              <span className="font-bold tabular-nums text-sm">
+                {f.is_home ? result.team_score : result.opponent_score}
+                {" – "}
+                {f.is_home ? result.opponent_score : result.team_score}
+              </span>
+            )}
+            {attendanceStatus ? (
+              <Badge variant={ATTENDANCE_VARIANT[attendanceStatus]} className="capitalize">
+                {attendanceStatus}
+              </Badge>
+            ) : appearance ? (
+              <Badge variant={appearance.played ? "success" : "neutral"}>
+                {appearance.played ? "Played" : "Absent"}
+              </Badge>
+            ) : null}
+            <Badge variant={fixtureStatusVariant(f)} className="capitalize">
+              {fixtureStatusLabel(f)}
             </Badge>
-          ) : appearance ? (
-            <Badge variant={appearance.played ? "success" : "neutral"}>
-              {appearance.played ? "Played" : "Absent"}
-            </Badge>
-          ) : null}
-          <Badge
-            variant={STATUS_VARIANT[f.status as keyof typeof STATUS_VARIANT] ?? "neutral"}
-            className="capitalize"
-          >
-            {f.status}
-          </Badge>
+          </div>
         </div>
+        {f.status === "cancelled" && f.cancellation_reason && (
+          <p className="text-xs text-destructive">Cancelled: {f.cancellation_reason}</p>
+        )}
       </div>
     );
   }
@@ -245,13 +232,22 @@ export default async function ChildDetailPage({
           <div className="h-1 bg-brand" />
           <CardHeader>
             <div className="flex items-center justify-between">
-              <span className="grid size-16 place-items-center rounded-full bg-brand/20 text-lg font-bold text-primary">
-                {initials}
-              </span>
+              {player.photo_url ? (
+                <img src={player.photo_url} alt={player.full_name} className="size-16 rounded-full object-cover" />
+              ) : (
+                <span className="grid size-16 place-items-center rounded-full bg-brand/20 text-lg font-bold text-primary">
+                  {initials}
+                </span>
+              )}
               <RatingRing value={overall} size={72} />
             </div>
             <CardTitle className="mt-3">{player.full_name}</CardTitle>
             <CardDescription>{posLabel}</CardDescription>
+            {player.photo_url && (
+              <div className="pt-1">
+                <RemovePlayerPhotoButton playerId={player.id} />
+              </div>
+            )}
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-wrap gap-2">
@@ -265,17 +261,24 @@ export default async function ChildDetailPage({
                 <p className="font-semibold">{ratings.length}</p>
               </div>
               <div>
-                <p className="text-muted-foreground text-xs">Share token</p>
-                <p className="font-mono font-semibold tracking-wide">{player.share_token}</p>
+                <p className="text-muted-foreground text-xs">Public passport link</p>
+                {/* The parent view showed the bare token as text with no link
+                    — the only one of the five surfaces that did. */}
+                <Link
+                  href={`/passport/${player.share_token}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-mono text-xs font-semibold tracking-wide text-primary hover:underline"
+                >
+                  {player.share_token} ↗
+                </Link>
               </div>
             </div>
-            {attrs.length > 0 && (
-              <div className="space-y-2 border-t border-border pt-3">
-                {ATTR_KEYS.map((k) => (
-                  <StatBar key={k} label={ATTR_LABELS[k]} value={attrMean(k)} />
-                ))}
-              </div>
-            )}
+            <AttributeSummary
+              attrs={attrs}
+              position={player.position}
+              className="space-y-2 border-t border-border pt-3"
+            />
           </CardContent>
         </Card>
 

@@ -7,14 +7,12 @@ import { Screen } from '@/components/ui/Screen';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { supabase } from '@/lib/supabase';
-import { useAuthStore } from '@/store/authStore';
 import { linkChildSchema, type LinkChildInput } from '@/lib/validation';
 import { useQueryClient } from '@tanstack/react-query';
 import { showAlert } from '@/lib/alert';
 
 export default function LinkChildScreen() {
   const router = useRouter();
-  const profile = useAuthStore((s) => s.profile);
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
 
@@ -24,44 +22,49 @@ export default function LinkChildScreen() {
     formState: { errors },
   } = useForm<LinkChildInput>({
     resolver: zodResolver(linkChildSchema),
-    defaultValues: { share_token: '' },
+    defaultValues: { code: '' },
   });
 
-  const onSubmit = async ({ share_token }: LinkChildInput) => {
+  /**
+   * This screen used to look a player up by their public `share_token` and
+   * insert into `parent_player_links` straight from the device. The token is
+   * the public passport URL and is printed on the PDF player card, and the row
+   * it wrote granted read and write access to the child's medical record.
+   *
+   * Linking now goes through `redeem_parent_link_code`, which only accepts a
+   * single-use code a coach issued for that specific child. See migration 032.
+   */
+  const onSubmit = async ({ code }: LinkChildInput) => {
     setLoading(true);
-    // Look up player by share_token
-    const { data: player, error: lookupError } = await supabase
-      .from('players')
-      .select('id, full_name')
-      .eq('share_token', share_token.trim())
-      .single();
 
-    if (lookupError || !player) {
-      setLoading(false);
-      showAlert('Not found', "We couldn't find a player with that code. Check with your coach.");
-      return;
-    }
-
-    // Create the link
-    const { error: linkError } = await supabase
-      .from('parent_player_links')
-      .insert({ parent_id: profile!.userId, player_id: player.id });
+    const { data, error } = await supabase.rpc('redeem_parent_link_code', {
+      p_code: code,
+      p_relationship: 'Parent',
+    });
 
     setLoading(false);
 
-    if (linkError) {
-      if (linkError.code === '23505') {
-        showAlert('Already linked', `You're already following ${player.full_name}.`);
-      } else {
-        showAlert('Error', linkError.message);
-      }
+    // Fail closed when migration 032 has not been applied yet — never fall
+    // back to the direct insert this replaces.
+    if (error?.code === 'PGRST202') {
+      showAlert(
+        'Not available yet',
+        'Linking a child is temporarily unavailable. Ask your child\'s coach to link you.'
+      );
+      return;
+    }
+
+    const result = data as { success?: boolean; error?: string; child_name?: string } | null;
+
+    if (error || !result || result.error) {
+      showAlert('Could not link', result?.error ?? error?.message ?? 'Please try again.');
       return;
     }
 
     queryClient.invalidateQueries({ queryKey: ['my-children'] });
     showAlert(
       'Linked!',
-      `You're now following ${player.full_name}. You'll see their fixtures and ratings.`,
+      `You're now following ${result.child_name ?? 'your child'}. You'll see their fixtures and ratings.`,
       () => router.replace('/(parent)/home' as any)
     );
   };
@@ -74,20 +77,21 @@ export default function LinkChildScreen() {
 
       <Text className="text-ink-primary text-hero font-black mb-1">Link Your Child</Text>
       <Text className="text-ink-secondary text-body mb-8">
-        Enter the 10-character code from your child's coach. You'll find it on the squad list or team card.
+        Enter the 10-character link code your child's coach gave you. It works
+        once and expires after 14 days.
       </Text>
 
       <Controller
         control={control}
-        name="share_token"
+        name="code"
         render={({ field: { onChange, value } }) => (
           <Input
-            label="Player code"
-            placeholder="e.g. a3f9c2b1e0"
+            label="Child link code"
+            placeholder="e.g. 7F3A2-9C1B4"
             value={value}
-            onChangeText={(t) => onChange(t.toLowerCase())}
-            error={errors.share_token?.message}
-            autoCapitalize="none"
+            onChangeText={(t) => onChange(t.toUpperCase())}
+            error={errors.code?.message}
+            autoCapitalize="characters"
             autoCorrect={false}
           />
         )}

@@ -3,29 +3,35 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Building2, Check, Eye, EyeOff, Shield, Target, Users } from "lucide-react";
+import { ArrowLeft, Check, Eye, EyeOff, Shield, Target, Users } from "lucide-react";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { registerSchema, type RegisterInput } from "@/lib/validation";
 import { createClient } from "@/lib/supabase/client";
+import { normalizeAccessCode, describeAccessCodeKind, type PeekAccessCodeResult } from "@/lib/access-codes";
 
 const INPUT_CLASS =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
+// No 'admin' key — RegisterInput["role"] can't be admin (see below).
 const ROLE_ROUTES: Record<string, string> = {
-  admin: "/dashboard/admin",
   coach: "/dashboard/coach",
   player: "/dashboard/player",
   parent: "/dashboard/parent",
 };
 
+// Admin is deliberately not offered here — an admin role only ever comes
+// from /register-club (creating a fresh academy), which sets it itself via
+// register_academy(). This page used to also let you pick "Admin" and enter
+// an existing club's join code, but that write went straight through a
+// client-side .update() with no server-side check that a valid code was
+// even given — anyone could PATCH their own role to admin.
 const ROLES = [
   { value: "player" as const, label: "Player",  description: "Build your passport and get seen.", Icon: Target },
   { value: "coach"  as const, label: "Coach",   description: "Manage your squad and log results.", Icon: Users },
   { value: "parent" as const, label: "Parent",  description: "Follow your child's progress.", Icon: Shield },
-  { value: "admin"  as const, label: "Admin",   description: "Manage an existing club as administrator.", Icon: Building2 },
 ];
 
 export default function RegisterPage() {
@@ -44,16 +50,64 @@ export default function RegisterPage() {
 
   const selectedRole = watch("role");
   const clubCodeValue = watch("club_code") ?? "";
+  const [codePeek, setCodePeek] = useState<PeekAccessCodeResult | null>(null);
+  const [checkingCode, setCheckingCode] = useState(false);
+
+  async function checkCode(raw: string) {
+    const code = normalizeAccessCode(raw);
+    if (code.length !== 6) { setCodePeek(null); return; }
+    const supabase = createClient();
+    if (!supabase) return;
+    setCheckingCode(true);
+    const { data } = await supabase.rpc("peek_access_code", { p_code: code });
+    setCheckingCode(false);
+    setCodePeek((data as PeekAccessCodeResult) ?? { valid: false });
+  }
 
   async function onSubmit(data: RegisterInput) {
     setServerError(null);
     const supabase = createClient();
     if (!supabase) { setServerError("Auth service unavailable — check Supabase env vars."); return; }
 
+    const code = data.club_code ? normalizeAccessCode(data.club_code) : "";
+
+    // Validate the code *before* creating the account. Checking after
+    // signUp() meant a bad code left the auth user already created with no
+    // way back — re-submitting the corrected code failed at signUp with
+    // "User already registered", and the only exit was a bare login that
+    // dumped the coach on the player dashboard with role='player' forever.
+    if (code) {
+      const { data: peek, error: peekError } = await supabase.rpc("peek_access_code", { p_code: code });
+      if (peekError) { setServerError(peekError.message); return; }
+      if (!peek?.valid) {
+        setServerError("That code doesn't match a club or team. Check it with your admin.");
+        return;
+      }
+      // A coach seat only ever comes from a real team coach code — never
+      // from the academy join code, which is handed to every parent and
+      // player. redeem_access_code() enforces this server-side too; this
+      // is just a clearer error before the account is even created.
+      if (data.role === "coach" && peek.kind !== "team_coach") {
+        setServerError(
+          peek.kind === "academy"
+            ? "A club code can't make you a coach — ask your admin for your team's coach code instead."
+            : "That's a squad invite code, not a coach code — check it with your admin."
+        );
+        return;
+      }
+      if (data.role !== "coach" && peek.kind === "team_coach") {
+        setServerError("That's a coach code for a team — choose Coach to use it.");
+        return;
+      }
+    }
+
     const { error } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
-      options: { data: { full_name: data.full_name, role: data.role } },
+      // pending_access_code rides along in case email confirmation is on —
+      // signUp() only stores metadata, it never applies the code, so
+      // login-form.tsx redeems it the first time there's a real session.
+      options: { data: { full_name: data.full_name, role: data.role, pending_access_code: code || null } },
     });
     if (error) { setServerError(error.message); return; }
 
@@ -66,33 +120,27 @@ export default function RegisterPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setServerError("Could not retrieve user after sign-up."); return; }
 
-    // Lookup the academy by join code
-    const { data: academyData, error: rpcError } = await supabase.rpc('find_academy_by_join_code', { p_code: data.club_code.toUpperCase() });
-    if (rpcError) { setServerError(rpcError.message); return; }
-    if (academyData?.error || !academyData?.academy_id) {
-      setServerError("Invalid club code. Check with your club admin.");
-      return;
+    if (code) {
+      const { data: redeemData, error: redeemError } = await supabase.rpc("redeem_access_code", {
+        p_code: code,
+        p_role: data.role,
+      });
+      if (redeemError) { setServerError(redeemError.message); return; }
+      const redeemRes = redeemData as { error?: string } | null;
+      if (redeemRes?.error) { setServerError(redeemRes.error); return; }
     }
-    const academyId = academyData.academy_id;
 
-    await supabase
+    const { error: profileError } = await supabase
       .from("profiles")
-      .update({ full_name: data.full_name, role: data.role, academy_id: academyId })
+      .update({ full_name: data.full_name })
       .eq("id", user.id);
+    if (profileError) { setServerError(profileError.message); return; }
 
-    if (data.role === "parent" && data.share_token && data.share_token.trim() !== "") {
-      const { data: player } = await supabase
-        .from("players")
-        .select("id")
-        .eq("share_token", data.share_token.trim().toLowerCase())
-        .single();
-
-      if (player) {
-        await supabase
-          .from("parent_player_links")
-          .upsert({ parent_id: user.id, player_id: player.id }, { onConflict: "parent_id,player_id" });
-      }
-    }
+    // A parent used to be able to link themselves to a child here, from the
+    // browser, on the strength of the child's public share token alone. That
+    // was the second (undocumented) path into parent_player_links and it is
+    // gone — linking now requires a code a coach issued for that child. See
+    // migration 032. Parents land on their dashboard and link from there.
 
     router.push(ROLE_ROUTES[data.role]);
   }
@@ -221,25 +269,36 @@ export default function RegisterPage() {
             {errors.role && <p role="alert" className="text-xs text-destructive">{errors.role.message}</p>}
           </div>
 
-          {/* Club join code — shown when a role is selected */}
+          {/* Access code — shown when a role is selected. Accepts any of the
+              three code kinds: an academy join code, a team coach code, or
+              a team's player invite code. */}
           {selectedRole && (
             <div className="space-y-1.5">
-              <label htmlFor="club_code" className="text-sm font-medium">Club join code</label>
+              <label htmlFor="club_code" className="text-sm font-medium">
+                Club or team code {selectedRole === "player" && <span className="text-muted-foreground font-normal">(optional)</span>}
+              </label>
               <div className="relative">
                 <input
                   id="club_code"
                   type="text"
                   autoComplete="off"
                   placeholder="e.g. ABC123"
-                  maxLength={6}
+                  // Deliberately no maxLength here: a browser-enforced
+                  // maxLength truncates *before* onChange runs, so pasting
+                  // " ABC123" (7 raw chars) truncated to " ABC12" first and
+                  // only then got the leading space stripped — five
+                  // characters, read as "wrong length" instead of valid.
+                  // Normalising first and slicing to 6 avoids that order
+                  // dependency entirely.
                   {...register("club_code", {
                     onChange: (e) => {
-                      e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+                      e.target.value = normalizeAccessCode(e.target.value).slice(0, 6);
+                      void checkCode(e.target.value);
                     },
                   })}
                   className={INPUT_CLASS + " pr-10 font-mono tracking-widest uppercase"}
                 />
-                {clubCodeValue.length === 6 && (
+                {clubCodeValue.length === 6 && codePeek?.valid && (
                   <span className="absolute inset-y-0 right-0 flex items-center px-3 text-green-500 pointer-events-none">
                     <Check className="size-4" aria-hidden="true" />
                   </span>
@@ -247,6 +306,14 @@ export default function RegisterPage() {
               </div>
               {clubCodeValue.length > 0 && clubCodeValue.length < 6 && !errors.club_code && (
                 <p className="text-xs text-muted-foreground">{6 - clubCodeValue.length} more character{6 - clubCodeValue.length !== 1 ? "s" : ""} needed</p>
+              )}
+              {clubCodeValue.length === 6 && !checkingCode && codePeek && !codePeek.valid && (
+                <p className="text-xs text-destructive">Doesn&apos;t match a club or team code — check with your admin.</p>
+              )}
+              {clubCodeValue.length === 6 && !checkingCode && codePeek?.valid && (
+                <p className="text-xs text-primary">
+                  Matches {describeAccessCodeKind(codePeek.kind)}.
+                </p>
               )}
               {errors.club_code && <p role="alert" className="text-xs text-destructive">{errors.club_code.message}</p>}
               <p className="text-xs text-muted-foreground">
@@ -258,22 +325,13 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {/* Player code — shown only for parents */}
+          {/* Parents link a child from their dashboard, with a code their
+              child's coach issues for that child specifically. */}
           {selectedRole === "parent" && (
-            <div className="space-y-1.5">
-              <label htmlFor="share_token" className="text-sm font-medium">
-                Child&apos;s player code <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
-              <input
-                id="share_token"
-                type="text"
-                autoComplete="off"
-                placeholder="e.g. a3f9b2c1d4"
-                {...register("share_token")}
-                className={INPUT_CLASS}
-              />
-              <p className="text-xs text-muted-foreground">You can also add this later from your dashboard.</p>
-            </div>
+            <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+              Once you have an account, ask your child&apos;s coach for a child
+              link code and add them from your dashboard.
+            </p>
           )}
 
           {serverError && (

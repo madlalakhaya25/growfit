@@ -3,15 +3,25 @@ import { useState, useTransition } from "react";
 import { Check, Star } from "lucide-react";
 import { upsertPlayerAttributes } from "@/app/actions/attributes";
 import { addStandaloneRating } from "@/app/actions/ratings";
-import { getPositionAttrs, ATTR_META, ALL_ATTR_KEYS, type AttrKey } from "@/lib/attributes";
+import {
+  getPositionAttrs,
+  getPositionAttrKeys,
+  ATTR_CATEGORIES,
+  ATTR_META,
+  ALL_ATTR_KEYS,
+  CATEGORY_LABELS,
+  type AttrKey,
+} from "@/lib/attributes";
 
 interface Props {
   playerId: string;
-  initial: Partial<Record<AttrKey, number>> | null;
+  initial: Partial<Record<AttrKey, number | null>> | null;
   position?: string | null;
 }
 
-function buildDefaults(initial: Partial<Record<AttrKey, number>> | null): Record<AttrKey, number> {
+function buildDefaults(
+  initial: Partial<Record<AttrKey, number | null>> | null
+): Record<AttrKey, number> {
   const defaults = {} as Record<AttrKey, number>;
   for (const key of ALL_ATTR_KEYS) {
     defaults[key] = initial?.[key] ?? 50;
@@ -25,10 +35,13 @@ export function PlayerAttributesForm({ playerId, initial, position }: Props) {
   const [rating, setRating] = useState(0);
   const [ratingHovered, setRatingHovered] = useState(0);
   const [error, setError] = useState("");
+  const [warning, setWarning] = useState("");
   const [saved, setSaved] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const posAttrs = getPositionAttrs(position);
+  // Exactly what this form renders — and so exactly what it is entitled to save.
+  const shownKeys = getPositionAttrKeys(position);
 
   function handleChange(key: AttrKey, value: number) {
     setSaved(false);
@@ -42,10 +55,14 @@ export function PlayerAttributesForm({ playerId, initial, position }: Props) {
 
   function handleSubmit() {
     setError("");
+    setWarning("");
     setSaved(false);
     startTransition(async () => {
+      const assessed: Partial<Record<AttrKey, number>> = {};
+      for (const key of shownKeys) assessed[key] = values[key];
+
       const [attrsResult, ratingResult] = await Promise.all([
-        upsertPlayerAttributes(playerId, { ...values, notes: notes || undefined }),
+        upsertPlayerAttributes(playerId, { ...assessed, notes: notes || undefined }),
         rating > 0 ? addStandaloneRating(playerId, { rating, note: notes || undefined }) : Promise.resolve(null),
       ]);
       const err = attrsResult?.error ?? ratingResult?.error;
@@ -53,16 +70,18 @@ export function PlayerAttributesForm({ playerId, initial, position }: Props) {
         setError(err);
       } else {
         setSaved(true);
+        if (attrsResult?.warning) setWarning(attrsResult.warning);
         if (rating > 0) setRating(0);
       }
     });
   }
 
-  const GROUPS: { label: string; keys: AttrKey[] }[] = [
-    { label: "Technical", keys: posAttrs.technical },
-    { label: "Physical",  keys: posAttrs.physical },
-    { label: "Mental",    keys: posAttrs.mental },
-  ];
+  // Five corners, matching the milestone categories. A position with nothing
+  // in a corner (most outfield players have no leadership attributes) simply
+  // does not show that group.
+  const GROUPS: { label: string; keys: AttrKey[] }[] = ATTR_CATEGORIES
+    .map((category) => ({ label: CATEGORY_LABELS[category], keys: posAttrs[category] }))
+    .filter((group) => group.keys.length > 0);
 
   const displayRating = ratingHovered || rating;
 
@@ -163,6 +182,7 @@ export function PlayerAttributesForm({ playerId, initial, position }: Props) {
       />
 
       {error && <p className="text-xs text-destructive">{error}</p>}
+      {warning && <p className="text-xs text-amber-600">{warning}</p>}
 
       <div className="flex items-center gap-3">
         <button

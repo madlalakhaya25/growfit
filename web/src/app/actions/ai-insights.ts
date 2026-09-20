@@ -1,7 +1,15 @@
 "use server";
 
 import { GoogleGenAI } from "@google/genai";
+import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
+import {
+  ALL_ATTR_KEYS,
+  ALL_ATTR_SELECT,
+  CORE_ATTR_SELECT,
+  isMissingAttributeColumn,
+  type AttrKey,
+} from "@/lib/attributes";
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY!,
@@ -35,7 +43,7 @@ export async function getPlayerInsights(playerId: string): Promise<{
 
       supabase
         .from("player_attributes")
-        .select("pace, shooting, passing, dribbling, defending, physical, ball_control, crossing, heading, tackling, finishing, first_touch, stamina, agility, jumping, strength, positioning, decision_making, composure, work_rate, leadership, shot_stopping, reflexes, distribution, handling")
+        .select(ALL_ATTR_SELECT)
         .eq("player_id", playerId),
 
       supabase
@@ -50,7 +58,18 @@ export async function getPlayerInsights(playerId: string): Promise<{
 
     const player = playerResult?.data;
     const ratings = ratingsResult?.data;
-    const attrs = attrsResult?.data;
+    // A project that never ran migration 013 has none of the expanded columns,
+    // and the wide SELECT above fails rather than returning the six that do
+    // exist — fall back so the brief still has something to reason about.
+    let attrs: Partial<Record<AttrKey, number | null>>[] | null | undefined =
+      attrsResult?.data;
+    if (!attrs?.length && isMissingAttributeColumn(attrsResult?.error)) {
+      const { data: coreAttrs } = await supabase
+        .from("player_attributes")
+        .select(CORE_ATTR_SELECT)
+        .eq("player_id", playerId);
+      attrs = coreAttrs;
+    }
     const milestones = milestonesResult?.data;
 
     if (!player) return { error: "Player not found." };
@@ -63,14 +82,6 @@ export async function getPlayerInsights(playerId: string): Promise<{
       : null;
 
     const attrRows = attrs ?? [];
-
-    const ALL_ATTR_KEYS = [
-      "pace", "shooting", "passing", "dribbling", "defending", "physical",
-      "ball_control", "crossing", "heading", "tackling", "finishing", "first_touch",
-      "stamina", "agility", "jumping", "strength",
-      "positioning", "decision_making", "composure", "work_rate", "leadership",
-      "shot_stopping", "reflexes", "distribution", "handling",
-    ];
 
     const ATTR_LABELS: Record<string, string> = {
       pace: "Pace", shooting: "Shooting", passing: "Passing", dribbling: "Dribbling",
@@ -162,10 +173,14 @@ Output using these exact plain text headers:
 5. MOTIVATIONAL NOTE: (One encouraging sentence for the coaching staff)`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-lite",
+      model: AI_MODEL,
       contents: prompt,
       config: {
         maxOutputTokens: 600,
+        // Disable thinking: this is a direct-answer task, and unbudgeted
+        // thinking tokens were silently eating the whole visible-output budget,
+        // truncating the answer before the reader ever saw it end.
+        thinkingConfig: { thinkingBudget: 0 },
         systemInstruction: "You are a SAFA Level 4 and FIFA-certified technical director providing data-driven player evaluations. Your assessments apply the Long-Term Player Development (LTPD) framework, SAFA's position-specific competency standards, the 4-Corner development model (Technical, Tactical, Physical, Social/Psychological), and the South African football pathway from grassroots to PSL level. Plain text only — no asterisks, no Markdown.",
       }
     });

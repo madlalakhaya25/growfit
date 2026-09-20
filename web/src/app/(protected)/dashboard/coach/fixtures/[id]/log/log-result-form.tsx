@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { logMatch } from "@/app/actions/fixtures";
 import { POSITIONS } from "@/lib/types";
+import { getInitials } from "@/lib/player";
 
 type Player = { id: string; full_name: string; position: string | null };
 type PlayerState = { player_id: string; played: boolean; rating: number; note: string };
@@ -98,7 +99,7 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel }
             {squad.map((player) => {
               const state = players.find((p) => p.player_id === player.id)!;
               const posLabel = POSITIONS.find((p) => p.value === player.position)?.label;
-              const initials = player.full_name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+              const initials = getInitials(player.full_name);
 
               return (
                 <div

@@ -44,14 +44,16 @@ describe("registerSchema", () => {
     ).toBe(true);
   });
 
-  it("accepts with optional share_token for parent", () => {
+  it("registers a parent without any child code", () => {
+    // Linking a child at registration time is gone — it let an adult attach
+    // themselves to a child using the child's public share token. See
+    // migration 032.
     expect(
       registerSchema.safeParse({
         full_name: "Jane Doe",
         email: "jane@example.com",
         password: "password123",
         role: "parent",
-        share_token: "a3f9b2c1d4",
       }).success
     ).toBe(true);
   });
@@ -244,13 +246,25 @@ describe("playerRatingSchema", () => {
 });
 
 describe("linkChildSchema", () => {
-  it("accepts a valid share token", () => {
-    expect(
-      linkChildSchema.safeParse({ share_token: "a1b2c3d4e5" }).success
-    ).toBe(true);
+  it("accepts a 10-character staff-issued link code", () => {
+    expect(linkChildSchema.safeParse({ code: "7F3A29C1B4" }).success).toBe(true);
   });
 
-  it("rejects a token under 6 characters", () => {
-    expect(linkChildSchema.safeParse({ share_token: "abc" }).success).toBe(false);
+  it("accepts the hyphenated display form", () => {
+    expect(linkChildSchema.safeParse({ code: "7f3a2-9c1b4" }).success).toBe(true);
+  });
+
+  it("rejects a 6-character club code pasted into the wrong box", () => {
+    expect(linkChildSchema.safeParse({ code: "ABC123" }).success).toBe(false);
+  });
+
+  it("rejects anything that is not 10 significant characters", () => {
+    expect(linkChildSchema.safeParse({ code: "abc" }).success).toBe(false);
+    expect(linkChildSchema.safeParse({ code: "7F3A29C1B45" }).success).toBe(false);
+    expect(linkChildSchema.safeParse({ code: "" }).success).toBe(false);
+  });
+
+  it("no longer accepts a share token", () => {
+    expect(linkChildSchema.safeParse({ share_token: "a1b2c3d4e5" }).success).toBe(false);
   });
 });

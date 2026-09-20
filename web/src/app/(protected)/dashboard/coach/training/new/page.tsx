@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { NewSessionForm } from "./new-session-form";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
 
 export default async function NewTrainingSessionPage({
   searchParams,
@@ -18,7 +19,7 @@ export default async function NewTrainingSessionPage({
   const { data: allTeams } = await supabase
     .from("teams")
     .select("id, name, age_group")
-    .eq("coach_id", user.id)
+    .in("id", await getCoachedTeamIds(supabase, user.id))
     .eq("active", true)
     .order("created_at");
 

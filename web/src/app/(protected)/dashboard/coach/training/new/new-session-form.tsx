@@ -218,8 +218,9 @@ export function NewSessionForm({
 
         {teams.length > 1 && (
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Team *</label>
+            <label htmlFor="ns-team_id" className="text-sm font-medium">Team *</label>
             <select
+              id="ns-team_id"
               value={selectedTeamId}
               onChange={(e) => setSelectedTeamId(e.target.value)}
               className={selectCls}
@@ -256,8 +257,9 @@ export function NewSessionForm({
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Session type *</label>
+            <label htmlFor="ns-session_type" className="text-sm font-medium">Session type *</label>
             <select
+              id="ns-session_type"
               value={sessionType}
               onChange={(e) => setSessionType(e.target.value)}
               className={selectCls}
@@ -344,6 +346,7 @@ export function NewSessionForm({
                     Focus Area
                   </label>
                   <select
+                    aria-label="Focus area"
                     value={focusArea}
                     onChange={(e) => setFocusArea(e.target.value)}
                     className={selectCls}
@@ -364,6 +367,7 @@ export function NewSessionForm({
                     Duration
                   </label>
                   <select
+                    aria-label="Duration"
                     value={duration}
                     onChange={(e) => setDuration(Number(e.target.value))}
                     className={selectCls}

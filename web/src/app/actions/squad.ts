@@ -4,6 +4,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createPlayerSchema, createTeamSchema } from "@/lib/validation";
 import { requireUser } from "@/lib/auth";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { normalizeAccessCode } from "@/lib/access-codes";
+import { friendlyError } from "@/lib/friendly-error";
 
 async function getCoachTeamById(teamId: string) {
   const { supabase, user } = await requireUser();
@@ -12,7 +15,7 @@ async function getCoachTeamById(teamId: string) {
     .from("teams")
     .select("id, academy_id")
     .eq("id", teamId)
-    .eq("coach_id", user.id)
+    .in("id", await getCoachedTeamIds(supabase, user.id))
     .eq("active", true)
     .single();
 
@@ -27,7 +30,7 @@ export async function addPlayerToSquad(playerId: string, teamId: string) {
     .from("team_members")
     .upsert({ team_id: team.id, player_id: playerId, active: true }, { onConflict: "team_id,player_id" });
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath("/dashboard/coach/squad", "page");
   return { success: true };
 }
@@ -42,7 +45,7 @@ export async function removePlayerFromSquad(playerId: string, teamId: string) {
     .eq("team_id", team.id)
     .eq("player_id", playerId);
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath("/dashboard/coach/squad", "page");
   return { success: true };
 }
@@ -110,9 +113,9 @@ export async function updateTeam(teamId: string, formData: FormData) {
     .from("teams")
     .update(parsed.data)
     .eq("id", teamId)
-    .eq("coach_id", user.id);
+    .in("id", await getCoachedTeamIds(supabase, user.id));
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath("/dashboard/admin/teams");
   revalidatePath("/dashboard/coach");
   return { success: true };
@@ -125,9 +128,9 @@ export async function deleteTeam(teamId: string) {
     .from("teams")
     .update({ active: false })
     .eq("id", teamId)
-    .eq("coach_id", user.id);
+    .in("id", await getCoachedTeamIds(supabase, user.id));
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath("/dashboard/admin/teams");
   revalidatePath("/dashboard/coach");
   redirect("/dashboard/admin/teams");
@@ -154,51 +157,161 @@ export async function createTeam(formData: FormData) {
     return { error: Object.values(msgs).flat()[0] ?? "Invalid input." };
   }
 
-  const { error } = await supabase
+  const { data: team, error } = await supabase
     .from("teams")
-    .insert({ ...parsed.data, academy_id: profile.academy_id, coach_id: user.id });
+    .insert({ ...parsed.data, academy_id: profile.academy_id, coach_id: user.id })
+    .select("id")
+    .single();
 
-  if (error) return { error: error.message };
+  // A trigger adds the creator to team_coaches — every "my teams" query reads
+  // that roster, and RLS there is admin-only, so the database handles it.
+  if (error || !team) return { error: error?.message ?? "Could not create the team." };
   revalidatePath("/dashboard/coach");
   redirect("/dashboard/coach");
 }
 
+/**
+ * Redeem a team's player invite code. Routed through the `redeem_access_code`
+ * RPC rather than a direct client insert — `team_member_staff_write` only
+ * lets an admin/coach insert into `team_members`, so a plain player's own
+ * insert here was always going to be rejected by RLS regardless of anything
+ * else in this function. The RPC runs SECURITY DEFINER, so it can actually
+ * do the write.
+ *
+ * p_expect_kind: 'team_player' tells the RPC this call only ever wants a
+ * squad invite code — it checks that *before* writing anything, not after.
+ * Without it, a coach code or academy code pasted into this flow (this is
+ * the only entry point for a bare 6-character code with no context on
+ * which kind it should be) would get applied in full — attaching the
+ * caller to that academy, or claiming a coach seat — and only then get
+ * reported back as "not a squad code", with the side effect already done.
+ */
 export async function joinByInviteCode(inviteCode: string) {
-  const { supabase, user } = await requireUser();
+  const { supabase } = await requireUser();
 
-  const { data: team } = await supabase
-    .from("teams")
-    .select("id, name")
-    .eq("invite_code", inviteCode.toUpperCase())
-    .eq("active", true)
-    .single();
+  const { data, error } = await supabase.rpc("redeem_access_code", {
+    p_code: normalizeAccessCode(inviteCode),
+    p_expect_kind: "team_player",
+  });
+  if (error) return { error: friendlyError(error) };
 
-  if (!team) return { error: "Team not found. Check the invite code and try again." };
-
-  const { data: player } = await supabase
-    .from("players")
-    .select("id")
-    .eq("profile_id", user.id)
-    .eq("active", true)
-    .single();
-
-  if (!player) return { error: "No player profile found. Ask your coach to create your profile first." };
-
-  const { data: existing } = await supabase
-    .from("team_members")
-    .select("id, active")
-    .eq("team_id", team.id)
-    .eq("player_id", player.id)
-    .maybeSingle();
-
-  if (existing?.active) return { error: "You are already a member of this team.", teamName: team.name };
-
-  if (existing && !existing.active) {
-    await supabase.from("team_members").update({ active: true }).eq("id", existing.id);
-  } else {
-    await supabase.from("team_members").insert({ team_id: team.id, player_id: player.id });
+  const res = data as { error?: string; team_name?: string; already?: boolean; kind?: string };
+  if (res?.error) return { error: res.error };
+  if (res?.kind !== "team_player") {
+    return { error: "That code isn't a squad invite code." };
   }
 
   revalidatePath("/dashboard/player", "page");
-  return { success: true, teamName: team.name };
+  return { success: true, teamName: res.team_name, already: res.already ?? false };
+}
+
+/** Join a team using the coach code an admin gave you. */
+export async function claimTeamByCoachCode(code: string) {
+  const { supabase } = await requireUser();
+  const { data, error } = await supabase.rpc("claim_team_by_coach_code", { p_code: code });
+  if (error) return { error: friendlyError(error) };
+  const res = data as { error?: string; team_name?: string; already?: boolean; is_head?: boolean };
+  if (res?.error) return { error: res.error };
+
+  revalidatePath("/dashboard/coach", "layout");
+  return {
+    success: true,
+    teamName: res.team_name,
+    already: res.already ?? false,
+    isHead: res.is_head ?? false,
+  };
+}
+
+/** Admin: rotate a team's coach code. */
+export async function resetTeamCoachCode(teamId: string) {
+  const { supabase } = await requireUser();
+  const { data, error } = await supabase.rpc("reset_team_coach_code", { p_team_id: teamId });
+  if (error) return { error: friendlyError(error) };
+  const res = data as { error?: string; coach_code?: string };
+  if (res?.error) return { error: res.error };
+  revalidatePath("/dashboard/admin/teams");
+  return { success: true, coachCode: res.coach_code };
+}
+
+/** Admin: take a coach off a team. */
+export async function removeTeamCoach(teamId: string, coachId: string) {
+  const { supabase } = await requireUser();
+  const { data, error } = await supabase.rpc("remove_team_coach", {
+    p_team_id: teamId,
+    p_coach_id: coachId,
+  });
+  if (error) return { error: friendlyError(error) };
+  const res = data as { error?: string };
+  if (res?.error) return { error: res.error };
+  revalidatePath("/dashboard/admin/teams");
+  return { success: true };
+}
+
+/** Admin: players in the academy who are not in any active squad. */
+export async function listUnassignedPlayers(): Promise<{
+  players?: { id: string; full_name: string; position: string | null; date_of_birth: string | null; mysafa_number: string | null }[];
+  error?: string;
+}> {
+  const { supabase, user } = await requireUser();
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("academy_id, role")
+    .eq("id", user.id)
+    .single();
+  if (!profile?.academy_id) return { error: "No academy linked." };
+  if (!["admin", "coach"].includes(profile.role)) return { error: "Not allowed." };
+
+  const [{ data: players }, { data: memberships }] = await Promise.all([
+    supabase
+      .from("players")
+      .select("id, full_name, position, date_of_birth, mysafa_number")
+      .eq("academy_id", profile.academy_id)
+      .eq("active", true)
+      .order("full_name"),
+    supabase.from("team_members").select("player_id").eq("active", true),
+  ]);
+
+  const inSquad = new Set((memberships ?? []).map((m: { player_id: string }) => m.player_id));
+  return {
+    players: ((players ?? []) as { id: string; full_name: string; position: string | null; date_of_birth: string | null; mysafa_number: string | null }[])
+      .filter((p) => !inSquad.has(p.id)),
+  };
+}
+
+/** Admin: put existing academy players into a squad. */
+export async function assignPlayersToTeam(input: { teamId: string; playerIds: string[] }) {
+  const { supabase, user } = await requireUser();
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("academy_id, role")
+    .eq("id", user.id)
+    .single();
+  if (!profile?.academy_id) return { error: "No academy linked." };
+  if (!["admin", "coach"].includes(profile.role)) return { error: "Not allowed." };
+  if (input.playerIds.length === 0) return { error: "Pick at least one player." };
+
+  // The team must belong to the caller's academy.
+  const { data: team } = await supabase
+    .from("teams")
+    .select("id")
+    .eq("id", input.teamId)
+    .eq("academy_id", profile.academy_id)
+    .eq("active", true)
+    .single();
+  if (!team) return { error: "Team not found in your academy." };
+
+  const { error } = await supabase
+    .from("team_members")
+    .upsert(
+      input.playerIds.map((player_id) => ({ team_id: team.id, player_id, active: true })),
+      { onConflict: "team_id,player_id" }
+    );
+
+  if (error) return { error: friendlyError(error) };
+
+  revalidatePath("/dashboard/admin/players");
+  revalidatePath("/dashboard/coach/squad");
+  return { success: true, count: input.playerIds.length };
 }

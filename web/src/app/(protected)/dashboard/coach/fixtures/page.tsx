@@ -6,13 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-const STATUS_VARIANT = {
-  upcoming: "neutral",
-  completed: "success",
-  cancelled: "danger",
-  postponed: "warning",
-} as const;
+import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
 
 export default async function CoachFixturesPage({
   searchParams,
@@ -27,7 +22,7 @@ export default async function CoachFixturesPage({
   const { data: allTeams } = await supabase
     .from("teams")
     .select("id, name, age_group")
-    .eq("coach_id", user.id)
+    .in("id", await getCoachedTeamIds(supabase, user.id))
     .eq("active", true)
     .order("created_at");
 
@@ -37,12 +32,12 @@ export default async function CoachFixturesPage({
 
   const { data: fixtures } = await supabase
     .from("fixtures")
-    .select("id, opponent, venue, fixture_date, is_home, status")
+    .select("id, opponent, venue, fixture_date, is_home, status, cancellation_reason")
     .eq("team_id", team.id)
     .order("fixture_date", { ascending: false });
 
-  const upcoming = (fixtures ?? []).filter((f: { status: string }) => f.status === "upcoming");
-  const past = (fixtures ?? []).filter((f: { status: string }) => f.status !== "upcoming");
+  const upcoming = (fixtures ?? []).filter((f) => !isFixturePast(f));
+  const past = (fixtures ?? []).filter((f) => isFixturePast(f));
 
   function FixtureRow({ f }: { f: { id: string; opponent: string; venue: string | null; fixture_date: string; is_home: boolean; status: string } }) {
     const date = new Date(f.fixture_date);
@@ -64,8 +59,8 @@ export default async function CoachFixturesPage({
           <Badge variant="outline" className="text-xs shrink-0">
             {f.is_home ? "Home" : "Away"}
           </Badge>
-          <Badge variant={STATUS_VARIANT[f.status as keyof typeof STATUS_VARIANT] ?? "neutral"} className="capitalize shrink-0">
-            {f.status}
+          <Badge variant={fixtureStatusVariant(f)} className="capitalize shrink-0">
+            {fixtureStatusLabel(f)}
           </Badge>
         </div>
       </Link>

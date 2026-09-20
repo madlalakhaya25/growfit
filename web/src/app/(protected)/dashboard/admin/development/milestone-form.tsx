@@ -76,14 +76,14 @@ function MilestoneRow({ template, academyId }: { template: TemplateRow; academyI
               className="flex w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
-          <select name="category" defaultValue={template.category} required className={inputCls()}>
+          <select aria-label="Category" name="category" defaultValue={template.category} required className={inputCls()}>
             {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>)}
           </select>
-          <select name="position" defaultValue={template.position ?? ""} className={inputCls()}>
+          <select aria-label="Position" name="position" defaultValue={template.position ?? ""} className={inputCls()}>
             <option value="">All positions</option>
             {POSITIONS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
           </select>
-          <select name="age_group" defaultValue={template.age_group ?? ""} className={inputCls()}>
+          <select aria-label="Age group" name="age_group" defaultValue={template.age_group ?? ""} className={inputCls()}>
             <option value="">All age groups</option>
             {AGE_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
           </select>
@@ -192,15 +192,15 @@ function AddMilestoneForm({ academyId }: { academyId: string }) {
             className="flex w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
-        <select name="category" required defaultValue="" className={inputCls()}>
+        <select aria-label="Category" name="category" required defaultValue="" className={inputCls()}>
           <option value="" disabled>Category</option>
           {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>)}
         </select>
-        <select name="position" defaultValue="" className={inputCls()}>
+        <select aria-label="Position" name="position" defaultValue="" className={inputCls()}>
           <option value="">All positions</option>
           {POSITIONS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
         </select>
-        <select name="age_group" defaultValue="" className={inputCls()}>
+        <select aria-label="Age group" name="age_group" defaultValue="" className={inputCls()}>
           <option value="">All age groups</option>
           {AGE_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
         </select>

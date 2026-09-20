@@ -1,3 +1,4 @@
+import { LinkifiedText } from "@/components/linkified-text";
 import { redirect } from "next/navigation";
 import { Megaphone, PenLine, Eye } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -5,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { AnnouncementForm } from "./announcement-form";
 import { DeleteAnnouncementButton } from "./delete-announcement-button";
 import { formatRelativeTime } from "@/lib/utils";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
 
 export default async function CoachAnnouncementsPage() {
   const supabase = await createClient();
@@ -14,7 +16,7 @@ export default async function CoachAnnouncementsPage() {
   const { data: allTeams } = await supabase
     .from("teams")
     .select("id, name")
-    .eq("coach_id", user.id)
+    .in("id", await getCoachedTeamIds(supabase, user.id))
     .eq("active", true)
     .order("created_at");
 
@@ -104,7 +106,7 @@ export default async function CoachAnnouncementsPage() {
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                      {a.body}
+                      <LinkifiedText text={a.body} />
                     </p>
                     <div className="flex flex-wrap items-center gap-2 pt-0.5">
                       {multiTeam && teamName && (

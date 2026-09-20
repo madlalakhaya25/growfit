@@ -1,179 +1,376 @@
 # Product Roadmap
 
-FootballPath is built incrementally. This document tracks what has shipped, what is being built, and what is planned. Priorities are reviewed each sprint.
+*Last updated 2026-09-06.* Growfit FA is built incrementally for a real
+academy in Greater Durban. This document was badly out of date before this
+pass — most of what it called "near term" and "medium term" shipped back in
+May/June, and an entire tactics board, a 13-capability AI layer, and a PDF
+import/registration-card pipeline shipped since with no mention here at all.
+Rewritten from an actual audit of the codebase and commit history, not from
+memory of what was planned.
 
 ---
 
 ## Shipped ✅
 
-### Phase 1 — Foundation & Auth
-- Email + password authentication (login, register, forgot password, reset password)
-- Role selection at signup: Coach, Player, Parent
-- `handle_new_user()` trigger auto-creates profile on signup
-- Role-based dashboard routing (`/dashboard/:role`)
-- Pilot single-academy setup with `DEFAULT_ACADEMY_ID`
+### Foundation & auth
+- Email + password auth (login, register, forgot/reset password), role
+  selection at signup (Coach / Player / Parent / Admin)
+- `handle_new_user()` trigger auto-creates a profile on signup
+- Role-based dashboard routing, global auth guard in `src/proxy.ts`
+  (rate-limited on the auth routes)
+- **Multi-academy, self-service**: `/register-club` lets a new academy
+  onboard itself at signup — the original single-tenant pilot's
+  `DEFAULT_ACADEMY_ID` is dead code now, not the live path
 
-### Phase 1 — Core Coach Workflows
-- Create and manage teams (multiple teams per coach)
-- Squad management: add players (new or by invite code), view by position, remove
-- Player detail: photo, position, attributes, rating history
-- Create and manage fixtures (upcoming / past split)
-- Log match results: score, player appearances, per-player ratings (1–5)
-- Cancel and manage fixture status
+### Core coach workflows
+- Multiple teams per coach, and multiple coaches per team via a team-level
+  coach code (`team_coaches`)
+- Squad management: add players (manually, by invite code, or in bulk from a
+  PDF — see below), view by position, remove
+- Fixtures: create, cancel **with a required reason** (shown to parents and
+  players, not just logged internally), log a result (score, appearances,
+  per-player ratings) atomically via `log_match_result()`
+- Upcoming/Past is computed from kickoff time and logged status together,
+  not the status column alone — a match that's happened but hasn't had its
+  result logged yet reads as "Result pending," not a stale "Upcoming"
 
-### Phase 1 — Player Passport
-- Player passport card with overall rating ring
-- Six-attribute assessment (Pace, Shooting, Passing, Dribbling, Defending, Physical) rated 1–99 per coach
-- Attribute bars + rating history
-- Share token for public URL: `/passport/:token` — no login required
-- Claim unclaimed profile by share token
+### Player passport & attributes
+- Public passport at `/passport/:token`, no login required; QR code
+  generation from the share token
+- 30 attribute columns, 1–99 scale, coach-assessed, grouped into the same
+  five corners as the development milestones (technical, tactical, physical,
+  mental, leadership). The original 6 were the EA FC card face stats rather
+  than a coaching model — one of them, `physical`, duplicated `strength`'s
+  label and no position set ever showed it. Migration 013 added 19 more, and
+  033 added the tactical and leadership corners. **Needs migrations 030, 031
+  and 033 run against the live project**
+- Overall is the mean of the attributes a player's *position* is assessed on,
+  shared by all five surfaces that show it (public passport, coach, player,
+  parent, admin). It previously averaged a fixed six columns, which for a
+  goalkeeper overlapped their assessed set in exactly one place
+- Rating history + a rating trend chart
+- Claim an unclaimed profile by share token; narrow self-service edit of
+  MySAFA/ID numbers only (added after discovering the general self-edit
+  path was silently broken post-claim)
+- Per-player link previews when a passport URL is shared, and the player
+  card PDF is reachable by the player and their linked parents rather than
+  admins only
 
-### Phase 1 — Parent Engagement
-- Link child by share token at registration or from dashboard
-- View child's passport (attributes, ratings, position)
+### Safeguarding: parent links no longer key off the public share token
+`players.share_token` is the public passport URL and is printed on every PDF
+player card — and it was also the credential `linkChild` accepted to attach
+an adult to a child, with an RLS policy that checked only that the caller was
+*some* parent. Anyone who saw a shared passport link could self-register,
+link themselves, and read *and write* the child's medical record
+(`parents_manage_child_medical` is `FOR ALL`).
+
+Migration `032` replaces that with a single-use, expiring, revocable code
+issued per child by a coach or admin, hashed at rest and throttled in the
+database. Existing links are grandfathered, and the file ships with an audit
+query to run *before* applying it. The same migration stops the public
+passport publishing a minor's raw date of birth and the coach's free-text
+rating notes. **Needs the migration run against the live project — this is
+enforced by Postgres, so the app changes alone do not close it.**
+
+### Parent engagement
+- Link a child by share token at registration or from the dashboard
+- Per-child fixtures, ratings, progress
 - Relationship label (Parent / Guardian / Grandparent / Sibling / Other)
 
-### Phase 1 — Announcements
-- Coach posts announcements per team
-- Players see their team's feed
-- Feed design: left accent bar, relative timestamps, "New" badge for < 24h posts
+### Announcements
+- Per-team broadcasts from coaches, read/dismiss tracking, "New" badge
 
-### Phase 2 — Training Module
-- Training sessions with type (General / Technical / Tactical / Fitness / Match Prep / Recovery)
-- Date, time, location, session notes
-- Ordered drill list per session with title, description, optional video URL
-- Coach: full CRUD on sessions and drills
-- Player: read-only session and drill view
-- Color-coded session type chips throughout
+### Training module
+- Sessions with type, date/time, location, notes; ordered drills with
+  optional video URL; a separate reusable drill library
+- **AI session generator** — 5 drills per request, age/focus/duration/squad
+  aware
+- **Attendance**: coach-marked P/A/L/E per session (`training_attendance`)
+  feeding the 75% policy threshold used by the AI coach assistant; separate
+  player self-report ("attending"/"unavailable") on match fixtures
+  (`match_attendance`)
 
-### Phase 3 — Profile Polish
-- Coach profile: full name, coaching role (datalist suggestions), phone, bio
-- Player profile: full name, phone, bio
-- Parent profile: full name, phone
-- Settings page per role at `/dashboard/:role/settings`
-- `coaching_role`, `bio`, `phone` columns on profiles
-- Settings link in sidebar
+### Documents & compliance
+- 6 required document types per player per season (registration agreement,
+  consent form, code of ethics, medical consent, POPIA consent, ID
+  document), digital signing flow restricted to parents, admin completion
+  view
+- Medical & emergency contact record per player
+- Player consents (POPIA / photo / transport / risk acknowledgement) —
+  captured, exported in reports, and **photo consent is now enforced** on
+  the public passport page (the one place a photo reaches an anonymous
+  visitor); internal dashboards still show it to staff/family, who already
+  have full record access under RLS
+- Print-friendly document view; CSV and PDF export for player records,
+  attendance, and consent/document compliance
 
-### UX Foundation
-- Responsive layout: desktop sidebar + mobile bottom nav
-- Dark mode (class-based, persisted via `next-themes`)
-- PWA manifest + service worker + install prompt
-- `formatRelativeTime()` utility for human-readable timestamps
-- Coach dashboard "What's Next" smart cards: nearest fixture + training session with day countdown
-- Color-coded training type chips
-- Dashed empty states with icon and contextual CTA
-- `DROP POLICY IF EXISTS` guards on all migrations (idempotent re-runs)
+### Safeguarding & data rights (this pass)
+- **Welfare check-ins**: coach dashboard surfaces every player below the 75%
+  training attendance threshold, with a logged, persisted check-in note
+  (`welfare_checkins`) — previously this only ever came up if a coach asked
+  the AI assistant
+- **Self-service photo removal**: a parent or the player themself can
+  remove the player's own photo without a developer running a manual update
+- **Player erasure**: an admin can permanently delete a player's entire
+  record — profile, ratings, attendance, documents, consents, medical info,
+  photos — not just remove them from a squad
+- **Photo consent enforcement**: the public passport page no longer serves
+  a photo without `photo_consent` for the current season
+
+### Development pathways
+- 5-category milestone framework (Technical, Tactical, Physical, Mental,
+  Leadership), admin-configurable templates per age group, per-player
+  completion tracking
+- AI personal development plans (player and coach-facing)
+
+### Media
+- Photo/video uploads tagged to a player, attached to a fixture or session
+- Player video clips
+
+### Admin & reporting
+- Academy-wide player search, team management
+- Analytics dashboard: position distribution, rating trend, document
+  compliance bar, AI academy health report
+- CSV/PDF report exports
+
+### Tactics board (a full feature area with no prior roadmap mention)
+- 16 formation presets (5- to 11-a-side), automatic player assignment by
+  position, opponent set-up
+- Drawing tools (runs, passes, dribbles, freehand), undo/redo
+- Pitch overlays: thirds, half-spaces/channels, zone 14, cut-back zones
+- Frame-by-frame animation, PNG export, video recording — movement is
+  derived from the arrows actually drawn, not a separate manual step
+- Saved plays: concept tags, session/fixture links, filtering, templates,
+  a shared player-facing animated view, coach voice notes
+- Tactical concept library, positional-role explainers, player position
+  guide
+
+### Tactics studio parity pass (this cycle)
+Target was feature parity with dedicated pitch-diagram tools (The Tactics
+App, Final Third), plus a video-telestration surface neither of them has.
+- **Pitch sizes, training grids, and equipment.** Full/half/third pitches
+  and sized training grids, a placeable/draggable equipment set (cones,
+  markers, mannequins, goals, bibs, poles, ladders, hurdles) — the board
+  can now lay out a Wednesday training drill, not just Sunday's match shape
+- **A real keyframe timeline.** Per-frame duration and easing, reorder,
+  duplicate, insert, and a scrub bar that seeks to any point and edits the
+  pose at that exact frame — replacing a hardcoded, un-editable segment
+  duration. Frame-list edits are now undoable like every other board
+  action, not a separate un-tracked path
+- **Player spotlight and per-player notes.** A highlight that follows a
+  specific player's token through the whole animation, and coaching notes
+  attached to a player rather than one free-text field for the whole play
+  — pushed to that player's own shared view, filtered so a note is only
+  ever seen by the player (or parent) it's about, never the whole squad
+- **Match Film.** A second telestration surface for a captured phone-clip
+  frame, a photo, or a live YouTube/Vimeo embed — draw over a real moment
+  and share the breakdown to the squad, alongside the existing diagram-only
+  saved plays
+- **Shared drawing core.** The SVG board, the read-only shared view, and
+  the canvas video recorder previously diverged into three separate
+  implementations of the same shapes and math; consolidated into one
+  (`lib/board-model.ts`) so a new shape or pitch is defined once
+
+### Access-code flow fix (this cycle)
+A coach entering their team's join/coach code at registration could
+previously end up in an unrecoverable state — wrong role assigned, no
+academy attached, and no working self-service recovery screen (the one
+that existed had no database policy allowing the write it tried to make).
+Rebuilt around one validated RPC (`redeem_access_code`) that checks a code
+against all three lookalike code types before any write happens, and
+closed two real privilege-escalation paths found in review: a coach role
+could previously be granted through a code path that was never meant to
+grant it, and a client-controlled field could reach further into a
+profile update than intended.
+
+### Squad-aware AI (13 capabilities, also unmentioned in the prior roadmap)
+- Shared squad-context brief (real ratings, form, attendance, results) —
+  every AI feature answers with actual players and numbers, never invented
+  ones
+- Conversational coach assistant, suggested XI, full match plans
+- Play describer and opponent counter-analysis from the tactics board
+- Match reports, parent report cards, player insights, academy health
+  report, development plans, session/drill generation
+- Read-aloud for AI output at the touchline
+
+### Player import & registration cards (shipped this cycle, several
+correctness passes)
+- Bulk-import players from a scanned SAFA/LFA registration PDF sheet: text
+  read by Gemini, one row per card, reviewable before anything is created
+- Headshot extraction from the same PDF, matched to a player **by the
+  registration number printed on the card** — not by position in a list,
+  after two earlier position-based approaches each turned out to mismatch
+  on a real document
+- Unassigned photos surface in a review tray instead of being silently
+  dropped or guessed at
+- A later PDF upload backfills a headshot for a player already registered
+  but missing a photo (manual entry or an earlier import with a bad photo)
+- Manual player card creation for a player already SAFA-verified with no
+  card on file — generates a downloadable card PDF in the real SAFA layout,
+  with the academy's own crest and a QR to the player's Growfit passport
+
+### Testing & tooling infrastructure (this pass)
+- Playwright smoke suite (`web/e2e/`) — needs no Supabase project, catches
+  a broken auth guard or a route that used to render now crashing
+- Regression test suite for the headshot-identity-matching logic, extracted
+  into its own testable module
+- `web/CLAUDE.md` Known Gotchas doc
+
+### UX foundation
+- Responsive layout (desktop sidebar + mobile bottom nav), dark mode, PWA
+  manifest + service worker + install prompt + offline fallback page
+- Coach dashboard "what's next" smart cards, colour-coded chips, dashed
+  empty states
 
 ---
 
-## In Progress 🔄
+## Next
 
-### Admin Dashboard
-- Academy-wide player search and filtering
-- Team management (create, assign coaches)
-- Basic reporting: squad sizes, fixture counts
+Ordered within each horizon by how much it costs the academy for it to keep
+not existing, not by how interesting it is to build. The safeguarding and
+correctness items at the top of "Near term" are graded **Breaks the job** or
+**Costs real time** in the source audit — everything past them is a genuine
+improvement, not a gap.
 
----
+### Near term (weeks, not sprints — these are small)
 
-## Near term (next 1–3 sprints)
+- ~~**Enforce photo consent before display.**~~ **Done**, scoped to the
+  actual public exposure: `get_public_passport()` (migration
+  `023_enforce_photo_consent.sql`) now nulls out `photo_url` unless
+  `player_consents.photo_consent` is true for the current season — enforced
+  inside the SECURITY DEFINER function itself, the only path a photo reaches
+  an anonymous visitor, so it can't be bypassed by a future caller. Internal
+  admin/coach/parent/player dashboards still show the photo: staff and
+  family already have full record access under RLS (medical info, ID
+  numbers), and a coach needs to recognise the child in front of them for
+  safeguarding reasons that outrank the "official channels" media consent
+  this checkbox actually describes. **Needs the migration run against the
+  live project** — see the gotcha in `web/CLAUDE.md`.
+- ~~**A welfare check-in surface.**~~ **Done.** The coach dashboard now
+  shows every player across the coach's teams below the 75% training
+  attendance threshold (recomputed live — the shared threshold logic moved
+  to `lib/attendance.ts` so this and the AI assistant's brief can't quietly
+  disagree), with a "Log check-in" action that records a persisted note
+  (`welfare_checkins`, migration `024`). Deliberately a log, not a dismiss
+  button — the alert itself only clears once attendance actually recovers.
+  Not yet on the admin side; coaches are the ones who see the pattern first.
+- ~~**Let a parent delete their child's own photo without a developer.**~~
+  **Done.** A narrow SECURITY DEFINER RPC (`delete_player_photo`, migration
+  `025`) lets a parent or the player themself clear the photo — checked
+  server-side, not just a client-side button, since RLS can't restrict which
+  *column* a broader grant would touch. Removes the actual storage object
+  too, not just the reference. Surfaced on the parent's child-detail page
+  and the player's own dashboard (both of which fetched `photo_url` already
+  but never rendered it).
+- ~~**A real deletion/erasure path more broadly.**~~ **Done for players.**
+  There was no DELETE policy on `players` at all — RLS defaults to deny, so
+  not even an admin could delete one. Migration `026` adds an admin-scoped
+  DELETE policy; every table referencing `players.id` already cascades, so
+  this is a genuine full erasure, not a soft flag. Gated behind typing the
+  player's exact name to confirm (checked both client- and server-side) —
+  deliberately admin-only and not self-service, since a parent-triggered
+  hard delete of the wrong record would be unrecoverable. A parent still
+  requests erasure through the academy, same as they would today for
+  anything not covered by a self-service form.
+- ~~**Fix `/offline`-style auth-guard gaps proactively.**~~ **Done, and
+  found a real one.** Auditing `proxy.ts`'s `PUBLIC_PATHS` against every
+  top-level route turned up `/register-club` missing — a brand-new visitor
+  with no session at all could never reach the self-service academy signup
+  page, silently defeating the whole multi-academy feature. Added. Also
+  fixed the redirect itself: it now preserves `?next=<path>` so a
+  logged-out visitor following a link like `/join/[code]` returns to finish
+  that action after signing in, instead of landing on their generic
+  dashboard and losing the invite code (`/auth/login` already had this
+  parameter arrive from `/join/[code]`'s own redirect — it just silently
+  ignored it until now).
+- ~~**Delete `DEFAULT_ACADEMY_ID`.**~~ **Done.** `src/lib/constants.ts` had
+  no other importer at all (`PILOT_JOIN_CODE` was equally dead), so the
+  whole file is gone rather than leaving one dead export behind.
+- ~~**Attendance marking must surface a failed save.**~~ **Done.** Both
+  attendance forms now distinguish a real write failure (shown inline,
+  optimistic state rolled back) from a network failure (queued to retry,
+  not silently dropped) — see the offline write queue below.
 
-### Player photo upload
-- Upload via Supabase Storage from coach squad view
-- Photo displayed on player card, passport, and public page
+Every "Near term" item from the previous pass is now done.
 
-### Fixture notifications (in-app)
-- "New fixture scheduled" notification for players when a coach adds one
-- Supabase Realtime + client-side listener
+### Medium term
 
-### Announcement delete for coach
-- Confirm before delete, immediate feed update
+- **The design pass.** A full audit (kept out of the architecture doc for
+  length, in project history) found the interface reads as
+  machine-generated — every card the same radius, one text size doing every
+  job, the brand red in code (`#af2d35`) not matching the academy's actual
+  institutional colour (`#A71817`). A specific, three-direction design
+  proposal exists and was reviewed; implementing the chosen direction
+  (landscape "team sheet" look, real type hierarchy, semantic colour where
+  red only ever means "something needs action") is scoped but not started.
+- **Seed a test Supabase project for real end-to-end coverage.** The
+  Playwright suite deliberately stops at "does the app not crash" because
+  there's no seeded project to log in against. A `supabase/seed.sql` with
+  one academy/coach/parent/player/squad, plus a saved auth state per role,
+  would unlock testing the flows that actually break in production:
+  attendance under a bad connection, PDF import misattributing a photo, a
+  cancelled fixture's reason reaching a parent.
+- ~~**Offline attendance queueing.**~~ **Done.** A network failure (not an
+  app-level rejection — RLS/validation errors still surface immediately)
+  now queues the write to IndexedDB (`lib/offline-attendance-queue.ts`) and
+  retries it on the browser's `online` event or the next mount. Background
+  Sync was deliberately not used — no iOS Safari support, and this app
+  can't assume Android.
+- **A U15/U13/U11-scale document-status view for admins.** "Which players
+  still owe a signed form, tonight" currently means opening players one at
+  a time or downloading a CSV on a phone at night. The per-player document
+  badge exists; a filtered, age-group-scoped list view doesn't.
+- **Attendance form parity**: the training attendance form only offers
+  Present/Absent while the match form and the stated P/A/L/E policy include
+  Late and Excused — meaning "late" and "excused" currently register as
+  absences against the 75% threshold on the training side.
+- **Show training attendance on the squad-selection screen.** The data
+  exists (it feeds the AI assistant's advice already) but isn't visible to
+  the coach actually picking a squad.
 
-### Public passport improvements
-- Academy branding (logo, colours) on the public page
-- QR code generation from share token
+### Long term
 
-### Training attendance
-- Players can mark themselves "attending" or "unavailable" for a session
-- Coach sees attendance counts per session
-
----
-
-## Medium term (1–2 months)
-
-### Push notifications (mobile)
-- Expo push notifications for new fixtures, announcements, and training sessions
-- Notification preferences per player
-
-### Player progress charts
-- Rating trend over time (line chart)
-- Attribute history per coach
-
-### Match report
-- Coach writes a structured post-match report (key moments, top performers)
-- Visible to players and parents from fixture detail
-
-### Invite link / QR code for squad joining
-- Generate a shareable link from team settings
-- Player clicks link → lands on join page → auto-links to team
-
-### Multi-academy support
-- Remove `DEFAULT_ACADEMY_ID` singleton
-- Academy creation at registration for admins
-- Academy switcher for coaches who work across academies
-
----
-
-## Long term (3–6 months)
-
-### Talent marketplace (opt-in)
-- Players opt in to be "discoverable"
-- Scouts/clubs browse by position, age group, location
-- Contact via in-app message (no direct contact details shared)
-
-### Parent engagement feed
-- Aggregated activity feed for parents: new rating, new training session, match result, announcement
-- Weekly digest email (Supabase Edge Functions + Resend)
-
-### Video highlights
-- Coach attaches a match or training highlight video to a player's profile
-- Hosted via Supabase Storage or external YouTube/Vimeo link
-
-### Tournament / league management
-- Create a league table with multiple teams
-- Auto-calculate standings from logged fixtures
-
-### Analytics dashboard (admin)
-- Squad growth over time
-- Fixture win/draw/loss record
-- Training frequency heatmap
-
-### Offline mode (mobile)
-- Cache recent fixture and training data for poor-connectivity environments
-- Sync when connection restores
+- **isiZulu (and other South African languages).** No i18n library exists
+  yet and every string is a hardcoded literal across ~60 pages — this gets
+  more expensive to retrofit every month it's deferred. Worth scoping even
+  if not started, given who the app is actually for.
+- **Talent marketplace (opt-in)** — players opt in to be discoverable by
+  scouts/clubs by position, age group, location; contact stays in-app.
+- **Tournament / league table management** — auto-calculated standings from
+  logged fixtures.
+- **Video highlight hosting** — currently link-only (Storage or an external
+  YouTube/Vimeo link); no plan to transcode or host video ourselves.
+- **Push notifications (mobile)** — contingent on the Expo shell at the repo
+  root becoming an active target again; it isn't currently.
+- **Audit log** — who changed what, when. More important as more than one
+  coach/admin works in the same academy (already true via `team_coaches`).
 
 ---
 
 ## Architectural backlog
 
 | Item | Priority | Notes |
-|------|----------|-------|
-| Multi-tenancy | High | Academy_id scaffolding is already in place; mainly routing + UI changes |
-| Database indexes under load | Medium | RLS helper functions hit `profiles` on every query; index `(id, role, academy_id)` |
-| Supabase Realtime for announcements | Medium | Feed without page refresh |
-| Rate limiting on server actions | Medium | Prevent announcement spam; can use Upstash Redis |
-| E2E test suite | Medium | Playwright against a test Supabase project |
-| i18n (isiZulu, Sesotho, Afrikaans) | Low | `next-intl`; translation keys partially structured already |
-| Audit log | Low | Who did what, when — important for academies with multiple coaches |
+|---|---|---|
+| ~~Delete `DEFAULT_ACADEMY_ID`~~ | Done | Whole `constants.ts` removed — no importers left at all |
+| ~~`profiles(id, role, academy_id)` index~~ | Done | Migration `022_profiles_covering_index.sql` written — **needs to be run against the live Supabase project**, nothing in this environment applies it |
+| ~~Realtime for announcements~~ | Done | `AnnouncementNotifier`, same `postgres_changes` pattern as fixture notifications, wired into both player and parent layouts |
+| ~~Offline write queue (attendance)~~ | Done | IndexedDB queue + retry-on-reconnect, scoped to attendance rather than a generic write layer — see Next → Medium term |
+| Move auth-route rate limiting off in-memory | Medium | Needs a real shared store (e.g. Upstash Redis) and credentials this environment doesn't have; `proxy.ts` already flags this in a comment |
+| Seed Supabase test project + Playwright auth states | Medium | Needs a real (test) Supabase project and credentials this environment doesn't have |
+| i18n scaffolding | Low, rising | Cost compounds the longer it's deferred; not started this pass — everything above it was higher-signal for the time available |
 
 ---
 
 ## Non-goals
 
-These are explicitly out of scope to keep the platform focused and maintainable:
+Unchanged, still deliberate:
 
-- **Live match tracking** — real-time score updates require infrastructure complexity that isn't justified for this use case
-- **Financial transactions / payments** — stripe integration, subscription billing
+- **Live match tracking** — real-time score infrastructure isn't justified
+  for this use case
+- **Financial transactions / payments**
 - **Social network features** — likes, comments, follower graphs
-- **Gamification** — points, leaderboards, streaks (unless clearly validated with users)
-- **Video hosting** — we link to external video; we don't transcode or host video ourselves
-- **Custom AI/ML** — automated attribute scoring from video; out of scope for the current team size
+- **Gamification** — points, leaderboards, streaks, unless clearly validated
+  with users
+- **Video hosting/transcoding** — link out, don't host
+- **Custom AI/ML** (e.g. automated attribute scoring from video) — out of
+  scope for the current team size

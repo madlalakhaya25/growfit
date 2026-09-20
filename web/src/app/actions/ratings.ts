@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
+import { friendlyError } from "@/lib/friendly-error";
 
 const updateRatingSchema = z.object({
   rating: z.number().int().min(1).max(5),
@@ -32,7 +33,7 @@ export async function addStandaloneRating(
       note: parsed.data.note ?? null,
     });
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   revalidatePath(`/dashboard/coach/squad/${playerId}`);
   return { success: true };
@@ -68,7 +69,7 @@ export async function updateRating(
     .update({ rating: parsed.data.rating, note: parsed.data.note ?? null })
     .eq("id", ratingId);
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   revalidatePath(`/dashboard/coach/squad/${playerId}`);
   return { success: true };
@@ -92,7 +93,7 @@ export async function deleteRating(ratingId: string, playerId: string) {
     .delete()
     .eq("id", ratingId);
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   revalidatePath(`/dashboard/coach/squad/${playerId}`);
   return { success: true };

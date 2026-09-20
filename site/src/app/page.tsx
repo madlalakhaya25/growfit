@@ -23,8 +23,9 @@ const ROLES = [
     num: "02", Icon: Users, title: "Coach",
     description: "Tools that make coaching easier.",
     bullets: [
+      "AI assistant that knows your squad by name",
+      "Tactical board with formations, animation, and video export",
       "AI session plans aligned to FIFA LTPD and SAFA NDP",
-      "Post-match ratings, reports, and analysis",
       "Player attribute assessments (4-Corner Model)",
       "Fixtures, training, and team announcements",
     ],
@@ -52,11 +53,13 @@ const ROLES = [
 ];
 
 const AI_REPORTS = [
-  { num: "01", Icon: Wand2,     label: "AI Session Planner",     desc: "LTPD-phased drills with 4-Corner coaching cues" },
-  { num: "02", Icon: Brain,     label: "Player Insights",         desc: "Position competencies and pathway readiness" },
-  { num: "03", Icon: Trophy,    label: "Match Reports",           desc: "FIFA technical methodology with a development lens" },
-  { num: "04", Icon: Shield,    label: "Parent Progress Reports", desc: "Warm, readable letters grounded in the player's LTPD stage" },
-  { num: "05", Icon: LineChart, label: "Academy Health Report",   desc: "SAFA NDP benchmarks for academy directors" },
+  { num: "01", Icon: Brain,     label: "AI Coach Assistant",      desc: "Squad-aware answers, suggested XI, and match plans" },
+  { num: "02", Icon: Target,    label: "Tactical Analysis",       desc: "Reads the board, explains a play, counters the opponent" },
+  { num: "03", Icon: Wand2,     label: "AI Session Planner",      desc: "LTPD-phased drills with 4-Corner coaching cues" },
+  { num: "04", Icon: Brain,     label: "Player Insights",         desc: "Position competencies and pathway readiness" },
+  { num: "05", Icon: Trophy,    label: "Match Reports",           desc: "FIFA technical methodology with a development lens" },
+  { num: "06", Icon: Shield,    label: "Parent Progress Reports", desc: "Warm, readable letters grounded in the player's LTPD stage" },
+  { num: "07", Icon: LineChart, label: "Academy Health Report",   desc: "SAFA NDP benchmarks for academy directors" },
 ];
 
 const FEATURES = [

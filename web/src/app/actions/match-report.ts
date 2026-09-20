@@ -1,6 +1,7 @@
 "use server";
 
 import { GoogleGenAI } from "@google/genai";
+import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
@@ -92,10 +93,14 @@ Use these exact section headers:
 5. DEVELOPMENT ALIGNMENT: (one sentence on how today's performance reflects age-appropriate SAFA/FIFA development targets for this squad)`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-lite",
+      model: AI_MODEL,
       contents: prompt,
       config: {
         maxOutputTokens: 700,
+        // Disable thinking: this is a direct-answer task, and unbudgeted
+        // thinking tokens were silently eating the whole visible-output budget,
+        // truncating the answer before the reader ever saw it end.
+        thinkingConfig: { thinkingBudget: 0 },
         systemInstruction:
           "You are a SAFA/CAF-licensed technical analyst writing post-match reports for youth academy coaches. Your analysis applies FIFA technical study group methodology, age-appropriate development principles, the 4-Corner Player Development Model, and SAFA's tactical framework for youth football. You assess both individual and collective performance through a long-term development lens, not just match outcomes. Plain text only — no asterisks, no Markdown.",
       },

@@ -5,12 +5,14 @@ import { createClient } from "@/lib/supabase/server";
 import { createFixtureSchema } from "@/lib/validation";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { friendlyError } from "@/lib/friendly-error";
 
 async function getCoachTeamIds(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
   const { data: teams } = await supabase
     .from("teams")
     .select("id")
-    .eq("coach_id", userId)
+    .in("id", await getCoachedTeamIds(supabase, userId))
     .eq("active", true);
   return (teams ?? []).map((t: { id: string }) => t.id);
 }
@@ -25,7 +27,7 @@ export async function createFixture(formData: FormData) {
     .from("teams")
     .select("id")
     .eq("id", teamId)
-    .eq("coach_id", user.id)
+    .in("id", await getCoachedTeamIds(supabase, user.id))
     .eq("active", true)
     .single();
 
@@ -49,27 +51,31 @@ export async function createFixture(formData: FormData) {
     .from("fixtures")
     .insert({ ...parsed.data, team_id: teamId });
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath("/dashboard/coach/fixtures", "page");
   redirect(`/dashboard/coach/fixtures?team=${teamId}`);
 }
 
-export async function cancelFixture(fixtureId: string) {
+export async function cancelFixture(fixtureId: string, reason: string) {
   const { supabase, user } = await requireUser();
+
+  const trimmedReason = reason.trim();
+  if (!trimmedReason) return { error: "Say why the fixture is being cancelled." };
 
   const teamIds = await getCoachTeamIds(supabase, user.id);
   if (!teamIds.length) return { error: "No team found." };
 
   const { data, error } = await supabase
     .from("fixtures")
-    .update({ status: "cancelled" })
+    .update({ status: "cancelled", cancellation_reason: trimmedReason })
     .eq("id", fixtureId)
     .in("team_id", teamIds)
     .select("id");
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   if (!data?.length) return { error: "Fixture not found or already cancelled." };
   revalidatePath("/dashboard/coach/fixtures", "page");
+  revalidatePath(`/dashboard/coach/fixtures/${fixtureId}`, "page");
   return { success: true };
 }
 
@@ -106,7 +112,7 @@ export async function logMatch(payload: unknown) {
     p_ratings:        ratings,
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   if ((data as { error?: string } | null)?.error) return { error: (data as { error: string }).error };
 
   revalidatePath(`/dashboard/coach/fixtures/${fixture_id}`);

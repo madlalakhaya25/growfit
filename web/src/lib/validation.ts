@@ -12,9 +12,15 @@ export const registerSchema = z.object({
   full_name: z.string().min(2, "Enter your full name"),
   email: z.string().email("Enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
-  role: z.enum(["player", "coach", "parent", "admin"], { error: "Choose a role" }),
-  club_code: z.string().length(6, "Join code must be exactly 6 characters"),
-  share_token: z.string().optional(),
+  role: z.enum(["player", "coach", "parent"], { error: "Choose a role" }),
+  // Optional at the schema level — a player may continue without a code
+  // (the "waiting to be added" state /auth/role also allows). Register.page
+  // still requires it for coach/parent in the UI itself.
+  club_code: z.string().length(6, "Code must be exactly 6 characters").optional().or(z.literal("")),
+  // No `share_token` here any more. A parent used to link themselves to a
+  // child during registration using the child's public share token; that path
+  // is gone (migration 032) and linking happens from the dashboard with a
+  // staff-issued code.
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
 
@@ -69,7 +75,12 @@ export const playerRatingSchema = z.object({
 });
 
 export const linkChildSchema = z.object({
-  share_token: z.string().min(6, "Enter your child's code"),
+  // A staff-issued, single-use child link code — 10 characters, distinct from
+  // the 6-character club/team access codes so the two cannot be confused.
+  code: z
+    .string()
+    .transform((raw) => raw.toUpperCase().replace(/[^A-Z0-9]/g, ""))
+    .refine((code) => code.length === 10, "A child link code is 10 characters"),
 });
 
 export type CreatePlayerInput = z.infer<typeof createPlayerSchema>;

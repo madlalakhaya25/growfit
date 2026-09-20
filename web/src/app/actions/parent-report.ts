@@ -1,7 +1,9 @@
 "use server";
 
 import { GoogleGenAI } from "@google/genai";
+import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
+import { calculateAge } from "@/lib/player";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -55,11 +57,7 @@ export async function generateParentReport(
     const milestones = milestonesResult.data ?? [];
     const trainingAttendance = trainingAttendanceResult.data ?? [];
 
-    const age = player.date_of_birth
-      ? Math.floor(
-          (Date.now() - new Date(player.date_of_birth).getTime()) / 31_557_600_000
-        )
-      : null;
+    const age = calculateAge(player.date_of_birth);
 
     const avgRating =
       ratings.length > 0
@@ -139,10 +137,14 @@ Use these exact section headers:
 6. FROM THE COACHING STAFF:`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-lite",
+      model: AI_MODEL,
       contents: prompt,
       config: {
         maxOutputTokens: 700,
+        // Disable thinking: this is a direct-answer task, and unbudgeted
+        // thinking tokens were silently eating the whole visible-output budget,
+        // truncating the answer before the reader ever saw it end.
+        thinkingConfig: { thinkingBudget: 0 },
         systemInstruction:
           "You are a SAFA-accredited youth development coach writing warm, culturally sensitive progress reports for parents of young South African footballers. Your reports apply Long-Term Player Development (LTPD) principles, mastery-climate coaching philosophy (praising effort and progress, not just outcomes), and South Africa's positive youth football development ethos. You understand that parents are key partners in a young player's journey. Plain text only — no asterisks, no Markdown.",
       },

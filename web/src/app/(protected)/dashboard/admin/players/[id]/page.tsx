@@ -1,26 +1,26 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Star } from "lucide-react";
+import { ArrowLeft, Star, Download } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RatingRing } from "@/components/ui/rating-ring";
-import { StatBar } from "@/components/ui/stat-bar";
 import { PlayerPhotoUpload } from "@/components/player-photo-upload";
 import { POSITIONS, FEET } from "@/lib/types";
+import { calculateAge, getInitials } from "@/lib/player";
 import { ExtendedInfoForm } from "@/components/records/extended-info-form";
 import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
-
-const ATTRS = [
-  { key: "pace",      label: "Pace" },
-  { key: "shooting",  label: "Shooting" },
-  { key: "passing",   label: "Passing" },
-  { key: "dribbling", label: "Dribbling" },
-  { key: "defending", label: "Defending" },
-  { key: "physical",  label: "Physical" },
-] as const;
+import { DeletePlayerSection } from "@/components/records/delete-player-section";
+import { AttributeSummary } from "@/components/player/attribute-summary";
+import {
+  ALL_ATTR_SELECT,
+  averageAttributeRows,
+  calculateOverall,
+  type AttrKey,
+} from "@/lib/attributes";
+import { matchRatingAverage } from "@/lib/player";
 
 export default async function AdminPlayerDetailPage({
   params,
@@ -45,8 +45,8 @@ export default async function AdminPlayerDetailPage({
     .from("players")
     .select(`
       id, full_name, position, secondary_pos, preferred_foot, date_of_birth, photo_url, share_token, academy_id,
-      pace, shooting, passing, dribbling, defending, physical,
       school, home_address, id_number, mysafa_number,
+      player_attributes ( ${ALL_ATTR_SELECT} ),
       player_ratings (
         id, rating, note, created_at,
         fixtures ( opponent, fixture_date )
@@ -65,16 +65,20 @@ export default async function AdminPlayerDetailPage({
 
   type Rating = { id: string; rating: number; note: string | null; created_at: string; fixtures: { opponent: string; fixture_date: string } | { opponent: string; fixture_date: string }[] | null };
   const ratings: Rating[] = player.player_ratings ?? [];
-  const ratingValues = ratings.map((r) => r.rating);
-  const avg = ratingValues.length
-    ? Math.round((ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length) * 20)
-    : 0;
+  const matchAvg = matchRatingAverage(ratings.map((r) => r.rating));
+
+  // This page showed the raw match-rating average as "Overall" and never
+  // looked at attributes at all, so an admin saw a different number from the
+  // coach, the parent and the public passport for the same player.
+  const attrs = averageAttributeRows(
+    player.player_attributes as Partial<Record<AttrKey, number | null>>[] | null
+  );
+  const avg = calculateOverall(attrs, player.position) ?? matchAvg;
+
   const posLabel = POSITIONS.find((p) => p.value === player.position)?.label ?? "—";
   const footLabel = FEET.find((f) => f.value === player.preferred_foot)?.label;
-  const age = player.date_of_birth
-    ? Math.floor((Date.now() - new Date(player.date_of_birth).getTime()) / 31_557_600_000)
-    : null;
-  const initials = player.full_name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
+  const age = calculateAge(player.date_of_birth);
+  const initials = getInitials(player.full_name);
 
   return (
     <div className="space-y-6">
@@ -114,28 +118,30 @@ export default async function AdminPlayerDetailPage({
                 <p className="font-semibold">{ratings.length}</p>
               </div>
               <div>
-                <p className="text-muted-foreground text-xs">Share token</p>
+                <p className="text-muted-foreground text-xs">Public passport link</p>
                 <p className="font-mono font-semibold text-xs tracking-wide">{player.share_token}</p>
               </div>
             </div>
-            <div className="pt-2">
+            <div className="pt-2 flex flex-wrap gap-2">
               <PlayerPhotoUpload playerId={player.id} />
+              <Button asChild variant="outline" size="sm">
+                <a href={`/api/players/${player.id}/card`}>
+                  <Download className="size-3.5" aria-hidden="true" />
+                  Download card
+                </a>
+              </Button>
             </div>
           </CardContent>
         </Card>
 
         {/* Attributes card */}
-        {ATTRS.some(({ key }) => player[key] != null) && (
+        {attrs && (
           <Card>
             <CardHeader>
               <CardTitle>Attributes</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {ATTRS.map(({ key, label }) => {
-                const val = player[key as keyof typeof player] as number | null;
-                if (val == null) return null;
-                return <StatBar key={key} label={label} value={val} />;
-              })}
+            <CardContent>
+              <AttributeSummary attrs={attrs} position={player.position} className="space-y-3" />
             </CardContent>
           </Card>
         )}
@@ -205,6 +211,8 @@ export default async function AdminPlayerDetailPage({
           </div>
           <DocumentHub playerId={id} season={currentSeason} documents={docs ?? []} readOnly />
         </div>
+
+        <DeletePlayerSection playerId={player.id} playerName={player.full_name} />
       </section>
     </div>
   );

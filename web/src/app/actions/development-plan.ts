@@ -1,7 +1,14 @@
 "use server";
 
 import { GoogleGenAI } from "@google/genai";
+import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
+import {
+  ALL_ATTR_SELECT,
+  ATTR_META,
+  getPositionAttrKeys,
+  type AttrKey,
+} from "@/lib/attributes";
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY!,
@@ -29,7 +36,7 @@ export async function generateDevelopmentPlan(playerId: string): Promise<{
 
       supabase
         .from("player_attributes")
-        .select("pace, shooting, passing, dribbling, defending, physical, assessed_at")
+        .select(`${ALL_ATTR_SELECT}, assessed_at`)
         .eq("player_id", playerId)
         .order("assessed_at", { ascending: false })
         .limit(1)
@@ -83,18 +90,21 @@ export async function generateDevelopmentPlan(playerId: string): Promise<{
         )
       : null;
 
-    // Build sorted attributes (strongest to weakest)
+    // Build sorted attributes (strongest to weakest) from what this player's
+    // position is actually assessed on — a hardcoded core six fed the model
+    // attributes nobody had rated, which for a goalkeeper was five of them.
     let attrSummary = "No attribute assessments yet";
     if (attrs) {
-      const attrEntries = [
-        { label: "Pace", value: attrs.pace },
-        { label: "Shooting", value: attrs.shooting },
-        { label: "Passing", value: attrs.passing },
-        { label: "Dribbling", value: attrs.dribbling },
-        { label: "Defending", value: attrs.defending },
-        { label: "Physical", value: attrs.physical },
-      ].sort((a, b) => b.value - a.value);
-      attrSummary = attrEntries.map((e) => `${e.label}: ${e.value}`).join(", ");
+      const row = attrs as Partial<Record<AttrKey, number | null>>;
+      const attrEntries = getPositionAttrKeys(player.position)
+        .map((key) => ({ label: ATTR_META[key].label, value: row[key] }))
+        .filter((entry): entry is { label: string; value: number } =>
+          typeof entry.value === "number"
+        )
+        .sort((a, b) => b.value - a.value);
+      if (attrEntries.length) {
+        attrSummary = attrEntries.map((e) => `${e.label}: ${e.value}`).join(", ");
+      }
     }
 
     // Build ratings summary
@@ -147,10 +157,14 @@ Output format:
 5. COACH NOTE: (one motivational sentence for the coach to share)`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-lite",
+      model: AI_MODEL,
       contents: prompt,
       config: {
         maxOutputTokens: 600,
+        // Disable thinking: this is a direct-answer task, and unbudgeted
+        // thinking tokens were silently eating the whole visible-output budget,
+        // truncating the answer before the reader ever saw it end.
+        thinkingConfig: { thinkingBudget: 0 },
         systemInstruction:
           "You are an elite youth football development coach creating personalised, actionable 4-week development plans. Write in plain text only — no asterisks, no markdown, no bolding.",
       },

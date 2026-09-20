@@ -6,10 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import { RatingRing } from "@/components/ui/rating-ring";
 import { Users } from "lucide-react";
 import { POSITIONS } from "@/lib/types";
+import { calculateAge, getInitials } from "@/lib/player";
 import { LinkChildForm } from "./link-child-form";
+import {
+  ALL_ATTR_SELECT,
+  averageAttributeRows,
+  calculateOverall,
+  type AttrKey,
+} from "@/lib/attributes";
+import { matchRatingAverage } from "@/lib/player";
 
-const ATTR_KEYS = ["pace", "shooting", "passing", "dribbling", "defending", "physical"] as const;
-type AttrKey = (typeof ATTR_KEYS)[number];
 
 export default async function ParentDashboardPage() {
   const supabase = await createClient();
@@ -22,12 +28,12 @@ export default async function ParentDashboardPage() {
       players (
         id, full_name, position, date_of_birth, share_token,
         player_ratings ( rating ),
-        player_attributes ( pace, shooting, passing, dribbling, defending, physical )
+        player_attributes ( ${ALL_ATTR_SELECT} )
       )
     `)
     .eq("parent_id", user.id);
 
-  type AttrRow = Record<AttrKey, number>;
+  type AttrRow = Partial<Record<AttrKey, number | null>>;
   type ChildPlayer = {
     id: string; full_name: string; position: string | null;
     date_of_birth: string | null; share_token: string;
@@ -41,14 +47,9 @@ export default async function ParentDashboardPage() {
 
   function childOverall(child: ChildPlayer) {
     const attrRows = child.player_attributes ?? [];
-    if (attrRows.length > 0) {
-      const avg = (key: AttrKey) => attrRows.reduce((s, r) => s + r[key], 0) / attrRows.length;
-      return Math.round(ATTR_KEYS.reduce((s, k) => s + avg(k), 0) / ATTR_KEYS.length);
-    }
-    const ratings = child.player_ratings.map((r) => r.rating);
-    return ratings.length
-      ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 20)
-      : 0;
+    const overall = calculateOverall(averageAttributeRows(attrRows), child.position);
+    if (overall !== null) return overall;
+    return matchRatingAverage(child.player_ratings.map((r) => r.rating));
   }
 
   return (
@@ -62,7 +63,7 @@ export default async function ParentDashboardPage() {
           <div>
             <p className="font-medium">No children linked yet</p>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Enter your child&apos;s share code below to follow their progress.
+              Ask your child&apos;s coach for a link code, then add them below.
             </p>
           </div>
         </div>
@@ -71,16 +72,9 @@ export default async function ParentDashboardPage() {
           {children.map((child) => {
             const overall = childOverall(child);
             const pos = POSITIONS.find((p) => p.value === child.position)?.label ?? "—";
-            const age = child.date_of_birth
-              ? Math.floor((Date.now() - new Date(child.date_of_birth).getTime()) / 31_557_600_000)
-              : null;
+            const age = calculateAge(child.date_of_birth);
             const ratingCount = child.player_ratings.length;
-            const initials = child.full_name
-              .split(" ")
-              .slice(0, 2)
-              .map((w) => w[0])
-              .join("")
-              .toUpperCase();
+            const initials = getInitials(child.full_name);
 
             return (
               <Link key={child.id} href={`/dashboard/parent/${child.id}`} className="block">
@@ -124,7 +118,7 @@ export default async function ParentDashboardPage() {
         <CardHeader>
           <CardTitle className="text-base">Link a child</CardTitle>
           <CardDescription>
-            Enter the share code from your child&apos;s passport page, or ask their coach.
+            Enter the link code your child&apos;s coach gave you.
           </CardDescription>
         </CardHeader>
         <CardContent>
