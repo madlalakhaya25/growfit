@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { isTrustedEmbedUrl } from "@/lib/video-embed";
+import { friendlyError } from "@/lib/friendly-error";
 
 export interface SavedPlaySummary {
   id: string;
@@ -90,7 +91,7 @@ export async function savePlay(input: {
       .from("tactic_plays")
       .update({ ...fields, updated_at: new Date().toISOString() })
       .eq("id", input.playId);
-    if (error) return { error: error.message };
+    if (error) return { error: friendlyError(error) };
     revalidatePath("/dashboard/coach/tactics/board");
     return { id: input.playId };
   }
@@ -119,7 +120,7 @@ export async function listPlays(teamId: string, surface?: "pitch" | "film"): Pro
     .eq("team_id", teamId);
   if (surface) query = query.eq("surface", surface);
   const { data, error } = await query.order("updated_at", { ascending: false });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   return { plays: (data ?? []) as SavedPlaySummary[] };
 }
 
@@ -172,7 +173,7 @@ export async function loadPlay(playId: string): Promise<{ data?: unknown; name?:
 export async function deletePlay(playId: string): Promise<{ success?: boolean; error?: string }> {
   const { supabase } = await requireUser();
   const { error } = await supabase.from("tactic_plays").delete().eq("id", playId);
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath("/dashboard/coach/tactics/board");
   return { success: true };
 }
@@ -213,7 +214,7 @@ export async function sharePlayToSquad(input: {
     body,
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath("/dashboard/coach/announcements");
   revalidatePath("/dashboard/coach/tactics/board");
   return { success: true };
@@ -226,7 +227,7 @@ export async function getSharedPlay(token: string): Promise<{
 }> {
   const { supabase } = await requireUser();
   const { data, error } = await supabase.rpc("get_shared_play", { p_share_token: token });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   const res = data as { error?: string } & Record<string, unknown>;
   if (res?.error) return { error: res.error };
   return { play: res as never };
@@ -289,7 +290,7 @@ export async function deletePlayVoiceNote(playId: string): Promise<{ success?: b
     .from("tactic_plays")
     .update({ voice_url: null, voice_path: null })
     .eq("id", playId);
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   if (play?.voice_path) {
     await supabase.storage.from("academy-media").remove([play.voice_path]);
@@ -329,7 +330,7 @@ export async function listSharedPlaysForMe(): Promise<{
     .eq("shared", true)
     .order("updated_at", { ascending: false });
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   type Row = {
     id: string; name: string; notes: string | null; share_token: string;

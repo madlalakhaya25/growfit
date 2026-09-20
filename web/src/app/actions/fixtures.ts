@@ -6,6 +6,7 @@ import { createFixtureSchema } from "@/lib/validation";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { friendlyError } from "@/lib/friendly-error";
 
 async function getCoachTeamIds(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
   const { data: teams } = await supabase
@@ -50,7 +51,7 @@ export async function createFixture(formData: FormData) {
     .from("fixtures")
     .insert({ ...parsed.data, team_id: teamId });
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath("/dashboard/coach/fixtures", "page");
   redirect(`/dashboard/coach/fixtures?team=${teamId}`);
 }
@@ -71,7 +72,7 @@ export async function cancelFixture(fixtureId: string, reason: string) {
     .in("team_id", teamIds)
     .select("id");
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   if (!data?.length) return { error: "Fixture not found or already cancelled." };
   revalidatePath("/dashboard/coach/fixtures", "page");
   revalidatePath(`/dashboard/coach/fixtures/${fixtureId}`, "page");
@@ -111,7 +112,7 @@ export async function logMatch(payload: unknown) {
     p_ratings:        ratings,
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   if ((data as { error?: string } | null)?.error) return { error: (data as { error: string }).error };
 
   revalidatePath(`/dashboard/coach/fixtures/${fixture_id}`);

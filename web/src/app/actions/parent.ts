@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
+import { friendlyError } from "@/lib/friendly-error";
 import {
   isCompleteParentLinkCode,
   isMissingParentLinkRpc,
@@ -32,7 +33,7 @@ async function callParentLinkRpc<T extends { error?: string }>(
   const { data, error } = await supabase.rpc(fn, args);
 
   if (isMissingParentLinkRpc(error)) return { ok: false, error: MISSING_PARENT_LINK_RPC_MESSAGE };
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: friendlyError(error) };
 
   const result = data as T | null;
   if (!result || result.error) return { ok: false, error: result?.error ?? fallbackError };
@@ -147,7 +148,7 @@ export async function unlinkParent(parentId: string, playerId: string) {
     .eq("parent_id", parentId)
     .eq("player_id", playerId);
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   revalidatePlayerLinkViews(playerId);
   return { success: true as const };

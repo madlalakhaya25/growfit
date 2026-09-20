@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { friendlyError } from "@/lib/friendly-error";
 
 const sessionSchema = z.object({
   team_id: z.string().uuid("Invalid team"),
@@ -141,7 +142,7 @@ export async function deleteTrainingSession(id: string) {
     .eq("coach_id", user.id)
     .select("id");
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   if (!data?.length) return { error: "Session not found." };
   revalidatePath("/dashboard/coach/training", "page");
   return { success: true };
@@ -191,7 +192,7 @@ export async function addDrill(formData: FormData) {
     sort_order: nextOrder,
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath(`/dashboard/coach/training/${parsed.data.session_id}`, "page");
   return { success: true };
 }
@@ -217,7 +218,7 @@ export async function deleteDrill(drillId: string, sessionId: string) {
     if (!session) return { error: "Drill not found or access denied." };
   }
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath(`/dashboard/coach/training/${sessionId}`, "page");
   return { success: true };
 }
@@ -239,7 +240,7 @@ export async function setAttendance(sessionId: string, status: "attending" | "un
     { onConflict: "session_id,player_id" }
   );
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath(`/dashboard/player/training/${sessionId}`, "page");
   revalidatePath(`/dashboard/coach/training/${sessionId}`, "page");
   return { success: true };

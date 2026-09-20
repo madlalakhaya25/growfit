@@ -1,6 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
+import { friendlyError } from "@/lib/friendly-error";
 
 export async function updateAcademyInfo(prevState: unknown, formData: FormData) {
   const { supabase, user } = await requireUser();
@@ -23,7 +24,7 @@ export async function updateAcademyInfo(prevState: unknown, formData: FormData) 
     .update({ name, province })
     .eq("id", profile.academy_id);
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   revalidatePath("/dashboard/admin/academy");
   return { success: true };

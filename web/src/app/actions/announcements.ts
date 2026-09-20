@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { friendlyError } from "@/lib/friendly-error";
 
 const announcementSchema = z.object({
   team_id: z.string().uuid("Invalid team"),
@@ -45,7 +46,7 @@ export async function createAnnouncement(formData: FormData) {
     body: parsed.data.body,
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidateAnnouncementFeeds();
   return { success: true };
 }
@@ -60,7 +61,7 @@ export async function deleteAnnouncement(id: string) {
     .eq("coach_id", user.id)
     .select("id");
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   if (!data?.length) return { error: "Announcement not found." };
   revalidateAnnouncementFeeds();
   return { success: true };
@@ -74,7 +75,7 @@ export async function dismissAnnouncement(announcementId: string) {
     { onConflict: "user_id,announcement_id" }
   );
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath("/dashboard/player/announcements", "page");
   revalidatePath("/dashboard/parent/announcements", "page");
   return { success: true };

@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
+import { friendlyError } from "@/lib/friendly-error";
 
 const profileSchema = z.object({
   full_name: z.string().min(2, "Name must be at least 2 characters").max(80),
@@ -36,7 +37,7 @@ export async function updateProfile(formData: FormData) {
     })
     .eq("id", user.id);
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath("/dashboard", "layout");
   return { success: true };
 }
@@ -50,6 +51,6 @@ export async function changePassword(formData: FormData) {
 
   const { supabase } = await requireUser();
   const { error } = await supabase.auth.updateUser({ password: newPassword });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   return { success: true };
 }

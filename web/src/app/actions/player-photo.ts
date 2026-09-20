@@ -1,6 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
+import { friendlyError } from "@/lib/friendly-error";
 
 /**
  * Lets a parent (or the player themself) remove their own child's photo —
@@ -30,7 +31,7 @@ export async function removeOwnChildPhoto(playerId: string) {
   }
 
   const { data, error } = await supabase.rpc("delete_player_photo", { p_player_id: playerId });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   const result = data as { error?: string; success?: boolean };
   if (result?.error) return { error: result.error };

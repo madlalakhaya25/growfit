@@ -1,6 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
+import { friendlyError } from "@/lib/friendly-error";
 
 const CATEGORIES = ["warm_up", "technical", "tactical", "physical", "small_sided", "cool_down"] as const;
 const DIFFICULTIES = ["beginner", "intermediate", "advanced"] as const;
@@ -40,7 +41,7 @@ export async function saveDrill(data: {
     video_url: data.video_url?.trim() || null,
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath("/dashboard/coach/training/drills");
   return { success: true };
 }
@@ -62,7 +63,7 @@ export async function deleteDrill(id: string) {
     .eq("id", id)
     .eq("academy_id", profile.academy_id);
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath("/dashboard/coach/training/drills");
   return { success: true };
 }
@@ -104,7 +105,7 @@ export async function addDrillFromLibrary(sessionId: string, drillId: string) {
     sort_order: nextOrder,
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath(`/dashboard/coach/training/${sessionId}`);
   return { success: true };
 }

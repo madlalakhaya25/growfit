@@ -1,6 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
+import { friendlyError } from "@/lib/friendly-error";
 
 export async function addPlayerClip(
   playerId: string,
@@ -27,7 +28,7 @@ export async function addPlayerClip(
     description: data.description?.trim() ?? null,
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath(`/dashboard/coach/squad/${playerId}`);
   return { success: true };
 }
@@ -37,7 +38,7 @@ export async function deletePlayerClip(clipId: string, playerId: string) {
 
   const { error } = await supabase.from("player_clips").delete().eq("id", clipId);
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath(`/dashboard/coach/squad/${playerId}`);
   return { success: true };
 }

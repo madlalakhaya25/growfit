@@ -1,6 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
+import { friendlyError } from "@/lib/friendly-error";
 
 export async function savePlayerExtendedInfo(playerId: string, data: {
   school?: string;
@@ -10,7 +11,7 @@ export async function savePlayerExtendedInfo(playerId: string, data: {
 }) {
   const { supabase } = await requireUser();
   const { error } = await supabase.from("players").update(data).eq("id", playerId);
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath(`/dashboard/admin/players/${playerId}`, "page");
   return { success: true };
 }
@@ -49,7 +50,7 @@ export async function savePlayerMedical(playerId: string, data: {
     },
     { onConflict: "player_id" }
   );
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath(`/dashboard/admin/players/${playerId}`, "page");
   revalidatePath("/dashboard/parent", "page");
   return { success: true };
@@ -71,7 +72,7 @@ export async function savePlayerConsents(
     { player_id: playerId, season, ...data, signed_at: new Date().toISOString(), updated_at: new Date().toISOString() },
     { onConflict: "player_id,season" }
   );
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath(`/dashboard/admin/players/${playerId}`, "page");
   return { success: true };
 }
@@ -97,7 +98,7 @@ export async function signDocumentDigitally(
     },
     { onConflict: "player_id,document_type,season" }
   );
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath(`/dashboard/admin/players/${playerId}`, "page");
   revalidatePath("/dashboard/parent", "page");
   revalidatePath("/dashboard/player", "page");
@@ -143,7 +144,7 @@ export async function uploadDocumentScan(formData: FormData) {
     },
     { onConflict: "player_id,document_type,season" }
   );
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath(`/dashboard/admin/players/${playerId}`, "page");
   revalidatePath("/dashboard/parent", "page");
   revalidatePath("/dashboard/player", "page");
