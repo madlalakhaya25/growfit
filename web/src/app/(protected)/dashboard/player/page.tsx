@@ -18,8 +18,10 @@ import { MediaGallery } from "@/components/media/media-gallery";
 import { MyPositionPanel } from "@/components/tactics/my-position-panel";
 import {
   ALL_ATTR_SELECT,
+  CORE_ATTR_SELECT,
   averageAttributeRows,
   calculateOverall,
+  isMissingAttributeColumn,
   type AttrKey,
 } from "@/lib/attributes";
 
@@ -30,12 +32,23 @@ export default async function PlayerDashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
 
+  // player_attributes is fetched separately from the base player row, not
+  // embedded in one combined select. It used to be embedded — but a lagging
+  // migration (attribute columns are optional at runtime; see
+  // isMissingAttributeColumn below) failed the WHOLE query when embedded,
+  // which made a genuinely linked player's entire passport disappear behind
+  // the "not yet linked, waiting to be added" screen. Same fix already
+  // applied on the coach's player-detail page; see isMissingAttributeColumn's
+  // doc comment in lib/attributes.ts for the general pattern.
+  //
+  // player_attributes.player_id refers to players.id, not this profile's own
+  // id, so it can't be fetched in parallel with the row that resolves it —
+  // this has to run after `player` comes back.
   const { data: player } = await supabase
     .from("players")
     .select(`
       id, full_name, position, preferred_foot, date_of_birth, photo_url, share_token, mysafa_number, id_number,
-      player_ratings ( rating, created_at, fixtures ( opponent, fixture_date ) ),
-      player_attributes ( ${ALL_ATTR_SELECT} )
+      player_ratings ( rating, created_at, fixtures ( opponent, fixture_date ) )
     `)
     .eq("profile_id", user.id)
     .single();
@@ -57,6 +70,20 @@ export default async function PlayerDashboardPage() {
         <ClaimProfileForm />
       </div>
     );
+  }
+
+  const wideAttrs = await supabase
+    .from("player_attributes")
+    .select(ALL_ATTR_SELECT)
+    .eq("player_id", player.id);
+
+  let attrsData: Partial<Record<AttrKey, number | null>>[] | null = wideAttrs.data;
+  if (isMissingAttributeColumn(wideAttrs.error)) {
+    const coreAttrs = await supabase
+      .from("player_attributes")
+      .select(CORE_ATTR_SELECT)
+      .eq("player_id", player.id);
+    attrsData = coreAttrs.data;
   }
 
   const currentSeason = new Date().getFullYear().toString();
@@ -128,7 +155,7 @@ export default async function PlayerDashboardPage() {
 
   // Attributes — averaged across every coach who assessed this player.
   type AttrRow = Partial<Record<AttrKey, number | null>>;
-  const attrRows: AttrRow[] = (player.player_attributes ?? []) as AttrRow[];
+  const attrRows: AttrRow[] = (attrsData ?? []) as AttrRow[];
   const attrs = averageAttributeRows(attrRows);
 
   // Overall: mean of the attributes this position is assessed on, else the
