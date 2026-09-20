@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
+import { friendlyError } from "@/lib/friendly-error";
 import {
   isCompleteParentLinkCode,
   isMissingParentLinkRpc,
@@ -59,7 +60,7 @@ export async function linkChild(formData: FormData) {
   if (isMissingParentLinkRpc(error)) {
     return { error: MISSING_PARENT_LINK_RPC_MESSAGE };
   }
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   const result = data as RedeemParentLinkResult | null;
   if (!result || result.error) {
@@ -83,7 +84,7 @@ export async function issueParentLinkCode(playerId: string, relationship?: strin
   });
 
   if (isMissingParentLinkRpc(error)) return { error: MISSING_PARENT_LINK_RPC_MESSAGE };
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   const result = data as { success?: boolean; code?: string; expires_at?: string; error?: string } | null;
   if (!result || result.error) return { error: result?.error ?? "Could not create a code." };
@@ -101,7 +102,7 @@ export async function listParentLinkCodes(playerId: string) {
   });
 
   if (isMissingParentLinkRpc(error)) return { error: MISSING_PARENT_LINK_RPC_MESSAGE };
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   const result = data as { success?: boolean; codes?: ParentLinkCodeSummary[]; error?: string } | null;
   if (!result || result.error) return { error: result?.error ?? "Could not load codes." };
@@ -115,7 +116,7 @@ export async function revokeParentLinkCode(codeId: string, playerId: string) {
   const { data, error } = await supabase.rpc("revoke_parent_link_code", { p_id: codeId });
 
   if (isMissingParentLinkRpc(error)) return { error: MISSING_PARENT_LINK_RPC_MESSAGE };
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   const result = data as { success?: boolean; error?: string } | null;
   if (!result || result.error) return { error: result?.error ?? "Could not revoke that code." };
@@ -138,7 +139,7 @@ export async function unlinkParent(parentId: string, playerId: string) {
     .eq("parent_id", parentId)
     .eq("player_id", playerId);
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   revalidatePath(`/dashboard/coach/squad/${playerId}`);
   revalidatePath(`/dashboard/admin/players/${playerId}`);

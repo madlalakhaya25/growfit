@@ -1,6 +1,7 @@
 "use server";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
+import { friendlyError } from "@/lib/friendly-error";
 
 /**
  * Full erasure of a player's record — POPIA's right to erasure needs an
@@ -54,7 +55,7 @@ export async function deletePlayerRecord(playerId: string, confirmName: string) 
   }
 
   const { error } = await supabase.from("players").delete().eq("id", playerId);
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   redirect("/dashboard/admin/players");
 }

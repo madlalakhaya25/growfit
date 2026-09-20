@@ -6,6 +6,7 @@ import { createPlayerSchema, createTeamSchema } from "@/lib/validation";
 import { requireUser } from "@/lib/auth";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { normalizeAccessCode } from "@/lib/access-codes";
+import { friendlyError } from "@/lib/friendly-error";
 
 async function getCoachTeamById(teamId: string) {
   const { supabase, user } = await requireUser();
@@ -29,7 +30,7 @@ export async function addPlayerToSquad(playerId: string, teamId: string) {
     .from("team_members")
     .upsert({ team_id: team.id, player_id: playerId, active: true }, { onConflict: "team_id,player_id" });
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath("/dashboard/coach/squad", "page");
   return { success: true };
 }
@@ -44,7 +45,7 @@ export async function removePlayerFromSquad(playerId: string, teamId: string) {
     .eq("team_id", team.id)
     .eq("player_id", playerId);
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath("/dashboard/coach/squad", "page");
   return { success: true };
 }
@@ -114,7 +115,7 @@ export async function updateTeam(teamId: string, formData: FormData) {
     .eq("id", teamId)
     .in("id", await getCoachedTeamIds(supabase, user.id));
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath("/dashboard/admin/teams");
   revalidatePath("/dashboard/coach");
   return { success: true };
@@ -129,7 +130,7 @@ export async function deleteTeam(teamId: string) {
     .eq("id", teamId)
     .in("id", await getCoachedTeamIds(supabase, user.id));
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath("/dashboard/admin/teams");
   revalidatePath("/dashboard/coach");
   redirect("/dashboard/admin/teams");
@@ -192,7 +193,7 @@ export async function joinByInviteCode(inviteCode: string) {
     p_code: normalizeAccessCode(inviteCode),
     p_expect_kind: "team_player",
   });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   const res = data as { error?: string; team_name?: string; already?: boolean; kind?: string };
   if (res?.error) return { error: res.error };
@@ -208,7 +209,7 @@ export async function joinByInviteCode(inviteCode: string) {
 export async function claimTeamByCoachCode(code: string) {
   const { supabase } = await requireUser();
   const { data, error } = await supabase.rpc("claim_team_by_coach_code", { p_code: code });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   const res = data as { error?: string; team_name?: string; already?: boolean; is_head?: boolean };
   if (res?.error) return { error: res.error };
 
@@ -225,7 +226,7 @@ export async function claimTeamByCoachCode(code: string) {
 export async function resetTeamCoachCode(teamId: string) {
   const { supabase } = await requireUser();
   const { data, error } = await supabase.rpc("reset_team_coach_code", { p_team_id: teamId });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   const res = data as { error?: string; coach_code?: string };
   if (res?.error) return { error: res.error };
   revalidatePath("/dashboard/admin/teams");
@@ -239,7 +240,7 @@ export async function removeTeamCoach(teamId: string, coachId: string) {
     p_team_id: teamId,
     p_coach_id: coachId,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   const res = data as { error?: string };
   if (res?.error) return { error: res.error };
   revalidatePath("/dashboard/admin/teams");
@@ -308,7 +309,7 @@ export async function assignPlayersToTeam(input: { teamId: string; playerIds: st
       { onConflict: "team_id,player_id" }
     );
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   revalidatePath("/dashboard/admin/players");
   revalidatePath("/dashboard/coach/squad");

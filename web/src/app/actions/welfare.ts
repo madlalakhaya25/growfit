@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { attendancePct, isBelowWelfareThreshold, ATTENDANCE_WINDOW_DAYS } from "@/lib/attendance";
+import { friendlyError } from "@/lib/friendly-error";
 
 export interface WelfareAlert {
   playerId: string;
@@ -111,7 +112,7 @@ export async function logWelfareCheckin(
     note: note.trim() || null,
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath("/dashboard/coach", "page");
   return { success: true };
 }

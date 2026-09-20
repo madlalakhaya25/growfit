@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
+import { friendlyError } from "@/lib/friendly-error";
 import {
   CORE_ATTR_KEYS,
   isMissingAttributeColumn,
@@ -86,7 +87,7 @@ export async function upsertPlayerAttributes(
   // serving a cache from before it was), so the expanded columns don't exist.
   // Retry with the six the original schema guarantees rather than throwing the
   // coach's whole assessment away, and say what needs fixing.
-  if (!isMissingAttributeColumn(error)) return { error: error.message };
+  if (!isMissingAttributeColumn(error)) return { error: friendlyError(error) };
 
   const core: Partial<Record<AttrKey, number>> = {};
   for (const key of CORE_ATTR_KEYS) {

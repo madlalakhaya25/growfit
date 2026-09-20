@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import type { Position } from "@/lib/types";
+import { friendlyError } from "@/lib/friendly-error";
 
 export type MilestoneCategory = "technical" | "tactical" | "physical" | "mental" | "leadership";
 
@@ -43,7 +44,7 @@ export async function saveMilestoneTemplate(
       .insert(payload));
   }
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath("/dashboard/admin/development", "page");
   return { success: true };
 }
@@ -54,7 +55,7 @@ export async function deleteMilestoneTemplate(id: string) {
     .from("development_milestone_templates")
     .delete()
     .eq("id", id);
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath("/dashboard/admin/development", "page");
   return { success: true };
 }
@@ -82,7 +83,7 @@ export async function toggleMilestoneCompletion(
         },
         { onConflict: "template_id,player_id,season" }
       );
-    if (error) return { error: error.message };
+    if (error) return { error: friendlyError(error) };
   } else {
     const { error } = await supabase
       .from("player_milestone_completions")
@@ -90,7 +91,7 @@ export async function toggleMilestoneCompletion(
       .eq("template_id", templateId)
       .eq("player_id", playerId)
       .eq("season", season);
-    if (error) return { error: error.message };
+    if (error) return { error: friendlyError(error) };
   }
 
   revalidatePath(`/dashboard/coach/squad/${playerId}`, "page");

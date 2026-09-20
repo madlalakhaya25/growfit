@@ -1,6 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
+import { friendlyError } from "@/lib/friendly-error";
 
 export async function markMatchAttendance(
   fixtureId: string,
@@ -20,7 +21,7 @@ export async function markMatchAttendance(
     { onConflict: "fixture_id,player_id" }
   );
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath(`/dashboard/coach/fixtures/${fixtureId}`, "page");
   return { success: true };
 }
@@ -52,7 +53,7 @@ export async function markTrainingAttendance(
     { onConflict: "session_id,player_id" }
   );
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath(`/dashboard/coach/training/${sessionId}`);
   return { success: true };
 }

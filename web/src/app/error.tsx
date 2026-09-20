@@ -25,14 +25,13 @@ export default function GlobalError({
       <div className="space-y-2">
         <h1 className="text-2xl font-bold">Something went wrong</h1>
         <p className="max-w-sm text-muted-foreground">
-          An unexpected error occurred. Our team has been notified.
-        </p>
-        <p className="max-w-sm font-mono text-xs text-destructive">
-          {error.message}
+          This page ran into a problem. Try again, or go back to the
+          dashboard — if it keeps happening, let your administrator know.
         </p>
         {error.digest && (
-          <p className="font-mono text-xs text-muted-foreground">
-            Error ID: {error.digest}
+          <p className="max-w-sm text-xs text-muted-foreground">
+            Reference: <span className="font-mono">{error.digest}</span> — mention
+            this if you report the problem.
           </p>
         )}
       </div>

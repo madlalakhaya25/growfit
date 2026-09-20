@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
+import { friendlyError } from "@/lib/friendly-error";
 
 export async function uploadMedia(formData: FormData) {
   const { supabase, user } = await requireUser();
@@ -109,6 +110,6 @@ export async function tagPlayer(mediaId: string, playerId: string) {
     .from("media_tags")
     .upsert({ media_id: mediaId, player_id: playerId }, { onConflict: "media_id,player_id" });
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   return { success: true };
 }

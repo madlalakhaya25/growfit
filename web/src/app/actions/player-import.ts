@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { extractPdfHeadshots, type CardHeadshot } from "@/lib/pdf-headshots";
 import { attachHeadshotsByIdentity } from "@/lib/headshot-matching";
+import { friendlyError } from "@/lib/friendly-error";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -357,7 +358,7 @@ export async function createImportedPlayers(input: {
     )
     .select("id");
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   const insertedIds = (inserted ?? []) as { id: string }[];
 
   // Optionally drop them straight into a squad.

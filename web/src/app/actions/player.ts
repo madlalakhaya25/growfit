@@ -2,6 +2,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
+import { friendlyError } from "@/lib/friendly-error";
 
 export async function claimPlayerProfile(formData: FormData) {
   const { supabase } = await requireUser();
@@ -15,7 +16,7 @@ export async function claimPlayerProfile(formData: FormData) {
     p_share_token: token,
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   const result = data as { error?: string; success?: boolean };
   if (result?.error) return { error: result.error };
@@ -44,7 +45,7 @@ export async function claimPlayerByRegistration(formData: FormData) {
     p_date_of_birth: dob,
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   const result = data as { error?: string; success?: boolean };
   if (result?.error) return { error: result.error };
 
@@ -69,7 +70,7 @@ export async function updateMyRegistrationNumbers(formData: FormData) {
     p_id_number: idNumber,
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   const result = data as { error?: string; success?: boolean };
   if (result?.error) return { error: result.error };
 
