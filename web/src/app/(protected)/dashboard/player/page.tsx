@@ -18,8 +18,10 @@ import { MediaGallery } from "@/components/media/media-gallery";
 import { MyPositionPanel } from "@/components/tactics/my-position-panel";
 import {
   ALL_ATTR_SELECT,
+  CORE_ATTR_SELECT,
   averageAttributeRows,
   calculateOverall,
+  isMissingAttributeColumn,
   type AttrKey,
 } from "@/lib/attributes";
 
@@ -30,33 +32,90 @@ export default async function PlayerDashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
 
-  const { data: player } = await supabase
+  // player_attributes is fetched separately from the base player row, not
+  // embedded in one combined select. It used to be embedded — but a lagging
+  // migration (attribute columns are optional at runtime; see
+  // isMissingAttributeColumn below) failed the WHOLE query when embedded,
+  // which made a genuinely linked player's entire passport disappear behind
+  // the "not yet linked, waiting to be added" screen. Same fix already
+  // applied on the coach's player-detail page; see isMissingAttributeColumn's
+  // doc comment in lib/attributes.ts for the general pattern.
+  //
+  // player_attributes.player_id refers to players.id, not this profile's own
+  // id, so it can't be fetched in parallel with the row that resolves it —
+  // this has to run after `player` comes back.
+  const { data: player, error: playerError } = await supabase
     .from("players")
     .select(`
       id, full_name, position, preferred_foot, date_of_birth, photo_url, share_token, mysafa_number, id_number,
-      player_ratings ( rating, created_at, fixtures ( opponent, fixture_date ) ),
-      player_attributes ( ${ALL_ATTR_SELECT} )
+      player_ratings ( rating, created_at, fixtures ( opponent, fixture_date ) )
     `)
     .eq("profile_id", user.id)
     .single();
 
   if (!player) {
+    // .single() also errors (PGRST116) when it simply finds no matching row —
+    // that's the genuine "this account isn't linked to a player yet" case.
+    // Any other error means the query itself failed (RLS, network, a lagging
+    // migration), and showing the same "waiting to be added" screen for that
+    // is exactly the bug this page was already fixed for once: a real query
+    // failure made a genuinely linked player look unclaimed.
+    const notYetLinked = !playerError || playerError.code === "PGRST116";
+    if (!notYetLinked) {
+      console.error("[player dashboard] failed to load player row:", playerError);
+    }
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">My Passport</h1>
 
-        <div className="rounded-xl border border-border bg-card p-6 space-y-2">
-          <p className="text-base font-semibold">You&apos;re all set — waiting to be added</p>
-          <p className="text-sm text-muted-foreground">
-            Your account is ready. As soon as your coach adds you to a squad, your
-            passport, ratings and fixtures appear here automatically. If your coach
-            has already given you a share token, enter it below to link your profile now.
-          </p>
-        </div>
+        {notYetLinked ? (
+          <>
+            <div className="rounded-xl border border-border bg-card p-6 space-y-2">
+              <p className="text-base font-semibold">You&apos;re all set — waiting to be added</p>
+              <p className="text-sm text-muted-foreground">
+                Your account is ready. As soon as your coach adds you to a squad, your
+                passport, ratings and fixtures appear here automatically. If your coach
+                has already given you a share token, enter it below to link your profile now.
+              </p>
+            </div>
 
-        <ClaimProfileForm />
+            <ClaimProfileForm />
+          </>
+        ) : (
+          <div className="rounded-xl border border-destructive/50 bg-card p-6 space-y-2">
+            <p className="text-base font-semibold">Couldn&apos;t load your passport</p>
+            <p className="text-sm text-muted-foreground">
+              Something went wrong loading your profile. Try refreshing the
+              page — if it keeps happening, let your coach or administrator know.
+            </p>
+          </div>
+        )}
       </div>
     );
+  }
+
+  const wideAttrs = await supabase
+    .from("player_attributes")
+    .select(ALL_ATTR_SELECT)
+    .eq("player_id", player.id);
+
+  let attrsData: Partial<Record<AttrKey, number | null>>[] | null = wideAttrs.data;
+  let attrsError = wideAttrs.error;
+  if (isMissingAttributeColumn(wideAttrs.error)) {
+    const coreAttrs = await supabase
+      .from("player_attributes")
+      .select(CORE_ATTR_SELECT)
+      .eq("player_id", player.id);
+    attrsData = coreAttrs.data;
+    attrsError = coreAttrs.error;
+  }
+  if (attrsError) {
+    // Not a missing-column case (that's handled above) — a genuine failure.
+    // Degrade to "no attribute ratings shown" rather than taking the whole
+    // passport down, but don't drop it silently: log it, and say so near the
+    // attribute summary below rather than rendering it identically to "no
+    // assessment yet".
+    console.error("[player dashboard] failed to load attributes:", attrsError);
   }
 
   const currentSeason = new Date().getFullYear().toString();
@@ -128,7 +187,7 @@ export default async function PlayerDashboardPage() {
 
   // Attributes — averaged across every coach who assessed this player.
   type AttrRow = Partial<Record<AttrKey, number | null>>;
-  const attrRows: AttrRow[] = (player.player_attributes ?? []) as AttrRow[];
+  const attrRows: AttrRow[] = (attrsData ?? []) as AttrRow[];
   const attrs = averageAttributeRows(attrRows);
 
   // Overall: mean of the attributes this position is assessed on, else the
@@ -226,6 +285,11 @@ export default async function PlayerDashboardPage() {
                 </Badge>
               )}
             </div>
+            {attrsError && (
+              <p className="text-xs text-muted-foreground pt-2 border-t border-border">
+                Couldn&apos;t load your attribute ratings right now.
+              </p>
+            )}
             <AttributeSummary
               attrs={attrs}
               position={player.position}

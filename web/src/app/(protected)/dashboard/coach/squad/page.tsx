@@ -34,7 +34,17 @@ export default async function SquadPage({
 
   const team = allTeams.find((t: { id: string; name: string; age_group: string | null; invite_code: string }) => t.id === teamParam) ?? allTeams[0];
 
-  const { data: members } = await supabase
+  // Capture and check the error rather than only destructuring data — a
+  // failed query and a genuinely empty squad both leave `members` null/[],
+  // and silently rendering "No players yet, add your first player" for a
+  // real failure sent a coach looking at a squad the dashboard card had just
+  // correctly counted straight into re-adding players who were already
+  // there. See the identical fix on the player dashboard for the mechanism
+  // this most plausibly was: a lagging migration failing a query outright
+  // rather than degrading — this query doesn't touch the attribute columns
+  // that bit that page, but the same "never let data go silently null" rule
+  // applies to any query whose failure could be mistaken for an empty state.
+  const { data: members, error: membersError } = await supabase
     .from("team_members")
     .select(`
       player_id, joined_at,
@@ -106,7 +116,8 @@ export default async function SquadPage({
         <div>
           <h1 className="text-2xl font-bold">Squad</h1>
           <p className="text-sm text-muted-foreground">
-            {team.name}{team.age_group && ` · ${team.age_group}`} · {squad.length} {squad.length === 1 ? "player" : "players"}
+            {team.name}{team.age_group && ` · ${team.age_group}`}
+            {!membersError && ` · ${squad.length} ${squad.length === 1 ? "player" : "players"}`}
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
@@ -126,7 +137,17 @@ export default async function SquadPage({
         </div>
       </div>
 
-      {squad.length === 0 ? (
+      {membersError ? (
+        <Card className="border-destructive/50">
+          <CardHeader>
+            <CardTitle>Couldn&apos;t load this squad</CardTitle>
+            <CardDescription>
+              Something went wrong reading the player list — this isn&apos;t an empty
+              squad. Try reloading; if it keeps happening, tell your admin.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : squad.length === 0 ? (
         <Card>
           <CardHeader>
             <CardTitle>No players yet</CardTitle>
