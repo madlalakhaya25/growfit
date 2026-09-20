@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Copy, Check, RefreshCw, UserMinus } from "lucide-react";
+import { toast } from "sonner";
 import { resetTeamCoachCode, removeTeamCoach } from "@/app/actions/squad";
 
 /** The coach code for a team, with copy and rotate. */
@@ -23,10 +24,13 @@ export function CoachCodeBlock({ teamId, code }: { teamId: string; code: string 
     start(async () => {
       try {
         const res = await resetTeamCoachCode(teamId);
-        if (res.error) { setError(res.error); return; }
+        if (res.error) { setError(res.error); toast.error(res.error); return; }
         setCurrent(res.coachCode ?? null);
+        toast.success("Coach code reset.");
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not reset the code.");
+        const message = err instanceof Error ? err.message : "Could not reset the code.";
+        setError(message);
+        toast.error(message);
       }
     });
   }
@@ -102,10 +106,12 @@ export function RemoveCoachButton({
             setError(null);
             try {
               const res = await removeTeamCoach(teamId, coachId);
-              if (res.error) { setError(res.error); return; }
+              if (res.error) { setError(res.error); toast.error(res.error); return; }
               setConfirming(false);
             } catch (err) {
-              setError(err instanceof Error ? err.message : "Could not remove the coach.");
+              const message = err instanceof Error ? err.message : "Could not remove the coach.";
+              setError(message);
+              toast.error(message);
             }
           })
         }

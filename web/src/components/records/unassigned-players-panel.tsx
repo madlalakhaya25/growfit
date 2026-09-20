@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { UserPlus, Users, CheckCircle2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { assignPlayersToTeam } from "@/app/actions/squad";
 import { POSITIONS } from "@/lib/types";
 import { calculateAge } from "@/lib/player";
@@ -50,13 +51,17 @@ export function UnassignedPlayersPanel({
     start(async () => {
       try {
         const res = await assignPlayersToTeam({ teamId, playerIds: [...selected] });
-        if (res.error) { setError(res.error); return; }
+        if (res.error) { setError(res.error); toast.error(res.error); return; }
         const team = teams.find((t) => t.id === teamId);
-        setDone(`${res.count} player${res.count === 1 ? "" : "s"} added to ${team?.name ?? "the squad"}.`);
+        const message = `${res.count} player${res.count === 1 ? "" : "s"} added to ${team?.name ?? "the squad"}.`;
+        setDone(message);
+        toast.success(message);
         setSelected(new Set());
         router.refresh();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not add those players.");
+        const message = err instanceof Error ? err.message : "Could not add those players.";
+        setError(message);
+        toast.error(message);
       }
     });
   }

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { BookOpen, PlayCircle } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { addDrillFromLibrary } from "@/app/actions/drills";
 
@@ -47,7 +48,8 @@ export function AddFromLibrary({
     setError(null);
     startTransition(async () => {
       const result = await addDrillFromLibrary(sessionId, drillId);
-      if (result?.error) setError(result.error);
+      if (result?.error) { setError(result.error); toast.error(result.error); }
+      else toast.success("Drill added.");
     });
   }
 

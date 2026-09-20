@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Lightbulb, Play, Wand2 } from "lucide-react";
+import { toast } from "sonner";
 import {
   TACTICAL_CATEGORIES,
   TACTICAL_CONCEPTS,
@@ -31,7 +32,7 @@ export function TacticalConceptPanel({ teamId }: { teamId?: string } = {}) {
     setSession(null);
     startExplain(async () => {
       const result = await explainTacticalConcept({ conceptId, ageGroup, teamId });
-      if (result.error) setError(result.error);
+      if (result.error) { setError(result.error); toast.error(result.error); }
       else setExplanation(result.explanation ?? null);
     });
   }
@@ -46,7 +47,7 @@ export function TacticalConceptPanel({ teamId }: { teamId?: string } = {}) {
         durationMinutes: 75,
         squadSize: 16,
       });
-      if (result.error) setError(result.error);
+      if (result.error) { setError(result.error); toast.error(result.error); }
       else setSession(result.plan ?? null);
     });
   }

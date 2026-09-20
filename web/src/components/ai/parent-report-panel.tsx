@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Mail } from "lucide-react";
+import { toast } from "sonner";
 import { generateParentReport } from "@/app/actions/parent-report";
 
 interface Props {
@@ -18,7 +19,7 @@ export function ParentReportPanel({ playerId, playerName }: Props) {
     setError(null);
     startTransition(async () => {
       const result = await generateParentReport(playerId);
-      if (result.error) setError(result.error);
+      if (result.error) { setError(result.error); toast.error(result.error); }
       else setReport(result.report ?? null);
     });
   }

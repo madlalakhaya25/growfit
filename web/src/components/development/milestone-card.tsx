@@ -1,5 +1,6 @@
 "use client";
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { toggleMilestoneCompletion } from "@/app/actions/development";
 import type { MilestoneCategory } from "@/app/actions/development";
@@ -50,7 +51,7 @@ export function MilestoneCard({
     setError(null);
     startTransition(async () => {
       const res = await toggleMilestoneCompletion(templateId, playerId, season, false);
-      if (res?.error) { setError(res.error); return; }
+      if (res?.error) { setError(res.error); toast.error(res.error); return; }
       setCompleted(false);
       setNote("");
     });
@@ -60,7 +61,7 @@ export function MilestoneCard({
     setError(null);
     startTransition(async () => {
       const res = await toggleMilestoneCompletion(templateId, playerId, season, true, note || undefined);
-      if (res?.error) { setError(res.error); return; }
+      if (res?.error) { setError(res.error); toast.error(res.error); return; }
       setCompleted(true);
       setShowNote(false);
     });

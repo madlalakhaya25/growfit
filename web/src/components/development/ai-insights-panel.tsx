@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Sparkles } from "lucide-react";
+import { toast } from "sonner";
 import { getPlayerInsights } from "@/app/actions/ai-insights";
 
 export function AiInsightsPanel({ playerId }: { playerId: string }) {
@@ -13,7 +14,7 @@ export function AiInsightsPanel({ playerId }: { playerId: string }) {
     setError(null);
     startTransition(async () => {
       const result = await getPlayerInsights(playerId);
-      if (result.error) setError(result.error);
+      if (result.error) { setError(result.error); toast.error(result.error); }
       else setInsights(result.insights ?? null);
     });
   }

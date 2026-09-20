@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Wand2, Plus, X, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { generateSessionPlan } from "@/app/actions/session-generator";
 import { createTrainingSessionWithDrills } from "@/app/actions/training";
@@ -136,6 +137,7 @@ export function NewSessionForm({
       });
       if (result.error) {
         setAiError(result.error);
+        toast.error(result.error);
       } else if (result.plan) {
         const parsed = parseAIDrills(result.plan);
         if (parsed.length === 0) {
@@ -204,6 +206,7 @@ export function NewSessionForm({
       });
       if (result.error) {
         setSubmitError(result.error);
+        toast.error(result.error);
       } else if (result.id) {
         router.push(`/dashboard/coach/training/${result.id}`);
       }

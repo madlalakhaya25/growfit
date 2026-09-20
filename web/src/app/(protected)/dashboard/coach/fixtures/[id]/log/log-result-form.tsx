@@ -2,6 +2,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Star } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -65,7 +66,9 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel }
           player_id, rating, note: note || undefined,
         })),
       });
-      if (res && "error" in res) setError(res.error);
+      // No else branch here — on success `logMatch` calls redirect(), which
+      // never returns to this callback; it navigates away instead.
+      if (res && "error" in res) { setError(res.error); toast.error(res.error); }
     });
   }
 

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { FileText } from "lucide-react";
+import { toast } from "sonner";
 import { generateMatchReport } from "@/app/actions/match-report";
 
 export function MatchReportPanel({ fixtureId }: { fixtureId: string }) {
@@ -13,7 +14,7 @@ export function MatchReportPanel({ fixtureId }: { fixtureId: string }) {
     setError(null);
     startTransition(async () => {
       const result = await generateMatchReport(fixtureId);
-      if (result.error) setError(result.error);
+      if (result.error) { setError(result.error); toast.error(result.error); }
       else setReport(result.report ?? null);
     });
   }

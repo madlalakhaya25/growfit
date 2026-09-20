@@ -1,6 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { Star, Pencil, Trash2, Check, X } from "lucide-react";
+import { toast } from "sonner";
 import { updateRating, deleteRating } from "@/app/actions/ratings";
 
 interface Props {
@@ -40,6 +41,7 @@ export function RatingEditRow({
       const result = await updateRating(ratingId, playerId, { rating, note });
       if (result?.error) {
         setError(result.error);
+        toast.error(result.error);
       } else {
         setMode("view");
       }
@@ -52,6 +54,7 @@ export function RatingEditRow({
       const result = await deleteRating(ratingId, playerId);
       if (result?.error) {
         setError(result.error);
+        toast.error(result.error);
         setMode("view");
       }
       // on success the row is removed by revalidatePath — no state update needed

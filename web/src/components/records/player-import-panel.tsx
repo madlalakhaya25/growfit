@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Upload, Loader2, Plus, Trash2, UserPlus, CheckCircle2, ImagePlus, X } from "lucide-react";
+import { toast } from "sonner";
 import { extractPlayersFromPdf, createImportedPlayers, attachHeadshotsToExisting, type ImportRow } from "@/app/actions/player-import";
 import { POSITIONS } from "@/lib/types";
 
@@ -67,7 +68,7 @@ export function PlayerImportPanel({
       const fd = new FormData();
       fd.append("file", file);
       const res = await extractPlayersFromPdf(fd);
-      if (res.error) { setError(res.error); return; }
+      if (res.error) { setError(res.error); toast.error(res.error); return; }
       setPhotoWarning(res.photoWarning ?? null);
       setUnassignedPhotos((prev) => [...prev, ...(res.unassignedPhotos ?? [])]);
       const startIndex = rows.length;
@@ -82,11 +83,11 @@ export function PlayerImportPanel({
       });
     } catch (err) {
       // Without this the spinner ran forever on any thrown error.
-      setError(
-        err instanceof Error
-          ? `Upload failed: ${err.message}`
-          : "Upload failed. Check your connection and try again."
-      );
+      const message = err instanceof Error
+        ? `Upload failed: ${err.message}`
+        : "Upload failed. Check your connection and try again.";
+      setError(message);
+      toast.error(message);
     } finally {
       setBusy(null);
       if (fileRef.current) fileRef.current.value = "";
@@ -128,9 +129,14 @@ export function PlayerImportPanel({
           : Promise.resolve({ attached: 0 }),
       ]);
 
-      if ("error" in createRes && createRes.error) { setError(createRes.error); return; }
-      if ("error" in attachRes && attachRes.error) { setError(attachRes.error); return; }
+      if ("error" in createRes && createRes.error) { setError(createRes.error); toast.error(createRes.error); return; }
+      if ("error" in attachRes && attachRes.error) { setError(attachRes.error); toast.error(attachRes.error); return; }
 
+      toast.success(
+        (createRes.created ?? 0) > 0
+          ? `${createRes.created} player${createRes.created === 1 ? "" : "s"} created.`
+          : "Import complete."
+      );
       setResult({
         created: createRes.created ?? 0,
         skipped: createRes.skipped ?? [],
@@ -143,7 +149,9 @@ export function PlayerImportPanel({
       setUnassignedPhotos([]);
       setPhotoWarning(null);
     } catch (err) {
-      setError(err instanceof Error ? `Could not create players: ${err.message}` : "Could not create players.");
+      const message = err instanceof Error ? `Could not create players: ${err.message}` : "Could not create players.";
+      setError(message);
+      toast.error(message);
     } finally {
       setBusy(null);
     }

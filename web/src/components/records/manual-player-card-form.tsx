@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Loader2, ImagePlus, UserPlus, Download, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
 import { createImportedPlayers } from "@/app/actions/player-import";
 import { POSITIONS } from "@/lib/types";
 
@@ -80,18 +81,21 @@ export function ManualPlayerCardForm({ teams }: { teams: ManualCardTeam[] }) {
         }],
         teamId: teamId || undefined,
       });
-      if (res.error) { setError(res.error); return; }
+      if (res.error) { setError(res.error); toast.error(res.error); return; }
       if (!res.playerIds || res.playerIds.length === 0) {
-        setError(
-          res.skipped?.length
-            ? "A player with that registration number already exists."
-            : "Could not create the player."
-        );
+        const message = res.skipped?.length
+          ? "A player with that registration number already exists."
+          : "Could not create the player.";
+        setError(message);
+        toast.error(message);
         return;
       }
+      toast.success(`${fullName.trim()} created.`);
       setCreated({ id: res.playerIds[0], name: fullName.trim() });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create the player.");
+      const message = err instanceof Error ? err.message : "Could not create the player.";
+      setError(message);
+      toast.error(message);
     } finally {
       setBusy(false);
     }

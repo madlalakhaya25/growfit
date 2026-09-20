@@ -1,6 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { Plus, Pencil, Trash2, X, Check } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { saveMilestoneTemplate, deleteMilestoneTemplate } from "@/app/actions/development";
 import type { MilestoneCategory, MilestoneTemplateData } from "@/app/actions/development";
@@ -48,7 +49,7 @@ function MilestoneRow({ template, academyId }: { template: TemplateRow; academyI
         age_group: (formData.get("age_group") as string | "") || null,
         sort_order: Number(formData.get("sort_order") ?? 0),
       });
-      if (res?.error) { setError(res.error); return; }
+      if (res?.error) { setError(res.error); toast.error(res.error); return; }
       setEditing(false);
     });
   }
@@ -56,7 +57,8 @@ function MilestoneRow({ template, academyId }: { template: TemplateRow; academyI
   function handleDelete() {
     if (!confirm(`Delete milestone "${template.title}"?`)) return;
     start(async () => {
-      await deleteMilestoneTemplate(template.id);
+      const res = await deleteMilestoneTemplate(template.id);
+      if (res?.error) toast.error(res.error);
     });
   }
 
@@ -163,7 +165,8 @@ function AddMilestoneForm({ academyId }: { academyId: string }) {
         age_group: (formData.get("age_group") as string | "") || null,
         sort_order: Number(formData.get("sort_order") ?? 0),
       });
-      if (res?.error) { setError(res.error); return; }
+      if (res?.error) { setError(res.error); toast.error(res.error); return; }
+      toast.success("Milestone added.");
       setOpen(false);
     });
   }
