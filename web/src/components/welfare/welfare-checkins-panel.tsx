@@ -35,7 +35,8 @@ export function WelfareCheckinsPanel({ alerts }: Props) {
               <div className="min-w-0">
                 <p className="text-sm font-medium truncate">{a.fullName}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {a.teamName} · {a.attendancePct}% attendance
+                  {a.teamName} · {a.attendancePct}% of {a.sessionsAssessed}{" "}
+                  session{a.sessionsAssessed === 1 ? "" : "s"}
                   {a.lastCheckin && (
                     <>
                       {" · last checked in "}

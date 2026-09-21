@@ -30,7 +30,7 @@ export type QueuedAttendanceWrite =
       kind: "training";
       sessionId: string;
       playerId: string;
-      status: "present" | "absent";
+      status: "present" | "absent" | "late" | "excused";
       queuedAt: string;
     };
 
