@@ -17,6 +17,8 @@
  *    a button and bill the academy's Gemini key indefinitely.
  */
 
+import { checkRateLimit, __resetRateLimitMemory } from "./rate-limit";
+
 /**
  * Plain-language AI failure, with the original logged rather than shown.
  *
@@ -60,15 +62,13 @@ export function aiError(err: unknown, fallback = "The AI service is unavailable 
 
 // ── Per-user call budget ──────────────────────────────────────────
 //
-// In-memory and therefore per process instance, exactly like the auth
-// limiter in `proxy.ts` and with the same caveat: on a multi-instance
-// deployment the real ceiling is this times the instance count. A shared
-// store (Upstash Redis) is the proper fix and needs credentials this
-// environment does not have. It is still worth having — the failure it
-// prevents is an unbounded bill, and an approximate ceiling bounds that,
-// where no ceiling at all does not.
-const aiCallLog = new Map<string, { count: number; resetAt: number }>();
-
+// Goes through the same lib/rate-limit.ts abstraction proxy.ts's auth
+// limiter uses: in-memory per process instance until UPSTASH_REDIS_REST_URL
+// / UPSTASH_REDIS_REST_TOKEN are set, at which point both switch to a
+// shared Redis-backed limiter with no call-site change. Worth having even
+// in-memory — the failure it prevents is an unbounded bill, and an
+// approximate per-instance ceiling bounds that, where no ceiling at all
+// does not.
 /** An hour is long enough to cover a session on the touchline. */
 const AI_BUDGET = { windowMs: 60 * 60_000, max: 60 };
 
@@ -79,31 +79,19 @@ const AI_BUDGET = { windowMs: 60 * 60_000, max: 60 };
  * call may proceed. Deliberately counts *attempts*, not successes: a
  * failing call still costs a request to the provider.
  */
-export function checkAiBudget(userId: string): string | null {
-  const now = Date.now();
-  const entry = aiCallLog.get(userId);
+export async function checkAiBudget(userId: string): Promise<string | null> {
+  const { allowed, retryAfterMs } = await checkRateLimit({
+    key: `ai:${userId}`,
+    windowMs: AI_BUDGET.windowMs,
+    max: AI_BUDGET.max,
+  });
+  if (allowed) return null;
 
-  if (!entry || entry.resetAt <= now) {
-    aiCallLog.set(userId, { count: 1, resetAt: now + AI_BUDGET.windowMs });
-    return null;
-  }
-  if (entry.count >= AI_BUDGET.max) {
-    const minutes = Math.max(1, Math.ceil((entry.resetAt - now) / 60_000));
-    return `That's a lot of AI requests in one go — try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`;
-  }
-  entry.count += 1;
-
-  // The map would otherwise grow one entry per user forever. Cheap sweep,
-  // only when it has grown enough to be worth one.
-  if (aiCallLog.size > 500) {
-    for (const [key, value] of aiCallLog) {
-      if (value.resetAt <= now) aiCallLog.delete(key);
-    }
-  }
-  return null;
+  const minutes = Math.max(1, Math.ceil((retryAfterMs ?? AI_BUDGET.windowMs) / 60_000));
+  return `That's a lot of AI requests in one go — try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`;
 }
 
 /** Test seam — the budget is process-global, so tests must be able to reset it. */
 export function __resetAiBudget() {
-  aiCallLog.clear();
+  __resetRateLimitMemory();
 }

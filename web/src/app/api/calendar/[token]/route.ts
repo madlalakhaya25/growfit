@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { buildIcsCalendar, type IcsEvent, type IcsEventStatus } from "@/lib/ics";
+import { reportError } from "@/lib/report-error";
 
 /**
  * Subscribable calendar feed: `/api/calendar/<token>.ics`
@@ -63,7 +64,7 @@ export async function GET(
 
   if (error) {
     // Don't leak the reason: this endpoint is unauthenticated by design.
-    console.error("[calendar] get_calendar_events failed:", error);
+    reportError(error, { scope: "calendar feed" });
     return new NextResponse("Calendar unavailable", { status: 503 });
   }
 

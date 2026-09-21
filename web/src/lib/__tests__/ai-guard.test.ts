@@ -55,20 +55,20 @@ describe("aiError", () => {
 describe("checkAiBudget", () => {
   beforeEach(() => __resetAiBudget());
 
-  it("allows calls under the budget", () => {
-    expect(checkAiBudget("coach-1")).toBeNull();
-    expect(checkAiBudget("coach-1")).toBeNull();
+  it("allows calls under the budget", async () => {
+    expect(await checkAiBudget("coach-1")).toBeNull();
+    expect(await checkAiBudget("coach-1")).toBeNull();
   });
 
-  it("blocks once the hourly budget is spent, and says when to retry", () => {
-    for (let i = 0; i < 60; i++) expect(checkAiBudget("coach-2")).toBeNull();
-    const blocked = checkAiBudget("coach-2");
+  it("blocks once the hourly budget is spent, and says when to retry", async () => {
+    for (let i = 0; i < 60; i++) expect(await checkAiBudget("coach-2")).toBeNull();
+    const blocked = await checkAiBudget("coach-2");
     expect(blocked).toMatch(/try again in \d+ minute/i);
   });
 
-  it("budgets each user separately", () => {
-    for (let i = 0; i < 60; i++) checkAiBudget("coach-3");
-    expect(checkAiBudget("coach-3")).not.toBeNull();
-    expect(checkAiBudget("coach-4")).toBeNull();
+  it("budgets each user separately", async () => {
+    for (let i = 0; i < 60; i++) await checkAiBudget("coach-3");
+    expect(await checkAiBudget("coach-3")).not.toBeNull();
+    expect(await checkAiBudget("coach-4")).toBeNull();
   });
 });

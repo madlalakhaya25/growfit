@@ -15,6 +15,7 @@ import {
   type AttrKey,
 } from "@/lib/attributes";
 import { friendlyError } from "@/lib/friendly-error";
+import { reportError } from "@/lib/report-error";
 
 /**
  * Assembles the real squad into a compact text brief the AI features share.
@@ -107,7 +108,7 @@ export async function buildSquadContext(
 
   const result = narrow ?? wide;
   if (result.error) {
-    console.error("[squad context] failed to load squad:", result.error);
+    reportError(result.error, { scope: "buildSquadContext", extra: { teamId } });
     return { error: friendlyError(result.error) };
   }
 

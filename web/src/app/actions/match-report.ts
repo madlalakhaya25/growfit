@@ -14,7 +14,7 @@ export async function generateMatchReport(
     const { supabase, user } = await requireUser();
     // One AI call against this user's hourly budget. Counts attempts, not
     // successes: a failed call still costs a request to the provider.
-    const overBudget = checkAiBudget(user.id);
+    const overBudget = await checkAiBudget(user.id);
     if (overBudget) return { error: overBudget };
 
 

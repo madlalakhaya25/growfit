@@ -24,6 +24,7 @@ import {
   isMissingAttributeColumn,
   type AttrKey,
 } from "@/lib/attributes";
+import { reportError } from "@/lib/report-error";
 
 
 
@@ -62,7 +63,7 @@ export default async function PlayerDashboardPage() {
     // failure made a genuinely linked player look unclaimed.
     const notYetLinked = !playerError || playerError.code === "PGRST116";
     if (!notYetLinked) {
-      console.error("[player dashboard] failed to load player row:", playerError);
+      reportError(playerError, { scope: "player dashboard", extra: { query: "players" } });
     }
     return (
       <div className="space-y-6">
@@ -115,7 +116,7 @@ export default async function PlayerDashboardPage() {
     // passport down, but don't drop it silently: log it, and say so near the
     // attribute summary below rather than rendering it identically to "no
     // assessment yet".
-    console.error("[player dashboard] failed to load attributes:", attrsError);
+    reportError(attrsError, { scope: "player dashboard", extra: { query: "player_attributes" } });
   }
 
   const currentSeason = new Date().getFullYear().toString();

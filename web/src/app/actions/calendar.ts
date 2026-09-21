@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { friendlyError } from "@/lib/friendly-error";
+import { reportError } from "@/lib/report-error";
 
 /**
  * Issue (or rotate) the caller's personal calendar-feed token.
@@ -24,7 +25,7 @@ export async function issueCalendarToken(rotate = false) {
   if (error) {
     // 42883 is undefined_function — migration 037 has not been applied.
     if (error.code === "42883") {
-      console.error("[calendar] issue_calendar_token missing:", error);
+      reportError(error, { scope: "issueCalendarToken", extra: { cause: "migration 037 not applied" } });
       return {
         error:
           "Calendar subscriptions aren't available yet — an administrator " +

@@ -36,6 +36,7 @@ import { ExtendedInfoForm } from "@/components/records/extended-info-form";
 import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
 import { ProfileTabs } from "./profile-tabs";
+import { reportError } from "@/lib/report-error";
 
 
 export default async function PlayerDetailPage({
@@ -103,7 +104,7 @@ export default async function PlayerDetailPage({
     // policy recursion, a network failure) was previously swallowed with no
     // trace at all: the attribute card just renders empty, identical to "not
     // rated yet," with nothing in any log to tell the two apart.
-    console.error("[coach player page] failed to load player_attributes:", myAttrsResult.error);
+    reportError(myAttrsResult.error, { scope: "coach player page", extra: { query: "player_attributes (own)" } });
   }
 
   // Same lagging-migration fallback for the squad-wide read.
@@ -115,7 +116,7 @@ export default async function PlayerDetailPage({
       .eq("player_id", playerId);
     allAttrRows = coreRows ?? [];
   } else if (allAttrsResult.error) {
-    console.error("[coach player page] failed to load squad-wide attributes:", allAttrsResult.error);
+    reportError(allAttrsResult.error, { scope: "coach player page", extra: { query: "player_attributes (all coaches)" } });
   }
 
   if (!player) notFound();

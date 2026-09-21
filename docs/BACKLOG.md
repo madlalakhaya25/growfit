@@ -22,10 +22,10 @@ commit.
 
 | # | Item | What it needs | Source |
 |---|---|---|---|
-| 0.1 | **Apply migrations 030–037** | Someone with Supabase SQL-editor or CLI access | IP Step 0 |
-| 0.2 | Error reporting (Sentry or equivalent) | An account and a DSN | IP-6 |
+| 0.1 | **Apply migrations 030–037** | Someone with Supabase SQL-editor or CLI access | IP Step 0 — **verified, see `MIGRATION_RUNBOOK.md`** |
+| 0.2 | Error reporting (Sentry or equivalent) | An account and a DSN | IP-6 — **seam built, see below** |
 | 0.3 | Seed a test Supabase project + Playwright auth states | A real test project and credentials | RM |
-| 0.4 | Move rate limiting off in-memory | A shared store (Upstash Redis) and credentials | RM |
+| 0.4 | Move rate limiting off in-memory | A shared store (Upstash Redis) and credentials | RM — **seam built, see below** |
 
 **0.1 is not optional and not ranked.** Migration `035` fixes a `42P17`
 recursion that fails *every* read of `players` — the squad page, the player
@@ -34,15 +34,45 @@ training attendance recordable at all. `037` is what makes the calendar feed
 resolve. Until they run, most of this app does not work in production and
 nothing below matters.
 
+None of this could be applied from here — no Supabase CLI, no project link,
+no credentials. What *could* be done: stood up a throwaway local PostgreSQL
+16 with Supabase's `auth.uid()`/roles reproduced, ran the full `001`→`037`
+chain, and specifically reproduced the `42P17` recursion (restored migration
+032's pre-035 policy shape, confirmed it fails, reapplied 035, confirmed it
+resolves) rather than just checking the migration runs. Also proved 036's
+constraint swap rejects the legacy RSVP values, and 037's token rotation and
+cross-academy isolation. Full method and results in `MIGRATION_RUNBOOK.md` —
+that document is what the person applying these should read, not this line.
+
 **0.2 is the most valuable thing on this entire page.** Three separate fixes
 in September were "make a swallowed error visible", and all three made it
 visible by writing to a Vercel function log nobody reads. Until this exists,
 the fourth silent failure will be found the same way: by a coach reporting it
 weeks later.
 
+Can't create a Sentry account from here, so `lib/report-error.ts` is the seam
+instead: one `reportError()` call, used at every site that used to end in a
+bare `console.error`, that degrades to structured console output today and
+starts shipping to a real tracker the moment `SENTRY_DSN` exists — no call
+site changes. It also redacts anything that looks like the personal data this
+academy holds under POPIA (ID numbers, medical notes, contact details) before
+anything is logged, so the seam doesn't become its own compliance problem
+once a DSN is added.
+
 **0.4 now covers two things.** `proxy.ts`'s auth limiter and the per-user AI
 budget added this month are both in-memory, so on a multi-instance deployment
 the real ceiling is the limit times the instance count.
+
+Same shape as 0.2: `lib/rate-limit.ts` talks to Upstash's REST API directly
+over `fetch` (no SDK, and REST rather than a TCP client is what actually
+works in the Edge runtime `proxy.ts` runs under) when
+`UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` are set, and falls back
+to today's in-memory Map otherwise — both callers switch with zero code
+changes. Tested against a mocked Upstash response (request shape, pipelined
+INCR/PEXPIRE-NX/PTTL, and failing *open* on a Redis error so a broken limiter
+degrades toward "no limit" rather than locking out every login) but never
+against a real Upstash instance, since none exists in this environment.
+Verify against a real one before leaning on it in production.
 
 ---
 

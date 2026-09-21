@@ -36,7 +36,7 @@ export async function askCoachAssistant(params: {
     const { user } = await requireUser();
     // One AI call against this user's hourly budget. Counts attempts, not
     // successes: a failed call still costs a request to the provider.
-    const overBudget = checkAiBudget(user.id);
+    const overBudget = await checkAiBudget(user.id);
     if (overBudget) return { error: overBudget };
 
 
@@ -99,7 +99,7 @@ export async function suggestLineup(params: {
     const { user } = await requireUser();
     // One AI call against this user's hourly budget. Counts attempts, not
     // successes: a failed call still costs a request to the provider.
-    const overBudget = checkAiBudget(user.id);
+    const overBudget = await checkAiBudget(user.id);
     if (overBudget) return { error: overBudget };
 
     const { context, error } = await buildSquadContext(params.teamId, { fixtureId: params.fixtureId });
@@ -147,7 +147,7 @@ export async function generateMatchPlan(params: {
     const { user } = await requireUser();
     // One AI call against this user's hourly budget. Counts attempts, not
     // successes: a failed call still costs a request to the provider.
-    const overBudget = checkAiBudget(user.id);
+    const overBudget = await checkAiBudget(user.id);
     if (overBudget) return { error: overBudget };
 
     const { context, error } = await buildSquadContext(params.teamId, { fixtureId: params.fixtureId });

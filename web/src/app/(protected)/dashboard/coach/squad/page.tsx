@@ -22,6 +22,7 @@ import {
 } from "@/lib/attendance";
 import { DOCUMENTS } from "@/lib/document-definitions";
 import { SquadFilters, type SquadFilter } from "./squad-filters";
+import { reportError } from "@/lib/report-error";
 
 /** Every document a player owes per season — the document hub's own list. */
 const REQUIRED_DOC_COUNT = DOCUMENTS.length;
@@ -109,7 +110,7 @@ export default async function SquadPage({
     // cache, a missing relationship) is indistinguishable from an empty
     // squad in every log — the UI already tells the coach something broke,
     // but nobody with server access could see *why*.
-    console.error("[squad page] failed to load team_members:", membersError);
+    reportError(membersError, { scope: "coach squad page", extra: { query: "team_members" } });
   }
 
   type SquadPlayerRow = {

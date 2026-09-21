@@ -7,6 +7,7 @@ import {
   LEGACY_ATTENDANCE_CONSTRAINT_MESSAGE,
   type AttendanceStatus,
 } from "@/lib/attendance";
+import { reportError } from "@/lib/report-error";
 
 export async function markMatchAttendance(
   fixtureId: string,
@@ -71,7 +72,7 @@ export async function markTrainingAttendance(
     // constraint (`'attending' | 'unavailable'`) and every write fails with
     // 23514. The raw message reads as an app bug; name the actual remedy.
     if (isLegacyAttendanceConstraint(error)) {
-      console.error("[attendance] training_attendance CHECK constraint is pre-036:", error);
+      reportError(error, { scope: "markTrainingAttendance", extra: { cause: "pre-036 CHECK constraint" } });
       return { error: LEGACY_ATTENDANCE_CONSTRAINT_MESSAGE };
     }
     return { error: friendlyError(error) };

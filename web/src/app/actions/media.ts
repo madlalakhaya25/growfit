@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { friendlyError } from "@/lib/friendly-error";
+import { reportError } from "@/lib/report-error";
 
 export async function uploadMedia(formData: FormData) {
   const { supabase, user } = await requireUser();
@@ -109,7 +110,7 @@ export async function deleteMedia(mediaId: string) {
     // failure here leaves an unreferenced file, not a broken gallery — log
     // it rather than reporting a failed delete that did in fact happen.
     if (storageErr) {
-      console.error("[media] row deleted but storage object remains:", storagePath, storageErr);
+      reportError(storageErr, { scope: "deleteMedia", severity: "warning", extra: { storagePath, cause: "row deleted but storage object remains" } });
     }
   }
 

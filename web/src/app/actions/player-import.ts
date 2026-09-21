@@ -86,7 +86,7 @@ export async function extractPlayersFromPdf(
 
     // The only AI path in this file — the other two actions here write the
     // reviewed rows and don't call the model.
-    const overBudget = checkAiBudget(user.id);
+    const overBudget = await checkAiBudget(user.id);
     if (overBudget) return { error: overBudget };
 
     const file = formData.get("file") as File | null;

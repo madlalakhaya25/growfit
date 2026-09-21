@@ -30,7 +30,7 @@ export async function explainPositionalRole(params: {
     const { user } = await requireUser();
     // One AI call against this user's hourly budget. Counts attempts, not
     // successes: a failed call still costs a request to the provider.
-    const overBudget = checkAiBudget(user.id);
+    const overBudget = await checkAiBudget(user.id);
     if (overBudget) return { error: overBudget };
 
 
@@ -88,7 +88,7 @@ export async function explainTacticalConcept(params: {
     const { user } = await requireUser();
     // One AI call against this user's hourly budget. Counts attempts, not
     // successes: a failed call still costs a request to the provider.
-    const overBudget = checkAiBudget(user.id);
+    const overBudget = await checkAiBudget(user.id);
     if (overBudget) return { error: overBudget };
 
 
@@ -163,7 +163,7 @@ export async function describePlay(params: {
     const { user } = await requireUser();
     // One AI call against this user's hourly budget. Counts attempts, not
     // successes: a failed call still costs a request to the provider.
-    const overBudget = checkAiBudget(user.id);
+    const overBudget = await checkAiBudget(user.id);
     if (overBudget) return { error: overBudget };
 
 
@@ -230,7 +230,7 @@ export async function analyseOpponent(params: {
     const { user } = await requireUser();
     // One AI call against this user's hourly budget. Counts attempts, not
     // successes: a failed call still costs a request to the provider.
-    const overBudget = checkAiBudget(user.id);
+    const overBudget = await checkAiBudget(user.id);
     if (overBudget) return { error: overBudget };
 
 

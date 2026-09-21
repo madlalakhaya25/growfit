@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 // Every top-level route not listed here is treated as protected by default
 // (see the redirect below) — the one way this list causes a real bug is a
@@ -12,25 +13,16 @@ import { NextResponse, type NextRequest } from "next/server";
 // this app (no page ever rendered there), so it was dead weight here.
 const PUBLIC_PATHS = ["/auth/login", "/auth/role", "/auth/register", "/auth/forgot-password", "/auth/reset-password", "/", "/passport", "/offline", "/register-club"];
 
-// Simple in-memory rate limiter (per process instance)
-// For multi-instance deployments, replace with a shared store like Upstash Redis
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+// Rate limiting: in-memory per process instance until UPSTASH_REDIS_REST_URL
+// / UPSTASH_REDIS_REST_TOKEN are set, at which point lib/rate-limit.ts
+// switches to a shared Redis-backed limiter with no code change here. See
+// that file for why this matters on a serverless deployment: each instance
+// otherwise keeps its own counter, so the real ceiling is `max` times
+// however many instances happen to be warm.
 const AUTH_RATE_LIMIT = { windowMs: 60_000, max: 10 };
 // /auth/register now calls peek_access_code before signUp — rate limit it
 // alongside login so a code can't be brute-forced through the register form.
 const AUTH_PATHS = ["/auth/login", "/auth/register"];
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  if (!entry || entry.resetAt <= now) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + AUTH_RATE_LIMIT.windowMs });
-    return false;
-  }
-  if (entry.count >= AUTH_RATE_LIMIT.max) return true;
-  entry.count++;
-  return false;
-}
 
 export async function proxy(request: NextRequest) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
@@ -72,10 +64,16 @@ export async function proxy(request: NextRequest) {
       request.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
       request.headers.get("x-real-ip") ??
       "unknown";
-    if (isRateLimited(ip)) {
+    const { allowed, retryAfterMs } = await checkRateLimit({
+      key: `auth:${ip}`,
+      windowMs: AUTH_RATE_LIMIT.windowMs,
+      max: AUTH_RATE_LIMIT.max,
+    });
+    if (!allowed) {
+      const retrySeconds = Math.max(1, Math.ceil((retryAfterMs ?? AUTH_RATE_LIMIT.windowMs) / 1000));
       return new NextResponse("Too many requests", {
         status: 429,
-        headers: { "Retry-After": "60" },
+        headers: { "Retry-After": String(retrySeconds) },
       });
     }
   }
