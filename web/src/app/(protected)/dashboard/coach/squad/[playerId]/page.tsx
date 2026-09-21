@@ -376,7 +376,7 @@ export default async function PlayerDetailPage({
                 content: (
                   <>
                     {/* Ratings history */}
-                    <div className="space-y-3 lg:col-span-2">
+                    <div className="space-y-3">
                       <h2 className="text-lg font-semibold">Rating history</h2>
 
                       {chartData.length >= 2 && (
