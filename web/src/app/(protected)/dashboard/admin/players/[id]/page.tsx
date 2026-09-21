@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RatingRing } from "@/components/ui/rating-ring";
 import { PlayerPhotoUpload } from "@/components/player-photo-upload";
+import { PlayerAvailabilityControl } from "@/components/records/player-availability-control";
 import { POSITIONS, FEET } from "@/lib/types";
 import { calculateAge, getInitials } from "@/lib/player";
 import { ExtendedInfoForm } from "@/components/records/extended-info-form";
@@ -47,6 +48,7 @@ export default async function AdminPlayerDetailPage({
     .select(`
       id, full_name, position, secondary_pos, preferred_foot, date_of_birth, photo_url, share_token, academy_id,
       school, home_address, id_number, mysafa_number,
+      availability_status, availability_note,
       player_attributes ( ${ALL_ATTR_SELECT} ),
       player_ratings (
         id, rating, note, created_at,
@@ -118,7 +120,14 @@ export default async function AdminPlayerDetailPage({
               <Badge variant="brand">{posLabel}</Badge>
               {age && <Badge variant="neutral">Age {age}</Badge>}
               {footLabel && <Badge variant="neutral">{footLabel} foot</Badge>}
+              {player.availability_status === "injured" && <Badge variant="danger">Injured</Badge>}
+              {player.availability_status === "unavailable" && <Badge variant="warning">Unavailable</Badge>}
             </div>
+            <PlayerAvailabilityControl
+              playerId={player.id}
+              initialStatus={player.availability_status ?? "available"}
+              initialNote={player.availability_note ?? null}
+            />
             <div className="grid grid-cols-2 gap-2 pt-2 text-sm">
               <div>
                 <p className="text-muted-foreground text-xs">Ratings</p>

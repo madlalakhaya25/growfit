@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { friendlyError } from "@/lib/friendly-error";
+import type { AttendanceStatus } from "@/lib/attendance";
 
 const sessionSchema = z.object({
   team_id: z.string().uuid("Invalid team"),
@@ -23,6 +24,12 @@ const drillSchema = z.object({
   video_url: z.string().url("Enter a valid URL").optional().or(z.literal("")),
 });
 
+// Not redundant with RLS: since migration 038, `training_sessions`'s policy
+// checks `is_admin_or_coach()` + academy match, not which team a coach
+// specifically coaches, so this app-level filter is the only thing stopping
+// one coach from writing another coach's sessions. Audited as part of
+// docs/BACKLOG.md 1.5; don't remove this as "redundant" without re-checking
+// the actual RLS policy first.
 async function getCoachTeamIds(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
   const { data } = await supabase
     .from("teams")
@@ -191,11 +198,17 @@ export async function updateTrainingSession(sessionId: string, formData: FormDat
 export async function deleteTrainingSession(id: string) {
   const { supabase, user } = await requireUser();
 
+  // Scoped to teams the caller coaches, not to who personally created the
+  // session — team_coaches (migration 019) makes a session's team, not its
+  // creator, the actual unit of ownership; see migration 038.
+  const teamIds = await getCoachTeamIds(supabase, user.id);
+  if (!teamIds.length) return { error: "No team found." };
+
   const { data, error } = await supabase
     .from("training_sessions")
     .delete()
     .eq("id", id)
-    .eq("coach_id", user.id)
+    .in("team_id", teamIds)
     .select("id");
 
   if (error) return { error: friendlyError(error) };
@@ -220,12 +233,15 @@ export async function addDrill(formData: FormData) {
     return { error: Object.values(msgs).flat()[0] ?? "Invalid input." };
   }
 
-  // Verify coach owns the session
+  // Verify the caller coaches this session's team — not that they personally
+  // created it. A co-coach on the same team may add drills to a colleague's
+  // session; see migration 038.
+  const teamIds = await getCoachTeamIds(supabase, user.id);
   const { data: session } = await supabase
     .from("training_sessions")
     .select("id")
     .eq("id", parsed.data.session_id)
-    .eq("coach_id", user.id)
+    .in("team_id", teamIds)
     .single();
 
   if (!session) return { error: "Session not found." };
@@ -256,20 +272,23 @@ export async function addDrill(formData: FormData) {
 export async function deleteDrill(drillId: string, sessionId: string) {
   const { supabase, user } = await requireUser();
 
-  // RLS enforces coach ownership — delete will no-op if not owned
+  // RLS enforces team-coach access (migration 038) — delete will no-op if
+  // the caller doesn't coach this session's team.
   const { data, error } = await supabase
     .from("training_drills")
     .delete()
     .eq("id", drillId)
     .select("id");
 
-  // Verify session ownership separately to give a meaningful error
+  // Verify session access separately to give a meaningful error — scoped to
+  // teams the caller coaches, not to who created the session.
   if (!data?.length) {
+    const teamIds = await getCoachTeamIds(supabase, user.id);
     const { data: session } = await supabase
       .from("training_sessions")
       .select("id")
       .eq("id", sessionId)
-      .eq("coach_id", user.id)
+      .in("team_id", teamIds)
       .single();
     if (!session) return { error: "Drill not found or access denied." };
   }
@@ -291,8 +310,19 @@ export async function setAttendance(sessionId: string, status: "attending" | "un
 
   if (!player) return { error: "Player profile not found." };
 
+  // `training_attendance.status` has taken the shared P/A/L/E vocabulary
+  // since migration 036 — writing this function's own "attending" /
+  // "unavailable" RSVP values straight through violates the CHECK
+  // constraint on every call (23514), which is exactly the bug 036 fixed
+  // for the coach-marking path but missed here, on this older player RSVP
+  // path into the same column. Translated the same way 036 itself
+  // translated the historical rows: an RSVP to attend is the closest thing
+  // to a present mark; "I can't make it" is an absence the coach knows
+  // about in advance, i.e. excused rather than a plain absence.
+  const dbStatus: AttendanceStatus = status === "attending" ? "present" : "excused";
+
   const { error } = await supabase.from("training_attendance").upsert(
-    { session_id: sessionId, player_id: player.id, status },
+    { session_id: sessionId, player_id: player.id, status: dbStatus },
     { onConflict: "session_id,player_id" }
   );
 

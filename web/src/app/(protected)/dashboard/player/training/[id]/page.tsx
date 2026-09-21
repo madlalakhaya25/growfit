@@ -106,7 +106,18 @@ export default async function PlayerTrainingSessionPage({
         <p className="text-sm font-medium mb-3">Are you attending?</p>
         <AttendanceButton
           sessionId={id}
-          current={(attendance?.status as "attending" | "unavailable" | null) ?? null}
+          // The column holds the shared P/A/L/E vocabulary (migration 036);
+          // setAttendance() writes 'present'/'excused' for this RSVP, so
+          // translate back rather than comparing against values it can
+          // never actually contain. A coach-marked 'late'/'absent' (set
+          // after the session, not by this button) shows as neither button
+          // active — this control is asking about the player's own RSVP,
+          // not overriding the coach's final register.
+          current={
+            attendance?.status === "present" ? "attending" :
+            attendance?.status === "excused" ? "unavailable" :
+            null
+          }
         />
       </div>
 

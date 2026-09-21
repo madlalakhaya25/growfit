@@ -2,6 +2,49 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { friendlyError } from "@/lib/friendly-error";
+import { AVAILABILITY_STATUSES, type AvailabilityStatus } from "@/lib/types";
+
+/**
+ * Record whether a player is currently available to play — separate from
+ * their registration/active status. Squad selection (by hand, in
+ * LogResultForm, and by the AI's suggestLineup/generateMatchPlan) reads
+ * this so an injured child isn't offered as an option in the first place.
+ *
+ * No app-level ownership check beyond `requireUser()`: this is one field on
+ * `players`, and `player_staff_update` RLS (academy_id = auth_academy_id()
+ * AND is_admin_or_coach()) already governs writes to the row exactly as it
+ * does for every other field savePlayerExtendedInfo/savePlayerMedical touch
+ * above and below — the same trust boundary, not a new one.
+ */
+export async function setPlayerAvailability(
+  playerId: string,
+  status: AvailabilityStatus,
+  note?: string
+) {
+  const { supabase, user } = await requireUser();
+
+  if (!AVAILABILITY_STATUSES.some((s) => s.value === status)) {
+    return { error: "Invalid availability status." };
+  }
+
+  const { error } = await supabase
+    .from("players")
+    .update({
+      availability_status: status,
+      // Available means nothing to add — an old injury note shouldn't
+      // linger and read as still true once the status has moved on.
+      availability_note: status === "available" ? null : (note?.trim().slice(0, 200) || null),
+      availability_updated_at: new Date().toISOString(),
+      availability_updated_by: user.id,
+    })
+    .eq("id", playerId);
+
+  if (error) return { error: friendlyError(error) };
+  revalidatePath(`/dashboard/admin/players/${playerId}`, "page");
+  revalidatePath(`/dashboard/coach/squad/${playerId}`, "page");
+  revalidatePath("/dashboard/coach/squad", "page");
+  return { success: true };
+}
 
 export async function savePlayerExtendedInfo(playerId: string, data: {
   school?: string;

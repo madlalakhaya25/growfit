@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { getTrainingAttendanceSummaries } from "@/lib/training-attendance";
 import type { AttendanceSummary } from "@/lib/attendance";
+import { isMissingAttributeColumn } from "@/lib/attributes";
 import { LogResultForm } from "./log-result-form";
 
 export default async function LogResultPage({
@@ -44,6 +45,23 @@ export default async function LogResultPage({
   );
   const trainingAttendance: Record<string, AttendanceSummary> = Object.fromEntries(attendanceByPlayer);
 
+  // Queried separately, and tolerant of migration 039 not having run yet
+  // (42703) — see squad-context.ts's own note on the same tradeoff. A
+  // player with no row here reads as available, matching the column's
+  // DEFAULT.
+  const playerAvailability: Record<string, { status: string; note: string | null }> = {};
+  const availability = await supabase
+    .from("players")
+    .select("id, availability_status, availability_note")
+    .in("id", squad.map((p) => p.id));
+  if (!isMissingAttributeColumn(availability.error)) {
+    for (const row of (availability.data ?? []) as { id: string; availability_status: string; availability_note: string | null }[]) {
+      if (row.availability_status !== "available") {
+        playerAvailability[row.id] = { status: row.availability_status, note: row.availability_note };
+      }
+    }
+  }
+
   return (
     <div className="space-y-6 max-w-2xl">
       <Button asChild variant="ghost" size="sm">
@@ -67,6 +85,7 @@ export default async function LogResultPage({
         isHome={fixture.is_home}
         opponent={fixture.opponent}
         trainingAttendance={trainingAttendance}
+        playerAvailability={playerAvailability}
       />
     </div>
   );

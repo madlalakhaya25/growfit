@@ -12,6 +12,12 @@ const announcementSchema = z.object({
   body: z.string().min(1, "Message is required").max(2000),
 });
 
+// Not redundant with RLS: `announcement_coach_write` only checks `coach_id =
+// auth.uid()` and `is_admin_or_coach()`, with no team check at all, so this
+// app-level filter is the only thing stopping a coach from posting an
+// announcement to a team they don't coach. Audited as part of
+// docs/BACKLOG.md 1.5; don't remove this as "redundant" without re-checking
+// the actual RLS policy first.
 async function getCoachTeamIds(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
   const { data } = await supabase
     .from("teams")

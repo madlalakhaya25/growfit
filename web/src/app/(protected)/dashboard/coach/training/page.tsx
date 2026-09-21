@@ -36,11 +36,16 @@ export default async function CoachTrainingPage({
 
   const team = allTeams.find((t) => t.id === teamParam) ?? allTeams[0];
 
+  // `team.id` already comes from `allTeams`, itself scoped to
+  // getCoachedTeamIds() above — no further ownership filter needed. This
+  // used to also require `coach_id = user.id`, which hid a co-coach's own
+  // sessions for this same team (see migration 038: team_coaches makes the
+  // team, not whoever happened to create a given session, the actual unit
+  // of ownership).
   const { data: sessions } = await supabase
     .from("training_sessions")
     .select("id, title, session_date, location, session_type")
     .eq("team_id", team.id)
-    .eq("coach_id", user.id)
     .order("session_date", { ascending: false });
 
   const now = new Date();

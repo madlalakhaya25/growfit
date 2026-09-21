@@ -144,7 +144,7 @@ export default async function SquadPage({
   // coach actually picking Sunday's squad could see neither without opening
   // players one at a time.
   const since = attendanceWindowStart();
-  const [{ data: sessions }, { data: docs }] = await Promise.all([
+  const [{ data: sessions }, { data: docs }, availabilityResult] = await Promise.all([
     supabase
       .from("training_sessions")
       .select("id")
@@ -157,6 +157,11 @@ export default async function SquadPage({
           .in("player_id", playerIds)
           .eq("season", currentSeason)
       : Promise.resolve({ data: [] as { player_id: string; status: string }[] }),
+    // Tolerant of migration 039 not having run yet (42703) — same tradeoff
+    // as squad-context.ts's own availability query.
+    playerIds.length
+      ? supabase.from("players").select("id, availability_status, availability_note").in("id", playerIds)
+      : Promise.resolve({ data: [] as { id: string; availability_status: string; availability_note: string | null }[], error: null }),
   ]);
 
   const sessionIds = (sessions ?? []).map((x: { id: string }) => x.id);
@@ -185,6 +190,15 @@ export default async function SquadPage({
     }
   }
 
+  const availabilityByPlayer = new Map<string, { status: string; note: string | null }>();
+  if (!isMissingAttributeColumn(availabilityResult.error)) {
+    for (const row of (availabilityResult.data ?? []) as { id: string; availability_status: string; availability_note: string | null }[]) {
+      if (row.availability_status !== "available") {
+        availabilityByPlayer.set(row.id, { status: row.availability_status, note: row.availability_note });
+      }
+    }
+  }
+
   const squad = basePlayers.map(({ player: p, joinedAt }) => {
     const ratings = p.player_ratings.map((r) => r.rating);
     const avg = ratings.length
@@ -202,6 +216,7 @@ export default async function SquadPage({
 
     const docsSigned = docsByPlayer.get(p.id) ?? 0;
     const docsOutstanding = Math.max(0, REQUIRED_DOC_COUNT - docsSigned);
+    const availability = availabilityByPlayer.get(p.id) ?? null;
 
     return {
       ...p,
@@ -214,6 +229,7 @@ export default async function SquadPage({
       attendance,
       belowThreshold,
       docsOutstanding,
+      availability,
     };
   });
 
@@ -390,6 +406,12 @@ export default async function SquadPage({
                             )}
                           </div>
                           <div className="mt-1 flex flex-wrap gap-1">
+                            {player.availability?.status === "injured" && (
+                              <Badge variant="danger" className="text-xs">Injured</Badge>
+                            )}
+                            {player.availability?.status === "unavailable" && (
+                              <Badge variant="warning" className="text-xs">Unavailable</Badge>
+                            )}
                             {player.age && (
                               <Badge variant="neutral" className="text-xs">Age {player.age}</Badge>
                             )}

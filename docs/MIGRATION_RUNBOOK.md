@@ -1,8 +1,9 @@
-# Migration Runbook — 030 → 037
+# Migration Runbook — 030 → 039
 
-*Written 2026-09-21. Backlog item 0.1.*
+*Written 2026-09-21. Backlog item 0.1. Extended the same day to cover 038-039
+(Phase 1, backlog items 1.2/1.5).*
 
-Eight migrations are checked in and **not applied to the live Supabase
+Ten migrations are checked in and **not applied to the live Supabase
 project**. Nothing in a Claude Code session can apply them: there is no
 Supabase CLI, no project link and no credentials in that environment. This
 document exists so the person who *can* apply them does not have to take it
@@ -21,6 +22,8 @@ reproduced, and the app's own seed shapes inserted.
 | `035` | **Every read of `players` fails** with `42P17 infinite recursion detected in policy for relation "players"` — squad page, player dashboard, parent dashboard, admin pages |
 | `036` | **Every training attendance write fails** with `23514`, which in turn makes the welfare page flag the entire academy and the AI brief report the whole squad below the 75% threshold |
 | `037` | Calendar subscriptions resolve to an empty feed |
+| `038` | A co-coach on a team cannot see, mark attendance for, or manage drills on a session a colleague created — `training_sessions`/`training_drills`/`training_attendance` RLS still gates on `coach_id = auth.uid()` (migration 003/005/012, predates the `team_coaches` multi-coach model added in `019`) |
+| `039` | No way to record a player as injured/unavailable — squad selection (by hand and by the AI) treats every registered player as equally available |
 | `030`–`034` | Expanded player attributes, passport attributes, parent-link verification, tactical attributes, claim verification |
 
 ---
@@ -68,12 +71,48 @@ fix runs:
 - An unknown token returns 0 rows rather than raising — an empty calendar,
   not a failed subscription a client might cache.
 
+### 038 — training multi-coach RLS
+
+Reproduced the bug before proving the fix:
+
+1. Seeded one academy, one team, two coach profiles both in `team_coaches`
+   for that team (a real multi-coach setup), a training session created by
+   Coach A only, and one player in the squad.
+2. As **Coach B** (a real co-coach, never the creator): `SELECT` on
+   `training_sessions`/`training_drills` for that session returned **0
+   rows**; `INSERT` into `training_attendance` for it raised `new row
+   violates row-level security policy`; `UPDATE` on the session matched 0
+   rows. **The bug is real and reproducible** — a co-coach could not see or
+   act on a colleague's session at all, on a shared team, in the same
+   academy.
+3. Applied `038`. The same four operations as Coach B now succeed: the
+   session and its drill are visible, the attendance insert succeeds, and
+   the session update returns 1 row.
+4. **Cross-academy isolation still holds:** a third coach profile in a
+   *different* academy gets 0 rows on the same `SELECT` and an RLS
+   violation on the same `INSERT` — the fix widened "any coach on this
+   team" to "any coach/admin in this academy" (matching `fixtures`/
+   `tactic_plays`/`players`/`team_members`'s existing pattern), not to
+   "any coach anywhere."
+
+### 039 — player availability
+
+- Post-migration, every existing player defaults to `availability_status =
+  'available'` with no migration-time data loss.
+- As a coach (RLS `player_staff_update`, unchanged by this migration):
+  updating a player to `'injured'` with a note succeeds and reads back
+  correctly.
+- An invalid status (`'benched'`) is **rejected** by the new CHECK
+  constraint, confirming only `available`/`injured`/`unavailable` can ever
+  be written.
+
 ### Idempotency
 
-`030`–`037` were re-run against the already-migrated database. **All eight
+`030`–`039` were re-run against the already-migrated database. **All ten
 re-apply cleanly**, and the post-re-run state is still correct (parent can
-read `players`; the attendance constraint is still the P/A/L/E one). Running
-the set twice is safe.
+read `players`; the attendance constraint is still the P/A/L/E one; `038`'s
+policies still show the academy-wide shape; `039`'s columns and constraint
+survive a second run). Running the set twice is safe.
 
 ---
 
@@ -82,7 +121,7 @@ the set twice is safe.
 Either route works. Take a backup first regardless.
 
 **Supabase SQL editor** — paste each file in numeric order, `030` through
-`037`, checking each succeeds before the next.
+`039`, checking each succeeds before the next.
 
 **CLI**, from a machine with it installed and linked:
 
@@ -103,10 +142,20 @@ SELECT status, count(*) FROM training_attendance GROUP BY status;
 -- 037: both functions present and SECURITY DEFINER.
 SELECT proname, prosecdef FROM pg_proc
  WHERE proname IN ('issue_calendar_token', 'get_calendar_events');
+
+-- 038: none of these four policies should mention "coach_id = auth.uid()"
+-- any more.
+SELECT tablename, policyname, qual FROM pg_policies
+ WHERE tablename IN ('training_sessions', 'training_drills', 'training_attendance');
+
+-- 039: every existing player defaulted to 'available'.
+SELECT availability_status, count(*) FROM players GROUP BY availability_status;
 ```
 
 Then, in the app: open a squad page (exercises 035), mark a training
-register (036), and create a calendar link in Settings (037).
+register (036), create a calendar link in Settings (037), have a second
+coach on a shared team open a training session the first coach created
+(038), and mark a player injured from their profile (039).
 
 ### If something goes wrong
 

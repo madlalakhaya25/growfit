@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { friendlyError } from "@/lib/friendly-error";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
 import {
   isLegacyAttendanceConstraint,
   LEGACY_ATTENDANCE_CONSTRAINT_MESSAGE,
@@ -47,11 +48,13 @@ export async function markTrainingAttendance(
 ) {
   const { supabase, user } = await requireUser();
 
+  // Scoped to teams the caller coaches, not to who created the session — a
+  // co-coach sharing this team may mark attendance too; see migration 038.
   const { data: session } = await supabase
     .from("training_sessions")
     .select("id")
     .eq("id", sessionId)
-    .eq("coach_id", user.id)
+    .in("team_id", await getCoachedTeamIds(supabase, user.id))
     .single();
 
   if (!session) return { error: "Session not found or access denied." };
@@ -94,11 +97,13 @@ export async function markTrainingAttendance(
 export async function markAllPresent(sessionId: string, playerIds: string[]) {
   const { supabase, user } = await requireUser();
 
+  // Scoped to teams the caller coaches, not to who created the session —
+  // same reasoning as markTrainingAttendance above; see migration 038.
   const { data: session } = await supabase
     .from("training_sessions")
     .select("id")
     .eq("id", sessionId)
-    .eq("coach_id", user.id)
+    .in("team_id", await getCoachedTeamIds(supabase, user.id))
     .single();
 
   if (!session) return { error: "Session not found or access denied." };

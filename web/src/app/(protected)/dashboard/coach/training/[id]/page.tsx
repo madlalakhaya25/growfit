@@ -3,6 +3,7 @@ import Link from "next/link";
 import { MapPin, Clock, PlayCircle, CheckCircle2, XCircle, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { cn } from "@/lib/utils";
 import { AddDrillForm } from "./add-drill-form";
 import { DeleteSessionButton } from "./delete-session-button";
@@ -33,11 +34,14 @@ export default async function CoachTrainingSessionPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
 
+  // Scoped to teams the caller coaches, not to who created the session — a
+  // co-coach sharing this team can open it too (migration 038; before that,
+  // `coach_id = user.id` here 404'd a session's own co-coach out of it).
   const { data: session } = await supabase
     .from("training_sessions")
     .select("id, team_id, title, session_date, location, session_type, notes, teams ( name )")
     .eq("id", id)
-    .eq("coach_id", user.id)
+    .in("team_id", await getCoachedTeamIds(supabase, user.id))
     .single();
 
   if (!session) notFound();

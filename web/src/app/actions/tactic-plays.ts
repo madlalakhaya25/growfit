@@ -31,7 +31,16 @@ export interface LinkTarget {
   when: string;
 }
 
-/** Confirm the caller coaches this team, and resolve its academy. */
+/**
+ * Confirm the caller coaches this team, and resolve its academy.
+ *
+ * Not redundant with RLS: `tactic_play_staff_write`/`_update`/`_delete`
+ * only check `is_admin_or_coach()` + academy match, not which team a coach
+ * specifically coaches, so this app-level filter is the only thing
+ * stopping one coach from writing another coach's plays. Audited as part
+ * of docs/BACKLOG.md 1.5; don't remove this as "redundant" without
+ * re-checking the actual RLS policy first.
+ */
 async function requireCoachTeam(teamId: string) {
   const { supabase, user } = await requireUser();
   const { data: team } = await supabase

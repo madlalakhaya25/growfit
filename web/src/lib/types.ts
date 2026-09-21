@@ -17,6 +17,14 @@ export type Position =
 
 export type Foot = "left" | "right" | "both";
 
+/**
+ * Whether a player can actually be picked right now — distinct from their
+ * registration/active status. Squad selection (by hand and by the AI) used
+ * to have no way to know a player was injured, even though the AI's own
+ * system prompt already forbids suggesting one play (docs/BACKLOG.md 1.2).
+ */
+export type AvailabilityStatus = "available" | "injured" | "unavailable";
+
 export interface Academy {
   id: string;
   name: string;
@@ -48,6 +56,10 @@ export interface Player {
   photo_url: string | null;
   share_token: string;
   active: boolean;
+  availability_status: AvailabilityStatus;
+  availability_note: string | null;
+  availability_updated_at: string | null;
+  availability_updated_by: string | null;
   created_at: string;
 }
 
@@ -119,6 +131,12 @@ export const FEET: { value: Foot; label: string }[] = [
   { value: "right", label: "Right" },
   { value: "left", label: "Left" },
   { value: "both", label: "Both" },
+];
+
+export const AVAILABILITY_STATUSES: { value: AvailabilityStatus; label: string }[] = [
+  { value: "available", label: "Available" },
+  { value: "injured", label: "Injured" },
+  { value: "unavailable", label: "Unavailable" },
 ];
 
 export const AGE_GROUPS = [

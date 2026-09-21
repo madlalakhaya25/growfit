@@ -8,6 +8,12 @@ import { requireUser } from "@/lib/auth";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { friendlyError } from "@/lib/friendly-error";
 
+// Not redundant with RLS: `fixture_staff_write`/`fixture_staff_update` only
+// check `is_admin_or_coach()` + academy match, not which team a coach
+// specifically coaches, so this app-level filter is the only thing stopping
+// one coach from writing another coach's fixtures. Audited as part of
+// docs/BACKLOG.md 1.5; don't remove this as "redundant" without re-checking
+// the actual RLS policy first.
 async function getCoachTeamIds(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
   const { data: teams } = await supabase
     .from("teams")

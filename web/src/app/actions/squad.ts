@@ -7,6 +7,14 @@ import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { normalizeAccessCode } from "@/lib/access-codes";
 import { friendlyError } from "@/lib/friendly-error";
 
+// Not redundant with RLS, unlike the `updateTeam`/`deleteTeam` filter this
+// same helper shape was removed from below: `team_member_staff_write` and
+// `player_staff_write`/`player_staff_update` only check `is_admin_or_coach()`
+// + academy match — any coach in the academy, not specifically this team's
+// — so this app-level filter is the only thing stopping one coach from
+// adding/removing players on a team they don't coach. Audited as part of
+// docs/BACKLOG.md 1.5; don't remove this as "redundant" without re-checking
+// the actual RLS policy first.
 async function getCoachTeamById(teamId: string) {
   const { supabase, user } = await requireUser();
 

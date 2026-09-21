@@ -130,6 +130,28 @@ export async function buildSquadContext(
 
   const playerIds = players.map((p) => p.id);
 
+  // Availability (migration 039). Queried separately from the wide/narrow
+  // attribute select above rather than folded into it: that select already
+  // has to fall back when the *attribute* columns are missing (a project
+  // that hasn't run 013/033 yet), and adding another column that can also be
+  // missing (a project that hasn't run 039 yet) to the same select would
+  // multiply the fallback tiers needed for the same "column doesn't exist
+  // yet" failure (42703) this file already knows about. A player with no row
+  // here yet — or on a project where 039 hasn't run — reads as available,
+  // matching the column's own DEFAULT.
+  const availabilityByPlayer = new Map<string, { status: string; note: string | null }>();
+  const availability = await supabase
+    .from("players")
+    .select("id, availability_status, availability_note")
+    .in("id", playerIds);
+  if (!isMissingAttributeColumn(availability.error)) {
+    for (const row of (availability.data ?? []) as { id: string; availability_status: string; availability_note: string | null }[]) {
+      if (row.availability_status !== "available") {
+        availabilityByPlayer.set(row.id, { status: row.availability_status, note: row.availability_note });
+      }
+    }
+  }
+
   // Training attendance across the recent term
   const since = attendanceWindowStart();
   const { data: sessions } = await supabase
@@ -211,12 +233,32 @@ export async function buildSquadContext(
         (snapshot.overall !== null ? ` | overall ${snapshot.overall}` : "")
       : " | ability: NOT ASSESSED — no coach has rated this player's attributes yet";
 
+    // Surfaced first and shouted, not folded in with everything else: this
+    // is the one fact that must never be missed by a model whose system
+    // prompt already promises never to suggest playing an injured or unwell
+    // child — burying it after ratings/attendance/attributes is exactly how
+    // a "read carefully" instruction gets skimmed past.
+    const unavailable = availabilityByPlayer.get(p.id);
+    const availabilityFlag = unavailable
+      ? `${unavailable.status === "injured" ? "INJURED" : "UNAVAILABLE"}${unavailable.note ? ` (${unavailable.note})` : ""} — DO NOT SELECT — `
+      : "";
+
     lines.push(
-      `- ${p.full_name} — ${posLabel(p.position)}${age ? `, age ${age}` : ""} | avg rating ${avg}/5 (${ratings.length} rated), recent form ${form}/5` +
+      `- ${p.full_name} — ${availabilityFlag}${posLabel(p.position)}${age ? `, age ${age}` : ""} | avg rating ${avg}/5 (${ratings.length} rated), recent form ${form}/5` +
       (attendance.pct !== null
         ? ` | training attendance ${attendance.pct}% of ${attendance.assessed} session${attendance.assessed === 1 ? "" : "s"}${attendance.belowThreshold ? " (BELOW the 75% policy threshold)" : ""}`
         : " | training attendance: not yet marked") +
       attrs
+    );
+  }
+
+  if (availabilityByPlayer.size > 0) {
+    const names = players
+      .filter((p) => availabilityByPlayer.has(p.id))
+      .map((p) => `${p.full_name} (${availabilityByPlayer.get(p.id)!.status})`);
+    lines.push(
+      "",
+      `UNAVAILABLE: ${names.join(", ")}. Never pick these players for a starting XI or a squad — they may be mentioned only to explain why they are absent.`
     );
   }
 

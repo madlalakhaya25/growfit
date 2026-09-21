@@ -132,11 +132,34 @@ training attendance form shows a "Mark remaining N present" button next to
 the header whenever anyone is unmarked — the coach taps once, then only
 corrects the exceptions.
 
-### 1.2 Injury / availability state — `FP-6`
-There is no way to record that a player is currently injured. Squad selection
-and the AI both treat an injured child as available, while the AI's own system
-prompt forbids suggesting an injured child play — it has no way to know.
-Needs a migration, so it lands behind 0.1.
+### 1.2 Injury / availability state — `FP-6` — **Done**
+There was no way to record that a player is currently injured. Squad
+selection and the AI both treated an injured child as available, while the
+AI's own system prompt forbids suggesting an injured child play — it had no
+way to know. Migration `039` adds `players.availability_status`
+(`available`/`injured`/`unavailable`, defaulting to `available`) plus an
+optional note and an audit stamp (who/when). `setPlayerAvailability()` lets
+a coach or admin set it from the player's own profile (a new
+`PlayerAvailabilityControl` on both the coach and admin player-detail
+pages) — no new RLS needed, since `player_staff_update` already governs
+this column exactly as it does every other `players` field.
+
+Every squad-selection surface now reads it: `buildSquadContext` puts an
+`INJURED`/`UNAVAILABLE — DO NOT SELECT` flag at the *front* of a flagged
+player's line in the AI brief (not buried after ratings/attendance, where a
+"never suggest this" instruction is easy to skim past) plus an explicit
+`UNAVAILABLE:` summary line; `suggestLineup` and `generateMatchPlan` gained
+an explicit selection rule against it; and the human coach picking a squad
+by hand sees the same flag as a badge on `LogResultForm` (match
+squad-selection) and the coach squad list — the AI and the human now work
+from the same fact instead of the AI knowing something the person picking
+the team couldn't see.
+
+Every new query for this column tolerates migration `039` not having run
+yet (`isMissingAttributeColumn`'s `42703` check, reused from the attributes
+fallback) rather than failing outright and taking an already-working page
+down with it — the exact trap `web/CLAUDE.md`'s own "migrations are checked
+in, not applied" gotcha warns about.
 
 ### 1.3 Training attendance on the match squad-selection screen — `RM` — **Done**
 Distinct from the squad-list work already shipped: the coach picking Sunday's
@@ -162,24 +185,81 @@ chat, and every report/plan generator) stays on the default model, since a
 wrong answer there has a child's game time or a misdiagnosed player behind
 it, not just a slower definition.
 
-### 1.5 Audit the remaining `getCoachedTeamIds` filters — `IP S-4`
+### 1.5 Audit the remaining `getCoachedTeamIds` filters — `IP S-4` — **Done**
 `updateTeam`/`deleteTeam` were silently no-opping because an app-level filter
-was doing authorization RLS already did correctly. The same helper still wraps
-`addPlayerToSquad`, `removePlayerFromSquad`, `createPlayer` and several page
-reads. Apply that fix's own reasoning to each, deliberately, rather than
-waiting for the next silent no-op.
+was doing authorization RLS already did correctly. Went through every other
+`getCoachedTeamIds` call site (`squad.ts`, `fixtures.ts`, `training.ts`,
+`tactic-plays.ts`, `announcements.ts`, `squad-context.ts`, `welfare.ts`, and
+every `/dashboard/coach/*` page read) against the actual RLS policy each
+one's table carries, rather than assuming they all share one shape.
 
-Also pick up while in this territory: `handle_new_user()`'s `IF v_role NOT
+**Two different findings, opposite in direction:**
+
+- For `teams` writes, RLS (`team_staff_write`/`team_staff_update`) already
+  implements the full intended authorization (`is_admin_or_coach()` +
+  academy match) — the app-level "teams I coach" filter was *narrower* than
+  intended and broke the admin-only case, which is what the earlier fix
+  addressed.
+- For every other table these actions touch (`team_members`, `players`,
+  `fixtures`, `tactic_plays`, `announcements`), RLS is deliberately
+  **academy-wide** for staff (`is_admin_or_coach()` alone, no per-team
+  check) — so the app-level `getCoachedTeamIds()` filter in `squad.ts` /
+  `fixtures.ts` / `training.ts` / `announcements.ts` is not redundant with
+  RLS the way `teams`' was. It is the *only* thing stopping one coach from
+  writing to another coach's team in the same academy — confirmed by
+  reading `is_admin_or_coach()`'s own definition (`role IN ('admin',
+  'coach')`, no team check at all). These are all correct as they stand and
+  now say so in a comment at their shared `getCoachTeamIds`/
+  `getCoachTeamById` helper, so a future "this looks redundant with RLS"
+  cleanup doesn't remove a real security boundary.
+
+**A third, more serious finding, found by taking the same question to
+`training_sessions`/`training_drills`/`training_attendance`:** those three
+tables' RLS (migrations 003/005/012) still gate every command on `coach_id
+= auth.uid()` — literally whoever created the row — never updated when
+migration `019` introduced `team_coaches` and multi-coach teams. A second
+coach on a team (this academy's real structure: Buhle coaching across every
+division alongside Sphe/Khaya's own) could not see, mark attendance for, or
+manage drills on a session a colleague created, on their own shared team.
+Reproduced against a real Postgres instance before fixing (see
+`docs/MIGRATION_RUNBOOK.md`'s 038 section) and fixed in migration `038`,
+which brings all three onto the same academy-wide pattern already used by
+`fixtures`/`tactic_plays`. The matching app-level `coach_id = user.id`
+checks in `training.ts`, `attendance.ts` and both training-session pages
+were also replaced with team-scoped checks — fixing the RLS alone would not
+have helped, since the app-level check would have kept blocking the same
+co-coach before the request ever reached the database.
+
+**A fourth, unrelated bug found along the way:** `setAttendance()` (the
+player's own "Going" / "Can't make it" RSVP, a different, older write path
+into the same `training_attendance` table) still wrote migration 005's
+`'attending'`/`'unavailable'` vocabulary — which migration `036` (P/A/L/E
+parity, above) stopped accepting entirely. Every tap of "Going" or "Can't
+make it" has been failing outright with `23514` since `036` shipped; `036`'s
+own testing covered the coach-marking path only. Fixed by translating to
+`present`/`excused` at write time (matching `036`'s own historical-row
+translation) and fixing the matching read-side cast on the player's session
+page, which compared against values the column can no longer hold.
+
+Also picked up while in this territory: `handle_new_user()`'s `IF v_role NOT
 IN ('player', 'parent')` silently mis-handles a NULL role in signup metadata
 (evaluates NULL, not TRUE, so the `'player'` fallback never fires) — found
-while writing `supabase/seed.sql`, not currently reachable through the app's
-own signup forms, full detail in that file's header comment and in Phase
-0.3 above.
+while writing `supabase/seed.sql`. Reproduced live again while seeding this
+item's own migration-038 verification fixtures (a bare `role` claim with no
+key at all reliably hits the NOT NULL violation this describes). Still not
+reachable through the app's own signup forms, and still deliberately not
+patched as a drive-by fix to a security-sensitive `SECURITY DEFINER`
+trigger — full detail in `supabase/seed.sql`'s header comment and Phase 0.3
+above; left for deliberate, dedicated handling.
 
-### 1.6 Clear the standing lint debt
-Not glamorous, but it is now load-bearing: `tactical-board.tsx` carries seven
-`react-hooks/refs` errors and `ai-insights.ts` / `development-plan.ts` carry
-five `no-explicit-any`. Real findings get lost in a baseline of known ones.
+### 1.6 Clear the standing lint debt — **Done**
+Not glamorous, but it was load-bearing: `tactical-board.tsx` carried seven
+`react-hooks/refs` errors and `ai-insights.ts` / `development-plan.ts`
+carried five `no-explicit-any`. Real findings were getting lost in a
+baseline of known ones. Full sweep (49 findings across 32 files, down to 0)
+found two more real bugs along the way — a `voice-note-recorder.tsx` state
+leak across plays, and a missing runtime validation on `drills.ts`'s
+`difficulty` field — documented in the commit that shipped it.
 
 ---
 

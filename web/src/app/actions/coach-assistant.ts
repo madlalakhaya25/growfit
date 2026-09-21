@@ -111,6 +111,7 @@ ${context.brief}
 
 Selection rules:
 - Only pick players listed in the squad above, by their exact name.
+- Never select a player flagged INJURED, UNAVAILABLE or listed under UNAVAILABLE in the brief — not in the starting XI, not on the bench. If one would otherwise have been an obvious pick, say so and name who takes their place instead.
 - Weight recent form and average rating, but respect each player's actual position.
 - Training attendance matters: a player well below the 75% threshold should not walk into the team ahead of someone who trains. Say so when it affects a pick.
 - These are children at ${context.ageGroup}: everyone should get football, so name the bench and say who must get minutes.
@@ -157,7 +158,7 @@ export async function generateMatchPlan(params: {
 
 ${context.brief}
 
-Use the squad's real names and numbers. If we have played this opponent before, use what happened last time and say what to change. If we have never played them, say the plan is based on our own strengths and what to check in the warm-up.
+Use the squad's real names and numbers. Never build the plan or KEY PLAYERS around a player flagged INJURED, UNAVAILABLE or listed under UNAVAILABLE in the brief. If we have played this opponent before, use what happened last time and say what to change. If we have never played them, say the plan is based on our own strengths and what to check in the warm-up.
 
 Return plain text (no markdown, no asterisks) in exactly this structure:
 

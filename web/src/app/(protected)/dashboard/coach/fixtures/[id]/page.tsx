@@ -4,6 +4,7 @@ import { ArrowLeft, ClipboardList, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getTrainingAttendanceSummaries } from "@/lib/training-attendance";
 import type { AttendanceSummary } from "@/lib/attendance";
+import { isMissingAttributeColumn } from "@/lib/attributes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -100,6 +101,23 @@ export default async function FixtureDetailPage({
     ? await getTrainingAttendanceSummaries(supabase, fixture.team_id, flattenedSquadPlayers.map((p) => p.id))
     : new Map<string, AttendanceSummary>();
   const trainingAttendance: Record<string, AttendanceSummary> = Object.fromEntries(attendanceByPlayer);
+
+  // Queried separately, and tolerant of migration 039 not having run yet
+  // (42703) — see squad-context.ts's own note on the same tradeoff.
+  const playerAvailability: Record<string, { status: string; note: string | null }> = {};
+  if (flattenedSquadPlayers.length > 0) {
+    const availabilityResult = await supabase
+      .from("players")
+      .select("id, availability_status, availability_note")
+      .in("id", flattenedSquadPlayers.map((p) => p.id));
+    if (!isMissingAttributeColumn(availabilityResult.error)) {
+      for (const row of (availabilityResult.data ?? []) as { id: string; availability_status: string; availability_note: string | null }[]) {
+        if (row.availability_status !== "available") {
+          playerAvailability[row.id] = { status: row.availability_status, note: row.availability_note };
+        }
+      }
+    }
+  }
 
   type MatchAttendanceRecord = { player_id: string; status: "present" | "absent" | "late" | "excused" };
   const existingAttendance: MatchAttendanceRecord[] = (matchAttendanceRaw ?? []) as MatchAttendanceRecord[];
@@ -199,6 +217,7 @@ export default async function FixtureDetailPage({
             opponent={fixture.opponent}
             hideCancel
             trainingAttendance={trainingAttendance}
+            playerAvailability={playerAvailability}
           />
         </section>
       )}

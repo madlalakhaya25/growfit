@@ -29,9 +29,18 @@ interface Props {
    * it at all.
    */
   trainingAttendance?: Record<string, AttendanceSummary>;
+  /**
+   * Players currently flagged injured or unavailable, keyed by player id —
+   * only entries for players who are NOT available (see the two page
+   * components that build this). Squad selection used to have no way to
+   * know this at all; the AI's suggestLineup/generateMatchPlan already
+   * refuse to pick these players, so the human picking by hand should see
+   * the same fact, not find out only after typing up the team sheet.
+   */
+  playerAvailability?: Record<string, { status: string; note: string | null }>;
 }
 
-export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, trainingAttendance }: Props) {
+export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, trainingAttendance, playerAvailability }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -114,6 +123,7 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
               const posLabel = POSITIONS.find((p) => p.value === player.position)?.label;
               const initials = getInitials(player.full_name);
               const attendance = trainingAttendance?.[player.id];
+              const availability = playerAvailability?.[player.id];
 
               return (
                 <div
@@ -128,7 +138,22 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
                       {initials}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{player.full_name}</p>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <p className="font-medium truncate">{player.full_name}</p>
+                        {availability && (
+                          <span
+                            className={cn(
+                              "rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                              availability.status === "injured"
+                                ? "bg-destructive/10 text-destructive"
+                                : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                            )}
+                            title={availability.note ?? undefined}
+                          >
+                            {availability.status === "injured" ? "Injured" : "Unavailable"}
+                          </span>
+                        )}
+                      </div>
                       {(posLabel || attendance?.pct != null) && (
                         <p className="text-xs text-muted-foreground">
                           {posLabel}
