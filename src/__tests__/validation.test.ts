@@ -121,8 +121,12 @@ describe("playerRatingSchema", () => {
 });
 
 describe("linkChildSchema", () => {
-  it("accepts tokens ≥ 6 chars", () =>
-    expect(linkChildSchema.safeParse({ share_token: "abc123" }).success).toBe(true));
-  it("rejects tokens < 6 chars", () =>
-    expect(linkChildSchema.safeParse({ share_token: "abc" }).success).toBe(false));
+  it("accepts a 10-character code", () =>
+    expect(linkChildSchema.safeParse({ code: "7F3A29C1B4" }).success).toBe(true));
+  it("normalizes lowercase and a formatting hyphen before checking length", () =>
+    expect(linkChildSchema.safeParse({ code: "7f3a2-9c1b4" }).success).toBe(true));
+  it("rejects a code shorter than 10 characters", () =>
+    expect(linkChildSchema.safeParse({ code: "ABC123" }).success).toBe(false));
+  it("rejects a code longer than 10 characters", () =>
+    expect(linkChildSchema.safeParse({ code: "7F3A29C1B4EXTRA" }).success).toBe(false));
 });

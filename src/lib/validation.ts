@@ -65,8 +65,15 @@ export const playerRatingSchema = z.object({
   note: z.string().max(200).optional(),
 });
 
+// A staff-issued, single-use child link code — 10 characters, distinct from
+// the 6-character club/team access codes so the two cannot be confused. Mirrors
+// web/src/lib/validation.ts's linkChildSchema (migration 032: linking a child
+// no longer accepts the public share token).
 export const linkChildSchema = z.object({
-  share_token: z.string().min(6, 'Enter your child\'s code'),
+  code: z
+    .string()
+    .transform((raw) => raw.toUpperCase().replace(/[^A-Z0-9]/g, ''))
+    .refine((code) => code.length === 10, "A child link code is 10 characters"),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;

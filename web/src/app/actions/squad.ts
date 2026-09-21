@@ -84,13 +84,15 @@ export async function createPlayer(formData: FormData) {
     .select("id")
     .single();
 
-  if (createErr || !player) return { error: createErr?.message ?? "Could not create player." };
+  if (createErr || !player) {
+    return { error: createErr ? friendlyError(createErr) : "Could not create player." };
+  }
 
   const { error: memberErr } = await supabase
     .from("team_members")
     .insert({ team_id: team.id, player_id: player.id });
 
-  if (memberErr) return { error: memberErr.message };
+  if (memberErr) return { error: friendlyError(memberErr) };
 
   revalidatePath("/dashboard/coach/squad", "page");
   redirect("/dashboard/coach/squad");

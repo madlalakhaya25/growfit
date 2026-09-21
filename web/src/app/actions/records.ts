@@ -125,7 +125,7 @@ export async function uploadDocumentScan(formData: FormData) {
     .from("player-documents")
     .upload(path, file, { upsert: true, contentType: file.type });
 
-  if (upErr) return { error: upErr.message };
+  if (upErr) return { error: friendlyError(upErr, "Couldn't upload that document.") };
 
   const { data: { publicUrl } } = supabase.storage
     .from("player-documents")
@@ -177,7 +177,7 @@ export async function signConsentDocument(
     },
     { onConflict: "player_id,document_type,season" }
   );
-  if (docErr) return { error: docErr.message };
+  if (docErr) return { error: friendlyError(docErr) };
 
   const { error: consentErr } = await supabase.from("player_consents").upsert(
     {
@@ -190,7 +190,7 @@ export async function signConsentDocument(
     },
     { onConflict: "player_id,season" }
   );
-  if (consentErr) return { error: consentErr.message };
+  if (consentErr) return { error: friendlyError(consentErr) };
 
   revalidatePath(`/dashboard/admin/players/${playerId}`, "page");
   revalidatePath("/dashboard/parent", "page");

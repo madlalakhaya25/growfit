@@ -258,7 +258,7 @@ export async function uploadPlayVoiceNote(formData: FormData): Promise<{ url?: s
   const { error: storageErr } = await supabase.storage
     .from("academy-media")
     .upload(path, file, { contentType: file.type });
-  if (storageErr) return { error: storageErr.message };
+  if (storageErr) return { error: friendlyError(storageErr, "Couldn't upload that voice note.") };
 
   const { data: { publicUrl } } = supabase.storage.from("academy-media").getPublicUrl(path);
 
@@ -266,7 +266,7 @@ export async function uploadPlayVoiceNote(formData: FormData): Promise<{ url?: s
     .from("tactic_plays")
     .update({ voice_url: publicUrl, voice_path: path })
     .eq("id", playId);
-  if (updErr) return { error: updErr.message };
+  if (updErr) return { error: friendlyError(updErr) };
 
   // Only remove the old file once the new one is safely recorded.
   if (play.voice_path) {

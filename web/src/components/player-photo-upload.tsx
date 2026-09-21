@@ -2,8 +2,10 @@
 import { useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Upload } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { friendlyError } from "@/lib/friendly-error";
 
 export function PlayerPhotoUpload({ playerId }: { playerId: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -19,7 +21,7 @@ export function PlayerPhotoUpload({ playerId }: { playerId: string }) {
       .from("player-photos")
       .upload(path, file, { upsert: true, contentType: file.type });
 
-    if (uploadErr) { alert(uploadErr.message); return; }
+    if (uploadErr) { toast.error(friendlyError(uploadErr, "Couldn't upload that photo.")); return; }
 
     const { data: { publicUrl } } = supabase.storage
       .from("player-photos")
@@ -30,7 +32,7 @@ export function PlayerPhotoUpload({ playerId }: { playerId: string }) {
       .update({ photo_url: publicUrl })
       .eq("id", playerId);
 
-    if (updateErr) { alert(updateErr.message); return; }
+    if (updateErr) { toast.error(friendlyError(updateErr)); return; }
     router.refresh();
   }
 

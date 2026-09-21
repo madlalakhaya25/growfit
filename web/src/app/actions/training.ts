@@ -125,7 +125,7 @@ export async function createTrainingSessionWithDrills(params: {
       sort_order: i,
     }));
     const { error: drillError } = await supabase.from("training_drills").insert(drillRows);
-    if (drillError) return { error: drillError.message };
+    if (drillError) return { error: friendlyError(drillError) };
   }
 
   revalidatePath("/dashboard/coach/training", "page");
