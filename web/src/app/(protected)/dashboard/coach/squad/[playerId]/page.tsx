@@ -84,6 +84,14 @@ export default async function PlayerDetailPage({
       .eq("coach_id", user.id)
       .single();
     myAttrs = coreAttrs;
+  } else if (myAttrsResult.error && myAttrsResult.error.code !== "PGRST116") {
+    // PGRST116 ("no rows") is the ordinary case — this coach simply hasn't
+    // rated this player yet — and isMissingAttributeColumn() already handles
+    // the lagging-migration case above. Anything else (an RLS denial, an RLS
+    // policy recursion, a network failure) was previously swallowed with no
+    // trace at all: the attribute card just renders empty, identical to "not
+    // rated yet," with nothing in any log to tell the two apart.
+    console.error("[coach player page] failed to load player_attributes:", myAttrsResult.error);
   }
 
   if (!player) notFound();
