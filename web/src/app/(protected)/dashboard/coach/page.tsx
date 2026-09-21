@@ -10,7 +10,7 @@ import { CopyButton } from "@/components/copy-button";
 import { daysFromNow } from "@/lib/utils";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { getWelfareAlerts } from "@/app/actions/welfare";
-import { WelfareCheckinsPanel } from "@/components/welfare/welfare-checkins-panel";
+import { WelfareSummaryLink } from "@/components/welfare/welfare-summary-link";
 
 const SESSION_TYPE_LABEL: Record<string, string> = {
   general: "General", technical: "Technical", tactical: "Tactical",
@@ -124,7 +124,13 @@ export default async function CoachDashboardPage() {
       ) : (
         <div className="space-y-6">
 
-          <WelfareCheckinsPanel alerts={welfareAlerts} />
+          {/* The full check-in list moved to /dashboard/coach/welfare.
+              A standing list of children needing a conversation sat above
+              "what's next" on every load, and an alert that is always there
+              stops being read — it only clears when attendance actually
+              recovers, so it can sit unchanged for weeks. This keeps the
+              signal one line and one tap from the dashboard. */}
+          <WelfareSummaryLink count={welfareAlerts.length} />
 
           {/* ── What's Next ───────────────────────────────────────── */}
           {!nextFixture && !nextSession && (
