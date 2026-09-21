@@ -5,7 +5,6 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-  deployment_status:
   schedule:
     - cron: '20 15 * * 3'
 
@@ -13,10 +12,6 @@ jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
-    # Run on push/PR/schedule always; on deployment_status only when Vercel succeeds
-    if: |
-      github.event_name != 'deployment_status' ||
-      github.event.deployment_status.state == 'success'
 
     permissions:
       security-events: write
@@ -34,8 +29,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'deployment_status' && github.event.deployment.sha || github.sha }}
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
