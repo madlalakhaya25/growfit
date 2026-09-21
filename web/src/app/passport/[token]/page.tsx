@@ -12,6 +12,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { POSITIONS, FEET } from "@/lib/types";
 import {
   calculateOverall,
+  getPositionAttrKeys,
   type AttrKey,
 } from "@/lib/attributes";
 import { calculateAge, getInitials, matchRatingAverage } from "@/lib/player";
@@ -121,6 +122,17 @@ export default async function PublicPassportPage({
   const ratings = passport.ratings ?? [];
   const attrs = passport.attributes;
 
+  // `get_public_passport`'s SQL side averages with a plain `avg()` and no
+  // GROUP BY, which always returns exactly one row — all-NULL columns for a
+  // player nobody has ever rated, never SQL NULL. `attrs` is therefore a
+  // truthy object even with zero real assessments, so a bare `attrs ?` check
+  // can never fall through to the "not yet assessed" message. Mirrors the
+  // same "does this position actually have a rated attribute" check
+  // AttributeSummary and calculateOverall already do.
+  const hasAttrs = getPositionAttrKeys(passport.position).some(
+    (key) => typeof attrs?.[key] === "number"
+  );
+
   const ratingValues = ratings.map((r) => r.rating);
   const matchAvg = matchRatingAverage(ratingValues);
   const ratingAvgStars = ratingValues.length
@@ -217,7 +229,7 @@ export default async function PublicPassportPage({
                   {footLabel && <Badge variant="neutral">{footLabel} foot</Badge>}
                 </div>
 
-                {attrs ? (
+                {hasAttrs ? (
                   <div className="space-y-3 pt-1">
                     {/* Overall has never been explained anywhere it appears,
                         which invites reading it as a FIFA-style rating rather
