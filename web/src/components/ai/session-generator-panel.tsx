@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { generateSessionPlan } from "@/app/actions/session-generator";
+import { AiProse } from "@/components/ai/ai-prose";
 
 interface Props {
   sessionId: string;
@@ -165,9 +166,7 @@ export function SessionGeneratorPanel({ sessionId, teamId: _teamId }: Props) {
             return (
               <div key={i} className="space-y-1">
                 <p className="font-semibold text-sm text-foreground">{header}</p>
-                {rest.map((line, j) => (
-                  <p key={j} className="text-sm text-muted-foreground leading-relaxed">{line}</p>
-                ))}
+                <AiProse text={rest.join("\n")} />
               </div>
             );
           })}

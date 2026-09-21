@@ -7,6 +7,7 @@ import { POSITIONS, type Position } from "@/lib/types";
 import { POSITION_GROUPS, conceptsForPositionGroup, youtubeSearchUrl } from "@/lib/tactics";
 import { explainPositionalRole } from "@/app/actions/tactics";
 import { generateSessionPlan } from "@/app/actions/session-generator";
+import { AiProse } from "@/components/ai/ai-prose";
 
 const AGE_GROUPS = ["U9", "U11", "U13", "U15", "U17", "U19", "Senior"];
 
@@ -135,9 +136,7 @@ export function PositionalRolePanel() {
 
         {explanation && (
           <div className="rounded-lg border border-border bg-background p-4 space-y-1">
-            {explanation.trim().split("\n").filter(Boolean).map((line, i) => (
-              <p key={i} className="text-sm text-muted-foreground leading-relaxed">{line}</p>
-            ))}
+            <AiProse text={explanation} />
           </div>
         )}
 
@@ -173,9 +172,7 @@ export function PositionalRolePanel() {
               return (
                 <div key={i} className="space-y-1">
                   <p className="font-semibold text-sm text-foreground">{lines[0]}</p>
-                  {lines.slice(1).map((line, j) => (
-                    <p key={j} className="text-sm text-muted-foreground leading-relaxed">{line}</p>
-                  ))}
+                  <AiProse text={lines.slice(1).join("\n")} />
                 </div>
               );
             })}

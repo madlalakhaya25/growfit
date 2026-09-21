@@ -5,6 +5,12 @@ import { POSITIONS } from "@/lib/types";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { calculateAge } from "@/lib/player";
 import { attendancePct, isBelowWelfareThreshold, ATTENDANCE_WINDOW_DAYS, WELFARE_ATTENDANCE_THRESHOLD } from "@/lib/attendance";
+import {
+  ALL_ATTR_SELECT, CORE_ATTR_SELECT, ALL_ATTR_KEYS, ATTR_META,
+  buildAttributeSnapshot, describeAttributes, isMissingAttributeColumn,
+  type AttrKey,
+} from "@/lib/attributes";
+import { friendlyError } from "@/lib/friendly-error";
 
 /**
  * Assembles the real squad into a compact text brief the AI features share.
@@ -43,28 +49,73 @@ export async function buildSquadContext(
     .single();
   if (!team) return { error: "You don't coach this team." };
 
-  // Squad with ratings and attributes
-  const { data: members } = await supabase
+  // Squad with ratings and attributes.
+  //
+  // This used to select the six migration-001 attribute columns only. Those
+  // are `NOT NULL DEFAULT 50`, and the 24 attributes added by migrations 013
+  // and 033 — the whole tactical, mental and leadership corners, and every
+  // goalkeeper attribute — were not read at all. So a keeper assessed on
+  // shot-stopping, reflexes, handling and distribution reached the model as
+  // `shooting 50, passing 50, dribbling 50, defending 50`: four numbers
+  // nobody was ever asked for, because a keeper's assessment form never
+  // shows those sliders. `physical` is in no position's set at all, so it
+  // was always exactly 50 for everyone.
+  //
+  // Every prompt in this app tells the model never to invent a statistic.
+  // The brief has to hold up its end of that, so it now reads all 30
+  // columns and reports only what a coach actually rated — see
+  // buildAttributeSnapshot().
+  // Both selects are spelled out as literals rather than built from a
+  // variable. supabase-js parses the select string in the *type* system, so
+  // interpolating a runtime `string` erases to `string` and collapses the
+  // whole query's inferred row type into a ParserError — the same trap
+  // `ALL_ATTR_SELECT`'s own comment in lib/attributes.ts warns about. A
+  // const string literal keeps the inference intact.
+  const wide = await supabase
     .from("team_members")
     .select(`
       players (
         id, full_name, position, date_of_birth,
         player_ratings ( rating, created_at ),
-        player_attributes ( pace, shooting, passing, dribbling, defending, physical )
+        player_attributes ( ${ALL_ATTR_SELECT} )
       )
     `)
     .eq("team_id", teamId)
     .eq("active", true);
 
+  // A project that never ran migration 013/033 has none of the expanded
+  // columns, and a wide SELECT naming a missing column fails outright rather
+  // than returning the ones that exist (42703) — which would read as "this
+  // team has no players" here. Same fallback the player-facing surfaces use.
+  const narrow = isMissingAttributeColumn(wide.error)
+    ? await supabase
+        .from("team_members")
+        .select(`
+          players (
+            id, full_name, position, date_of_birth,
+            player_ratings ( rating, created_at ),
+            player_attributes ( ${CORE_ATTR_SELECT} )
+          )
+        `)
+        .eq("team_id", teamId)
+        .eq("active", true)
+    : null;
+
+  const result = narrow ?? wide;
+  if (result.error) {
+    console.error("[squad context] failed to load squad:", result.error);
+    return { error: friendlyError(result.error) };
+  }
+
   type Rating = { rating: number; created_at: string };
-  type Attr = { pace: number; shooting: number; passing: number; dribbling: number; defending: number; physical: number };
+  type Attr = Partial<Record<AttrKey, number | null>>;
   type Player = {
     id: string; full_name: string; position: string | null; date_of_birth: string | null;
     player_ratings: Rating[] | null; player_attributes: Attr[] | null;
   };
 
-  const players: Player[] = (members ?? [])
-    .flatMap((m: { players: Player | Player[] | null }) =>
+  const players: Player[] = ((result.data ?? []) as unknown as { players: Player | Player[] | null }[])
+    .flatMap((m) =>
       m.players ? (Array.isArray(m.players) ? m.players : [m.players]) : []
     );
 
@@ -138,10 +189,16 @@ export async function buildSquadContext(
 
     const age = calculateAge(p.date_of_birth);
 
-    const a = (p.player_attributes ?? [])[0];
-    const attrs = a
-      ? ` | pace ${a.pace}, shooting ${a.shooting}, passing ${a.passing}, dribbling ${a.dribbling}, defending ${a.defending}, physical ${a.physical}`
-      : "";
+    // Averaged across every coach who has assessed this player, filtered to
+    // the attributes their position is actually rated on. `null` where
+    // nobody has assessed them — stated plainly rather than papered over
+    // with the schema's default of 50.
+    const snapshot = buildAttributeSnapshot(p.player_attributes, p.position);
+    const described = describeAttributes(snapshot);
+    const attrs = described
+      ? ` | ability (1-99, avg of ${snapshot.coachCount} coach${snapshot.coachCount === 1 ? "" : "es"}): ${described}` +
+        (snapshot.overall !== null ? ` | overall ${snapshot.overall}` : "")
+      : " | ability: NOT ASSESSED — no coach has rated this player's attributes yet";
 
     lines.push(
       `- ${p.full_name} — ${posLabel(p.position)}${age ? `, age ${age}` : ""} | avg rating ${avg}/5 (${ratings.length} rated), recent form ${form}/5` +
@@ -150,14 +207,42 @@ export async function buildSquadContext(
     );
   }
 
-  // Squad averages — lets advice cite real numbers rather than generalities
-  const withAttrs = players.map((p) => (p.player_attributes ?? [])[0]).filter(Boolean) as Attr[];
-  if (withAttrs.length > 0) {
-    const mean = (k: keyof Attr) =>
-      Math.round(withAttrs.reduce((s, r) => s + r[k], 0) / withAttrs.length);
+  // Squad averages — lets advice cite real numbers rather than generalities.
+  //
+  // Averaged over the players actually rated on each attribute, not over the
+  // whole squad: a keeper is not rated on finishing, and counting them as a
+  // zero (or as the schema's default 50) would drag the number toward a
+  // figure describing nobody. An attribute no one has been rated on is
+  // omitted entirely rather than reported as 50.
+  const snapshots = players.map((p) => ({
+    position: p.position,
+    snapshot: buildAttributeSnapshot(p.player_attributes, p.position),
+  }));
+  const assessedCount = snapshots.filter((s) => s.snapshot.assessedKeys.length > 0).length;
+
+  if (assessedCount > 0) {
+    const totals = new Map<AttrKey, { sum: number; n: number }>();
+    for (const { snapshot } of snapshots) {
+      for (const key of snapshot.assessedKeys) {
+        const t = totals.get(key) ?? { sum: 0, n: 0 };
+        t.sum += snapshot.assessed[key]!;
+        t.n += 1;
+        totals.set(key, t);
+      }
+    }
+    const parts = ALL_ATTR_KEYS.filter((k) => totals.has(k)).map((k) => {
+      const t = totals.get(k)!;
+      return `${ATTR_META[k].label.toLowerCase()} ${Math.round(t.sum / t.n)} (${t.n} rated)`;
+    });
     lines.push(
       "",
-      `SQUAD AVERAGES (out of 100): pace ${mean("pace")}, shooting ${mean("shooting")}, passing ${mean("passing")}, dribbling ${mean("dribbling")}, defending ${mean("defending")}, physical ${mean("physical")}.`
+      `SQUAD AVERAGES (1-99, over the players rated on each attribute): ${parts.join(", ")}.`,
+      `${assessedCount} of ${players.length} players have an ability assessment.`
+    );
+  } else {
+    lines.push(
+      "",
+      "SQUAD AVERAGES: none — no player in this squad has an ability assessment yet. Do not estimate attribute numbers; say they need assessing."
     );
   }
 

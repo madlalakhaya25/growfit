@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Mail } from "lucide-react";
 import { toast } from "sonner";
 import { generateParentReport } from "@/app/actions/parent-report";
+import { AiProse } from "@/components/ai/ai-prose";
 
 interface Props {
   playerId: string;
@@ -60,18 +61,7 @@ export function ParentReportPanel({ playerId, playerName }: Props) {
       )}
 
       {report && (
-        <div className="px-4 py-4 text-sm leading-relaxed space-y-1">
-          {report.split("\n").map((line, i) => {
-            const isHeader = /^\d+\.\s+[A-Z][A-Z\s']+:/.test(line.trim());
-            return isHeader ? (
-              <p key={i} className="font-semibold text-foreground pt-2 first:pt-0">
-                {line}
-              </p>
-            ) : (
-              <p key={i} className="text-muted-foreground">{line}</p>
-            );
-          })}
-        </div>
+        <AiProse text={report} className="px-4 py-4" />
       )}
     </div>
   );

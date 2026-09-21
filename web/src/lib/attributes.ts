@@ -298,3 +298,88 @@ export const MISSING_ATTR_COLUMNS_MESSAGE =
   "Saved the six core attributes only. The expanded attributes could not be " +
   "saved because this database is missing those columns — an administrator " +
   "needs to run the pending migration (030_repair_expanded_attributes.sql).";
+
+// ─────────────────────────────────────────────────────────────────
+// The one attribute-read policy
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * What a player's assessment actually says, collapsed from however many
+ * coaches have rated them.
+ *
+ * Four files used to read `player_attributes` four different ways:
+ *
+ *  - `ai-insights.ts`      every coach's row, unaveraged
+ *  - `development-plan.ts` `.limit(1)`, the most recently assessed row
+ *  - `parent-report.ts`    the legacy six columns only
+ *  - `squad-context.ts`    the legacy six columns, then `[0]`
+ *
+ * `[0]` is the worst of them: with several coaches on a team
+ * (`team_coaches`, migration 019) there is no ordering on that query, so
+ * which coach's opinion reached the model depended on row order.
+ *
+ * `assessed` is the important field. It holds only the attributes this
+ * player's *position* is rated on AND that someone has actually given a
+ * number for. That filter is what keeps fabricated values out: the six
+ * migration-001 columns are `NOT NULL DEFAULT 50`, so a goalkeeper's row
+ * carries `shooting 50, passing 50, dribbling 50, defending 50` purely
+ * because nobody was ever asked for them — a keeper's form never shows those
+ * sliders. Reading the raw columns presents those defaults as opinions.
+ * `physical` is the same story for every position: it is in no position set
+ * at all (see ATTR_META's note on it), so it is always exactly 50, always
+ * fabricated.
+ */
+export interface AttributeSnapshot {
+  /** Position-assessed attributes that have a real value, coach-averaged. */
+  assessed: Partial<Record<AttrKey, number>>;
+  /** The keys in `assessed`, in display order. Empty means "not assessed". */
+  assessedKeys: AttrKey[];
+  /** How many coaches have an assessment row for this player. */
+  coachCount: number;
+  /** Mean of `assessed`; null when nothing relevant has been rated. */
+  overall: number | null;
+}
+
+/**
+ * Build an {@link AttributeSnapshot} from raw `player_attributes` rows —
+ * one per assessing coach, as returned by a `.select(ALL_ATTR_SELECT)`.
+ */
+export function buildAttributeSnapshot(
+  rows: Partial<Record<AttrKey, number | null>>[] | null | undefined,
+  position: string | null | undefined
+): AttributeSnapshot {
+  const averaged = averageAttributeRows(rows);
+  const assessed: Partial<Record<AttrKey, number>> = {};
+  const assessedKeys: AttrKey[] = [];
+
+  for (const key of getPositionAttrKeys(position)) {
+    const value = averaged?.[key];
+    if (typeof value === "number") {
+      assessed[key] = value;
+      assessedKeys.push(key);
+    }
+  }
+
+  return {
+    assessed,
+    assessedKeys,
+    coachCount: rows?.length ?? 0,
+    overall: calculateOverall(averaged, position),
+  };
+}
+
+/**
+ * One line of attribute text for an AI prompt, e.g.
+ * `finishing 72, heading 65, pace 80`.
+ *
+ * Returns `null` rather than a string of defaults when the player has no
+ * real assessment, so a caller can say "not assessed" instead of handing the
+ * model six invented numbers. Every prompt in this app instructs the model
+ * never to invent a statistic; the brief must hold up its end.
+ */
+export function describeAttributes(snapshot: AttributeSnapshot): string | null {
+  if (snapshot.assessedKeys.length === 0) return null;
+  return snapshot.assessedKeys
+    .map((key) => `${ATTR_META[key].label.toLowerCase()} ${snapshot.assessed[key]}`)
+    .join(", ");
+}

@@ -91,7 +91,7 @@ export default function Home() {
     <div className="flex min-h-dvh flex-col">
 
       {/* ── Header ───────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b-2 border-[#af2d35]">
+      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b-2 border-[#a71817]">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
           <Logo />
           <nav aria-label="Primary" className="hidden items-center gap-8 md:flex">
@@ -105,7 +105,7 @@ export default function Home() {
               Sign in
             </a>
             <a href={`${APP_URL}/auth/register`}
-              className="inline-flex items-center gap-1.5 px-4 h-9 text-sm font-bold bg-[#af2d35] text-white rounded hover:bg-[#c23340] transition-colors">
+              className="inline-flex items-center gap-1.5 px-4 h-9 text-sm font-bold bg-[#a71817] text-white rounded hover:bg-[#c42320] transition-colors">
               Get started
             </a>
           </div>
@@ -120,13 +120,13 @@ export default function Home() {
             <div className="grid gap-14 lg:grid-cols-[1fr_auto] lg:items-center">
 
               <div className="max-w-2xl">
-                <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-[#af2d35] mb-5">
+                <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-[#a71817] mb-5">
                   #WeBuildChampions
                 </p>
                 <h1 className="text-5xl sm:text-6xl lg:text-[5.5rem] font-extrabold leading-[0.92] tracking-tighter">
                   BUILD THE<br />
                   NEXT<br />
-                  <span className="text-[#af2d35]">GENERATION.</span>
+                  <span className="text-[#a71817]">GENERATION.</span>
                 </h1>
                 <p className="mt-7 text-white/60 text-base sm:text-lg leading-relaxed max-w-lg">
                   Football development, built for South African academies.
@@ -135,7 +135,7 @@ export default function Home() {
                 </p>
                 <div className="mt-8 flex flex-wrap gap-3">
                   <a href={`${APP_URL}/auth/register`}
-                    className="inline-flex items-center gap-2 bg-[#af2d35] text-white px-6 py-3.5 font-bold text-base rounded hover:bg-[#c23340] transition-colors">
+                    className="inline-flex items-center gap-2 bg-[#a71817] text-white px-6 py-3.5 font-bold text-base rounded hover:bg-[#c42320] transition-colors">
                     Create your passport
                     <ArrowRight className="size-4" aria-hidden="true" />
                   </a>
@@ -149,7 +149,7 @@ export default function Home() {
                 <div className="mt-12 pt-8 border-t border-white/10 grid grid-cols-3 gap-6 max-w-xs">
                   {[["4", "User roles"], ["5", "AI reports"], ["360°", "Player view"]].map(([n, label]) => (
                     <div key={label}>
-                      <p className="text-3xl font-extrabold tabular-nums text-[#af2d35]">{n}</p>
+                      <p className="text-3xl font-extrabold tabular-nums text-[#a71817]">{n}</p>
                       <p className="text-[10px] font-semibold uppercase tracking-widest text-white/30 mt-1">{label}</p>
                     </div>
                   ))}
@@ -158,7 +158,7 @@ export default function Home() {
 
               {/* Player card — trading card style */}
               <div className="bg-[#141416] border border-white/10 rounded overflow-hidden w-64 shrink-0 mx-auto lg:mx-0">
-                <div className="h-1 bg-[#af2d35]" />
+                <div className="h-1 bg-[#a71817]" />
                 <div className="p-5">
                   <div className="flex items-start justify-between mb-5">
                     <div>
@@ -166,7 +166,7 @@ export default function Home() {
                       <h3 className="text-lg font-extrabold text-white mt-1 leading-tight">Daniel Mbatha</h3>
                     </div>
                     <div className="text-right">
-                      <p className="text-4xl font-extrabold tabular-nums text-[#af2d35] leading-none">78</p>
+                      <p className="text-4xl font-extrabold tabular-nums text-[#a71817] leading-none">78</p>
                       <p className="text-[8px] font-bold uppercase tracking-widest text-white/20 mt-0.5">OVR</p>
                     </div>
                   </div>
@@ -176,7 +176,7 @@ export default function Home() {
                       <div key={label} className="flex items-center gap-2.5">
                         <span className="text-[10px] font-bold text-white/30 w-7 shrink-0 tabular-nums">{label}</span>
                         <div className="flex-1 h-1 bg-white/8 rounded-full overflow-hidden">
-                          <div className="h-full bg-[#af2d35] rounded-full" style={{ width: `${value}%` }} />
+                          <div className="h-full bg-[#a71817] rounded-full" style={{ width: `${value}%` }} />
                         </div>
                         <span className="text-[10px] font-bold tabular-nums text-white/50 w-5 text-right">{value}</span>
                       </div>
@@ -201,7 +201,7 @@ export default function Home() {
         </section>
 
         {/* ── Framework strip ──────────────────────────────── */}
-        <div className="bg-[#af2d35]">
+        <div className="bg-[#a71817]">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 py-3 flex flex-wrap items-center gap-x-6 gap-y-1">
             <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/50">Aligned with</span>
             {["FIFA LTPD", "SAFA NDP", "CAF Pathway", "4-Corner Model", "SAFA Registration"].map((f) => (
@@ -213,7 +213,7 @@ export default function Home() {
         {/* ── Roles ────────────────────────────────────────── */}
         <section id="roles" className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-16">
           <div className="mb-10">
-            <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-[#af2d35] mb-2">Your role</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-[#a71817] mb-2">Your role</p>
             <h2 className="text-4xl font-extrabold tracking-tight">One platform. Every role.</h2>
             <p className="mt-2 text-muted-foreground max-w-lg">
               Every person in the academy sees what matters to them, without the clutter.
@@ -234,7 +234,7 @@ export default function Home() {
                 <ul className="space-y-1.5">
                   {bullets.map((b) => (
                     <li key={b} className="text-xs text-muted-foreground flex items-start gap-2">
-                      <span className="mt-1.5 size-1 rounded-full bg-[#af2d35] shrink-0" />
+                      <span className="mt-1.5 size-1 rounded-full bg-[#a71817] shrink-0" />
                       {b}
                     </li>
                   ))}
@@ -252,7 +252,7 @@ export default function Home() {
           <div className="mx-auto max-w-6xl px-4 sm:px-6 py-16">
             <div className="grid gap-12 lg:grid-cols-2 lg:items-start">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-[#af2d35] mb-4">AI Engine</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-[#a71817] mb-4">AI Engine</p>
                 <h2 className="text-4xl font-extrabold tracking-tight leading-tight">
                   Five AI reports.<br />
                   <span className="text-white/30">Each one grounded in</span><br />
@@ -271,7 +271,7 @@ export default function Home() {
                 {AI_REPORTS.map(({ num, Icon, label, desc }) => (
                   <div key={label} className="flex items-start gap-4 px-5 py-4 hover:bg-white/3 transition-colors">
                     <span className="text-[10px] font-bold text-white/20 tabular-nums mt-0.5 w-5 shrink-0">{num}</span>
-                    <Icon className="size-4 text-[#af2d35] shrink-0 mt-0.5" aria-hidden="true" />
+                    <Icon className="size-4 text-[#a71817] shrink-0 mt-0.5" aria-hidden="true" />
                     <div>
                       <p className="text-sm font-bold text-white">{label}</p>
                       <p className="text-xs text-white/35 mt-0.5">{desc}</p>
@@ -286,7 +286,7 @@ export default function Home() {
         {/* ── Features ─────────────────────────────────────── */}
         <section id="features" className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-16">
           <div className="mb-10">
-            <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-[#af2d35] mb-2">Inside the platform</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-[#a71817] mb-2">Inside the platform</p>
             <h2 className="text-4xl font-extrabold tracking-tight">Everything the academy needs.</h2>
             <p className="mt-2 text-muted-foreground max-w-lg">
               From the first registration document to match day, Growfit FA handles the admin
@@ -308,7 +308,7 @@ export default function Home() {
         </section>
 
         {/* ── CTA ──────────────────────────────────────────── */}
-        <section className="bg-[#af2d35]">
+        <section className="bg-[#a71817]">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 py-16 text-center">
             <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/50 mb-4">#WeBuildChampions</p>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-white max-w-xl mx-auto leading-tight tracking-tight">
@@ -320,7 +320,7 @@ export default function Home() {
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <a href={`${APP_URL}/auth/register`}
-                className="inline-flex items-center gap-2 bg-white text-[#af2d35] px-6 py-3.5 font-bold text-base rounded hover:bg-white/90 transition-colors">
+                className="inline-flex items-center gap-2 bg-white text-[#a71817] px-6 py-3.5 font-bold text-base rounded hover:bg-white/90 transition-colors">
                 Get started free
                 <ArrowRight className="size-4" aria-hidden="true" />
               </a>

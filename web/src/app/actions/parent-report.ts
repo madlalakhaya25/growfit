@@ -4,6 +4,11 @@ import { GoogleGenAI } from "@google/genai";
 import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
 import { calculateAge } from "@/lib/player";
+import {
+  ALL_ATTR_SELECT, CORE_ATTR_SELECT,
+  buildAttributeSnapshot, describeAttributes, isMissingAttributeColumn,
+  type AttrKey,
+} from "@/lib/attributes";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -32,7 +37,7 @@ export async function generateParentReport(
 
         supabase
           .from("player_attributes")
-          .select("pace, shooting, passing, dribbling, defending, physical")
+          .select(ALL_ATTR_SELECT)
           .eq("player_id", playerId),
 
         supabase
@@ -53,7 +58,16 @@ export async function generateParentReport(
     if (!player) return { error: "Player not found." };
 
     const ratings = ratingsResult.data ?? [];
-    const attrs = attrsResult.data ?? [];
+    // A project that never ran migration 013/033 fails the wide select
+    // outright (42703) rather than returning the columns that do exist.
+    let attrs: Partial<Record<AttrKey, number | null>>[] = attrsResult.data ?? [];
+    if (!attrs.length && isMissingAttributeColumn(attrsResult.error)) {
+      const { data: coreAttrs } = await supabase
+        .from("player_attributes")
+        .select(CORE_ATTR_SELECT)
+        .eq("player_id", playerId);
+      attrs = coreAttrs ?? [];
+    }
     const milestones = milestonesResult.data ?? [];
     const trainingAttendance = trainingAttendanceResult.data ?? [];
 
@@ -71,16 +85,22 @@ export async function generateParentReport(
       })
       .join("; ");
 
-    const attrRows = attrs as Record<string, number>[];
-    const avg = (key: string) =>
-      attrRows.length
-        ? Math.round(attrRows.reduce((s, r) => s + (r[key] ?? 0), 0) / attrRows.length)
-        : null;
-
-    const attributeSummary =
-      attrRows.length > 0
-        ? `Pace ${avg("pace")}, Shooting ${avg("shooting")}, Passing ${avg("passing")}, Dribbling ${avg("dribbling")}, Defending ${avg("defending")}, Physical ${avg("physical")}`
-        : "No attribute assessments yet";
+    // This used to read the six migration-001 columns and average them with
+    // `r[key] ?? 0`. Three problems, all reaching a parent's report card:
+    // those columns are NOT NULL DEFAULT 50 so an unrated attribute read as
+    // a real 50; the 24 attributes from migrations 013/033 were ignored
+    // entirely, including every goalkeeper attribute; and `?? 0` would have
+    // dragged an average toward zero for any NULL. buildAttributeSnapshot()
+    // averages per-attribute over the coaches who actually rated it, and
+    // keeps only what this player's position is assessed on.
+    const snapshot = buildAttributeSnapshot(
+      attrs as Partial<Record<AttrKey, number | null>>[],
+      player.position
+    );
+    const described = describeAttributes(snapshot);
+    const attributeSummary = described
+      ? `${described}${snapshot.overall !== null ? ` (overall ${snapshot.overall})` : ""}`
+      : "No attribute assessments yet";
 
     const milestonesList = milestones
       .map((m: { completed_at: string; development_milestone_templates: { title: string; category: string } | { title: string; category: string }[] | null }) => {

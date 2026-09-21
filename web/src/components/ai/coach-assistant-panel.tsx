@@ -5,6 +5,7 @@ import { MessageSquare, Send, ListChecks, ClipboardList, Loader2 } from "lucide-
 import { toast } from "sonner";
 import { askCoachAssistant, suggestLineup, generateMatchPlan, type CoachMessage } from "@/app/actions/coach-assistant";
 import { SpeakButton } from "@/components/tactics/speak-button";
+import { AiProse } from "@/components/ai/ai-prose";
 import { FORMATIONS } from "@/lib/formations";
 
 export interface AssistantTeam { id: string; name: string; age_group: string | null }
@@ -148,9 +149,7 @@ export function CoachAssistantPanel({
               <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{output.title}</p>
               <SpeakButton text={output.text} />
             </div>
-            {output.text.split("\n").filter(Boolean).map((l, i) => (
-              <p key={i} className="text-xs text-muted-foreground leading-relaxed">{l}</p>
-            ))}
+            <AiProse text={output.text} />
           </div>
         )}
 
@@ -174,16 +173,14 @@ export function CoachAssistantPanel({
               <div
                 key={i}
                 className={m.role === "user"
-                  ? "ml-auto max-w-[85%] rounded-lg bg-primary px-3 py-2 text-xs text-primary-foreground"
+                  ? "ml-auto max-w-[85%] rounded-lg bg-secondary px-3 py-2 text-sm text-secondary-foreground"
                   : "mr-auto max-w-[92%] rounded-lg border border-border bg-background px-3 py-2 space-y-1"}
               >
                 {m.role === "user" ? (
                   <p>{m.text}</p>
                 ) : (
                   <>
-                    {m.text.split("\n").filter(Boolean).map((l, j) => (
-                      <p key={j} className="text-xs text-muted-foreground leading-relaxed">{l}</p>
-                    ))}
+                    <AiProse text={m.text} />
                     <SpeakButton text={m.text} />
                   </>
                 )}

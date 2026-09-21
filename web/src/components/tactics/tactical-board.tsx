@@ -24,6 +24,7 @@ import {
   type EquipmentKind, type BoardObject, type PlayerNote,
   type Token, type Shape, type ShapeKind, type Frame as ModelFrame,
 } from "@/lib/board-model";
+import { AiProse } from "@/components/ai/ai-prose";
 import { PitchLayer } from "@/components/tactics/pitch-layer";
 import { EquipmentLayer } from "@/components/tactics/equipment-layer";
 
@@ -1385,8 +1386,28 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_16rem]">
-        {/* Pitch */}
-        <div className="mx-auto w-full max-w-md">
+        {/* Pitch.
+            `max-w-md` (448px) used to apply at every breakpoint, so a coach
+            on a laptop got a phone-width pitch with the rest of the `1fr`
+            column empty — on the one screen in the app that is entirely
+            about spatial detail.
+            Lifting the cap outright would be wrong, though: the full pitch
+            is 100×150, i.e. *portrait*, so an unbounded width on a wide
+            column would make it taller than the viewport and unusable. What
+            actually binds is height, not width. So from `lg` up the ceiling
+            becomes the height the viewport can give, converted through this
+            pitch's own aspect ratio — and floored at the old 28rem so this
+            can never render smaller than it did before.
+            For the full pitch that means a taller monitor gets a bigger
+            board; for the half/third/grid pitches (which are landscape or
+            square, aspect >= 1) it means the board finally uses the width
+            the desktop layout already had spare. */}
+        <div
+          className="mx-auto w-full max-w-md lg:max-w-(--pitch-max-w)"
+          style={{
+            "--pitch-max-w": `max(28rem, calc((100dvh - 14rem) * ${pitch.w / pitch.h}))`,
+          } as React.CSSProperties}
+        >
           {/* Aspect ratio driven off the *current* pitch, not a hardcoded
               2:3 — a training grid or half/third pitch has a different
               shape, and the viewBox below always matches pitch.w/pitch.h.
@@ -1749,9 +1770,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                   <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Coaching points</p>
                   <SpeakButton text={description} />
                 </div>
-                {description.trim().split("\n").filter(Boolean).map((l, i) => (
-                  <p key={i} className="text-[11px] text-muted-foreground leading-relaxed">{l}</p>
-                ))}
+                <AiProse text={description} className="text-xs" />
               </div>
             )}
 
@@ -1761,9 +1780,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                   <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Countering the opponent</p>
                   <SpeakButton text={analysis} />
                 </div>
-                {analysis.trim().split("\n").filter(Boolean).map((l, i) => (
-                  <p key={i} className="text-[11px] text-muted-foreground leading-relaxed">{l}</p>
-                ))}
+                <AiProse text={analysis} className="text-xs" />
               </div>
             )}
 
