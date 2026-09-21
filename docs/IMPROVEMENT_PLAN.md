@@ -338,28 +338,58 @@ project. Nothing below matters until `035` is applied; without it every read of
 
 **Then, in order.** Ordered by value per unit of effort, not by area:
 
-| # | Item | Area | Size |
-|---|---|---|---|
-| 1 | Remove the `max-w-md` pitch cap at `lg`+ | T-1 | 1 line |
-| 2 | Real brand red `#A71817` | U-1 | 2 lines |
-| 3 | AI answer typography — stop rendering it as muted `text-xs` | U-3 | CSS |
-| 4 | Squad brief reads all 30 attributes; never print a defaulted 50 | AI-1 | ~30 lines |
-| 5 | Keyboard shortcuts on the board | T-2 | small |
-| 6 | Error reporting (Sentry) | U-4 | setup |
-| 7 | `getPlayerAttributeSnapshot()` — one attribute-read policy | AI-2 | refactor |
-| 8 | Squad search + filter chips | S-1 | small |
-| 9 | Attendance %, Overall and doc badge on the squad card | S-2/S-3 | small |
-| 10 | Board draft autosave + unsaved-changes guard | T-4 | small |
-| 11 | Tabs on the player profile | P-1 | medium |
-| 12 | Collapse the six history refs to two | T-3 | medium |
-| 13 | Show both "your assessment" and "squad average" | P-2 | small |
-| 14 | Structured AI output + one **Apply** action per feature | AI-4 | large |
-| 15 | Stream the three long generators | AI-3 | medium |
-| 16 | Persist AI artefacts; AI rate limit; `friendlyError()` on AI catches | AI-5 | medium |
-| 17 | Quick-assess mode + squad median marks | P-3 | medium |
-| 18 | Shared `<PlayerPassportCard>` | P-4 | medium |
-| 19 | Board state → zustand, extract panels | T-5 | large |
-| 20 | The full design pass | U-2 | large |
+| # | Item | Area | Size | Status |
+|---|---|---|---|---|
+| 1 | Remove the fixed pitch cap | T-1 | 1 line | **Done** |
+| 2 | Real brand red `#A71817` | U-1 | 2 lines | **Done** |
+| 3 | AI answer typography | U-3 | CSS | **Done** |
+| 4 | Squad brief reads all 30 attributes; never print a defaulted 50 | AI-1 | ~30 lines | **Done** |
+| 5 | Keyboard shortcuts on the board | T-2 | small | **Done** |
+| 6 | Error reporting (Sentry) | U-4 | setup | Not started — needs an account and a DSN |
+| 7 | `getPlayerAttributeSnapshot()` — one attribute-read policy | AI-2 | refactor | **Done** (as `buildAttributeSnapshot`) |
+| 8 | Squad search + filter chips | S-1 | small | **Done** |
+| 9 | Attendance %, Overall and doc badge on the squad card | S-2/S-3 | small | **Done** |
+| 10 | Board draft autosave + unsaved-changes guard | T-4 | small | **Done** |
+| 11 | Tabs on the player profile | P-1 | medium | **Done** |
+| 12 | Collapse the six history refs to two | T-3 | medium | **Done** |
+| 13 | Show both "your assessment" and "squad average" | P-2 | small | **Done** |
+| 14 | Structured AI output + one **Apply** action per feature | AI-4 | large | Not started |
+| 15 | Stream the three long generators | AI-3 | medium | Not started |
+| 16 | Persist AI artefacts; AI rate limit; friendly AI errors | AI-5 | medium | **Partly done** — errors and rate limit shipped; persistence needs a migration |
+| 17 | Quick-assess mode + squad median marks | P-3 | medium | Not started |
+| 18 | Shared `<PlayerPassportCard>` | P-4 | medium | Not started |
+| 19 | Board state → zustand, extract panels | T-5 | large | Not started |
+| 20 | The full design pass | U-2 | large | Not started |
+| — | S-4: audit the remaining `getCoachedTeamIds` filters | S-4 | medium | Not started |
 
-Items 1–3 are under an hour together and are the three a coach would notice
-first. Item 4 is the one that makes the AI features honest.
+## What was deliberately not done, and why
+
+- **6 · Sentry.** Needs an account, a DSN and a decision about where errors
+  go. No code change can stand in for that. Until it exists, the three
+  `console.error` calls from the 19–21 September fixes still go to a log
+  nobody reads — this remains the highest-value item on the list.
+- **14 · Structured AI output and Apply actions.** The largest item here and
+  the one that changes what the AI layer *is*. It needs product decisions
+  first: what an applied XI does to an existing squad selection, whether a
+  generated session lands as a draft or a real row, what happens when a
+  coach edits after applying. Worth doing; not worth guessing at.
+- **15 · Streaming.** Means moving three generators from Server Actions to
+  route handlers and reworking their panels. Defensible, but it is a
+  refactor of working code for a latency win, and it sits behind 14 — if the
+  output becomes structured, the streaming surface changes anyway.
+- **16 (persistence).** Saving a generated match plan against its fixture
+  needs a new table, and migrations in this repo are checked in but not
+  applied. Adding a migration nobody can run would make the backlog of
+  unapplied migrations worse, not better.
+- **17, 18, 19, 20.** Real improvements, none of them blocking. 19 and 20 in
+  particular are large enough to deserve their own passes: the board
+  refactor wants a test suite around the board first, and the design pass
+  needs the three-direction proposal the roadmap refers to, which is not in
+  this repo.
+- **i18n (U-5).** Unchanged from the roadmap: long term, and every month it
+  waits costs more.
+
+Items 1–5, 7–13 and the safe half of 16 shipped on
+`claude/bug-review-feature-planning-djy3ba`. Verification for the whole set:
+`tsc --noEmit` clean, 219/219 Jest tests (23 new), production build
+succeeds, and eslint gained no new findings.
