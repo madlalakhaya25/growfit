@@ -9,6 +9,7 @@ import {
   revokeParentLinkCode,
   unlinkParent,
 } from "@/app/actions/parent";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { formatParentLinkCode, type ParentLinkCodeSummary } from "@/lib/parent-link";
 
 export interface LinkedAdult {
@@ -62,6 +63,7 @@ export function ParentAccessCard({
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, start] = useTransition();
+  const { confirm, dialog } = useConfirm();
 
   const liveCodes = codes.filter((c) => c.status === "live");
 
@@ -93,8 +95,13 @@ export function ParentAccessCard({
     });
   }
 
-  function unlink(parentId: string, name: string | null) {
-    if (!confirm(`Remove ${name ?? "this adult"}'s access to ${playerName}'s records?`)) return;
+  async function unlink(parentId: string, name: string | null) {
+    const ok = await confirm({
+      title: `Remove ${name ?? "this adult"}'s access?`,
+      body: `They will no longer see ${playerName}'s records, ratings, fixtures or medical information. They would need a new staff-issued code to be linked again.`,
+      confirmLabel: "Remove access",
+    });
+    if (!ok) return;
     setError(null);
     start(async () => {
       const res = await unlinkParent(parentId, playerId);
@@ -104,6 +111,7 @@ export function ParentAccessCard({
 
   return (
     <Card>
+      {dialog}
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <ShieldCheck className="size-4 text-muted-foreground" aria-hidden="true" />

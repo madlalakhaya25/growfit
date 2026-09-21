@@ -59,7 +59,7 @@ export default async function CoachTrainingSessionPage({
       .eq("session_id", id),
     supabase
       .from("media_uploads")
-      .select("id, url, media_type, caption, created_at, media_tags ( player_id, players ( full_name ) )")
+      .select("id, url, media_type, caption, created_at, uploaded_by, media_tags ( player_id, players ( full_name ) )")
       .eq("session_id", id)
       .order("created_at", { ascending: false }),
     supabase
@@ -114,6 +114,7 @@ export default async function CoachTrainingSessionPage({
     media_type: string;
     caption: string | null;
     created_at: string;
+    uploaded_by: string | null;
     media_tags: RawMediaTag[] | null;
   };
   const normalizedMediaItems = (media ?? []).map((item: RawMediaItem) => ({
@@ -122,6 +123,7 @@ export default async function CoachTrainingSessionPage({
     media_type: item.media_type,
     caption: item.caption,
     created_at: item.created_at,
+    uploaded_by: item.uploaded_by,
     tagged_players: (item.media_tags ?? []).flatMap((tag: RawMediaTag) => {
       if (!tag.players) return [];
       return Array.isArray(tag.players) ? tag.players : [tag.players];
@@ -223,7 +225,11 @@ export default async function CoachTrainingSessionPage({
           />
         </div>
         {normalizedMediaItems.length > 0 && (
-          <MediaGallery items={normalizedMediaItems} />
+          <MediaGallery
+            items={normalizedMediaItems}
+            canDelete
+            currentUserId={user?.id}
+          />
         )}
         {normalizedMediaItems.length === 0 && (
           <p className="text-sm text-muted-foreground">No media yet — upload training photos or videos.</p>

@@ -78,20 +78,40 @@ export async function deleteMedia(mediaId: string) {
 
   if (fetchErr || !mediaRow) return { error: "Media not found." };
 
-  // Extract storage path from public URL (everything after /academy-media/)
-  const urlParts = mediaRow.url.split("/academy-media/");
-  const storagePath = urlParts[1];
-
-  if (storagePath) {
-    await supabase.storage.from("academy-media").remove([storagePath]);
-  }
-
-  const { error: deleteErr } = await supabase
+  // Delete the row FIRST, and only clear storage once a row actually went.
+  //
+  // This used to remove the storage object before the row, unconditionally.
+  // RLS on media_uploads is `media_uploader_delete: uploaded_by =
+  // auth.uid()` (migration 008), so a coach acting on a colleague's upload
+  // matches zero rows — and a DELETE that matches nothing is not a
+  // PostgREST error, just an empty result. The old order therefore deleted
+  // the file, left the row pointing at it, and returned `{ success: true }`:
+  // a broken thumbnail and a cheerful toast. Same silent-no-op shape as the
+  // admin deleteTeam() bug, with data loss attached.
+  const { data: deleted, error: deleteErr } = await supabase
     .from("media_uploads")
     .delete()
-    .eq("id", mediaId);
+    .eq("id", mediaId)
+    .select("id");
 
   if (deleteErr) return { error: friendlyError(deleteErr) };
+  if (!deleted?.length) {
+    return { error: "Only the person who uploaded this can delete it." };
+  }
+
+  // Extract storage path from public URL (everything after /academy-media/)
+  const storagePath = mediaRow.url.split("/academy-media/")[1];
+  if (storagePath) {
+    const { error: storageErr } = await supabase.storage
+      .from("academy-media")
+      .remove([storagePath]);
+    // The record is already gone, which is what the caller asked for. A
+    // failure here leaves an unreferenced file, not a broken gallery — log
+    // it rather than reporting a failed delete that did in fact happen.
+    if (storageErr) {
+      console.error("[media] row deleted but storage object remains:", storagePath, storageErr);
+    }
+  }
 
   if (mediaRow.session_id) {
     revalidatePath(`/dashboard/coach/training/${mediaRow.session_id}`);

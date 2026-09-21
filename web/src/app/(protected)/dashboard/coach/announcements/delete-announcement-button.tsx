@@ -2,6 +2,7 @@
 import { useTransition } from "react";
 import { Trash2 } from "lucide-react";
 import { deleteAnnouncement } from "@/app/actions/announcements";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -11,16 +12,23 @@ interface Props {
 
 export function DeleteAnnouncementButton({ id, title }: Props) {
   const [pending, startTransition] = useTransition();
+  const { confirm, dialog } = useConfirm();
 
-  function handleDelete() {
-    if (!confirm(`Delete announcement "${title}"?`)) return;
+  async function handleDelete() {
+    const ok = await confirm({
+      title: `Delete "${title}"?`,
+      body: "Parents and players who have already seen it keep no copy, and this cannot be undone.",
+    });
+    if (!ok) return;
     startTransition(async () => {
       await deleteAnnouncement(id);
     });
   }
 
   return (
-    <button
+    <>
+      {dialog}
+      <button
       type="button"
       onClick={handleDelete}
       disabled={pending}
@@ -32,6 +40,7 @@ export function DeleteAnnouncementButton({ id, title }: Props) {
       )}
     >
       <Trash2 className="size-4" aria-hidden="true" />
-    </button>
+      </button>
+    </>
   );
 }
