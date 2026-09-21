@@ -44,6 +44,7 @@ export function WelfareCheckinsPanel({ alerts }: Props) {
                         day: "numeric",
                         month: "short",
                       })}
+                      {a.lastCheckin.loggedBy && ` by ${a.lastCheckin.loggedBy}`}
                     </>
                   )}
                 </p>

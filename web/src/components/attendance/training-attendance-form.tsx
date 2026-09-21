@@ -29,6 +29,13 @@ interface Props {
   sessionId: string;
   players: Player[];
   existing: ExistingRecord[];
+  /**
+   * Who most recently marked this register, and when — surfaced so a
+   * co-coach opening a session they didn't create can tell whether the
+   * register in front of them is theirs or a colleague's (docs/BACKLOG.md
+   * 2.9), rather than the two silently disagreeing about who did what.
+   */
+  lastMarkedBy?: { name: string; at: string } | null;
 }
 
 /**
@@ -104,7 +111,7 @@ function PlayerRow({
   );
 }
 
-export function TrainingAttendanceForm({ sessionId, players, existing }: Props) {
+export function TrainingAttendanceForm({ sessionId, players, existing, lastMarkedBy }: Props) {
   const router = useRouter();
   const [statusMap, setStatusMap] = useState<Record<string, AttendanceStatus>>(() =>
     Object.fromEntries(
@@ -197,7 +204,15 @@ export function TrainingAttendanceForm({ sessionId, players, existing }: Props) 
   return (
     <section className="rounded-xl border border-border bg-card overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-border">
-        <h2 className="text-base font-semibold">Attendance</h2>
+        <div>
+          <h2 className="text-base font-semibold">Attendance</h2>
+          {lastMarkedBy && (
+            <p className="text-xs text-muted-foreground">
+              Last marked by {lastMarkedBy.name},{" "}
+              {new Date(lastMarkedBy.at).toLocaleDateString("en-ZA", { day: "numeric", month: "short" })}
+            </p>
+          )}
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm text-muted-foreground">
             {summary.attended} of {summary.assessed || players.length} in

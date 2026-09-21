@@ -277,8 +277,18 @@ The timezone lesson from `toDateTimeLocal` applies directly.
 `get_calendar_events` resolving it (same pattern as `get_public_passport`),
 and `/api/calendar/<token>.ics`. Deliberately **not** reusing
 `players.share_token` — migration 032 exists because that token had already
-been overloaded as a second credential once. Still to do: **the month-grid
-calendar view** inside the app, which is the other half of `FP-2`.
+been overloaded as a second credential once.
+
+**The month-grid calendar view**, the other half of `FP-2`, is also done:
+`components/calendar/month-calendar.tsx` is a plain Server Component (month
+navigation is just links to `?month=YYYY-MM`, no client JS needed) showing
+fixtures and training sessions as coloured dots on a month grid. Wired into
+`/dashboard/parent/fixtures` as a List/Calendar toggle (`?view=calendar`) —
+parents are this feature's primary audience, same as the `.ics` feed itself.
+The component is generic (`CalendarEvent[]` + a base path), so the coach and
+player fixtures pages can adopt it the same way without rebuilding it.
+Unit tested for the actual grid math (day placement, month/year wrap at the
+Dec→Jan boundary, the query-string-preserving nav links).
 
 ### 2.2 Registration status as a funnel — `FP-3`, `RM` — **Done**
 Rows are players, columns are the six documents, filterable by age group, with
@@ -322,9 +332,27 @@ deciding it). Unit tested (`lib/__tests__/eligibility.test.ts`).
 Match plan, match report, session generator. Sits behind 3.1: if the output
 becomes structured, the streaming surface changes anyway.
 
-### 2.6 Quick-assess mode + squad median marks — `IP-17`
+### 2.6 Quick-assess mode + squad median marks — `IP-17` — **Done**
 A coach assessing fifteen players after training faces 450 slider decisions.
 Show the position's top five, with a squad median tick on each slider.
+
+**Shipped:** `getQuickAssessKeys()` in `lib/attributes.ts` picks the five
+attributes worth rating without the full form — one per corner in turn
+(round-robining for a second pass when a position doesn't have all five
+corners populated), reusing each position's existing attribute ordering
+rather than a new hardcoded "top five" list. `computeSquadMedians()`
+computes the squad's median for each of those, over players actually
+assessed on it. `PlayerAttributesForm` gained a "Quick assess" toggle that
+swaps the full grouped form for just those five sliders, each with a tick
+mark at the squad median. Fixed a real bug found while wiring this up:
+saving from quick-assess mode would otherwise have submitted the *full*
+attribute set including untouched ones still at their 50-default — for a
+player's first-ever assessment, that means fabricating "50" for every
+attribute the coach never actually looked at, exactly what
+`upsertPlayerAttributes`'s own "only send what the form showed" comment
+already warns against. `handleSubmit` now submits only the five
+quick-assess keys when the toggle is on. Unit tested
+(`lib/__tests__/attributes.test.ts`).
 
 ### 2.7 Shared `<PlayerPassportCard>` — `IP-18` — **Done**
 The public passport, coach page, player dashboard and parent child page render
@@ -351,10 +379,29 @@ at a ground with no signal cannot see emergency contacts, which is exactly what
 the Injury & Medical Emergency Policy assumes is at hand. Cache squad,
 contacts and next fixture, and label the view with when it was last updated.
 
-### 2.9 Multi-coach visibility — `FP-10`
+### 2.9 Multi-coach visibility — `FP-10` — **Done (partial)**
 Attribution on the surfaces where two coaches can disagree without noticing —
 who assessed what and when, who logged which check-in, who marked the
 register. Not the full audit log below; just legibility.
+
+**Shipped:** two of the three named surfaces. The welfare panel's "last
+checked in 12 Sept" now reads "...by Sphe Mlotshwa" (`welfare_checkins.
+noted_by` was written since migration 024 but never selected or shown — a
+coach had no way to tell whether a logged check-in was their own or a
+colleague's). The training register now shows "Last marked by <name>,
+<date>" using `training_attendance.marked_by`/`marked_at`, same gap, same
+fix. Found and fixed a real, currently-live bug on the same page while
+doing this: the session detail page's own "Attendance" summary bar
+(distinct from the register form below it) still filtered on migration
+005's RSVP vocabulary (`'attending'`/`'unavailable'`), which migration 036
+stopped writing entirely — it has shown 0 going, 0 can't-make-it and every
+player "pending" regardless of the real register underneath, for every
+session, since 036 shipped. Removed the dead block rather than reimplementing
+it, since the register form directly below already shows the correct P/A/L/E
+summary. **Not done:** "who assessed what and when" for ability
+attributes — the coach-count is already shown ("Squad average · 3
+coaches"), but not which coaches or when each one last updated it; left for
+a follow-up rather than extending this session's scope further.
 
 ---
 

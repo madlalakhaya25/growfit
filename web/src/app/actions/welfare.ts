@@ -19,7 +19,7 @@ export interface WelfareAlert {
   /** How many sessions that percentage is out of — a 50% from two sessions
    *  is a very different conversation from a 50% from twenty. */
   sessionsAssessed: number;
-  lastCheckin: { note: string | null; createdAt: string } | null;
+  lastCheckin: { note: string | null; createdAt: string; loggedBy: string | null } | null;
 }
 
 /**
@@ -85,17 +85,29 @@ export async function getWelfareAlerts(): Promise<{ alerts: WelfareAlert[] } | {
     marksByPlayer.set(row.player_id, list);
   }
 
+  // `noted_by` is who actually logged this — never surfaced before, on a
+  // table two or more coaches on the same team can both write to
+  // (docs/BACKLOG.md 2.9). Without it, one coach sees "last checked in 12
+  // Sept" with no way to tell whether that was them or a colleague.
   const { data: checkins } = await supabase
     .from("welfare_checkins")
-    .select("player_id, note, created_at")
+    .select("player_id, note, created_at, noted_by, profiles ( full_name )")
     .in("player_id", playerIds)
     .order("created_at", { ascending: false });
 
-  const lastCheckinByPlayer = new Map<string, { note: string | null; createdAt: string }>();
-  for (const c of (checkins ?? []) as { player_id: string; note: string | null; created_at: string }[]) {
-    if (!lastCheckinByPlayer.has(c.player_id)) {
-      lastCheckinByPlayer.set(c.player_id, { note: c.note, createdAt: c.created_at });
-    }
+  type CheckinRow = {
+    player_id: string; note: string | null; created_at: string;
+    profiles: { full_name: string } | { full_name: string }[] | null;
+  };
+  const lastCheckinByPlayer = new Map<string, { note: string | null; createdAt: string; loggedBy: string | null }>();
+  for (const c of (checkins ?? []) as CheckinRow[]) {
+    if (lastCheckinByPlayer.has(c.player_id)) continue;
+    const profile = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles;
+    lastCheckinByPlayer.set(c.player_id, {
+      note: c.note,
+      createdAt: c.created_at,
+      loggedBy: profile?.full_name ?? null,
+    });
   }
 
   const alerts: WelfareAlert[] = players

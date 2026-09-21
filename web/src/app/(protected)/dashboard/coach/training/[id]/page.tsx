@@ -1,6 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { MapPin, Clock, PlayCircle, CheckCircle2, XCircle, ArrowLeft } from "lucide-react";
+import { MapPin, Clock, PlayCircle, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
@@ -58,9 +58,12 @@ export default async function CoachTrainingSessionPage({
       .select("id, title, description, video_url, sort_order")
       .eq("session_id", id)
       .order("sort_order"),
+    // `marked_by`/`marked_at` let the register say who actually marked it
+    // (docs/BACKLOG.md 2.9) — a fact two co-coaches on the same team can
+    // otherwise disagree about without either one noticing.
     supabase
       .from("training_attendance")
-      .select("player_id, status")
+      .select("player_id, status, marked_by, marked_at, profiles ( full_name )")
       .eq("session_id", id),
     supabase
       .from("media_uploads")
@@ -90,10 +93,6 @@ export default async function CoachTrainingSessionPage({
       ).data ?? []
     : [];
 
-  type AttendanceRow = { player_id: string; status: string };
-  const attending = (attendanceRows ?? []).filter((r: AttendanceRow) => r.status === "attending").length;
-  const unavailable = (attendanceRows ?? []).filter((r: AttendanceRow) => r.status === "unavailable").length;
-
   const date = new Date(session.session_date);
   const teamName = Array.isArray(session.teams)
     ? session.teams[0]?.name
@@ -107,9 +106,6 @@ export default async function CoachTrainingSessionPage({
     if (!m.players) return [];
     return Array.isArray(m.players) ? m.players : [m.players];
   });
-
-  const pendingCount = flattenedSquadPlayers.length - attending - unavailable;
-  const allMarked = flattenedSquadPlayers.length > 0 && pendingCount <= 0;
 
   // Normalize media items: flatten nested media_tags -> tagged_players
   type RawMediaTag = { player_id: string; players: { full_name: string } | { full_name: string }[] | null };
@@ -196,38 +192,32 @@ export default async function CoachTrainingSessionPage({
           </div>
         )}
 
-        {(attending > 0 || unavailable > 0 || flattenedSquadPlayers.length > 0) && (
-          <div className="border-t border-border/60 bg-background/60 px-5 py-3 flex flex-wrap items-center gap-4 text-sm">
-            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Attendance</span>
-            {attending > 0 && (
-              <span className="flex items-center gap-1 text-green-600 dark:text-green-400 font-medium">
-                <CheckCircle2 className="size-3.5" aria-hidden="true" />
-                {attending} going
-              </span>
-            )}
-            {unavailable > 0 && (
-              <span className="flex items-center gap-1 text-destructive font-medium">
-                <XCircle className="size-3.5" aria-hidden="true" />
-                {unavailable} can&apos;t make it
-              </span>
-            )}
-            {allMarked ? (
-              <span className="flex items-center gap-1 text-green-600 dark:text-green-400 font-medium">
-                <CheckCircle2 className="size-3.5" aria-hidden="true" />
-                All marked
-              </span>
-            ) : pendingCount > 0 ? (
-              <span className="text-muted-foreground">{pendingCount} pending</span>
-            ) : null}
-          </div>
-        )}
       </div>
 
-      {/* Coach attendance marking */}
+      {/* Coach attendance marking — its own header already shows the real
+          P/A/L/E summary (attended/assessed/pct/unmarked); a duplicate
+          "Attendance" bar used to sit here too, but it filtered on
+          migration 005's RSVP vocabulary ('attending'/'unavailable'), which
+          migration 036 stopped writing entirely — it had shown 0 going, 0
+          can't-make-it and every player "pending" regardless of how the
+          register below was actually marked, ever since 036 shipped. */}
       <TrainingAttendanceForm
         sessionId={id}
         players={flattenedSquadPlayers}
         existing={(attendanceRows ?? []) as { player_id: string; status: string }[]}
+        lastMarkedBy={(() => {
+          type MarkRow = {
+            marked_by: string | null; marked_at: string | null;
+            profiles: { full_name: string } | { full_name: string }[] | null;
+          };
+          const rows = (attendanceRows ?? []) as unknown as MarkRow[];
+          const latest = rows
+            .filter((r) => r.marked_at)
+            .sort((a, b) => +new Date(b.marked_at!) - +new Date(a.marked_at!))[0];
+          if (!latest) return null;
+          const profile = Array.isArray(latest.profiles) ? latest.profiles[0] : latest.profiles;
+          return profile?.full_name ? { name: profile.full_name, at: latest.marked_at! } : null;
+        })()}
       />
 
       {/* Photos & Videos */}

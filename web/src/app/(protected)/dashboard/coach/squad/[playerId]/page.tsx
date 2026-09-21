@@ -12,6 +12,8 @@ import {
   CORE_ATTR_SELECT,
   buildAttributeSnapshot,
   calculateOverall,
+  computeSquadMedians,
+  getQuickAssessKeys,
   isMissingAttributeColumn,
   type AttrKey,
 } from "@/lib/attributes";
@@ -175,6 +177,35 @@ export default async function PlayerDetailPage({
     teamParam && coachTeamIds.includes(teamParam)
       ? teamParam
       : sharedTeamIds[0] ?? null;
+
+  // Squad-wide attribute rows for quick-assess mode's median ticks
+  // (docs/BACKLOG.md 2.6) — same lagging-migration fallback as the two
+  // player_attributes reads above.
+  const squadAttrsResult = teamId
+    ? await supabase
+        .from("team_members")
+        .select(`players ( position, player_attributes ( ${ALL_ATTR_SELECT} ) )`)
+        .eq("team_id", teamId)
+        .eq("active", true)
+    : { data: null, error: null };
+
+  type SquadAttrPlayer = { position: string | null; player_attributes: Partial<Record<AttrKey, number | null>>[] | null };
+  let squadAttrPlayers: SquadAttrPlayer[] = (
+    (squadAttrsResult.data ?? []) as unknown as { players: SquadAttrPlayer | SquadAttrPlayer[] | null }[]
+  ).flatMap((m) => (m.players ? (Array.isArray(m.players) ? m.players : [m.players]) : []));
+
+  if (squadAttrPlayers.length === 0 && teamId && isMissingAttributeColumn(squadAttrsResult.error)) {
+    const { data: coreRows } = await supabase
+      .from("team_members")
+      .select(`players ( position, player_attributes ( ${CORE_ATTR_SELECT} ) )`)
+      .eq("team_id", teamId)
+      .eq("active", true);
+    squadAttrPlayers = ((coreRows ?? []) as unknown as { players: SquadAttrPlayer | SquadAttrPlayer[] | null }[])
+      .flatMap((m) => (m.players ? (Array.isArray(m.players) ? m.players : [m.players]) : []));
+  }
+
+  const quickAssessKeys = getQuickAssessKeys(player?.position);
+  const squadMedians = computeSquadMedians(squadAttrPlayers, quickAssessKeys);
 
   const [{ data: medical }, { data: milestoneTemplates }, { data: completions }, { data: clips }, { data: recentFixtures }, { data: docs }] = await Promise.all([
     supabase
@@ -435,7 +466,12 @@ export default async function PlayerDetailPage({
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <PlayerAttributesForm playerId={player.id} initial={initialAttrs} position={player.position} />
+                      <PlayerAttributesForm
+                        playerId={player.id}
+                        initial={initialAttrs}
+                        position={player.position}
+                        squadMedians={squadMedians}
+                      />
                     </CardContent>
                   </Card>
                   </>

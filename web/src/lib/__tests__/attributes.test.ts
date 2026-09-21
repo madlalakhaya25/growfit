@@ -12,6 +12,8 @@ import {
   EXTENDED_ATTR_KEYS,
   calculateOverall,
   getPositionAttrKeys,
+  getQuickAssessKeys,
+  computeSquadMedians,
   isMissingAttributeColumn,
   getPositionAttrs,
 } from "@/lib/attributes";
@@ -78,6 +80,78 @@ describe("getPositionAttrKeys", () => {
 
   it("falls back to the default set for an unknown position", () => {
     expect(getPositionAttrKeys("libero")).toEqual(getPositionAttrKeys(null));
+  });
+});
+
+describe("getQuickAssessKeys", () => {
+  it("returns at most five keys", () => {
+    for (const pos of ["gk", "cb", "lb", "cdm", "cm", "cam", "st", "ss", null]) {
+      expect(getQuickAssessKeys(pos).length).toBeLessThanOrEqual(5);
+    }
+  });
+
+  it("takes one attribute per corner for a keeper, who has all five", () => {
+    const keys = getQuickAssessKeys("gk");
+    const categories = new Set(keys.map((k) => ATTR_META[k].category));
+    expect(keys).toHaveLength(5);
+    expect(categories.size).toBe(5);
+  });
+
+  it("fills remaining slots from richer corners when a position lacks one", () => {
+    // Full-backs have no leadership attributes at all (see FULLBACK_ATTRS).
+    const keys = getQuickAssessKeys("lb");
+    const categories = keys.map((k) => ATTR_META[k].category);
+    expect(categories).not.toContain("leadership");
+    expect(keys.length).toBeGreaterThan(0);
+  });
+
+  it("never returns a duplicate key", () => {
+    const keys = getQuickAssessKeys("st");
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("only returns attributes the position is actually assessed on", () => {
+    const shown = getPositionAttrKeys("cam");
+    for (const key of getQuickAssessKeys("cam")) {
+      expect(shown).toContain(key);
+    }
+  });
+});
+
+describe("computeSquadMedians", () => {
+  it("computes the median over players actually assessed on that attribute", () => {
+    const players = [
+      { position: "st", player_attributes: [{ finishing: 60 }] },
+      { position: "st", player_attributes: [{ finishing: 70 }] },
+      { position: "st", player_attributes: [{ finishing: 80 }] },
+    ];
+    const medians = computeSquadMedians(players, ["finishing"]);
+    expect(medians.finishing).toBe(70);
+  });
+
+  it("averages the two middle values for an even-sized squad", () => {
+    const players = [
+      { position: "st", player_attributes: [{ finishing: 60 }] },
+      { position: "st", player_attributes: [{ finishing: 80 }] },
+    ];
+    const medians = computeSquadMedians(players, ["finishing"]);
+    expect(medians.finishing).toBe(70);
+  });
+
+  it("omits an attribute nobody on the squad has been assessed on", () => {
+    const players = [{ position: "st", player_attributes: null }];
+    const medians = computeSquadMedians(players, ["finishing"]);
+    expect(medians.finishing).toBeUndefined();
+  });
+
+  it("never counts a player against an attribute their position isn't assessed on", () => {
+    // A keeper is never assessed on finishing.
+    const players = [
+      { position: "gk", player_attributes: [{ finishing: 99 }] },
+      { position: "st", player_attributes: [{ finishing: 50 }] },
+    ];
+    const medians = computeSquadMedians(players, ["finishing"]);
+    expect(medians.finishing).toBe(50);
   });
 });
 

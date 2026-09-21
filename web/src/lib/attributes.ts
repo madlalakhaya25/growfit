@@ -192,6 +192,70 @@ export function getPositionAttrKeys(position: string | null | undefined): AttrKe
 }
 
 /**
+ * The five attributes worth rating when there isn't time for the full set —
+ * quick-assess mode (docs/BACKLOG.md 2.6): a coach assessing fifteen
+ * players after training faces 450 slider decisions on the full form.
+ *
+ * Takes the first (most defining, by each `PositionAttrSet`'s own existing
+ * order) attribute from each corner in turn, round-robining for a second
+ * pass if a position doesn't have five corners populated — so a keeper
+ * (five corners) gets one attribute per corner, while a full-back (no
+ * leadership attributes) gets a second technical or physical pick instead
+ * of only four. No new per-position data: this reads the same
+ * `PositionAttrSet` the full form already uses, just takes less of it.
+ */
+export function getQuickAssessKeys(position: string | null | undefined): AttrKey[] {
+  const set = getPositionAttrs(position);
+  const perCategory = ATTR_CATEGORIES.map((c) => set[c]).filter((keys) => keys.length > 0);
+  const result: AttrKey[] = [];
+  let round = 0;
+  while (result.length < 5 && perCategory.some((keys) => keys.length > round)) {
+    for (const keys of perCategory) {
+      if (result.length >= 5) break;
+      const key = keys[round];
+      if (key && !result.includes(key)) result.push(key);
+    }
+    round++;
+  }
+  return result;
+}
+
+/**
+ * The squad's median rating for each attribute — lets a coach see how a
+ * player compares to their teammates while dragging a slider, rather than
+ * guessing in a vacuum (docs/BACKLOG.md 2.6). Computed only over players
+ * who have actually been assessed on that attribute; an attribute nobody
+ * on the squad has been rated on yet contributes no median rather than a
+ * misleading default.
+ */
+export function computeSquadMedians(
+  players: { position: string | null; player_attributes: Partial<Record<AttrKey, number | null>>[] | null }[],
+  keys: readonly AttrKey[]
+): Partial<Record<AttrKey, number>> {
+  const valuesByKey = new Map<AttrKey, number[]>();
+  for (const p of players) {
+    const snapshot = buildAttributeSnapshot(p.player_attributes, p.position);
+    for (const key of keys) {
+      const value = snapshot.assessed[key];
+      if (typeof value === "number") {
+        const list = valuesByKey.get(key) ?? [];
+        list.push(value);
+        valuesByKey.set(key, list);
+      }
+    }
+  }
+  const medians: Partial<Record<AttrKey, number>> = {};
+  for (const [key, values] of valuesByKey) {
+    const sorted = [...values].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    medians[key] = sorted.length % 2 === 0
+      ? Math.round((sorted[mid - 1] + sorted[mid]) / 2)
+      : sorted[mid];
+  }
+  return medians;
+}
+
+/**
  * Collapse one row per assessing coach into a single averaged attribute set.
  *
  * Each attribute averages over the coaches who actually rated *it*, not over

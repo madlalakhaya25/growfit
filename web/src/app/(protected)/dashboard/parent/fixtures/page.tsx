@@ -1,12 +1,20 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { MapPin, Calendar } from "lucide-react";
+import { MapPin, Calendar, LayoutGrid, List as ListIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
+import { MonthCalendar, type CalendarEvent } from "@/components/calendar/month-calendar";
+import { cn } from "@/lib/utils";
 
-export default async function ParentFixturesPage() {
+export default async function ParentFixturesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string; month?: string }>;
+}) {
+  const { view: rawView, month: monthParam } = await searchParams;
+  const view = rawView === "calendar" ? "calendar" : "list";
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
@@ -45,6 +53,17 @@ export default async function ParentFixturesPage() {
         .order("fixture_date", { ascending: true })
     : { data: [] };
 
+  // Training sessions, only for the calendar view — the list view above this
+  // page has always been fixtures-only, and stays that way; the calendar is
+  // the one place a parent sees both in one glance, matching what the .ics
+  // feed already sends their calendar app (docs/BACKLOG.md 2.1).
+  const { data: trainingSessions } = view === "calendar" && teamIds.length
+    ? await supabase
+        .from("training_sessions")
+        .select("id, title, session_date, team_id")
+        .in("team_id", teamIds)
+    : { data: [] as { id: string; title: string; session_date: string; team_id: string }[] };
+
   // Build a map: team_id → child names (a team may have multiple linked children)
   const teamChildNames: Record<string, string[]> = {};
   for (const child of children) {
@@ -65,6 +84,26 @@ export default async function ParentFixturesPage() {
   const allFixtures = (fixtures ?? []) as Fixture[];
   const upcoming = allFixtures.filter((f) => !isFixturePast(f));
   const past     = allFixtures.filter((f) => isFixturePast(f));
+
+  const now = new Date();
+  const [calYear, calMonth] = monthParam?.match(/^\d{4}-\d{2}$/)
+    ? monthParam.split("-").map(Number)
+    : [now.getFullYear(), now.getMonth() + 1];
+
+  const calendarEvents: CalendarEvent[] = [
+    ...allFixtures.map((f) => ({
+      id: `fixture-${f.id}`,
+      date: f.fixture_date,
+      title: `${f.is_home ? "vs" : "@"} ${f.opponent}`,
+      kind: "fixture" as const,
+    })),
+    ...(trainingSessions ?? []).map((s) => ({
+      id: `training-${s.id}`,
+      date: s.session_date,
+      title: s.title,
+      kind: "training" as const,
+    })),
+  ];
 
   function FixtureRow({ f }: { f: Fixture }) {
     const teamName = Array.isArray(f.teams) ? f.teams[0]?.name : f.teams?.name;
@@ -108,7 +147,33 @@ export default async function ParentFixturesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Fixtures</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">Fixtures</h1>
+        {children.length > 0 && (
+          <div className="flex rounded-lg border border-border p-0.5 text-sm">
+            <Link
+              href="/dashboard/parent/fixtures"
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium transition-colors",
+                view === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+              )}
+            >
+              <ListIcon className="size-3.5" aria-hidden="true" />
+              List
+            </Link>
+            <Link
+              href="/dashboard/parent/fixtures?view=calendar"
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium transition-colors",
+                view === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+              )}
+            >
+              <LayoutGrid className="size-3.5" aria-hidden="true" />
+              Calendar
+            </Link>
+          </div>
+        )}
+      </div>
 
       {children.length === 0 ? (
         <Card>
@@ -123,6 +188,26 @@ export default async function ParentFixturesPage() {
             </CardDescription>
           </CardHeader>
         </Card>
+      ) : view === "calendar" ? (
+        <div className="space-y-2">
+          <MonthCalendar
+            year={calYear}
+            month={calMonth}
+            events={calendarEvents}
+            basePath="/dashboard/parent/fixtures"
+            extraQuery={{ view: "calendar" }}
+          />
+          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="size-2 rounded-full bg-primary" aria-hidden="true" />
+              Fixture
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2 rounded-full bg-emerald-500" aria-hidden="true" />
+              Training
+            </span>
+          </div>
+        </div>
       ) : allFixtures.length === 0 ? (
         <Card>
           <CardHeader>
