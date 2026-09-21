@@ -59,6 +59,20 @@ interface BoardState {
 }
 type Mode = "move" | "run" | "pass" | "dribble" | "free" | "spotlight" | "erase";
 
+/** localStorage key prefix for the per-team unsaved-board draft. */
+const DRAFT_KEY_PREFIX = "growfit.tactics.draft.";
+
+/** An unsaved board, kept in localStorage so closing the tab doesn't lose it. */
+interface BoardDraft {
+  state: BoardState;
+  frames: Frame[];
+  pitchId: string;
+  homeFormationId?: string;
+  awayFormationId?: string;
+  playName?: string;
+  savedAt: number;
+}
+
 /** A captured-but-not-yet-committed undo entry — see captureSnapshot()/
  * commitSnapshot() below. */
 interface SnapshotEntry {
@@ -268,12 +282,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   pitchIdRef.current = pitchId;
   const framesRef = useRef(frames);
   framesRef.current = frames;
-  const past = useRef<BoardState[]>([]);
-  const future = useRef<BoardState[]>([]);
-  const pastPitch = useRef<string[]>([]);
-  const futurePitch = useRef<string[]>([]);
-  const pastFrames = useRef<Frame[][]>([]);
-  const futureFrames = useRef<Frame[][]>([]);
+  const past = useRef<SnapshotEntry[]>([]);
+  const future = useRef<SnapshotEntry[]>([]);
   const [, forceRender] = useState(0);
 
   const svgRef = useRef<SVGSVGElement>(null);
@@ -298,13 +308,19 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const pitch = getPitch(pitchId);
 
   // ── History ────────────────────────────────────────────────────
-  // pastPitch/futurePitch and pastFrames/futureFrames track the pitch id
-  // and the captured-steps timeline alongside each board snapshot, in
-  // lockstep with past/future, so switching pitches (which clears the
-  // board — see setPitch below) and every timeline edit (capture/reorder/
-  // duplicate/insert/delete/duration — see captureFrame() etc. below,
-  // which all call this first) are single undoable steps like any other
-  // edit, not state that sits outside undo/redo entirely.
+  // An undo step is the board state, the pitch id and the captured-steps
+  // timeline *together*, so switching pitches (which clears the board — see
+  // setPitch below) and every timeline edit (capture/reorder/duplicate/
+  // insert/delete/duration — see captureFrame() etc. below, which all call
+  // snapshot() first) are single undoable steps like any other edit, rather
+  // than state sitting outside undo/redo entirely.
+  //
+  // That used to be six parallel refs — past/future × state/pitch/frames —
+  // pushed and popped in lockstep by hand. captureSnapshot() already built
+  // exactly the object below and commitSnapshot() immediately tore it back
+  // into three arrays, so every code path had three chances to forget one
+  // and desync undo silently. One array of whole entries removes the class
+  // of bug rather than the instance.
   /** Captures the pre-edit state without pushing it to history yet — used
    * by a drag (token/equipment) that snapshots on pointer-down but should
    * only actually cost a history entry if the pointer really moves. A tap
@@ -319,42 +335,35 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     };
   }
   function commitSnapshot(entry: SnapshotEntry) {
-    past.current.push(entry.state);
-    pastPitch.current.push(entry.pitch);
-    pastFrames.current.push(entry.frames);
-    if (past.current.length > 40) { past.current.shift(); pastPitch.current.shift(); pastFrames.current.shift(); }
+    past.current.push(entry);
+    if (past.current.length > 40) past.current.shift();
     future.current = [];
-    futurePitch.current = [];
-    futureFrames.current = [];
+    // Every real edit commits a history entry, so this is the one place
+    // that needs to know the board has diverged from what's saved.
+    dirtyRef.current = true;
   }
   function snapshot() {
     commitSnapshot(captureSnapshot());
   }
+  /** Applies a whole entry and returns the one it replaced, so undo and redo
+   * are the same move in opposite directions. */
+  function applyEntry(entry: SnapshotEntry): SnapshotEntry {
+    const current = captureSnapshot();
+    setState(entry.state);
+    setPitchIdState(entry.pitch);
+    setFrames(entry.frames);
+    forceRender((n) => n + 1);
+    return current;
+  }
   function undo() {
     const prev = past.current.pop();
-    const prevPitch = pastPitch.current.pop();
-    const prevFrames = pastFrames.current.pop();
     if (!prev) return;
-    future.current.push(JSON.parse(JSON.stringify(stateRef.current)) as BoardState);
-    futurePitch.current.push(pitchIdRef.current);
-    futureFrames.current.push(JSON.parse(JSON.stringify(framesRef.current)) as Frame[]);
-    setState(prev);
-    if (prevPitch) setPitchIdState(prevPitch);
-    if (prevFrames) setFrames(prevFrames);
-    forceRender((n) => n + 1);
+    future.current.push(applyEntry(prev));
   }
   function redo() {
     const next = future.current.pop();
-    const nextPitch = futurePitch.current.pop();
-    const nextFrames = futureFrames.current.pop();
     if (!next) return;
-    past.current.push(JSON.parse(JSON.stringify(stateRef.current)) as BoardState);
-    pastPitch.current.push(pitchIdRef.current);
-    pastFrames.current.push(JSON.parse(JSON.stringify(framesRef.current)) as Frame[]);
-    setState(next);
-    if (nextPitch) setPitchIdState(nextPitch);
-    if (nextFrames) setFrames(nextFrames);
-    forceRender((n) => n + 1);
+    past.current.push(applyEntry(next));
   }
 
   // ── Animation ──────────────────────────────────────────────────
@@ -526,6 +535,180 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
 
   useEffect(() => () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); }, []);
 
+  // ── Keyboard shortcuts ─────────────────────────────────────────
+  // There were none at all before this, on a drawing tool used at a desk.
+  // The comment on setPitch() even described Undo as the "Ctrl/Cmd+Z
+  // equivalent" — Ctrl+Z was bound to nothing; the only way back was the
+  // toolbar button.
+  //
+  // Every handler is read through a ref so this effect binds once rather
+  // than re-subscribing on each state change, and the shortcuts stay off
+  // while the coach is typing into a play name, a note or a duration.
+  const shortcutsRef = useRef({ undo, redo, playAnimation, stopPlayback, setMode, playing });
+  // Synced in an effect rather than assigned during render: writing a ref
+  // mid-render is what `react-hooks/refs` flags, and the handlers only ever
+  // need to be current by the time a key is actually pressed.
+  // No dep array on purpose — it re-syncs every render, which is the point.
+  // exhaustive-deps sees `setMode` in the object and assumes it is being
+  // called; it is only being stored for the keydown handler to call later.
+  /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  useEffect(() => {
+    shortcutsRef.current = { undo, redo, playAnimation, stopPlayback, setMode, playing };
+  });
+
+  useEffect(() => {
+    const TOOL_KEYS: Record<string, Mode> = {
+      v: "move", r: "run", p: "pass", d: "dribble",
+      f: "free", s: "spotlight", e: "erase",
+    };
+
+    function onKeyDown(ev: KeyboardEvent) {
+      // Never steal a keystroke aimed at a field. `isContentEditable`
+      // covers the rich-text cases a plain tagName check misses.
+      const target = ev.target as HTMLElement | null;
+      if (
+        target &&
+        (target.isContentEditable ||
+          ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+      ) {
+        return;
+      }
+
+      const h = shortcutsRef.current;
+      const mod = ev.metaKey || ev.ctrlKey;
+
+      if (mod && ev.key.toLowerCase() === "z") {
+        ev.preventDefault();
+        // Cmd/Ctrl+Shift+Z is redo on both platforms; Ctrl+Y as well, for
+        // the Windows convention.
+        if (ev.shiftKey) h.redo(); else h.undo();
+        return;
+      }
+      if (mod && ev.key.toLowerCase() === "y") {
+        ev.preventDefault();
+        h.redo();
+        return;
+      }
+      if (mod) return; // leave every other browser shortcut alone
+
+      if (ev.key === " ") {
+        ev.preventDefault();
+        if (h.playing) h.stopPlayback(); else h.playAnimation();
+        return;
+      }
+      if (ev.key === "Escape") {
+        setSelectedTokenId(null);
+        h.setMode("move");
+        return;
+      }
+
+      const tool = TOOL_KEYS[ev.key.toLowerCase()];
+      if (tool) {
+        ev.preventDefault();
+        h.setMode(tool);
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  // ── Draft autosave ─────────────────────────────────────────────
+  // A coach could build a twelve-frame animation and lose the lot by
+  // tapping back, or by the phone backgrounding the tab and the browser
+  // reclaiming it. Nothing was persisted until an explicit Save, and there
+  // was no navigation guard.
+  //
+  // The draft is offered, never applied automatically: silently restoring
+  // yesterday's board over a coach who deliberately opened a blank one is
+  // its own kind of data loss. Scoped per team, because switching teams is
+  // a deliberate context change.
+  //
+  // Every localStorage access is wrapped — it throws outright in some
+  // privacy modes, and a board that won't open is a far worse failure than
+  // one that doesn't remember a draft.
+  const draftKey = teamId ? `${DRAFT_KEY_PREFIX}${teamId}` : null;
+  const [draftOffer, setDraftOffer] = useState<BoardDraft | null>(null);
+  /** False until the coach has actually touched this board, so simply
+   *  opening the page can't overwrite a real draft with an empty one. */
+  const dirtyRef = useRef(false);
+
+  const clearDraft = () => {
+    dirtyRef.current = false;
+    if (!draftKey) return;
+    try { window.localStorage.removeItem(draftKey); } catch { /* unavailable */ }
+  };
+
+  // Offer whatever was left behind, once per team.
+  useEffect(() => {
+    dirtyRef.current = false;
+    let cancelled = false;
+
+    function read(): BoardDraft | null {
+      if (!draftKey) return null;
+      try {
+        const raw = window.localStorage.getItem(draftKey);
+        if (!raw) return null;
+        const draft = JSON.parse(raw) as BoardDraft;
+        // An empty board is not worth offering to restore.
+        if (!draft?.state?.tokens?.length && !draft?.state?.shapes?.length) return null;
+        return draft;
+      } catch {
+        // Corrupt or unreadable — drop it rather than blocking the board.
+        try { window.localStorage.removeItem(draftKey); } catch { /* unavailable */ }
+        return null;
+      }
+    }
+
+    const draft = read();
+    // Deferred out of the effect body on purpose: setting state
+    // synchronously here would cascade a second render before paint on
+    // every mount and every team switch, which is what
+    // `react-hooks/set-state-in-effect` is about. The banner has no reason
+    // to appear a frame earlier than this.
+    void Promise.resolve().then(() => { if (!cancelled) setDraftOffer(draft); });
+    return () => { cancelled = true; };
+  }, [draftKey]);
+
+  // Persist, debounced, once the board has actually been edited.
+  useEffect(() => {
+    if (!draftKey || !dirtyRef.current) return;
+    const timer = setTimeout(() => {
+      try {
+        const draft: BoardDraft = {
+          state, frames, pitchId, homeFormationId, awayFormationId,
+          playName, savedAt: Date.now(),
+        };
+        window.localStorage.setItem(draftKey, JSON.stringify(draft));
+      } catch { /* quota or unavailable — the board still works */ }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [draftKey, state, frames, pitchId, homeFormationId, awayFormationId, playName]);
+
+  // Warn before leaving with unsaved work. The browser shows its own
+  // wording; the string is only required to trigger the prompt at all.
+  useEffect(() => {
+    function onBeforeUnload(ev: BeforeUnloadEvent) {
+      if (!dirtyRef.current) return;
+      ev.preventDefault();
+      ev.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
+
+  function restoreDraft(draft: BoardDraft) {
+    snapshot();
+    setState(draft.state);
+    setFrames(draft.frames ?? []);
+    setPitchIdState(draft.pitchId ?? "full");
+    if (draft.homeFormationId) setHomeFormationId(draft.homeFormationId);
+    if (draft.awayFormationId) setAwayFormationId(draft.awayFormationId);
+    if (draft.playName) setPlayName(draft.playName);
+    setDraftOffer(null);
+    setNotice("Restored your unsaved board. Save it to keep it for good.");
+  }
+
   /**
    * Record the play sequence to a video file. The board is redrawn to an
    * offscreen canvas each animation frame and MediaRecorder captures that
@@ -643,6 +826,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setBusy(null);
     if (res.error) { setNotice(res.error); return; }
     setCurrentPlayId(res.id ?? null);
+    clearDraft();
     setNotice(`Saved "${name}".`);
     void refreshPlays();
   }
@@ -668,6 +852,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setDescription(null);
     setAnalysis(null);
     setVoiceUrl(meta?.voice_url ?? null);
+    clearDraft();
     setNotice(`Loaded "${res.name}".`);
   }
 
@@ -1175,12 +1360,20 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   }
 
   // ── UI helpers ─────────────────────────────────────────────────
+  /** Key that selects each tool — mirrored by the keydown handler above and
+   *  shown in the tooltip, since an unadvertised shortcut helps nobody. */
+  const TOOL_SHORTCUT: Record<Mode, string> = {
+    move: "V", run: "R", pass: "P", dribble: "D",
+    free: "F", spotlight: "S", erase: "E",
+  };
   const toolBtn = (m: Mode, Icon: typeof MousePointer2, label: string) => (
     <button
       key={m}
       type="button"
       onClick={() => setMode(m)}
-      title={label}
+      title={`${label} (${TOOL_SHORTCUT[m]})`}
+      aria-label={`${label} tool`}
+      aria-pressed={mode === m}
       className={`inline-flex h-10 sm:h-9 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium ${
         mode === m ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border hover:bg-muted"
       }`}
@@ -1240,6 +1433,43 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
 
   return (
     <div className="space-y-4">
+      {/* Unsaved draft from a previous visit. Offered rather than applied:
+          silently restoring over a coach who opened a blank board on
+          purpose would be its own kind of data loss. */}
+      {draftOffer && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/5 px-4 py-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">You have an unsaved board</p>
+            <p className="text-xs text-muted-foreground">
+              {draftOffer.playName ? `"${draftOffer.playName}" — ` : ""}
+              last edited{" "}
+              {new Date(draftOffer.savedAt).toLocaleString("en-ZA", {
+                day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+              })}
+              {draftOffer.frames?.length
+                ? ` · ${draftOffer.frames.length} step${draftOffer.frames.length === 1 ? "" : "s"}`
+                : ""}
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={() => restoreDraft(draftOffer)}
+              className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground"
+            >
+              Restore it
+            </button>
+            <button
+              type="button"
+              onClick={() => { setDraftOffer(null); clearDraft(); }}
+              className="inline-flex h-9 items-center rounded-md border border-border bg-background px-3 text-xs hover:bg-muted"
+            >
+              Discard
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Team + formations */}
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-xl border border-border bg-card p-3 space-y-2">
@@ -1356,8 +1586,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           </button>
         </span>
         <span className="mx-1 h-6 w-px bg-border" />
-        <button type="button" onClick={undo} title="Undo" className="inline-flex h-10 sm:h-9 items-center rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted"><Undo2 className="size-3.5" aria-hidden="true" /></button>
-        <button type="button" onClick={redo} title="Redo" className="inline-flex h-10 sm:h-9 items-center rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted"><Redo2 className="size-3.5" aria-hidden="true" /></button>
+        <button type="button" onClick={undo} title="Undo (Ctrl/Cmd+Z)" aria-label="Undo" className="inline-flex h-10 sm:h-9 items-center rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted"><Undo2 className="size-3.5" aria-hidden="true" /></button>
+        <button type="button" onClick={redo} title="Redo (Ctrl/Cmd+Shift+Z)" aria-label="Redo" className="inline-flex h-10 sm:h-9 items-center rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted"><Redo2 className="size-3.5" aria-hidden="true" /></button>
         <button type="button" onClick={() => setShowNames((v) => !v)} title="Toggle names" className={`inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border px-2.5 text-xs ${showNames ? "bg-muted border-border" : "bg-background border-border"} hover:bg-muted`}>
           <Tag className="size-3.5" aria-hidden="true" /> Names
         </button>
@@ -1518,6 +1748,10 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
             {mode === "free" && "Draw freehand to sketch a zone or shape."}
             {mode === "spotlight" && "Tap a player to highlight them — it follows them through every frame. Tap again to remove."}
             {mode === "erase" && "Tap a player or a line to remove it."}
+            <span className="hidden lg:inline text-muted-foreground/70">
+              {" "}· Keys: V move, R run, P pass, D dribble, F freehand, S spotlight,
+              E erase · Space plays · Ctrl/Cmd+Z undoes
+            </span>
           </p>
         </div>
 
