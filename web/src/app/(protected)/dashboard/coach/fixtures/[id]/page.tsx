@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CancelFixtureButton } from "./cancel-fixture-button";
+import { EditFixtureButton } from "./edit-fixture-button";
 import { LogResultForm } from "./log/log-result-form";
 import { MediaUploadForm } from "@/components/media/media-upload-form";
 import { MediaGallery } from "@/components/media/media-gallery";
@@ -147,7 +148,19 @@ export default async function FixtureDetailPage({
             {fixtureStatusLabel(fixture)}
           </Badge>
           {fixture.status === "upcoming" && (
-            <CancelFixtureButton fixtureId={id} />
+            <>
+              <EditFixtureButton
+                fixtureId={id}
+                fixture={{
+                  opponent: fixture.opponent,
+                  venue: fixture.venue,
+                  fixture_date: fixture.fixture_date,
+                  is_home: fixture.is_home,
+                  notes: fixture.notes,
+                }}
+              />
+              <CancelFixtureButton fixtureId={id} />
+            </>
           )}
         </div>
       </div>

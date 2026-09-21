@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { AddDrillForm } from "./add-drill-form";
 import { DeleteSessionButton } from "./delete-session-button";
+import { EditSessionButton } from "./edit-session-button";
 import { DeleteDrillButton } from "./delete-drill-button";
 import { AddFromLibrary } from "./add-from-library";
 import { MediaUploadForm } from "@/components/media/media-upload-form";
@@ -150,7 +151,19 @@ export default async function CoachTrainingSessionPage({
               </span>
               <h1 className="text-xl font-bold leading-tight">{session.title}</h1>
             </div>
-            <DeleteSessionButton id={id} />
+            <div className="flex shrink-0 items-center gap-1">
+              <EditSessionButton
+                sessionId={id}
+                session={{
+                  title: session.title,
+                  session_date: session.session_date,
+                  location: session.location,
+                  session_type: session.session_type,
+                  notes: session.notes,
+                }}
+              />
+              <DeleteSessionButton id={id} />
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
