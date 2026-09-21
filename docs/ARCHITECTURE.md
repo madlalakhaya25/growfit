@@ -242,7 +242,7 @@ tables.
 | `is_admin_or_coach()` | Boolean role check |
 | `get_public_passport(token)` | Bypasses RLS to serve the public passport page; enforces photo consent (023) — nulls `photo_url` unless `photo_consent` is true for the current season, inside the function itself so it can't be skipped by a future caller. Since 032 it returns a derived integer `age` rather than raw `date_of_birth`, omits the coach's free-text rating notes and the internal player UUID, and returns `NULL` (not an error object) for an unknown token |
 | `redeem_parent_link_code(code)` | The only way a parent may attach themselves to a child (032). Single-use, expiring, throttled; the code is issued per child by a coach or admin |
-| `claim_player_profile(token)` | Atomically links a player record to a user |
+| `claim_player_profile(token, date_of_birth)` | Atomically links a player record to a user. Token is printed on the physical player card/QR, so it's not proof of identity by itself — date of birth is required as a second factor, restricted to player-role accounts, and throttled (034), same shape as `redeem_parent_link_code` above |
 | `log_match_result(...)` | Atomic match logging: result + status + appearances + ratings in one transaction |
 | `update_own_registration_numbers(mysafa, id)` | Narrow, field-limited self-edit for a claimed player — added after discovering the general player self-edit path was silently broken for anyone past the initial claim (020) |
 | `delete_player_photo(player_id)` | Narrow self-service: a parent or the player themself can clear their own photo (025) — same reasoning as the function above, RLS can't restrict which column a broader UPDATE grant would touch |

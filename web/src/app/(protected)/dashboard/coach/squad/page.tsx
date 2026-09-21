@@ -57,6 +57,14 @@ export default async function SquadPage({
     .eq("active", true)
     .order("joined_at");
 
+  if (membersError) {
+    // Without this, a real query failure (RLS, a stale PostgREST schema
+    // cache, a missing relationship) is indistinguishable from an empty
+    // squad in every log — the UI already tells the coach something broke,
+    // but nobody with server access could see *why*.
+    console.error("[squad page] failed to load team_members:", membersError);
+  }
+
   const squad = (members ?? []).map((m: {
     player_id: string;
     joined_at: string;

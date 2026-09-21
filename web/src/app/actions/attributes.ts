@@ -99,7 +99,7 @@ export async function upsertPlayerAttributes(
     .from("player_attributes")
     .upsert({ ...base, ...core }, { onConflict: "player_id,coach_id" });
 
-  if (coreError) return { error: coreError.message };
+  if (coreError) return { error: friendlyError(coreError) };
 
   revalidatePath(`/dashboard/coach/squad/${playerId}`);
   return { success: true, warning: MISSING_ATTR_COLUMNS_MESSAGE };

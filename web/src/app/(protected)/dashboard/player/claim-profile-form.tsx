@@ -73,8 +73,9 @@ export function ClaimProfileForm() {
       <CardHeader>
         <CardTitle>Link your player profile</CardTitle>
         <CardDescription>
-          Enter the share token your coach gave you. You can find it on your physical
-          squad sheet or by asking your coach directly.
+          Enter the share token your coach gave you, plus your date of birth — the
+          token alone is printed on your squad sheet and card, so it isn&apos;t enough
+          on its own to prove the profile is yours.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -91,6 +92,16 @@ export function ClaimProfileForm() {
               autoComplete="off"
               placeholder="e.g. a1b2c3d4e5"
               className="w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm uppercase tracking-widest placeholder:normal-case placeholder:tracking-normal focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="share_dob" className="text-sm font-medium">Date of birth</label>
+            <input
+              id="share_dob"
+              name="date_of_birth"
+              type="date"
+              required
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
 

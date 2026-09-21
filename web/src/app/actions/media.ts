@@ -28,7 +28,7 @@ export async function uploadMedia(formData: FormData) {
     .from("academy-media")
     .upload(path, file, { contentType: file.type });
 
-  if (storageErr) return { error: storageErr.message };
+  if (storageErr) return { error: friendlyError(storageErr, "Couldn't upload that file.") };
 
   const {
     data: { publicUrl },
@@ -49,7 +49,7 @@ export async function uploadMedia(formData: FormData) {
     .select("id")
     .single();
 
-  if (insertErr) return { error: insertErr.message };
+  if (insertErr) return { error: friendlyError(insertErr) };
 
   if (player_id && mediaRow) {
     await supabase
@@ -91,7 +91,7 @@ export async function deleteMedia(mediaId: string) {
     .delete()
     .eq("id", mediaId);
 
-  if (deleteErr) return { error: deleteErr.message };
+  if (deleteErr) return { error: friendlyError(deleteErr) };
 
   if (mediaRow.session_id) {
     revalidatePath(`/dashboard/coach/training/${mediaRow.session_id}`);

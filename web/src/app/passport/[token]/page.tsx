@@ -14,7 +14,7 @@ import {
   calculateOverall,
   type AttrKey,
 } from "@/lib/attributes";
-import { calculateAge, getInitials } from "@/lib/player";
+import { calculateAge, getInitials, matchRatingAverage } from "@/lib/player";
 import QRCode from "qrcode";
 
 export const revalidate = 60;
@@ -122,9 +122,7 @@ export default async function PublicPassportPage({
   const attrs = passport.attributes;
 
   const ratingValues = ratings.map((r) => r.rating);
-  const matchAvg = ratingValues.length
-    ? Math.round((ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length) * 20)
-    : 0;
+  const matchAvg = matchRatingAverage(ratingValues);
   const ratingAvgStars = ratingValues.length
     ? ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length
     : 0;

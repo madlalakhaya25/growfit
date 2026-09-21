@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { RatingRing } from "@/components/ui/rating-ring";
 import { StatBar } from "@/components/ui/stat-bar";
 import { POSITIONS } from "@/lib/types";
-import { calculateAge, getInitials } from "@/lib/player";
+import { calculateAge, getInitials, matchRatingAverage } from "@/lib/player";
 import { RemovePlayerPhotoButton } from "@/components/remove-player-photo-button";
 import { CopyButton } from "@/components/copy-button";
 import { AttributeSummary } from "@/components/player/attribute-summary";
@@ -181,9 +181,7 @@ export default async function PlayerDashboardPage() {
         opponent: fixture?.opponent ?? undefined,
       };
     });
-  const matchAvg = ratingValues.length
-    ? Math.round((ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length) * 20)
-    : 0;
+  const matchAvg = matchRatingAverage(ratingValues);
 
   // Attributes — averaged across every coach who assessed this player.
   type AttrRow = Partial<Record<AttrKey, number | null>>;
