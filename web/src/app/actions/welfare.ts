@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
-import { attendancePct, isBelowWelfareThreshold, ATTENDANCE_WINDOW_DAYS } from "@/lib/attendance";
+import {
+  ATTENDANCE_WINDOW_DAYS,
+  isAttendanceStatus,
+  summariseAttendance,
+  type AttendanceStatus,
+} from "@/lib/attendance";
 import { friendlyError } from "@/lib/friendly-error";
 
 export interface WelfareAlert {
@@ -11,6 +16,9 @@ export interface WelfareAlert {
   fullName: string;
   teamName: string;
   attendancePct: number;
+  /** How many sessions that percentage is out of — a 50% from two sessions
+   *  is a very different conversation from a 50% from twenty. */
+  sessionsAssessed: number;
   lastCheckin: { note: string | null; createdAt: string } | null;
 }
 
@@ -64,11 +72,17 @@ export async function getWelfareAlerts(): Promise<{ alerts: WelfareAlert[] } | {
     .in("session_id", sessionIds)
     .in("player_id", playerIds);
 
-  const presentByPlayer = new Map<string, number>();
+  // Collect each player's marks and let summariseAttendance apply the policy
+  // (late counts as attending, excused is left out of the total). This used
+  // to count `status === "present"` against a denominator of *every session
+  // in the window* — so an unmarked register dragged everyone down, and a
+  // coach who had never marked attendance saw their whole squad flagged.
+  const marksByPlayer = new Map<string, AttendanceStatus[]>();
   for (const row of (attendance ?? []) as { player_id: string; status: string }[]) {
-    if (row.status === "present") {
-      presentByPlayer.set(row.player_id, (presentByPlayer.get(row.player_id) ?? 0) + 1);
-    }
+    if (!isAttendanceStatus(row.status)) continue;
+    const list = marksByPlayer.get(row.player_id) ?? [];
+    list.push(row.status);
+    marksByPlayer.set(row.player_id, list);
   }
 
   const { data: checkins } = await supabase
@@ -85,13 +99,19 @@ export async function getWelfareAlerts(): Promise<{ alerts: WelfareAlert[] } | {
   }
 
   const alerts: WelfareAlert[] = players
-    .filter((p) => isBelowWelfareThreshold(presentByPlayer.get(p.id) ?? 0, sessionCount))
-    .map((p) => ({
-      playerId: p.id,
-      fullName: p.full_name,
-      teamName: teamNameById.get(p.teamId) ?? "—",
-      attendancePct: attendancePct(presentByPlayer.get(p.id) ?? 0, sessionCount) ?? 0,
-      lastCheckin: lastCheckinByPlayer.get(p.id) ?? null,
+    .map((p) => ({ player: p, summary: summariseAttendance(marksByPlayer.get(p.id) ?? []) }))
+    // `belowThreshold` is false when nothing has been marked, so a player
+    // with no register entries no longer appears here at all. That is the
+    // honest answer — there is nothing yet to have a welfare conversation
+    // about — and it is what stops this list from being the whole squad.
+    .filter(({ summary }) => summary.belowThreshold)
+    .map(({ player, summary }) => ({
+      playerId: player.id,
+      fullName: player.full_name,
+      teamName: teamNameById.get(player.teamId) ?? "—",
+      attendancePct: summary.pct ?? 0,
+      sessionsAssessed: summary.assessed,
+      lastCheckin: lastCheckinByPlayer.get(player.id) ?? null,
     }))
     .sort((a, b) => a.attendancePct - b.attendancePct);
 

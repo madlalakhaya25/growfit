@@ -17,7 +17,8 @@ import {
   buildAttributeSnapshot, isMissingAttributeColumn, type AttrKey,
 } from "@/lib/attributes";
 import {
-  attendancePct, attendanceWindowStart, isBelowWelfareThreshold,
+  attendanceWindowStart, isAttendanceStatus, summariseAttendance,
+  type AttendanceStatus,
 } from "@/lib/attendance";
 import { DOCUMENTS } from "@/lib/document-definitions";
 import { SquadFilters, type SquadFilter } from "./squad-filters";
@@ -158,7 +159,10 @@ export default async function SquadPage({
   ]);
 
   const sessionIds = (sessions ?? []).map((x: { id: string }) => x.id);
-  const presentByPlayer = new Map<string, number>();
+  // Counted `status === "attending"` — migration 005's RSVP vocabulary, which
+  // the app has never written. Shares one policy with the welfare page and
+  // the AI brief now: late counts as attending, excused is left out.
+  const marksByPlayer = new Map<string, AttendanceStatus[]>();
   if (sessionIds.length && playerIds.length) {
     const { data: att } = await supabase
       .from("training_attendance")
@@ -166,9 +170,10 @@ export default async function SquadPage({
       .in("session_id", sessionIds)
       .in("player_id", playerIds);
     for (const row of (att ?? []) as { player_id: string; status: string }[]) {
-      if (row.status === "attending") {
-        presentByPlayer.set(row.player_id, (presentByPlayer.get(row.player_id) ?? 0) + 1);
-      }
+      if (!isAttendanceStatus(row.status)) continue;
+      const list = marksByPlayer.get(row.player_id) ?? [];
+      list.push(row.status);
+      marksByPlayer.set(row.player_id, list);
     }
   }
 
@@ -190,9 +195,9 @@ export default async function SquadPage({
     // attributes this position is assessed on, averaged across coaches.
     const snapshot = buildAttributeSnapshot(p.player_attributes ?? null, p.position);
 
-    const present = presentByPlayer.get(p.id) ?? 0;
-    const attendance = attendancePct(present, sessionIds.length);
-    const belowThreshold = isBelowWelfareThreshold(present, sessionIds.length);
+    const attendanceSummary = summariseAttendance(marksByPlayer.get(p.id) ?? []);
+    const attendance = attendanceSummary.pct;
+    const belowThreshold = attendanceSummary.belowThreshold;
 
     const docsSigned = docsByPlayer.get(p.id) ?? 0;
     const docsOutstanding = Math.max(0, REQUIRED_DOC_COUNT - docsSigned);

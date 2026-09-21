@@ -4,7 +4,11 @@ import { requireUser } from "@/lib/auth";
 import { POSITIONS } from "@/lib/types";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { calculateAge } from "@/lib/player";
-import { attendancePct, attendanceWindowStart, isBelowWelfareThreshold, ATTENDANCE_WINDOW_DAYS, WELFARE_ATTENDANCE_THRESHOLD } from "@/lib/attendance";
+import {
+  ATTENDANCE_WINDOW_DAYS, WELFARE_ATTENDANCE_THRESHOLD,
+  attendanceWindowStart, isAttendanceStatus, summariseAttendance,
+  type AttendanceStatus,
+} from "@/lib/attendance";
 import {
   ALL_ATTR_SELECT, CORE_ATTR_SELECT, ALL_ATTR_KEYS, ATTR_META,
   buildAttributeSnapshot, describeAttributes, isMissingAttributeColumn,
@@ -134,7 +138,13 @@ export async function buildSquadContext(
     .gte("session_date", since);
   const sessionIds = (sessions ?? []).map((s: { id: string }) => s.id);
 
-  const attendanceByPlayer = new Map<string, { present: number }>();
+  // This counted `status === "attending"` — migration 005's RSVP vocabulary,
+  // which the app has never written. welfare.ts counted `"present"`, the
+  // value the app actually writes, so two surfaces reading the same table
+  // disagreed about what it said. One shared vocabulary now, in
+  // lib/attendance.ts, and one policy: late counts as attending, excused is
+  // left out of the total rather than counted against the player.
+  const marksByPlayer = new Map<string, AttendanceStatus[]>();
   if (sessionIds.length > 0) {
     const { data: att } = await supabase
       .from("training_attendance")
@@ -142,9 +152,10 @@ export async function buildSquadContext(
       .in("session_id", sessionIds)
       .in("player_id", playerIds);
     for (const row of (att ?? []) as { player_id: string; status: string }[]) {
-      const rec = attendanceByPlayer.get(row.player_id) ?? { present: 0 };
-      if (row.status === "attending") rec.present += 1;
-      attendanceByPlayer.set(row.player_id, rec);
+      if (!isAttendanceStatus(row.status)) continue;
+      const list = marksByPlayer.get(row.player_id) ?? [];
+      list.push(row.status);
+      marksByPlayer.set(row.player_id, list);
     }
   }
 
@@ -184,8 +195,7 @@ export async function buildSquadContext(
       ? (recent5.reduce((s, r) => s + r.rating, 0) / recent5.length).toFixed(1)
       : "n/a";
 
-    const present = attendanceByPlayer.get(p.id)?.present ?? 0;
-    const attPct = attendancePct(present, sessionIds.length);
+    const attendance = summariseAttendance(marksByPlayer.get(p.id) ?? []);
 
     const age = calculateAge(p.date_of_birth);
 
@@ -202,7 +212,9 @@ export async function buildSquadContext(
 
     lines.push(
       `- ${p.full_name} — ${posLabel(p.position)}${age ? `, age ${age}` : ""} | avg rating ${avg}/5 (${ratings.length} rated), recent form ${form}/5` +
-      (attPct !== null ? ` | training attendance ${attPct}%${isBelowWelfareThreshold(present, sessionIds.length) ? " (BELOW the 75% policy threshold)" : ""}` : "") +
+      (attendance.pct !== null
+        ? ` | training attendance ${attendance.pct}% of ${attendance.assessed} session${attendance.assessed === 1 ? "" : "s"}${attendance.belowThreshold ? " (BELOW the 75% policy threshold)" : ""}`
+        : " | training attendance: not yet marked") +
       attrs
     );
   }
@@ -247,10 +259,9 @@ export async function buildSquadContext(
   }
 
   if (sessionIds.length > 0) {
-    const below = players.filter((p) => {
-      const present = attendanceByPlayer.get(p.id)?.present ?? 0;
-      return isBelowWelfareThreshold(present, sessionIds.length);
-    });
+    const below = players.filter(
+      (p) => summariseAttendance(marksByPlayer.get(p.id) ?? []).belowThreshold
+    );
     lines.push(
       `TRAINING: ${sessionIds.length} sessions in the last ${ATTENDANCE_WINDOW_DAYS} days. ${below.length} player(s) below the ${Math.round(WELFARE_ATTENDANCE_THRESHOLD * 100)}% attendance threshold${below.length ? `: ${below.map((p) => p.full_name).join(", ")}` : ""}.`
     );

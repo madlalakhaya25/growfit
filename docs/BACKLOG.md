@@ -22,15 +22,17 @@ commit.
 
 | # | Item | What it needs | Source |
 |---|---|---|---|
-| 0.1 | **Apply migrations 030–035** | Someone with Supabase SQL-editor or CLI access | IP Step 0 |
+| 0.1 | **Apply migrations 030–037** | Someone with Supabase SQL-editor or CLI access | IP Step 0 |
 | 0.2 | Error reporting (Sentry or equivalent) | An account and a DSN | IP-6 |
 | 0.3 | Seed a test Supabase project + Playwright auth states | A real test project and credentials | RM |
 | 0.4 | Move rate limiting off in-memory | A shared store (Upstash Redis) and credentials | RM |
 
 **0.1 is not optional and not ranked.** Migration `035` fixes a `42P17`
 recursion that fails *every* read of `players` — the squad page, the player
-dashboard, the parent dashboard, the admin pages. Until it runs, most of this
-app does not work in production and nothing below matters.
+dashboard, the parent dashboard, the admin pages. `036` is what makes
+training attendance recordable at all. `037` is what makes the calendar feed
+resolve. Until they run, most of this app does not work in production and
+nothing below matters.
 
 **0.2 is the most valuable thing on this entire page.** Three separate fixes
 in September were "make a swallowed error visible", and all three made it
@@ -48,7 +50,7 @@ the real ceiling is the limit times the instance count.
 
 Ordered by how often the academy hits the problem. All are days, not sprints.
 
-### 1.1 Attendance: P/A/L/E parity, then one-tap marking — `FP-1`, `RM`
+### 1.1 Attendance: P/A/L/E parity — `FP-1`, `RM` — **Done (migration 036 pending)**
 The training form offers Present/Absent only while the policy and the match
 form use P/A/L/E, so **late and excused currently count as absences against
 the 75% welfare threshold**. That is a correctness bug wearing a feature's
@@ -57,6 +59,14 @@ simultaneously. Fix the states first; then default everyone to Present so a
 coach taps only the exceptions.
 
 Marked twice a week for three squads. Nothing else recurs that often.
+
+**What it actually was.** `training_attendance.status` still carried
+migration 005's RSVP constraint (`'attending' | 'unavailable'`) while the app
+wrote `'present' | 'absent'`, so **every training attendance write failed**
+with 23514 — and the three readers disagreed about the column on top of that.
+Migration `036` aligns it with `match_attendance`; one vocabulary now lives in
+`lib/attendance.ts`. Still to do here: **one-tap marking** (default everyone
+Present, tap only the exceptions).
 
 ### 1.2 Injury / availability state — `FP-6`
 There is no way to record that a player is currently injured. Squad selection
@@ -91,13 +101,20 @@ five `no-explicit-any`. Real findings get lost in a baseline of known ones.
 
 ## Phase 2 — Medium, and changes what the academy can do
 
-### 2.1 Season calendar + subscribable `.ics` feed — `FP-2`
+### 2.1 Subscribable `.ics` feed — `FP-2` — **Done (migration 037 pending)**
 Highest ratio of parent-facing value to code written. The data exists; an
 `.ics` feed is a route handler and a text format. A parent subscribes once and
 every fixture and time change lands in the calendar app they already use — no
 notification to build, and it keeps working with no signal.
 
 The timezone lesson from `toDateTimeLocal` applies directly.
+
+**Shipped:** a per-person revocable token on `profiles`, a SECURITY DEFINER
+`get_calendar_events` resolving it (same pattern as `get_public_passport`),
+and `/api/calendar/<token>.ics`. Deliberately **not** reusing
+`players.share_token` — migration 032 exists because that token had already
+been overloaded as a second credential once. Still to do: **the month-grid
+calendar view** inside the app, which is the other half of `FP-2`.
 
 ### 2.2 Registration status as a funnel — `FP-3`, `RM`
 Rows are players, columns are the six documents, filterable by age group, with
@@ -204,7 +221,10 @@ rating is for, in a way that is hard to undo once parents have seen it.
 1. **Apply the migrations** (0.1). Nothing works properly until this happens.
 2. **Add error reporting** (0.2). Stop finding bugs by waiting for a coach to
    mention one.
-3. **Fix attendance P/A/L/E** (1.1). A live correctness bug quietly corrupting
-   the welfare threshold, the squad filter and the AI brief at once.
-4. **Ship the `.ics` calendar feed** (2.1). The most parent-facing value per
-   line of code on this page.
+3. ~~**Fix attendance P/A/L/E** (1.1).~~ **Done** — and it was worse than
+   described: every training attendance write was failing against the
+   database's constraint, which is why the welfare page was flagging the
+   whole academy.
+4. ~~**Ship the `.ics` calendar feed** (2.1).~~ **Done.**
+
+Both land behind 0.1: they need migrations `036` and `037` applied.
