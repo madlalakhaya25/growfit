@@ -19,6 +19,15 @@
 -- throttle `redeem_parent_link_code` uses (032) — this RPC is authenticated,
 -- so the actor is known and the limit can live in the database.
 --
+-- IMPORTANT: `claim_player_profile(p_share_token TEXT, p_date_of_birth DATE)`
+-- is a different signature from the original `claim_player_profile(p_share_token
+-- TEXT)` (001/014) — Postgres identifies a function by name AND argument
+-- types, so `CREATE OR REPLACE FUNCTION` with a new parameter list does NOT
+-- replace the old one-argument version; it creates a second, overloaded
+-- function that would sit there next to the new one, still reachable, still
+-- carrying none of the checks below. This migration explicitly DROPs that
+-- old signature so only the verified version can be called.
+--
 -- Idempotent; safe to re-run.
 
 -- ─────────────────────────────────────────────────────────────
@@ -53,6 +62,11 @@ REVOKE EXECUTE ON FUNCTION record_player_claim_failure() FROM PUBLIC;
 -- (NULL never equals p_date_of_birth) — same limitation
 -- claim_player_by_registration already accepts for the identical reason. A
 -- coach or admin needs to link that player's account directly instead.
+
+-- Drop the original one-argument signature FIRST — see the note at the top
+-- of this file. Without this, the old, unverified claim_player_profile(TEXT)
+-- keeps existing side by side with the new one and remains fully callable.
+DROP FUNCTION IF EXISTS claim_player_profile(TEXT);
 
 CREATE OR REPLACE FUNCTION claim_player_profile(
   p_share_token   TEXT,
