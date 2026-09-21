@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { getPlayerInsights } from "@/app/actions/ai-insights";
+import { AiProse } from "@/components/ai/ai-prose";
 
 export function AiInsightsPanel({ playerId }: { playerId: string }) {
   const [insights, setInsights] = useState<string | null>(null);
@@ -55,18 +56,7 @@ export function AiInsightsPanel({ playerId }: { playerId: string }) {
       )}
 
       {insights && (
-        <div className="px-4 py-4 text-sm leading-relaxed space-y-1">
-          {insights.split("\n").map((line, i) => {
-            const isHeader = /^\d+\.\s+[A-Z][A-Z\s]+:/.test(line.trim());
-            return isHeader ? (
-              <p key={i} className="font-semibold text-foreground pt-2 first:pt-0">
-                {line}
-              </p>
-            ) : (
-              <p key={i} className="text-muted-foreground">{line}</p>
-            );
-          })}
-        </div>
+        <AiProse text={insights} className="px-4 py-4" />
       )}
     </div>
   );

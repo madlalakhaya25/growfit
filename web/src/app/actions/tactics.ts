@@ -5,6 +5,7 @@ import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
 import { getConcept } from "@/lib/tactics";
 import { buildSquadContext } from "./squad-context";
+import { aiError, checkAiBudget } from "@/lib/ai-guard";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -26,7 +27,12 @@ export async function explainPositionalRole(params: {
   ageGroup: string;
 }): Promise<{ explanation?: string; error?: string }> {
   try {
-    await requireUser();
+    const { user } = await requireUser();
+    // One AI call against this user's hourly budget. Counts attempts, not
+    // successes: a failed call still costs a request to the provider.
+    const overBudget = checkAiBudget(user.id);
+    if (overBudget) return { error: overBudget };
+
 
     const positionLabel = params.positionLabel.trim();
     if (!positionLabel) return { error: "Pick a position first." };
@@ -69,7 +75,7 @@ COACHING CUES: [3 short phrases the coach can shout to this player during play]`
 
     return { explanation: text };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "AI service unavailable." };
+    return { error: aiError(err) };
   }
 }
 
@@ -79,7 +85,12 @@ export async function explainTacticalConcept(params: {
   teamId?: string;
 }): Promise<{ explanation?: string; error?: string }> {
   try {
-    await requireUser();
+    const { user } = await requireUser();
+    // One AI call against this user's hourly budget. Counts attempts, not
+    // successes: a failed call still costs a request to the provider.
+    const overBudget = checkAiBudget(user.id);
+    if (overBudget) return { error: overBudget };
+
 
     const concept = getConcept(params.conceptId);
     if (!concept) return { error: "Unknown tactical concept." };
@@ -132,7 +143,7 @@ COACHING CUES: [3 short phrases the coach can shout during play]${squadNote}`;
 
     return { explanation: text };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "AI service unavailable." };
+    return { error: aiError(err) };
   }
 }
 
@@ -149,7 +160,12 @@ export async function describePlay(params: {
   summary: string;
 }): Promise<{ description?: string; error?: string }> {
   try {
-    await requireUser();
+    const { user } = await requireUser();
+    // One AI call against this user's hourly budget. Counts attempts, not
+    // successes: a failed call still costs a request to the provider.
+    const overBudget = checkAiBudget(user.id);
+    if (overBudget) return { error: overBudget };
+
 
     const ageGroup = params.ageGroup.trim() || "U15";
     const ltpdPhase = getLTPDPhase(ageGroup);
@@ -194,7 +210,7 @@ PROGRESSION: [1 sentence on how to make it harder once they master it]`;
     text = text.replace(/\*/g, "");
     return { description: text };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "AI service unavailable." };
+    return { error: aiError(err) };
   }
 }
 
@@ -211,7 +227,12 @@ export async function analyseOpponent(params: {
   availableFormations: string[];
 }): Promise<{ analysis?: string; error?: string }> {
   try {
-    await requireUser();
+    const { user } = await requireUser();
+    // One AI call against this user's hourly budget. Counts attempts, not
+    // successes: a failed call still costs a request to the provider.
+    const overBudget = checkAiBudget(user.id);
+    if (overBudget) return { error: overBudget };
+
 
     const ageGroup = params.ageGroup.trim() || "U15";
     const ltpdPhase = getLTPDPhase(ageGroup);
@@ -257,6 +278,6 @@ TRAIN THIS WEEK: [1 sentence on what to rehearse in training]`;
     text = text.replace(/\*/g, "");
     return { analysis: text };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "AI service unavailable." };
+    return { error: aiError(err) };
   }
 }

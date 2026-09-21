@@ -4,12 +4,14 @@ import { GoogleGenAI } from "@google/genai";
 import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
 import {
-  ALL_ATTR_KEYS,
   ALL_ATTR_SELECT,
+  ATTR_META,
   CORE_ATTR_SELECT,
+  buildAttributeSnapshot,
   isMissingAttributeColumn,
   type AttrKey,
 } from "@/lib/attributes";
+import { aiError, checkAiBudget } from "@/lib/ai-guard";
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY!,
@@ -20,7 +22,12 @@ export async function getPlayerInsights(playerId: string): Promise<{
   error?: string;
 }> {
   try {
-    const { supabase } = await requireUser();
+    const { supabase, user } = await requireUser();
+    // One AI call against this user's hourly budget. Counts attempts, not
+    // successes: a failed call still costs a request to the provider.
+    const overBudget = checkAiBudget(user.id);
+    if (overBudget) return { error: overBudget };
+
 
     const [
       playerResult,
@@ -81,36 +88,22 @@ export async function getPlayerInsights(playerId: string): Promise<{
         )
       : null;
 
-    const attrRows = attrs ?? [];
-
-    const ATTR_LABELS: Record<string, string> = {
-      pace: "Pace", shooting: "Shooting", passing: "Passing", dribbling: "Dribbling",
-      defending: "Defending", physical: "Physical", ball_control: "Ball Control",
-      crossing: "Crossing", heading: "Heading", tackling: "Tackling",
-      finishing: "Finishing", first_touch: "First Touch", stamina: "Stamina",
-      agility: "Agility", jumping: "Jumping", strength: "Strength",
-      positioning: "Positioning", decision_making: "Decision Making",
-      composure: "Composure", work_rate: "Work Rate", leadership: "Leadership",
-      shot_stopping: "Shot Stopping", reflexes: "Reflexes",
-      distribution: "Distribution", handling: "Handling",
-    };
-
-    const avg = (key: string) => {
-      if (!attrRows.length) return null;
-      const vals = attrRows.map((r: any) => r[key]).filter((v: any) => v != null);
-      if (!vals.length) return null;
-      return Math.round(vals.reduce((sum: number, v: number) => sum + v, 0) / vals.length);
-    };
-
-    const attributeSummary = attrRows.length
-      ? ALL_ATTR_KEYS
-          .map((key) => {
-            const val = avg(key);
-            return val != null ? `${ATTR_LABELS[key]}: ${val}` : null;
-          })
-          .filter(Boolean)
-          .join(", ")
-      : "No attribute assessments yet";
+    // This used to keep its own copy of the attribute labels and average
+    // over ALL_ATTR_KEYS. Two bugs in that: the local map was never updated
+    // for migration 033, so `marking`, `pressing`, `off_ball_movement`,
+    // `game_reading` and `communication` rendered as `undefined: 72`; and
+    // averaging every key regardless of position fed the model `physical`,
+    // which is in no position's set and is therefore always the schema's
+    // NOT NULL DEFAULT of 50 — an invented number in a prompt that tells
+    // the model not to invent numbers. ATTR_META is the one label source.
+    const snapshot = buildAttributeSnapshot(
+      attrs as Partial<Record<AttrKey, number | null>>[] | null,
+      player.position
+    );
+    const attributeSummary =
+      snapshot.assessedKeys
+        .map((key) => `${ATTR_META[key].label}: ${snapshot.assessed[key]}`)
+        .join(", ") || "No attribute assessments yet";
 
     const ratingsSummary = (ratings ?? [])
       .map((r: any) => {
@@ -197,7 +190,7 @@ Output using these exact plain text headers:
     return { insights: text };
   } catch (err) {
     return {
-      error: err instanceof Error ? err.message : "AI service unavailable.",
+      error: aiError(err),
     };
   }
 }

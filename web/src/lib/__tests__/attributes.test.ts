@@ -1,6 +1,8 @@
 import {
   ALL_ATTR_KEYS,
   averageAttributeRows,
+  buildAttributeSnapshot,
+  describeAttributes,
   ATTR_CATEGORIES,
   ATTR_META,
   CATEGORY_LABELS,
@@ -232,5 +234,71 @@ describe("averageAttributeRows", () => {
     const averaged = averageAttributeRows(rows);
     // Whatever the surface, the same two inputs must give the same number.
     expect(calculateOverall(averaged, "st")).toBe(calculateOverall({ pace: 70 }, "st"));
+  });
+});
+
+describe("buildAttributeSnapshot", () => {
+  it("keeps a goalkeeper's defaulted outfield columns out of the assessment", () => {
+    // The exact shape a real row has: the six migration-001 columns are
+    // NOT NULL DEFAULT 50, so a keeper's row carries 50s for attributes
+    // their assessment form never showed. Reading them raw presented four
+    // invented numbers to every AI feature.
+    const gkRow = {
+      pace: 62, shooting: 50, passing: 50, dribbling: 50, defending: 50, physical: 50,
+      shot_stopping: 78, reflexes: 81, handling: 74, distribution: 66,
+      positioning: 70, decision_making: 68, game_reading: 65,
+      agility: 77, jumping: 72, strength: 64,
+      composure: 69, leadership: 60, communication: 71,
+    };
+    const snap = buildAttributeSnapshot([gkRow], "gk");
+
+    expect(snap.assessedKeys).toContain("shot_stopping");
+    expect(snap.assessedKeys).toContain("reflexes");
+    expect(snap.assessedKeys).toContain("pace"); // a keeper IS rated on pace
+    expect(snap.assessedKeys).not.toContain("shooting");
+    expect(snap.assessedKeys).not.toContain("defending");
+    expect(snap.assessedKeys).not.toContain("physical");
+  });
+
+  it("never reports `physical`, which no position is assessed on", () => {
+    for (const position of ["gk", "cb", "cm", "st", "lw", null]) {
+      const snap = buildAttributeSnapshot([{ physical: 50, passing: 70 }], position);
+      expect(snap.assessedKeys).not.toContain("physical");
+    }
+  });
+
+  it("averages each attribute over the coaches who rated it, not over all rows", () => {
+    // Two coaches on the same player (team_coaches, migration 019). Both
+    // rated `passing`; only one rated `tackling`. Averaging `tackling` over
+    // both rows would halve it, and a coach who left it NULL has said
+    // nothing about it, not that it is bad.
+    const snap = buildAttributeSnapshot(
+      [{ passing: 60, tackling: 80 }, { passing: 70 }],
+      "cm"
+    );
+    expect(snap.assessed.passing).toBe(65);
+    expect(snap.assessed.tackling).toBe(80);
+    expect(snap.coachCount).toBe(2);
+  });
+
+  it("reports nothing assessed when no coach has rated the player", () => {
+    const snap = buildAttributeSnapshot([], "cm");
+    expect(snap.assessedKeys).toHaveLength(0);
+    expect(snap.overall).toBeNull();
+    expect(describeAttributes(snap)).toBeNull();
+  });
+
+  it("treats a null row list as unassessed rather than throwing", () => {
+    const snap = buildAttributeSnapshot(null, "cm");
+    expect(snap.assessedKeys).toHaveLength(0);
+    expect(snap.coachCount).toBe(0);
+  });
+
+  it("describes only real values, so a prompt cannot cite an invented one", () => {
+    const described = describeAttributes(
+      buildAttributeSnapshot([{ finishing: 80, physical: 50 }], "st")
+    );
+    expect(described).toBe("finishing 80");
+    expect(described).not.toContain("physical");
   });
 });

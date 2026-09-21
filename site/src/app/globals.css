@@ -13,9 +13,9 @@
   --color-popover-foreground:   #0a0a0b;
 
   /* Brand — Growfit red */
-  --color-primary:              #af2d35;
+  --color-primary:              #a71817;
   --color-primary-foreground:   #ffffff;
-  --color-brand:                #af2d35;
+  --color-brand:                #a71817;
   --color-brand-foreground:     #ffffff;
 
   /* Neutrals */
@@ -23,8 +23,8 @@
   --color-secondary-foreground: #18181b;
   --color-muted:                #f4f4f5;
   --color-muted-foreground:     #52525b;
-  --color-accent:               #fdf0f1;
-  --color-accent-foreground:    #6b1b1f;
+  --color-accent:               #fcefee;
+  --color-accent-foreground:    #6b1512;
 
   /* Status */
   --color-destructive:          #dc2626;
@@ -33,7 +33,7 @@
   /* Lines & focus */
   --color-border:               #e4e4e7;
   --color-input:                #e4e4e7;
-  --color-ring:                 #af2d35;
+  --color-ring:                 #a71817;
 
   /* Radius */
   --radius-sm: 0.5rem;
@@ -54,24 +54,24 @@
   --color-popover:              #141417;
   --color-popover-foreground:   #fafafa;
 
-  --color-primary:              #d4434c;
+  --color-primary:              #e24b49;
   --color-primary-foreground:   #ffffff;
-  --color-brand:                #d4434c;
+  --color-brand:                #e24b49;
   --color-brand-foreground:     #ffffff;
 
   --color-secondary:            #1f1f23;
   --color-secondary-foreground: #fafafa;
   --color-muted:                #1a1a1d;
   --color-muted-foreground:     #a1a1aa;
-  --color-accent:               #2a1214;
-  --color-accent-foreground:    #f4a0a5;
+  --color-accent:               #2a1110;
+  --color-accent-foreground:    #f2a3a0;
 
   --color-destructive:          #f87171;
   --color-destructive-foreground: #0a0a0b;
 
   --color-border:               #27272a;
   --color-input:                #27272a;
-  --color-ring:                 #d4434c;
+  --color-ring:                 #e24b49;
 }
 
 @layer base {

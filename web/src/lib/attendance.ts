@@ -17,3 +17,15 @@ export function attendancePct(present: number, totalSessions: number): number | 
 export function isBelowWelfareThreshold(present: number, totalSessions: number): boolean {
   return totalSessions > 0 && present / totalSessions < WELFARE_ATTENDANCE_THRESHOLD;
 }
+
+/**
+ * ISO timestamp for the start of the rolling attendance window.
+ *
+ * Lives here rather than being spelled out at each call site so the window
+ * can only ever be defined once — and so a Server Component reading it
+ * isn't computing a timestamp in its own body, which React's purity lint
+ * rule flags (it can't tell an async Server Component from a client one).
+ */
+export function attendanceWindowStart(now: number = Date.now()): string {
+  return new Date(now - ATTENDANCE_WINDOW_DAYS * 24 * 3600 * 1000).toISOString();
+}

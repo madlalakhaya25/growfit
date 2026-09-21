@@ -5,6 +5,7 @@ import { UserCircle, Play, Lightbulb } from "lucide-react";
 import { toast } from "sonner";
 import { conceptsForPositionGroup, youtubeSearchUrl } from "@/lib/tactics";
 import { explainPositionalRole } from "@/app/actions/tactics";
+import { AiProse } from "@/components/ai/ai-prose";
 
 /**
  * Player-facing "what does my position do" guide. Unlike the coach panel this
@@ -70,9 +71,7 @@ export function MyPositionPanel({
 
         {explanation && (
           <div className="rounded-lg border border-border bg-background p-4 space-y-1">
-            {explanation.trim().split("\n").filter(Boolean).map((line, i) => (
-              <p key={i} className="text-sm text-muted-foreground leading-relaxed">{line}</p>
-            ))}
+            <AiProse text={explanation} />
           </div>
         )}
 

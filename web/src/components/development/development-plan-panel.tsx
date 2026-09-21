@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Target } from "lucide-react";
 import { toast } from "sonner";
 import { generateDevelopmentPlan } from "@/app/actions/development-plan";
+import { AiProse } from "@/components/ai/ai-prose";
 
 export function DevelopmentPlanPanel({ playerId }: { playerId: string }) {
   const [plan, setPlan] = useState<string | null>(null);
@@ -55,18 +56,7 @@ export function DevelopmentPlanPanel({ playerId }: { playerId: string }) {
       )}
 
       {plan && (
-        <div className="px-4 py-4 text-sm leading-relaxed space-y-1">
-          {plan.split("\n").map((line, i) => {
-            const isHeader = /^\d+\.\s+[A-Z][A-Z\s]+:/.test(line.trim());
-            return isHeader ? (
-              <p key={i} className="font-semibold text-foreground pt-2 first:pt-0">
-                {line}
-              </p>
-            ) : (
-              <p key={i} className="text-muted-foreground">{line}</p>
-            );
-          })}
-        </div>
+        <AiProse text={plan} className="px-4 py-4" />
       )}
     </div>
   );

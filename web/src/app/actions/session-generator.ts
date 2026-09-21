@@ -3,6 +3,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
+import { aiError, checkAiBudget } from "@/lib/ai-guard";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -30,7 +31,12 @@ export async function generateSessionPlan(
   params: SessionParams
 ): Promise<{ plan?: string; error?: string }> {
   try {
-    await requireUser();
+    const { user } = await requireUser();
+    // One AI call against this user's hourly budget. Counts attempts, not
+    // successes: a failed call still costs a request to the provider.
+    const overBudget = checkAiBudget(user.id);
+    if (overBudget) return { error: overBudget };
+
 
     const { ageGroup, sessionType, focusArea, durationMinutes, squadSize } = params;
     const ltpdPhase = getLTDPPhase(ageGroup);
@@ -114,6 +120,6 @@ COACH REFLECTION: [One question the coach should ask the squad after the session
 
     return { plan: text };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "AI service unavailable." };
+    return { error: aiError(err) };
   }
 }

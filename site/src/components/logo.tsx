@@ -10,7 +10,7 @@ export function Logo({ className }: { className?: string }) {
         aria-hidden="true"
         className="shrink-0"
       >
-        <rect width="32" height="32" rx="6" fill="#af2d35" />
+        <rect width="32" height="32" rx="6" fill="#a71817" />
         <path
           d="M16 6 C10 6 7 10 7 14 C7 20 16 26 16 26 C16 26 25 20 25 14 C25 10 22 6 16 6 Z"
           fill="white"

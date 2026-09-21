@@ -6,9 +6,10 @@ import { requireUser } from "@/lib/auth";
 import {
   ALL_ATTR_SELECT,
   ATTR_META,
-  getPositionAttrKeys,
+  buildAttributeSnapshot,
   type AttrKey,
 } from "@/lib/attributes";
+import { aiError, checkAiBudget } from "@/lib/ai-guard";
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY!,
@@ -20,6 +21,11 @@ export async function generateDevelopmentPlan(playerId: string): Promise<{
 }> {
   try {
     const { supabase, user } = await requireUser();
+    // One AI call against this user's hourly budget. Counts attempts, not
+    // successes: a failed call still costs a request to the provider.
+    const overBudget = checkAiBudget(user.id);
+    if (overBudget) return { error: overBudget };
+
 
     const { data: profile } = await supabase
       .from("profiles")
@@ -35,12 +41,15 @@ export async function generateDevelopmentPlan(playerId: string): Promise<{
         .single(),
 
       supabase
+        // Every assessing coach's row, not `.limit(1)`. With several
+        // coaches on a team (team_coaches, migration 019), taking only the
+        // most recently saved row meant one coach's opinion silently stood
+        // in for the squad's — and the player's own passport, which averages
+        // them, showed a different number for the same child.
         .from("player_attributes")
         .select(`${ALL_ATTR_SELECT}, assessed_at`)
         .eq("player_id", playerId)
-        .order("assessed_at", { ascending: false })
-        .limit(1)
-        .single(),
+        .order("assessed_at", { ascending: false }),
 
       supabase
         .from("player_ratings")
@@ -93,19 +102,16 @@ export async function generateDevelopmentPlan(playerId: string): Promise<{
     // Build sorted attributes (strongest to weakest) from what this player's
     // position is actually assessed on — a hardcoded core six fed the model
     // attributes nobody had rated, which for a goalkeeper was five of them.
-    let attrSummary = "No attribute assessments yet";
-    if (attrs) {
-      const row = attrs as Partial<Record<AttrKey, number | null>>;
-      const attrEntries = getPositionAttrKeys(player.position)
-        .map((key) => ({ label: ATTR_META[key].label, value: row[key] }))
-        .filter((entry): entry is { label: string; value: number } =>
-          typeof entry.value === "number"
-        )
-        .sort((a, b) => b.value - a.value);
-      if (attrEntries.length) {
-        attrSummary = attrEntries.map((e) => `${e.label}: ${e.value}`).join(", ");
-      }
-    }
+    const snapshot = buildAttributeSnapshot(
+      attrs as Partial<Record<AttrKey, number | null>>[] | null,
+      player.position
+    );
+    const attrEntries = snapshot.assessedKeys
+      .map((key) => ({ label: ATTR_META[key].label, value: snapshot.assessed[key]! }))
+      .sort((a, b) => b.value - a.value);
+    const attrSummary = attrEntries.length
+      ? attrEntries.map((e) => `${e.label}: ${e.value}`).join(", ")
+      : "No attribute assessments yet";
 
     // Build ratings summary
     const ratingsSummary = ratings.length
@@ -181,7 +187,7 @@ Output format:
     return { plan: text };
   } catch (err) {
     return {
-      error: err instanceof Error ? err.message : "AI service unavailable.",
+      error: aiError(err),
     };
   }
 }

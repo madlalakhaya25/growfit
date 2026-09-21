@@ -3,6 +3,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
+import { aiError, checkAiBudget } from "@/lib/ai-guard";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -10,7 +11,12 @@ export async function generateMatchReport(
   fixtureId: string
 ): Promise<{ report?: string; error?: string }> {
   try {
-    const { supabase } = await requireUser();
+    const { supabase, user } = await requireUser();
+    // One AI call against this user's hourly budget. Counts attempts, not
+    // successes: a failed call still costs a request to the provider.
+    const overBudget = checkAiBudget(user.id);
+    if (overBudget) return { error: overBudget };
+
 
     const [fixtureResult, matchResultResult, ratingsResult, attendanceResult] =
       await Promise.all([
@@ -111,6 +117,6 @@ Use these exact section headers:
 
     return { report: text };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "AI service unavailable." };
+    return { error: aiError(err) };
   }
 }
