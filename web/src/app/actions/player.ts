@@ -4,16 +4,26 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { friendlyError } from "@/lib/friendly-error";
 
+/**
+ * `share_token` is printed on every PDF player card and encoded in its QR —
+ * not a secret, and not proof the caller is the child it belongs to. Date of
+ * birth is required as a second factor, same as claimPlayerByRegistration
+ * below and for the same reason (migration 034). The RPC also rejects a
+ * non-player account and throttles repeated failures.
+ */
 export async function claimPlayerProfile(formData: FormData) {
   const { supabase } = await requireUser();
 
   const token = (formData.get("share_token") as string ?? "").toLowerCase().trim();
+  const dob = ((formData.get("date_of_birth") as string) ?? "").trim();
   if (!token) return { error: "Share token is required." };
+  if (!dob) return { error: "Enter your date of birth." };
 
   // Use a SECURITY DEFINER RPC so the lookup works regardless of whether
   // the player's profile has academy_id populated yet (migration 004)
   const { data, error } = await supabase.rpc("claim_player_profile", {
     p_share_token: token,
+    p_date_of_birth: dob,
   });
 
   if (error) return { error: friendlyError(error) };
