@@ -1,19 +1,18 @@
 import { notFound, redirect } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, ChevronRight, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { RatingRing } from "@/components/ui/rating-ring";
 import { POSITIONS, FEET } from "@/lib/types";
 import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
-import { calculateAge, getInitials } from "@/lib/player";
+import { calculateAge } from "@/lib/player";
 import { RemovePlayerPhotoButton } from "@/components/remove-player-photo-button";
 import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
 import { ParentReportPanel } from "@/components/ai/parent-report-panel";
 import { AttributeSummary } from "@/components/player/attribute-summary";
+import { PlayerPassportCard } from "@/components/player/player-passport-card";
 import {
   ALL_ATTR_SELECT,
   averageAttributeRows,
@@ -131,7 +130,6 @@ export default async function ChildDetailPage({
   const posLabel = POSITIONS.find((p) => p.value === player.position)?.label ?? "—";
   const footLabel = FEET.find((f) => f.value === player.preferred_foot)?.label;
   const age = calculateAge(player.date_of_birth);
-  const initials = getInitials(player.full_name);
 
   type Fixture = (typeof allFixtures)[number];
 
@@ -224,65 +222,52 @@ export default async function ChildDetailPage({
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Passport card */}
-        <Card className="overflow-hidden">
-          <div className="h-1 bg-brand" />
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              {player.photo_url ? (
-                <Image
-                  src={player.photo_url}
-                  alt={player.full_name}
-                  width={64}
-                  height={64}
-                  className="size-16 rounded-full object-cover"
-                />
-              ) : (
-                <span className="grid size-16 place-items-center rounded-full bg-brand/20 text-lg font-bold text-primary">
-                  {initials}
-                </span>
-              )}
-              <RatingRing value={overall} size={72} />
-            </div>
-            <CardTitle className="mt-3">{player.full_name}</CardTitle>
-            <CardDescription>{posLabel}</CardDescription>
-            {player.photo_url && (
+        <PlayerPassportCard
+          contentClassName="space-y-4"
+          photoUrl={player.photo_url}
+          fullName={player.full_name}
+          overall={overall}
+          posLabel={posLabel}
+          headerExtra={
+            player.photo_url && (
               <div className="pt-1">
                 <RemovePlayerPhotoButton playerId={player.id} />
               </div>
-            )}
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
+            )
+          }
+          badges={
+            <>
               <Badge variant="brand">{posLabel}</Badge>
               {age && <Badge variant="neutral">Age {age}</Badge>}
               {footLabel && <Badge variant="neutral">{footLabel} foot</Badge>}
+            </>
+          }
+        >
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>
+              <p className="text-muted-foreground text-xs">Ratings</p>
+              <p className="font-semibold">{ratings.length}</p>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div>
-                <p className="text-muted-foreground text-xs">Ratings</p>
-                <p className="font-semibold">{ratings.length}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground text-xs">Public passport link</p>
-                {/* The parent view showed the bare token as text with no link
-                    — the only one of the five surfaces that did. */}
-                <Link
-                  href={`/passport/${player.share_token}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-mono text-xs font-semibold tracking-wide text-primary hover:underline"
-                >
-                  {player.share_token} ↗
-                </Link>
-              </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Public passport link</p>
+              {/* The parent view showed the bare token as text with no link
+                  — the only one of the five surfaces that did. */}
+              <Link
+                href={`/passport/${player.share_token}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-xs font-semibold tracking-wide text-primary hover:underline"
+              >
+                {player.share_token} ↗
+              </Link>
             </div>
-            <AttributeSummary
-              attrs={attrs}
-              position={player.position}
-              className="space-y-2 border-t border-border pt-3"
-            />
-          </CardContent>
-        </Card>
+          </div>
+          <AttributeSummary
+            attrs={attrs}
+            position={player.position}
+            className="space-y-2 border-t border-border pt-3"
+          />
+        </PlayerPassportCard>
 
         {/* Ratings + Fixtures */}
         <div className="space-y-6 lg:col-span-2">

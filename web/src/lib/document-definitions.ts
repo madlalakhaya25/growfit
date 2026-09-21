@@ -277,3 +277,17 @@ export const DOCUMENTS: DocDef[] = [
     accept: ".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png",
   },
 ];
+
+/**
+ * Whether a document is done for the season — an upload-only document (the
+ * ID/birth certificate scan) needs `'uploaded'`, everything else needs a
+ * digital `'signed'` status; `'needs_renewal'` and `'unsigned'` are both
+ * outstanding. Matches DocumentHub's own per-group counts (signedCount for
+ * signable docs, uploadedCount for upload-only ones) as a single per-row
+ * check, for the funnel view which needs it document-by-document rather
+ * than as one hub-wide total.
+ */
+export function isDocComplete(def: DocDef, status: string | undefined): boolean {
+  if (!status) return false;
+  return def.uploadOnly ? status === "uploaded" : status === "signed";
+}

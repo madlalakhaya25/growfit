@@ -1,12 +1,11 @@
 import Link from "next/link";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { RatingRing } from "@/components/ui/rating-ring";
+import { PlayerPassportCard } from "@/components/player/player-passport-card";
 import { POSITIONS, FEET } from "@/lib/types";
 import {
   ALL_ATTR_SELECT,
@@ -16,7 +15,7 @@ import {
   isMissingAttributeColumn,
   type AttrKey,
 } from "@/lib/attributes";
-import { calculateAge, getInitials, matchRatingAverage } from "@/lib/player";
+import { calculateAge, matchRatingAverage } from "@/lib/player";
 import { RemovePlayerButton } from "../remove-player-button";
 import { RatingEditRow } from "./rating-edit-row";
 import { PlayerAttributesForm } from "./player-attributes-form";
@@ -267,7 +266,6 @@ export default async function PlayerDetailPage({
   const posLabel = POSITIONS.find((p) => p.value === player.position)?.label ?? "—";
   const footLabel = FEET.find((f) => f.value === player.preferred_foot)?.label;
   const age = calculateAge(player.date_of_birth);
-  const initials = getInitials(player.full_name);
 
   return (
     <div className="space-y-6">
@@ -287,30 +285,21 @@ export default async function PlayerDetailPage({
       <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
         <div className="lg:sticky lg:top-6">
           {/* Passport card */}
-          <Card className="overflow-hidden">
-            <div className="h-1 bg-brand" />
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                {player.photo_url ? (
-                  <Image src={player.photo_url} alt={player.full_name} width={64} height={64} className="size-16 rounded-full object-cover" />
-                ) : (
-                  <span className="grid size-16 place-items-center rounded-full bg-brand/20 text-lg font-bold text-primary">
-                    {initials}
-                  </span>
-                )}
-                <RatingRing value={overall} size={72} />
-              </div>
-              <CardTitle className="mt-3">{player.full_name}</CardTitle>
-              <CardDescription>{posLabel}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex flex-wrap gap-2">
+          <PlayerPassportCard
+            photoUrl={player.photo_url}
+            fullName={player.full_name}
+            overall={overall}
+            posLabel={posLabel}
+            badges={
+              <>
                 <Badge variant="brand">{posLabel}</Badge>
                 {age && <Badge variant="neutral">Age {age}</Badge>}
                 {footLabel && <Badge variant="neutral">{footLabel} foot</Badge>}
                 {player.availability_status === "injured" && <Badge variant="danger">Injured</Badge>}
                 {player.availability_status === "unavailable" && <Badge variant="warning">Unavailable</Badge>}
-              </div>
+              </>
+            }
+          >
               <PlayerAvailabilityControl
                 playerId={player.id}
                 initialStatus={player.availability_status ?? "available"}
@@ -373,8 +362,7 @@ export default async function PlayerDetailPage({
                   <RemovePlayerButton playerId={player.id} playerName={player.full_name} teamId={teamId} />
                 </div>
               )}
-            </CardContent>
-          </Card>
+          </PlayerPassportCard>
         </div>
 
         <div className="lg:col-span-2">

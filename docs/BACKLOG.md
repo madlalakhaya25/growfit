@@ -280,11 +280,22 @@ and `/api/calendar/<token>.ics`. Deliberately **not** reusing
 been overloaded as a second credential once. Still to do: **the month-grid
 calendar view** inside the app, which is the other half of `FP-2`.
 
-### 2.2 Registration status as a funnel — `FP-3`, `RM`
+### 2.2 Registration status as a funnel — `FP-3`, `RM` — **Done**
 Rows are players, columns are the six documents, filterable by age group, with
 a paste-ready chase message for the outstanding parents. SAFA/LFA registration
 is mandatory to compete; discovering a gap on Sunday morning is the expensive
 version of this problem.
+
+**Shipped:** `/dashboard/admin/players/documents` — one row per player, one
+column per `DOCUMENTS` entry, an age-group filter pill row, and a "Copy chase
+message" button (clipboard only, deliberately not a `wa.me` deep link: a
+stored phone number isn't reliably in the international format that needs,
+and a confidently-wrong prefilled link is worse than one extra paste). Added
+`isDocComplete()` to `lib/document-definitions.ts` as the one place "is this
+document actually done" is decided — upload-only docs need `'uploaded'`,
+everything else needs `'signed'` — matching `DocumentHub`'s own per-group
+counts as a single per-cell check. Linked from the players list, which also
+still has its own per-player X/6 badge for a quick glance.
 
 ### 2.3 Term reports parents can keep — `FP-5`
 One PDF per player per term: attendance, milestones across the five corners,
@@ -292,10 +303,20 @@ ratings, a coach's note, the attribute passport. Every input exists and the
 PDF pipeline exists — this is mostly assembly. It is also the artefact that
 makes the academy look like an institution rather than a WhatsApp group.
 
-### 2.4 Age-group eligibility and duplicate checks — `FP-7`
+### 2.4 Age-group eligibility and duplicate checks — `FP-7` — **Done**
 Flag any player whose age falls outside their team's band, and any two players
 sharing an ID number, a SAFA number, or name-plus-DOB. Fielding an overage
 player is a forfeit and a reportable matter under the agreement parents sign.
+
+**Shipped:** `lib/eligibility.ts` — `ageGroupBand()` reads a two-year-wide
+band from a "Uxx" team name (deliberately wide rather than a precise SAFA
+cutoff date, which varies by association/season and would produce
+confident-looking false positives) and `findDuplicates()` groups players
+sharing a normalised ID number, SAFA number, or name+DOB, treating two blank
+fields as never a match. Both are advisory, surfaced as a "Needs a look"
+banner plus a per-row badge on `/dashboard/admin/players` — not a block,
+matching how the welfare threshold works (surfacing the question, not
+deciding it). Unit tested (`lib/__tests__/eligibility.test.ts`).
 
 ### 2.5 Stream the three long AI generators — `IP-15`
 Match plan, match report, session generator. Sits behind 3.1: if the output
@@ -305,10 +326,24 @@ becomes structured, the streaming surface changes anyway.
 A coach assessing fifteen players after training faces 450 slider decisions.
 Show the position's top five, with a squad median tick on each slider.
 
-### 2.7 Shared `<PlayerPassportCard>` — `IP-18`
+### 2.7 Shared `<PlayerPassportCard>` — `IP-18` — **Done**
 The public passport, coach page, player dashboard and parent child page render
 the same concept from four code paths. They have already drifted once —
 the empty-state fix in September had to be applied to one of them alone.
+
+**Shipped:** `components/player/player-passport-card.tsx`, covering exactly
+the part that was byte-for-byte identical across all five surfaces (the
+admin player page turned out to duplicate the same markup too, so it got
+the same treatment) — photo-or-initials, the rating ring, name and
+position, with a `variant` prop for the one real layout split (the player
+dashboard lays photo+name+ring out in a single row; everywhere else stacks
+photo+ring above name+description). Badges, the attribute summary, a
+remove-photo button, the QR code — everything that genuinely differs per
+surface — stayed as page-owned children/props rather than being forced into
+one shape. Each refactor was checked diff-by-diff against the original
+markup for a 1:1 content match; the only intentional behaviour change is
+one cosmetic reorder on the player dashboard (a remove-photo button now
+renders after the badges instead of before).
 
 ### 2.8 Offline reads — `FP-9`
 Attendance writes queue offline; everything else assumes a connection. A coach

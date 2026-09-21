@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { ExternalLink, FileText, ChevronRight, Target, Download } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -6,13 +5,13 @@ import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { RatingRing } from "@/components/ui/rating-ring";
 import { StatBar } from "@/components/ui/stat-bar";
 import { POSITIONS } from "@/lib/types";
-import { calculateAge, getInitials, matchRatingAverage } from "@/lib/player";
+import { calculateAge, matchRatingAverage } from "@/lib/player";
 import { RemovePlayerPhotoButton } from "@/components/remove-player-photo-button";
 import { CopyButton } from "@/components/copy-button";
 import { AttributeSummary } from "@/components/player/attribute-summary";
+import { PlayerPassportCard } from "@/components/player/player-passport-card";
 import { ClaimProfileForm } from "./claim-profile-form";
 import { RatingChart } from "@/components/rating-chart";
 import { MediaGallery } from "@/components/media/media-gallery";
@@ -256,33 +255,17 @@ export default async function PlayerDashboardPage() {
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {/* Profile card */}
-        <Card className="overflow-hidden sm:col-span-2 lg:col-span-1">
-          <div className="h-1 bg-brand" />
-          <CardHeader className="flex-row items-center justify-between">
-            <div className="flex items-center gap-3">
-              {player.photo_url ? (
-                <Image
-                  src={player.photo_url}
-                  alt={player.full_name}
-                  width={48}
-                  height={48}
-                  className="size-12 rounded-full object-cover"
-                />
-              ) : (
-                <span className="grid size-12 shrink-0 place-items-center rounded-full bg-brand/20 text-sm font-bold text-primary">
-                  {getInitials(player.full_name)}
-                </span>
-              )}
-              <div>
-                <CardTitle>{player.full_name}</CardTitle>
-                <CardDescription>{posLabel}</CardDescription>
-              </div>
-            </div>
-            <RatingRing value={overall} size={84} />
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {player.photo_url && <RemovePlayerPhotoButton playerId={player.id} />}
-            <div className="flex flex-wrap gap-2">
+        <PlayerPassportCard
+          className="sm:col-span-2 lg:col-span-1"
+          variant="inline"
+          photoUrl={player.photo_url}
+          fullName={player.full_name}
+          overall={overall}
+          posLabel={posLabel}
+          photoSize={48}
+          ringSize={84}
+          badges={
+            <>
               <Badge variant="brand">{posLabel}</Badge>
               {age && <Badge variant="neutral">Age {age}</Badge>}
               {player.preferred_foot && (
@@ -290,19 +273,21 @@ export default async function PlayerDashboardPage() {
                   {player.preferred_foot} foot
                 </Badge>
               )}
-            </div>
-            {attrsError && (
-              <p className="text-xs text-muted-foreground pt-2 border-t border-border">
-                Couldn&apos;t load your attribute ratings right now.
-              </p>
-            )}
-            <AttributeSummary
-              attrs={attrs}
-              position={player.position}
-              className="space-y-1.5 pt-2 border-t border-border"
-            />
-          </CardContent>
-        </Card>
+            </>
+          }
+        >
+          {player.photo_url && <RemovePlayerPhotoButton playerId={player.id} />}
+          {attrsError && (
+            <p className="text-xs text-muted-foreground pt-2 border-t border-border">
+              Couldn&apos;t load your attribute ratings right now.
+            </p>
+          )}
+          <AttributeSummary
+            attrs={attrs}
+            position={player.position}
+            className="space-y-1.5 pt-2 border-t border-border"
+          />
+        </PlayerPassportCard>
 
         {/* Performance */}
         <Card>

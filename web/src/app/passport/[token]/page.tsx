@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Image from "next/image";
 import { Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { RatingRing } from "@/components/ui/rating-ring";
+import { PlayerPassportCard } from "@/components/player/player-passport-card";
 import { AttributeSummary } from "@/components/player/attribute-summary";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -15,7 +14,7 @@ import {
   getPositionAttrKeys,
   type AttrKey,
 } from "@/lib/attributes";
-import { calculateAge, getInitials, matchRatingAverage } from "@/lib/player";
+import { calculateAge, matchRatingAverage } from "@/lib/player";
 import QRCode from "qrcode";
 
 export const revalidate = 60;
@@ -152,7 +151,6 @@ export default async function PublicPassportPage({
   const secPosLabel = POSITIONS.find((p) => p.value === passport.secondary_pos)?.label;
   const footLabel = FEET.find((f) => f.value === passport.preferred_foot)?.label;
   const age = passport.age ?? calculateAge(passport.date_of_birth ?? null);
-  const initials = getInitials(passport.full_name);
 
   const ltpdPhase = (() => {
     if (!age) return null;
@@ -196,39 +194,27 @@ export default async function PublicPassportPage({
 
           <div className="grid gap-6 lg:grid-cols-3">
             {/* Passport card */}
-            <Card className="overflow-hidden lg:col-span-1">
-              <div className="h-1.5 bg-brand" />
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  {passport.photo_url ? (
-                    <Image
-                      src={passport.photo_url}
-                      alt={passport.full_name}
-                      width={80}
-                      height={80}
-                      className="size-20 rounded-full object-cover"
-                    />
-                  ) : (
-                    <span className="grid size-20 place-items-center rounded-full bg-brand/20 text-xl font-bold text-primary">
-                      {initials}
-                    </span>
-                  )}
-                  <RatingRing value={overall} size={88} />
-                </div>
-                <CardTitle className="mt-3 text-xl">{passport.full_name}</CardTitle>
-                <CardDescription>
-                  {posLabel}
-                  {passport.academy_name && ` · ${passport.academy_name}`}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-wrap gap-2">
+            <PlayerPassportCard
+              className="lg:col-span-1"
+              barClassName="h-1.5"
+              titleClassName="text-xl"
+              contentClassName="space-y-4"
+              photoUrl={passport.photo_url}
+              fullName={passport.full_name}
+              overall={overall}
+              posLabel={posLabel}
+              descriptionSuffix={passport.academy_name ?? undefined}
+              photoSize={80}
+              ringSize={88}
+              badges={
+                <>
                   <Badge variant="brand">{posLabel}</Badge>
                   {secPosLabel && <Badge variant="neutral">{secPosLabel}</Badge>}
                   {age && <Badge variant="neutral">Age {age}</Badge>}
                   {footLabel && <Badge variant="neutral">{footLabel} foot</Badge>}
-                </div>
-
+                </>
+              }
+            >
                 {hasAttrs ? (
                   <div className="space-y-3 pt-1">
                     {/* Overall has never been explained anywhere it appears,
@@ -274,8 +260,7 @@ export default async function PublicPassportPage({
                   <img src={qrDataUrl} alt="Passport QR code" width={80} height={80} className="rounded-lg" />
                   <p className="text-[10px] text-muted-foreground font-mono break-all">{shareUrl}</p>
                 </div>
-              </CardContent>
-            </Card>
+            </PlayerPassportCard>
 
             {/* Rating history */}
             <div className="space-y-4 lg:col-span-2">

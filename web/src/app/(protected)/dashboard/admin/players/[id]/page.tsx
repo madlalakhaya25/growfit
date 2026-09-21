@@ -1,16 +1,15 @@
 import { notFound, redirect } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Star, Download } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { RatingRing } from "@/components/ui/rating-ring";
+import { PlayerPassportCard } from "@/components/player/player-passport-card";
 import { PlayerPhotoUpload } from "@/components/player-photo-upload";
 import { PlayerAvailabilityControl } from "@/components/records/player-availability-control";
 import { POSITIONS, FEET } from "@/lib/types";
-import { calculateAge, getInitials } from "@/lib/player";
+import { calculateAge } from "@/lib/player";
 import { ExtendedInfoForm } from "@/components/records/extended-info-form";
 import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
@@ -81,7 +80,6 @@ export default async function AdminPlayerDetailPage({
   const posLabel = POSITIONS.find((p) => p.value === player.position)?.label ?? "—";
   const footLabel = FEET.find((f) => f.value === player.preferred_foot)?.label;
   const age = calculateAge(player.date_of_birth);
-  const initials = getInitials(player.full_name);
 
   return (
     <div className="space-y-6">
@@ -93,62 +91,46 @@ export default async function AdminPlayerDetailPage({
       </Button>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="overflow-hidden">
-          <div className="h-1 bg-brand" />
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              {player.photo_url ? (
-                <Image
-                  src={player.photo_url}
-                  alt={player.full_name}
-                  width={64}
-                  height={64}
-                  className="size-16 rounded-full object-cover"
-                />
-              ) : (
-                <span className="grid size-16 place-items-center rounded-full bg-brand/20 text-lg font-bold text-primary">
-                  {initials}
-                </span>
-              )}
-              <RatingRing value={avg} size={72} />
-            </div>
-            <CardTitle className="mt-3">{player.full_name}</CardTitle>
-            <CardDescription>{posLabel}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex flex-wrap gap-2">
+        <PlayerPassportCard
+          photoUrl={player.photo_url}
+          fullName={player.full_name}
+          overall={avg}
+          posLabel={posLabel}
+          badges={
+            <>
               <Badge variant="brand">{posLabel}</Badge>
               {age && <Badge variant="neutral">Age {age}</Badge>}
               {footLabel && <Badge variant="neutral">{footLabel} foot</Badge>}
               {player.availability_status === "injured" && <Badge variant="danger">Injured</Badge>}
               {player.availability_status === "unavailable" && <Badge variant="warning">Unavailable</Badge>}
+            </>
+          }
+        >
+          <PlayerAvailabilityControl
+            playerId={player.id}
+            initialStatus={player.availability_status ?? "available"}
+            initialNote={player.availability_note ?? null}
+          />
+          <div className="grid grid-cols-2 gap-2 pt-2 text-sm">
+            <div>
+              <p className="text-muted-foreground text-xs">Ratings</p>
+              <p className="font-semibold">{ratings.length}</p>
             </div>
-            <PlayerAvailabilityControl
-              playerId={player.id}
-              initialStatus={player.availability_status ?? "available"}
-              initialNote={player.availability_note ?? null}
-            />
-            <div className="grid grid-cols-2 gap-2 pt-2 text-sm">
-              <div>
-                <p className="text-muted-foreground text-xs">Ratings</p>
-                <p className="font-semibold">{ratings.length}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground text-xs">Public passport link</p>
-                <p className="font-mono font-semibold text-xs tracking-wide">{player.share_token}</p>
-              </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Public passport link</p>
+              <p className="font-mono font-semibold text-xs tracking-wide">{player.share_token}</p>
             </div>
-            <div className="pt-2 flex flex-wrap gap-2">
-              <PlayerPhotoUpload playerId={player.id} />
-              <Button asChild variant="outline" size="sm">
-                <a href={`/api/players/${player.id}/card`}>
-                  <Download className="size-3.5" aria-hidden="true" />
-                  Download card
-                </a>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="pt-2 flex flex-wrap gap-2">
+            <PlayerPhotoUpload playerId={player.id} />
+            <Button asChild variant="outline" size="sm">
+              <a href={`/api/players/${player.id}/card`}>
+                <Download className="size-3.5" aria-hidden="true" />
+                Download card
+              </a>
+            </Button>
+          </div>
+        </PlayerPassportCard>
 
         {/* Attributes card */}
         {attrs && (
