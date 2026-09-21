@@ -98,8 +98,24 @@ export async function createPlayer(formData: FormData) {
   redirect("/dashboard/coach/squad");
 }
 
+/**
+ * Rename a team / change its age group. Called only from the admin teams
+ * page (`TeamActions`), never from a coach-only surface — so this must not
+ * be scoped to teams the caller personally coaches. It used to filter with
+ * `.in("id", await getCoachedTeamIds(...))`, which restricts to teams where
+ * `team_coaches.coach_id = user.id`. An admin managing a team they don't
+ * personally coach — the normal case on this page — hit that filter,
+ * matched zero rows, got no error (an UPDATE matching nothing isn't a
+ * PostgREST error), and the caller read the missing error as success. The
+ * edit silently did nothing.
+ *
+ * RLS (`team_staff_update`: `academy_id = auth_academy_id() AND
+ * is_admin_or_coach()`) is the real authorization boundary here and is
+ * already correct — any admin or coach in the team's own academy may
+ * update it. No app-level ownership filter is needed on top of it.
+ */
 export async function updateTeam(teamId: string, formData: FormData) {
-  const { supabase, user } = await requireUser();
+  const { supabase } = await requireUser();
 
   const raw = {
     name: formData.get("name") as string,
@@ -114,8 +130,7 @@ export async function updateTeam(teamId: string, formData: FormData) {
   const { error } = await supabase
     .from("teams")
     .update(parsed.data)
-    .eq("id", teamId)
-    .in("id", await getCoachedTeamIds(supabase, user.id));
+    .eq("id", teamId);
 
   if (error) return { error: friendlyError(error) };
   revalidatePath("/dashboard/admin/teams");
@@ -123,14 +138,22 @@ export async function updateTeam(teamId: string, formData: FormData) {
   return { success: true };
 }
 
+/**
+ * Deactivate a team. Same bug, same fix as updateTeam() above: this is
+ * admin-only (called from `TeamActions` on the admin teams page) and must
+ * not be restricted to teams the caller personally coaches. The old
+ * `.in("id", await getCoachedTeamIds(...))` filter silently no-opped the
+ * delete for any admin who wasn't also that team's coach — the UPDATE
+ * matched zero rows, came back with no error, and the action proceeded
+ * straight to `redirect()` as if the team had actually been deactivated.
+ */
 export async function deleteTeam(teamId: string) {
-  const { supabase, user } = await requireUser();
+  const { supabase } = await requireUser();
 
   const { error } = await supabase
     .from("teams")
     .update({ active: false })
-    .eq("id", teamId)
-    .in("id", await getCoachedTeamIds(supabase, user.id));
+    .eq("id", teamId);
 
   if (error) return { error: friendlyError(error) };
   revalidatePath("/dashboard/admin/teams");
