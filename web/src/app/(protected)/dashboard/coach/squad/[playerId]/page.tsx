@@ -17,7 +17,7 @@ import {
   isMissingAttributeColumn,
   type AttrKey,
 } from "@/lib/attributes";
-import { calculateAge, getInitials } from "@/lib/player";
+import { calculateAge, getInitials, matchRatingAverage } from "@/lib/player";
 import { RemovePlayerButton } from "../remove-player-button";
 import { RatingEditRow } from "./rating-edit-row";
 import { PlayerAttributesForm } from "./player-attributes-form";
@@ -209,9 +209,7 @@ export default async function PlayerDetailPage({
   const initialAttrs = myAttrs;
 
   const ratingValues = ratings.map((r) => r.rating);
-  const matchAvg = ratingValues.length
-    ? Math.round((ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length) * 20)
-    : 0;
+  const matchAvg = matchRatingAverage(ratingValues);
 
   // Overall = mean of the attributes this position is assessed on; falls back
   // to the match rating average when nothing relevant has been rated yet.
