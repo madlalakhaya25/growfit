@@ -111,7 +111,7 @@ Verify against a real one before leaning on it in production.
 
 Ordered by how often the academy hits the problem. All are days, not sprints.
 
-### 1.1 Attendance: P/A/L/E parity — `FP-1`, `RM` — **Done (migration 036 pending)**
+### 1.1 Attendance: P/A/L/E parity — `FP-1`, `RM` — **Done**
 The training form offers Present/Absent only while the policy and the match
 form use P/A/L/E, so **late and excused currently count as absences against
 the 75% welfare threshold**. That is a correctness bug wearing a feature's
@@ -126,8 +126,11 @@ migration 005's RSVP constraint (`'attending' | 'unavailable'`) while the app
 wrote `'present' | 'absent'`, so **every training attendance write failed**
 with 23514 — and the three readers disagreed about the column on top of that.
 Migration `036` aligns it with `match_attendance`; one vocabulary now lives in
-`lib/attendance.ts`. Still to do here: **one-tap marking** (default everyone
-Present, tap only the exceptions).
+`lib/attendance.ts`. **One-tap marking** is also done: `markAllPresent()`
+upserts Present for every player not yet marked in a single write, and the
+training attendance form shows a "Mark remaining N present" button next to
+the header whenever anyone is unmarked — the coach taps once, then only
+corrects the exceptions.
 
 ### 1.2 Injury / availability state — `FP-6`
 There is no way to record that a player is currently injured. Squad selection
@@ -135,16 +138,29 @@ and the AI both treat an injured child as available, while the AI's own system
 prompt forbids suggesting an injured child play — it has no way to know.
 Needs a migration, so it lands behind 0.1.
 
-### 1.3 Training attendance on the match squad-selection screen — `RM`
+### 1.3 Training attendance on the match squad-selection screen — `RM` — **Done**
 Distinct from the squad-list work already shipped: the coach picking Sunday's
 team in the log-result flow still cannot see who trains. The data is already
-assembled for the AI brief.
+assembled for the AI brief. `lib/training-attendance.ts` now shares the
+same query/window/vocabulary the AI brief and squad list use, and both
+`LogResultForm` call sites (the dedicated log-result page and the inline
+form on the fixture detail page) show each player's rolling training
+attendance percentage next to their position, flagged red below the 75%
+threshold.
 
-### 1.4 Two-tier AI models — `FP-8`
+### 1.4 Two-tier AI models — `FP-8` — **Done**
 A "what does this concept mean" explainer costs what a full match plan costs.
 `ai-models.ts` already centralises the id and already has a second slot for
 document work; this is a third plus one argument per call site. Cheaper calls
-mean the AI budget can be more generous, not less.
+mean the AI budget can be more generous, not less. Added `AI_MODEL_LITE`
+(`GEMINI_MODEL_LITE`, falling back to `AI_MODEL` when unset) and routed the
+two pure definitional explainers — `explainPositionalRole` and
+`explainTacticalConcept` — through it. Everything that weighs real squad
+data toward a selection or planning decision (`suggestLineup`,
+`generateMatchPlan`, `describePlay`, `analyseOpponent`, the coach assistant
+chat, and every report/plan generator) stays on the default model, since a
+wrong answer there has a child's game time or a misdiagnosed player behind
+it, not just a slower definition.
 
 ### 1.5 Audit the remaining `getCoachedTeamIds` filters — `IP S-4`
 `updateTeam`/`deleteTeam` were silently no-opping because an app-level filter

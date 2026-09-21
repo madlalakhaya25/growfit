@@ -1,7 +1,7 @@
 "use server";
 
 import { GoogleGenAI } from "@google/genai";
-import { AI_MODEL } from "@/lib/ai-models";
+import { AI_MODEL, AI_MODEL_LITE } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
 import { getConcept } from "@/lib/tactics";
 import { buildSquadContext } from "./squad-context";
@@ -57,7 +57,9 @@ COMMON MISTAKES AT ${ageGroup}: [2 typical errors and the fix]
 COACHING CUES: [3 short phrases the coach can shout to this player during play]`;
 
     const response = await ai.models.generateContent({
-      model: AI_MODEL,
+      // Fixed-structure definition, no squad data or selection call riding
+      // on it — the cheap tier (see ai-models.ts).
+      model: AI_MODEL_LITE,
       contents: prompt,
       config: {
         maxOutputTokens: 900,
@@ -125,7 +127,10 @@ COMMON MISTAKES: [2 typical errors at this age and the fix]
 COACHING CUES: [3 short phrases the coach can shout during play]${squadNote}`;
 
     const response = await ai.models.generateContent({
-      model: AI_MODEL,
+      // Fixed-structure definition — the cheap tier (see ai-models.ts) even
+      // when a squad brief is attached, since the answer is still a
+      // definition, not a decision about who plays.
+      model: AI_MODEL_LITE,
       contents: prompt,
       config: {
         maxOutputTokens: 1000,

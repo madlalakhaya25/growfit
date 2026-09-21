@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
+import { getTrainingAttendanceSummaries } from "@/lib/training-attendance";
+import type { AttendanceSummary } from "@/lib/attendance";
 import { LogResultForm } from "./log-result-form";
 
 export default async function LogResultPage({
@@ -35,6 +37,13 @@ export default async function LogResultPage({
     Array.isArray(m.players) ? m.players : m.players ? [m.players] : []
   );
 
+  const attendanceByPlayer = await getTrainingAttendanceSummaries(
+    supabase,
+    fixture.team_id,
+    squad.map((p) => p.id)
+  );
+  const trainingAttendance: Record<string, AttendanceSummary> = Object.fromEntries(attendanceByPlayer);
+
   return (
     <div className="space-y-6 max-w-2xl">
       <Button asChild variant="ghost" size="sm">
@@ -52,7 +61,13 @@ export default async function LogResultPage({
           })}
         </p>
       </div>
-      <LogResultForm fixtureId={id} squad={squad} isHome={fixture.is_home} opponent={fixture.opponent} />
+      <LogResultForm
+        fixtureId={id}
+        squad={squad}
+        isHome={fixture.is_home}
+        opponent={fixture.opponent}
+        trainingAttendance={trainingAttendance}
+      />
     </div>
   );
 }

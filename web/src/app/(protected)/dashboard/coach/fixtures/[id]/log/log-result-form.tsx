@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { logMatch } from "@/app/actions/fixtures";
 import { POSITIONS } from "@/lib/types";
 import { getInitials } from "@/lib/player";
+import type { AttendanceSummary } from "@/lib/attendance";
 
 type Player = { id: string; full_name: string; position: string | null };
 type PlayerState = { player_id: string; played: boolean; rating: number; note: string };
@@ -18,9 +19,19 @@ interface Props {
   isHome: boolean;
   opponent: string;
   hideCancel?: boolean;
+  /**
+   * Training attendance over the rolling window, keyed by player id. A plain
+   * object rather than a Map: this crosses the Server-to-Client Component
+   * boundary as a prop, and a Map isn't worth relying on there. Lets the
+   * coach see who has actually been training while picking Sunday's team,
+   * rather than only after the fact on the squad list — the AI's lineup
+   * suggestion already weighs this; the human picking by hand couldn't see
+   * it at all.
+   */
+  trainingAttendance?: Record<string, AttendanceSummary>;
 }
 
-export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel }: Props) {
+export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, trainingAttendance }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +113,7 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel }
               const state = players.find((p) => p.player_id === player.id)!;
               const posLabel = POSITIONS.find((p) => p.value === player.position)?.label;
               const initials = getInitials(player.full_name);
+              const attendance = trainingAttendance?.[player.id];
 
               return (
                 <div
@@ -117,7 +129,17 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel }
                     </span>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{player.full_name}</p>
-                      {posLabel && <p className="text-xs text-muted-foreground">{posLabel}</p>}
+                      {(posLabel || attendance?.pct != null) && (
+                        <p className="text-xs text-muted-foreground">
+                          {posLabel}
+                          {posLabel && attendance?.pct != null ? " · " : ""}
+                          {attendance?.pct != null && (
+                            <span className={attendance.belowThreshold ? "font-semibold text-destructive" : undefined}>
+                              {attendance.pct}% training
+                            </span>
+                          )}
+                        </p>
+                      )}
                     </div>
                     <button
                       type="button"

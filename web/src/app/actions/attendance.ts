@@ -81,3 +81,49 @@ export async function markTrainingAttendance(
   revalidatePath("/dashboard/coach/welfare");
   return { success: true };
 }
+
+/**
+ * One-tap "everyone's here" for training: upserts Present for every listed
+ * player id in a single write, rather than the coach tapping Present once
+ * per name. Callers pass only the currently-unmarked players, so this never
+ * overwrites an exception (Late/Absent/Excused) already recorded — the
+ * point is to make marking the common case (a full squad turning up) one
+ * tap, and leave the coach tapping only the exceptions, not to make ticking
+ * a genuine absence harder to correct afterwards.
+ */
+export async function markAllPresent(sessionId: string, playerIds: string[]) {
+  const { supabase, user } = await requireUser();
+
+  const { data: session } = await supabase
+    .from("training_sessions")
+    .select("id")
+    .eq("id", sessionId)
+    .eq("coach_id", user.id)
+    .single();
+
+  if (!session) return { error: "Session not found or access denied." };
+  if (playerIds.length === 0) return { success: true };
+
+  const markedAt = new Date().toISOString();
+  const { error } = await supabase.from("training_attendance").upsert(
+    playerIds.map((playerId) => ({
+      session_id: sessionId,
+      player_id: playerId,
+      status: "present" as const,
+      marked_by: user.id,
+      marked_at: markedAt,
+    })),
+    { onConflict: "session_id,player_id" }
+  );
+
+  if (error) {
+    if (isLegacyAttendanceConstraint(error)) {
+      reportError(error, { scope: "markAllPresent", extra: { cause: "pre-036 CHECK constraint" } });
+      return { error: LEGACY_ATTENDANCE_CONSTRAINT_MESSAGE };
+    }
+    return { error: friendlyError(error) };
+  }
+  revalidatePath(`/dashboard/coach/training/${sessionId}`);
+  revalidatePath("/dashboard/coach/welfare");
+  return { success: true };
+}

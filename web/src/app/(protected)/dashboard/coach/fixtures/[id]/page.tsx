@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, ClipboardList, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getTrainingAttendanceSummaries } from "@/lib/training-attendance";
+import type { AttendanceSummary } from "@/lib/attendance";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -93,6 +95,11 @@ export default async function FixtureDetailPage({
     if (!m.players) return [];
     return Array.isArray(m.players) ? m.players : [m.players];
   });
+
+  const attendanceByPlayer = fixture.team_id
+    ? await getTrainingAttendanceSummaries(supabase, fixture.team_id, flattenedSquadPlayers.map((p) => p.id))
+    : new Map<string, AttendanceSummary>();
+  const trainingAttendance: Record<string, AttendanceSummary> = Object.fromEntries(attendanceByPlayer);
 
   type MatchAttendanceRecord = { player_id: string; status: "present" | "absent" | "late" | "excused" };
   const existingAttendance: MatchAttendanceRecord[] = (matchAttendanceRaw ?? []) as MatchAttendanceRecord[];
@@ -191,6 +198,7 @@ export default async function FixtureDetailPage({
             isHome={fixture.is_home}
             opponent={fixture.opponent}
             hideCancel
+            trainingAttendance={trainingAttendance}
           />
         </section>
       )}

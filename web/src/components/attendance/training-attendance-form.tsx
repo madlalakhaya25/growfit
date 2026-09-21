@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { CheckCircle2, XCircle, Clock, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { markTrainingAttendance } from "@/app/actions/attendance";
+import { markTrainingAttendance, markAllPresent } from "@/app/actions/attendance";
 import { enqueueAttendanceWrite } from "@/lib/offline-attendance-queue";
 import {
   ATTENDANCE_STATUSES,
@@ -116,6 +116,7 @@ export function TrainingAttendanceForm({ sessionId, players, existing }: Props) 
         .map((r) => [r.player_id, r.status as AttendanceStatus])
     )
   );
+  const [markingAll, setMarkingAll] = useState(false);
 
   useAttendanceQueueFlush(() => router.refresh());
 
@@ -149,7 +150,47 @@ export function TrainingAttendanceForm({ sessionId, players, existing }: Props) 
   // Same rule the welfare threshold uses: late counts as turning up, excused
   // is left out of the total rather than counted against the player.
   const summary = summariseAttendance(Object.values(statusMap));
-  const unmarked = players.length - Object.keys(statusMap).length;
+  const unmarkedPlayers = players.filter((p) => !statusMap[p.id]);
+  const unmarked = unmarkedPlayers.length;
+
+  async function handleMarkAllPresent() {
+    const ids = unmarkedPlayers.map((p) => p.id);
+    if (ids.length === 0) return;
+    setMarkingAll(true);
+    setStatusMap((prev) => {
+      const next = { ...prev };
+      for (const id of ids) next[id] = "present";
+      return next;
+    });
+    try {
+      const res = await markAllPresent(sessionId, ids);
+      if (res?.error) {
+        setStatusMap((prev) => {
+          const next = { ...prev };
+          for (const id of ids) delete next[id];
+          return next;
+        });
+        toast.error(res.error);
+      } else {
+        toast.success(`Marked ${ids.length} player${ids.length === 1 ? "" : "s"} present`);
+      }
+    } catch {
+      const queuedAt = new Date().toISOString();
+      for (const id of ids) {
+        await enqueueAttendanceWrite({
+          id: `training:${sessionId}:${id}:${Date.now()}`,
+          kind: "training",
+          sessionId,
+          playerId: id,
+          status: "present",
+          queuedAt,
+        });
+      }
+      toast("Saved offline — will sync when you're back online", { duration: 5000 });
+    } finally {
+      setMarkingAll(false);
+    }
+  }
 
   if (players.length === 0) return null;
 
@@ -157,11 +198,25 @@ export function TrainingAttendanceForm({ sessionId, players, existing }: Props) 
     <section className="rounded-xl border border-border bg-card overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-border">
         <h2 className="text-base font-semibold">Attendance</h2>
-        <span className="text-sm text-muted-foreground">
-          {summary.attended} of {summary.assessed || players.length} in
-          {summary.pct !== null && ` · ${summary.pct}%`}
-          {unmarked > 0 && ` · ${unmarked} unmarked`}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground">
+            {summary.attended} of {summary.assessed || players.length} in
+            {summary.pct !== null && ` · ${summary.pct}%`}
+            {unmarked > 0 && ` · ${unmarked} unmarked`}
+          </span>
+          {unmarked > 0 && (
+            <button
+              type="button"
+              onClick={handleMarkAllPresent}
+              disabled={markingAll}
+              className="rounded-md border border-green-500/40 bg-green-500/10 px-2.5 py-1 text-xs font-medium text-green-700 transition-colors hover:bg-green-500/20 disabled:cursor-wait disabled:opacity-50 dark:text-green-400"
+            >
+              {markingAll
+                ? "Marking…"
+                : `Mark remaining ${unmarked} present`}
+            </button>
+          )}
+        </div>
       </div>
       <div className="divide-y divide-border">
         {players.map((p) => (
