@@ -5,13 +5,19 @@ import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { deleteTrainingSession } from "@/app/actions/training";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export function DeleteSessionButton({ id }: { id: string }) {
   const [pending, startTransition] = useTransition();
+  const { confirm, dialog } = useConfirm();
   const router = useRouter();
 
-  function handleDelete() {
-    if (!confirm("Delete this training session and all its drills?")) return;
+  async function handleDelete() {
+    const ok = await confirm({
+      title: "Delete this training session?",
+      body: "Its drills and any attendance already marked against it go too. This cannot be undone.",
+    });
+    if (!ok) return;
     startTransition(async () => {
       const result = await deleteTrainingSession(id);
       if (result?.error) toast.error(result.error);
@@ -20,7 +26,9 @@ export function DeleteSessionButton({ id }: { id: string }) {
   }
 
   return (
-    <Button
+    <>
+      {dialog}
+      <Button
       variant="ghost"
       size="sm"
       onClick={handleDelete}
@@ -28,7 +36,8 @@ export function DeleteSessionButton({ id }: { id: string }) {
       className="text-destructive hover:text-destructive shrink-0"
     >
       <Trash2 className="size-4" aria-hidden="true" />
-      <span className="sr-only">Delete session</span>
-    </Button>
+        <span className="sr-only">Delete session</span>
+      </Button>
+    </>
   );
 }

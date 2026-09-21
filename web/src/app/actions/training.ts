@@ -132,6 +132,62 @@ export async function createTrainingSessionWithDrills(params: {
   return { id: data.id };
 }
 
+/**
+ * Edit a training session's details.
+ *
+ * Sessions could be created and deleted but never edited, so a wrong date,
+ * a venue change or a corrected title meant deleting the session — which
+ * takes its drills AND any attendance already marked against it with it —
+ * and building the whole thing again. Attendance is what feeds the 75%
+ * welfare threshold, so that was not a cosmetic loss.
+ *
+ * The team is deliberately not editable: moving a session to another squad
+ * would orphan the attendance already recorded for the first one.
+ */
+export async function updateTrainingSession(sessionId: string, formData: FormData) {
+  const { supabase, user } = await requireUser();
+
+  const parsed = sessionSchema.omit({ team_id: true }).safeParse({
+    title: formData.get("title") as string,
+    session_date: formData.get("session_date") as string,
+    location: (formData.get("location") as string) || undefined,
+    session_type: formData.get("session_type") as string,
+    notes: (formData.get("notes") as string) || undefined,
+  });
+  if (!parsed.success) {
+    const msgs = parsed.error.flatten().fieldErrors;
+    return { error: Object.values(msgs).flat()[0] ?? "Invalid input." };
+  }
+
+  const teamIds = await getCoachTeamIds(supabase, user.id);
+  if (!teamIds.length) return { error: "No team found." };
+
+  // `.select("id")` so a zero-row update is caught: an UPDATE matching
+  // nothing is not a PostgREST error, and reading the absent error as
+  // success is how the admin team edit silently did nothing.
+  const { data, error } = await supabase
+    .from("training_sessions")
+    .update({
+      title: parsed.data.title,
+      session_date: parsed.data.session_date,
+      location: parsed.data.location ?? null,
+      session_type: parsed.data.session_type,
+      notes: parsed.data.notes ?? null,
+    })
+    .eq("id", sessionId)
+    .in("team_id", teamIds)
+    .select("id");
+
+  if (error) return { error: friendlyError(error) };
+  if (!data?.length) return { error: "Session not found." };
+
+  revalidatePath("/dashboard/coach/training", "page");
+  revalidatePath(`/dashboard/coach/training/${sessionId}`, "page");
+  // Players see their own training list too.
+  revalidatePath("/dashboard/player/training", "page");
+  return { success: true };
+}
+
 export async function deleteTrainingSession(id: string) {
   const { supabase, user } = await requireUser();
 

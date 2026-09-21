@@ -46,6 +46,60 @@ export async function saveDrill(data: {
   return { success: true };
 }
 
+/**
+ * Edit a drill in the reusable library.
+ *
+ * The library supported add and delete only, so correcting a duration or
+ * fixing a dead video link meant deleting the drill and retyping it — and
+ * any session that had already pulled that drill in kept the old copy,
+ * since sessions copy drills rather than referencing them.
+ *
+ * Scoped to the academy, matching deleteDrill.
+ */
+export async function updateDrill(
+  id: string,
+  data: {
+    name: string;
+    description?: string;
+    category: DrillCategory;
+    duration_minutes?: number;
+    difficulty?: DrillDifficulty;
+    video_url?: string;
+  }
+) {
+  const { supabase, user } = await requireUser();
+
+  if (!data.name?.trim()) return { error: "Name is required." };
+  if (!CATEGORIES.includes(data.category)) return { error: "Invalid category." };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("academy_id")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile?.academy_id) return { error: "No academy found." };
+
+  const { data: updated, error } = await supabase
+    .from("drill_library")
+    .update({
+      name: data.name.trim(),
+      description: data.description?.trim() || null,
+      category: data.category,
+      duration_minutes: data.duration_minutes ?? null,
+      difficulty: data.difficulty ?? null,
+      video_url: data.video_url?.trim() || null,
+    })
+    .eq("id", id)
+    .eq("academy_id", profile.academy_id)
+    .select("id");
+
+  if (error) return { error: friendlyError(error) };
+  if (!updated?.length) return { error: "Drill not found." };
+  revalidatePath("/dashboard/coach/training/drills");
+  return { success: true };
+}
+
 export async function deleteDrill(id: string) {
   const { supabase, user } = await requireUser();
 

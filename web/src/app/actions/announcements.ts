@@ -51,6 +51,48 @@ export async function createAnnouncement(formData: FormData) {
   return { success: true };
 }
 
+/**
+ * Edit a published announcement.
+ *
+ * Announcements could be created and deleted but not edited, so fixing a
+ * typo in a broadcast that had already reached every parent meant deleting
+ * it and posting again — which re-notifies everyone and loses the read
+ * receipts. The team is deliberately NOT editable: moving a post to another
+ * squad would silently change who it was addressed to, after people have
+ * already read it. Delete and repost is the right move for that.
+ *
+ * Scoped to the author (`coach_id = user.id`), matching deleteAnnouncement.
+ */
+export async function updateAnnouncement(id: string, formData: FormData) {
+  const { supabase, user } = await requireUser();
+
+  const parsed = announcementSchema
+    .omit({ team_id: true })
+    .safeParse({
+      title: formData.get("title") as string,
+      body: formData.get("body") as string,
+    });
+  if (!parsed.success) {
+    const msgs = parsed.error.flatten().fieldErrors;
+    return { error: Object.values(msgs).flat()[0] ?? "Invalid input." };
+  }
+
+  // `.select("id")` so a zero-row update is caught. An UPDATE that matches
+  // nothing is not a PostgREST error, and reading the missing error as
+  // success is exactly how the admin team edit silently did nothing.
+  const { data, error } = await supabase
+    .from("announcements")
+    .update({ title: parsed.data.title, body: parsed.data.body })
+    .eq("id", id)
+    .eq("coach_id", user.id)
+    .select("id");
+
+  if (error) return { error: friendlyError(error) };
+  if (!data?.length) return { error: "You can only edit your own announcements." };
+  revalidateAnnouncementFeeds();
+  return { success: true };
+}
+
 export async function deleteAnnouncement(id: string) {
   const { supabase, user } = await requireUser();
 

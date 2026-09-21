@@ -56,6 +56,74 @@ export async function createFixture(formData: FormData) {
   redirect(`/dashboard/coach/fixtures?team=${teamId}`);
 }
 
+/**
+ * Edit a scheduled fixture.
+ *
+ * Fixtures could be created, cancelled and result-logged, but never
+ * corrected — so a kickoff time typed wrong, or an opponent's name
+ * misspelt, could only be fixed by cancelling (which notifies every parent
+ * that the match is off, and demands a reason) and creating a new one.
+ *
+ * Reuses createFixtureSchema, so an edit cannot put a fixture into a state
+ * a new one could not have been created in.
+ */
+export async function updateFixture(fixtureId: string, formData: FormData) {
+  const { supabase, user } = await requireUser();
+
+  const teamIds = await getCoachTeamIds(supabase, user.id);
+  if (!teamIds.length) return { error: "No team found." };
+
+  const parsed = createFixtureSchema.safeParse({
+    opponent: formData.get("opponent") as string,
+    venue: (formData.get("venue") as string) || undefined,
+    fixture_date: formData.get("fixture_date") as string,
+    is_home: formData.get("is_home") === "true",
+    notes: (formData.get("notes") as string) || undefined,
+  });
+  if (!parsed.success) {
+    const msgs = parsed.error.flatten().fieldErrors;
+    return { error: Object.values(msgs).flat()[0] ?? "Invalid input." };
+  }
+
+  // A completed fixture has a logged result hanging off it — appearances and
+  // per-player ratings, written atomically by log_match_result(). Editing
+  // the fixture underneath that would leave ratings attached to a match that
+  // no longer describes what happened. A cancelled one is equally not a
+  // thing to quietly reschedule: parents were told it was off.
+  const { data: existing } = await supabase
+    .from("fixtures")
+    .select("status")
+    .eq("id", fixtureId)
+    .in("team_id", teamIds)
+    .single();
+
+  if (!existing) return { error: "Fixture not found." };
+  if (existing.status === "completed") {
+    return { error: "This match already has a result logged, so its details can't be changed." };
+  }
+  if (existing.status === "cancelled") {
+    return { error: "This fixture is cancelled. Schedule a new one instead." };
+  }
+
+  const { data, error } = await supabase
+    .from("fixtures")
+    .update(parsed.data)
+    .eq("id", fixtureId)
+    .in("team_id", teamIds)
+    .select("id");
+
+  if (error) return { error: friendlyError(error) };
+  if (!data?.length) return { error: "Fixture not found." };
+
+  revalidatePath("/dashboard/coach/fixtures", "page");
+  revalidatePath(`/dashboard/coach/fixtures/${fixtureId}`, "page");
+  // Parents and players see fixtures too — a corrected kickoff time is no
+  // use if their own list still shows the old one.
+  revalidatePath("/dashboard/parent/fixtures", "page");
+  revalidatePath("/dashboard/player/fixtures", "page");
+  return { success: true };
+}
+
 export async function cancelFixture(fixtureId: string, reason: string) {
   const { supabase, user } = await requireUser();
 

@@ -4,7 +4,7 @@ import { Megaphone, PenLine, Eye } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { AnnouncementForm } from "./announcement-form";
-import { DeleteAnnouncementButton } from "./delete-announcement-button";
+import { AnnouncementActions } from "./announcement-actions";
 import { formatRelativeTime } from "@/lib/utils";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 
@@ -96,6 +96,7 @@ export default async function CoachAnnouncementsPage() {
               >
                 <div className="w-1 shrink-0 bg-primary" />
                 <div className="flex flex-1 items-start gap-3 px-4 py-3.5">
+                  <AnnouncementActions id={a.id} title={a.title} body={a.body}>
                   <div className="min-w-0 flex-1 space-y-1.5">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-semibold leading-snug">{a.title}</p>
@@ -123,7 +124,7 @@ export default async function CoachAnnouncementsPage() {
                       )}
                     </div>
                   </div>
-                  <DeleteAnnouncementButton id={a.id} title={a.title} />
+                  </AnnouncementActions>
                 </div>
               </article>
             );

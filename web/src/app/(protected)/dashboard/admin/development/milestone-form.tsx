@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { saveMilestoneTemplate, deleteMilestoneTemplate } from "@/app/actions/development";
 import type { MilestoneCategory, MilestoneTemplateData } from "@/app/actions/development";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { POSITIONS, AGE_GROUPS } from "@/lib/types";
 import type { Position } from "@/lib/types";
 
@@ -36,6 +37,7 @@ function MilestoneRow({ template, academyId }: { template: TemplateRow; academyI
   const [editing, setEditing] = useState(false);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const { confirm, dialog } = useConfirm();
 
   function handleSave(formData: FormData) {
     setError(null);
@@ -54,8 +56,12 @@ function MilestoneRow({ template, academyId }: { template: TemplateRow; academyI
     });
   }
 
-  function handleDelete() {
-    if (!confirm(`Delete milestone "${template.title}"?`)) return;
+  async function handleDelete() {
+    const ok = await confirm({
+      title: `Delete "${template.title}"?`,
+      body: "Players who have already completed this milestone lose that record. This cannot be undone.",
+    });
+    if (!ok) return;
     start(async () => {
       const res = await deleteMilestoneTemplate(template.id);
       if (res?.error) toast.error(res.error);
@@ -114,6 +120,7 @@ function MilestoneRow({ template, academyId }: { template: TemplateRow; academyI
 
   return (
     <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-4">
+      {dialog}
       <div className="flex-1 min-w-0 space-y-1">
         <div className="flex items-start justify-between gap-2">
           <p className="font-medium text-sm">{template.title}</p>

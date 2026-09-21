@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PlayCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { AddDrillLibraryForm } from "./add-drill-form";
+import { EditDrillButton } from "./edit-drill-button";
 import { DeleteDrillLibraryButton } from "./delete-drill-button";
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -89,6 +90,17 @@ export default async function DrillLibraryPage() {
           <div className="divide-y divide-border rounded-xl border border-border bg-card">
             {grouped[cat].map((drill: Drill) => (
               <div key={drill.id} className="flex items-start gap-3 px-4 py-3.5">
+                <EditDrillButton
+                  drill={{
+                    id: drill.id,
+                    name: drill.name,
+                    description: drill.description ?? null,
+                    category: drill.category,
+                    duration_minutes: drill.duration_minutes ?? null,
+                    difficulty: drill.difficulty ?? null,
+                    video_url: drill.video_url ?? null,
+                  }}
+                >
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-medium leading-snug">{drill.name}</p>
@@ -119,6 +131,7 @@ export default async function DrillLibraryPage() {
                     </a>
                   )}
                 </div>
+                </EditDrillButton>
                 <DeleteDrillLibraryButton id={drill.id} />
               </div>
             ))}

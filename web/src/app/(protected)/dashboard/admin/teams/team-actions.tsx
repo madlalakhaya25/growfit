@@ -4,6 +4,7 @@ import { Pencil, Trash2, X, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { updateTeam, deleteTeam } from "@/app/actions/squad";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { AGE_GROUPS } from "@/lib/types";
 
 export function TeamActions({
@@ -18,6 +19,7 @@ export function TeamActions({
   const [editing, setEditing] = useState(false);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const { confirm, dialog } = useConfirm();
 
   function handleSave(formData: FormData) {
     setError(null);
@@ -28,8 +30,12 @@ export function TeamActions({
     });
   }
 
-  function handleDelete() {
-    if (!confirm(`Delete team "${name}"? This cannot be undone.`)) return;
+  async function handleDelete() {
+    const ok = await confirm({
+      title: `Delete team "${name}"?`,
+      body: "The team is deactivated and disappears from squads, fixtures and training. Players stay on the academy's books.",
+    });
+    if (!ok) return;
     start(async () => {
       // On success deleteTeam calls redirect(), which never returns here —
       // it navigates away instead. Only a failure returns normally.
@@ -74,6 +80,7 @@ export function TeamActions({
 
   return (
     <div className="flex gap-2 pt-1">
+      {dialog}
       <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
         <Pencil className="size-3.5" aria-hidden="true" />
         Edit

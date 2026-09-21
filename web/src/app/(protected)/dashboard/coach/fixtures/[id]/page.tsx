@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CancelFixtureButton } from "./cancel-fixture-button";
+import { EditFixtureButton } from "./edit-fixture-button";
 import { LogResultForm } from "./log/log-result-form";
 import { MediaUploadForm } from "@/components/media/media-upload-form";
 import { MediaGallery } from "@/components/media/media-gallery";
@@ -51,7 +52,7 @@ export default async function FixtureDetailPage({
   ] = await Promise.all([
     supabase
       .from("media_uploads")
-      .select("id, url, media_type, caption, created_at, media_tags ( player_id, players ( full_name ) )")
+      .select("id, url, media_type, caption, created_at, uploaded_by, media_tags ( player_id, players ( full_name ) )")
       .eq("fixture_id", id)
       .order("created_at", { ascending: false }),
     fixture.team_id
@@ -104,6 +105,7 @@ export default async function FixtureDetailPage({
     media_type: string;
     caption: string | null;
     created_at: string;
+    uploaded_by: string | null;
     media_tags: RawMediaTag[] | null;
   };
   const normalizedMediaItems = (media ?? []).map((item: RawMediaItem) => ({
@@ -112,6 +114,7 @@ export default async function FixtureDetailPage({
     media_type: item.media_type,
     caption: item.caption,
     created_at: item.created_at,
+    uploaded_by: item.uploaded_by,
     tagged_players: (item.media_tags ?? []).flatMap((tag: RawMediaTag) => {
       if (!tag.players) return [];
       return Array.isArray(tag.players) ? tag.players : [tag.players];
@@ -145,7 +148,19 @@ export default async function FixtureDetailPage({
             {fixtureStatusLabel(fixture)}
           </Badge>
           {fixture.status === "upcoming" && (
-            <CancelFixtureButton fixtureId={id} />
+            <>
+              <EditFixtureButton
+                fixtureId={id}
+                fixture={{
+                  opponent: fixture.opponent,
+                  venue: fixture.venue,
+                  fixture_date: fixture.fixture_date,
+                  is_home: fixture.is_home,
+                  notes: fixture.notes,
+                }}
+              />
+              <CancelFixtureButton fixtureId={id} />
+            </>
           )}
         </div>
       </div>
@@ -275,7 +290,11 @@ export default async function FixtureDetailPage({
           />
         </div>
         {normalizedMediaItems.length > 0 ? (
-          <MediaGallery items={normalizedMediaItems} />
+          <MediaGallery
+            items={normalizedMediaItems}
+            canDelete
+            currentUserId={user?.id}
+          />
         ) : (
           <p className="text-sm text-muted-foreground">No media yet — upload match photos or videos.</p>
         )}
