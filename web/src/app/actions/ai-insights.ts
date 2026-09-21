@@ -11,6 +11,7 @@ import {
   isMissingAttributeColumn,
   type AttrKey,
 } from "@/lib/attributes";
+import { aiError, checkAiBudget } from "@/lib/ai-guard";
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY!,
@@ -21,7 +22,12 @@ export async function getPlayerInsights(playerId: string): Promise<{
   error?: string;
 }> {
   try {
-    const { supabase } = await requireUser();
+    const { supabase, user } = await requireUser();
+    // One AI call against this user's hourly budget. Counts attempts, not
+    // successes: a failed call still costs a request to the provider.
+    const overBudget = checkAiBudget(user.id);
+    if (overBudget) return { error: overBudget };
+
 
     const [
       playerResult,
@@ -184,7 +190,7 @@ Output using these exact plain text headers:
     return { insights: text };
   } catch (err) {
     return {
-      error: err instanceof Error ? err.message : "AI service unavailable.",
+      error: aiError(err),
     };
   }
 }

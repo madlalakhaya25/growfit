@@ -9,6 +9,7 @@ import {
   buildAttributeSnapshot,
   type AttrKey,
 } from "@/lib/attributes";
+import { aiError, checkAiBudget } from "@/lib/ai-guard";
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY!,
@@ -20,6 +21,11 @@ export async function generateDevelopmentPlan(playerId: string): Promise<{
 }> {
   try {
     const { supabase, user } = await requireUser();
+    // One AI call against this user's hourly budget. Counts attempts, not
+    // successes: a failed call still costs a request to the provider.
+    const overBudget = checkAiBudget(user.id);
+    if (overBudget) return { error: overBudget };
+
 
     const { data: profile } = await supabase
       .from("profiles")
@@ -181,7 +187,7 @@ Output format:
     return { plan: text };
   } catch (err) {
     return {
-      error: err instanceof Error ? err.message : "AI service unavailable.",
+      error: aiError(err),
     };
   }
 }

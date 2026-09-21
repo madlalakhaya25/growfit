@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { extractPdfHeadshots, type CardHeadshot } from "@/lib/pdf-headshots";
 import { attachHeadshotsByIdentity } from "@/lib/headshot-matching";
 import { friendlyError } from "@/lib/friendly-error";
+import { aiError, checkAiBudget } from "@/lib/ai-guard";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -82,6 +83,11 @@ export async function extractPlayersFromPdf(
 }> {
   try {
     const { supabase, user } = await requireUser();
+
+    // The only AI path in this file — the other two actions here write the
+    // reviewed rows and don't call the model.
+    const overBudget = checkAiBudget(user.id);
+    if (overBudget) return { error: overBudget };
 
     const file = formData.get("file") as File | null;
     if (!file || !file.size) return { error: "Choose a PDF to upload." };
@@ -238,7 +244,7 @@ export async function extractPlayersFromPdf(
           : undefined,
     };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Could not process the PDF." };
+    return { error: aiError(err, "Could not read that PDF. Try a clearer scan.") };
   }
 }
 

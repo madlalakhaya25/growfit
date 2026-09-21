@@ -4,6 +4,7 @@ import { GoogleGenAI } from "@google/genai";
 import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
 import { buildSquadContext } from "./squad-context";
+import { aiError, checkAiBudget } from "@/lib/ai-guard";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -32,7 +33,12 @@ export async function askCoachAssistant(params: {
   question: string;
 }): Promise<{ answer?: string; error?: string }> {
   try {
-    await requireUser();
+    const { user } = await requireUser();
+    // One AI call against this user's hourly budget. Counts attempts, not
+    // successes: a failed call still costs a request to the provider.
+    const overBudget = checkAiBudget(user.id);
+    if (overBudget) return { error: overBudget };
+
 
     const question = params.question.trim();
     if (!question) return { error: "Ask a question first." };
@@ -79,7 +85,7 @@ export async function askCoachAssistant(params: {
     const text = (response.text ?? "").replace(/\*/g, "");
     return { answer: text || "I couldn't produce an answer — try rephrasing." };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "AI service unavailable." };
+    return { error: aiError(err) };
   }
 }
 
@@ -90,7 +96,12 @@ export async function suggestLineup(params: {
   formation: string;
 }): Promise<{ lineup?: string; error?: string }> {
   try {
-    await requireUser();
+    const { user } = await requireUser();
+    // One AI call against this user's hourly budget. Counts attempts, not
+    // successes: a failed call still costs a request to the provider.
+    const overBudget = checkAiBudget(user.id);
+    if (overBudget) return { error: overBudget };
+
     const { context, error } = await buildSquadContext(params.teamId, { fixtureId: params.fixtureId });
     if (error || !context) return { error: error ?? "Could not load the squad." };
 
@@ -123,7 +134,7 @@ SELECTION NOTES: [2 sentences on the balance of the side and any risk]`;
     const text = (response.text ?? "").replace(/\*/g, "");
     return { lineup: text };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "AI service unavailable." };
+    return { error: aiError(err) };
   }
 }
 
@@ -133,7 +144,12 @@ export async function generateMatchPlan(params: {
   fixtureId: string;
 }): Promise<{ plan?: string; error?: string }> {
   try {
-    await requireUser();
+    const { user } = await requireUser();
+    // One AI call against this user's hourly budget. Counts attempts, not
+    // successes: a failed call still costs a request to the provider.
+    const overBudget = checkAiBudget(user.id);
+    if (overBudget) return { error: overBudget };
+
     const { context, error } = await buildSquadContext(params.teamId, { fixtureId: params.fixtureId });
     if (error || !context) return { error: error ?? "Could not load the squad." };
 
@@ -164,6 +180,6 @@ REHEARSE AT TRAINING: [1 sentence on what to drill this week]`;
     const text = (response.text ?? "").replace(/\*/g, "");
     return { plan: text };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "AI service unavailable." };
+    return { error: aiError(err) };
   }
 }
