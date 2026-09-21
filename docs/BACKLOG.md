@@ -24,7 +24,7 @@ commit.
 |---|---|---|---|
 | 0.1 | **Apply migrations 030–037** | Someone with Supabase SQL-editor or CLI access | IP Step 0 — **verified, see `MIGRATION_RUNBOOK.md`** |
 | 0.2 | Error reporting (Sentry or equivalent) | An account and a DSN | IP-6 — **seam built, see below** |
-| 0.3 | Seed a test Supabase project + Playwright auth states | A real test project and credentials | RM |
+| 0.3 | Seed a test Supabase project + Playwright auth states | A real test project and credentials | RM — **`supabase/seed.sql` written and verified, see below** |
 | 0.4 | Move rate limiting off in-memory | A shared store (Upstash Redis) and credentials | RM — **seam built, see below** |
 
 **0.1 is not optional and not ranked.** Migration `035` fixes a `42P17`
@@ -62,6 +62,37 @@ once a DSN is added.
 **0.4 now covers two things.** `proxy.ts`'s auth limiter and the per-user AI
 budget added this month are both in-memory, so on a multi-instance deployment
 the real ceiling is the limit times the instance count.
+
+**0.3** — `supabase/seed.sql` now exists: one academy, five logins (admin,
+head coach, assistant coach, parent, and the parent's linked child with her
+own login), a ten-player U13 squad, two training sessions with attendance
+marked across every P/A/L/E state (deliberately including two players
+genuinely below the 75% threshold and one excused case), three fixtures
+(completed with a logged result, upcoming, cancelled with a reason), both
+coaches' attribute assessments of the same player, milestones, mixed-status
+documents, and a fixed calendar-feed token. Run end-to-end against the same
+local PostgreSQL 16 harness used for the migration verification (auth.users/
+auth.identities reproduced) — confirmed idempotent, confirmed the attendance
+percentages land exactly as designed, confirmed `get_public_passport()` and
+`get_calendar_events()` both return correct data from it, confirmed RLS lets
+each seeded role read what it should. **Not** verified: an actual GoTrue
+login, since no live Supabase project exists in this environment — confirm
+that the first time this runs against a real one. Playwright auth states
+(step 2 of the e2e README's plan) still need writing on top of this.
+
+**A dormant bug found while writing the seed, not fixed here:**
+`handle_new_user()`'s `IF v_role NOT IN ('player', 'parent')` evaluates to
+`NULL` (not `TRUE`) when signup metadata has no `role` key at all, since
+`NULL NOT IN (...)` is `NULL` in SQL and plpgsql's `IF` only branches on
+`TRUE` — so the fallback-to-`'player'` never fires and the profile insert
+hits `profiles.role`'s `NOT NULL` constraint instead. Every real signup path
+in this app (`auth/register`, `register-club`) does send a role, so this
+isn't reachable through the UI today; it would be reachable from a direct
+Admin API call or a future OAuth/magic-link signup with no metadata. Filed
+here rather than patched, since it's a one-line change to a SECURITY DEFINER
+trigger that closed a real privilege-escalation path (migration 027) and
+deserves the same deliberateness as that migration got, not a drive-by fix
+discovered while writing test fixtures. Pick it up as part of 1.5's audit.
 
 Same shape as 0.2: `lib/rate-limit.ts` talks to Upstash's REST API directly
 over `fetch` (no SDK, and REST rather than a TCP client is what actually
@@ -121,6 +152,13 @@ was doing authorization RLS already did correctly. The same helper still wraps
 `addPlayerToSquad`, `removePlayerFromSquad`, `createPlayer` and several page
 reads. Apply that fix's own reasoning to each, deliberately, rather than
 waiting for the next silent no-op.
+
+Also pick up while in this territory: `handle_new_user()`'s `IF v_role NOT
+IN ('player', 'parent')` silently mis-handles a NULL role in signup metadata
+(evaluates NULL, not TRUE, so the `'player'` fallback never fires) — found
+while writing `supabase/seed.sql`, not currently reachable through the app's
+own signup forms, full detail in that file's header comment and in Phase
+0.3 above.
 
 ### 1.6 Clear the standing lint debt
 Not glamorous, but it is now load-bearing: `tactical-board.tsx` carries seven
