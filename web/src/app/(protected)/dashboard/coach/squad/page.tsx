@@ -12,13 +12,30 @@ import { POSITIONS } from "@/lib/types";
 import { calculateAge, getInitials } from "@/lib/player";
 import { cn } from "@/lib/utils";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
+import {
+  ALL_ATTR_SELECT, CORE_ATTR_SELECT,
+  buildAttributeSnapshot, isMissingAttributeColumn, type AttrKey,
+} from "@/lib/attributes";
+import {
+  attendancePct, attendanceWindowStart, isBelowWelfareThreshold,
+} from "@/lib/attendance";
+import { DOCUMENTS } from "@/lib/document-definitions";
+import { SquadFilters, type SquadFilter } from "./squad-filters";
+
+/** Every document a player owes per season — the document hub's own list. */
+const REQUIRED_DOC_COUNT = DOCUMENTS.length;
 
 export default async function SquadPage({
   searchParams,
 }: {
-  searchParams: Promise<{ team?: string }>;
+  searchParams: Promise<{ team?: string; q?: string; filter?: string }>;
 }) {
-  const { team: teamParam } = await searchParams;
+  const { team: teamParam, q: rawQuery = "", filter: rawFilter } = await searchParams;
+  const query = rawQuery.trim().toLowerCase();
+  const filter: SquadFilter =
+    rawFilter === "attendance" || rawFilter === "docs" || rawFilter === "unassessed"
+      ? rawFilter
+      : "all";
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
@@ -44,18 +61,47 @@ export default async function SquadPage({
   // rather than degrading — this query doesn't touch the attribute columns
   // that bit that page, but the same "never let data go silently null" rule
   // applies to any query whose failure could be mistaken for an empty state.
-  const { data: members, error: membersError } = await supabase
+  //
+  // Attributes come along for the ride so each card can show the same
+  // Overall every other surface shows. Both selects are spelled out as
+  // literals: supabase-js parses the select string in the type system, so
+  // interpolating a runtime string collapses the row type to a ParserError
+  // (see ALL_ATTR_SELECT's own note in lib/attributes.ts).
+  const wide = await supabase
     .from("team_members")
     .select(`
       player_id, joined_at,
       players (
         id, full_name, position, preferred_foot, date_of_birth, photo_url,
-        player_ratings ( rating )
+        player_ratings ( rating ),
+        player_attributes ( ${ALL_ATTR_SELECT} )
       )
     `)
     .eq("team_id", team.id)
     .eq("active", true)
     .order("joined_at");
+
+  // A project missing migration 013/033 fails the wide select outright
+  // (42703) rather than returning the columns that do exist.
+  const narrow = isMissingAttributeColumn(wide.error)
+    ? await supabase
+        .from("team_members")
+        .select(`
+          player_id, joined_at,
+          players (
+            id, full_name, position, preferred_foot, date_of_birth, photo_url,
+            player_ratings ( rating ),
+            player_attributes ( ${CORE_ATTR_SELECT} )
+          )
+        `)
+        .eq("team_id", team.id)
+        .eq("active", true)
+        .order("joined_at")
+    : null;
+
+  const membersResult = narrow ?? wide;
+  const members = membersResult.data;
+  const membersError = membersResult.error;
 
   if (membersError) {
     // Without this, a real query failure (RLS, a stale PostgREST schema
@@ -65,31 +111,128 @@ export default async function SquadPage({
     console.error("[squad page] failed to load team_members:", membersError);
   }
 
-  const squad = (members ?? []).map((m: {
+  type SquadPlayerRow = {
+    id: string; full_name: string; position: string | null;
+    preferred_foot: string | null; date_of_birth: string | null;
+    photo_url: string | null;
+    player_ratings: { rating: number }[];
+    player_attributes?: Partial<Record<AttrKey, number | null>>[] | null;
+  };
+  type MemberRow = {
     player_id: string;
     joined_at: string;
-    players: {
-      id: string; full_name: string; position: string | null;
-      preferred_foot: string | null; date_of_birth: string | null;
-      photo_url: string | null; player_ratings: { rating: number }[];
-    } | { id: string; full_name: string; position: string | null; preferred_foot: string | null; date_of_birth: string | null; photo_url: string | null; player_ratings: { rating: number }[] }[] | null;
-  }) => {
-    const p = Array.isArray(m.players) ? m.players[0] : m.players;
-    if (!p) return null;
+    players: SquadPlayerRow | SquadPlayerRow[] | null;
+  };
+
+  const basePlayers = ((members ?? []) as unknown as MemberRow[])
+    .map((m) => {
+      const p = Array.isArray(m.players) ? m.players[0] : m.players;
+      return p ? { player: p, joinedAt: m.joined_at } : null;
+    })
+    .filter((x): x is { player: SquadPlayerRow; joinedAt: string } => x !== null);
+
+  const playerIds = basePlayers.map((b) => b.player.id);
+  const currentSeason = new Date().getFullYear().toString();
+
+  // Training attendance and document compliance for the whole squad, in two
+  // queries rather than one per player.
+  //
+  // Both of these already existed elsewhere — attendance drives the welfare
+  // panel and the AI brief, documents drive the per-player badge — but the
+  // coach actually picking Sunday's squad could see neither without opening
+  // players one at a time.
+  const since = attendanceWindowStart();
+  const [{ data: sessions }, { data: docs }] = await Promise.all([
+    supabase
+      .from("training_sessions")
+      .select("id")
+      .eq("team_id", team.id)
+      .gte("session_date", since),
+    playerIds.length
+      ? supabase
+          .from("player_documents")
+          .select("player_id, status")
+          .in("player_id", playerIds)
+          .eq("season", currentSeason)
+      : Promise.resolve({ data: [] as { player_id: string; status: string }[] }),
+  ]);
+
+  const sessionIds = (sessions ?? []).map((x: { id: string }) => x.id);
+  const presentByPlayer = new Map<string, number>();
+  if (sessionIds.length && playerIds.length) {
+    const { data: att } = await supabase
+      .from("training_attendance")
+      .select("player_id, status")
+      .in("session_id", sessionIds)
+      .in("player_id", playerIds);
+    for (const row of (att ?? []) as { player_id: string; status: string }[]) {
+      if (row.status === "attending") {
+        presentByPlayer.set(row.player_id, (presentByPlayer.get(row.player_id) ?? 0) + 1);
+      }
+    }
+  }
+
+  const docsByPlayer = new Map<string, number>();
+  for (const d of (docs ?? []) as { player_id: string; status: string }[]) {
+    if (d.status === "signed" || d.status === "uploaded") {
+      docsByPlayer.set(d.player_id, (docsByPlayer.get(d.player_id) ?? 0) + 1);
+    }
+  }
+
+  const squad = basePlayers.map(({ player: p, joinedAt }) => {
     const ratings = p.player_ratings.map((r) => r.rating);
     const avg = ratings.length
       ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1)
       : null;
     const age = calculateAge(p.date_of_birth);
-    return { ...p, avg, ratingsCount: ratings.length, age, joinedAt: m.joined_at };
-  }).filter(Boolean);
+
+    // Same Overall every other player surface shows: the mean of the
+    // attributes this position is assessed on, averaged across coaches.
+    const snapshot = buildAttributeSnapshot(p.player_attributes ?? null, p.position);
+
+    const present = presentByPlayer.get(p.id) ?? 0;
+    const attendance = attendancePct(present, sessionIds.length);
+    const belowThreshold = isBelowWelfareThreshold(present, sessionIds.length);
+
+    const docsSigned = docsByPlayer.get(p.id) ?? 0;
+    const docsOutstanding = Math.max(0, REQUIRED_DOC_COUNT - docsSigned);
+
+    return {
+      ...p,
+      avg,
+      ratingsCount: ratings.length,
+      age,
+      joinedAt,
+      overall: snapshot.overall,
+      assessed: snapshot.assessedKeys.length > 0,
+      attendance,
+      belowThreshold,
+      docsOutstanding,
+    };
+  });
+
+  const matchesFilter = (p: (typeof squad)[number]) => {
+    if (query && !p.full_name.toLowerCase().includes(query)) return false;
+    if (filter === "attendance") return p.belowThreshold;
+    if (filter === "docs") return p.docsOutstanding > 0;
+    if (filter === "unassessed") return !p.assessed;
+    return true;
+  };
+
+  const visibleSquad = squad.filter(matchesFilter);
+  const counts = {
+    all: squad.length,
+    attendance: squad.filter((p) => p.belowThreshold).length,
+    docs: squad.filter((p) => p.docsOutstanding > 0).length,
+    unassessed: squad.filter((p) => !p.assessed).length,
+  };
 
   // Group by position group rather than the raw value. Players now carry
   // specific roles (cb, lb, cdm, …) as well as the five legacy ones, and
   // grouping on the raw value meant every specific role fell outside the
   // render order and simply never appeared.
-  const byPosition: Record<string, typeof squad> = {};
-  for (const p of squad) {
+  const byPosition: Record<string, typeof visibleSquad> = {};
+  for (const p of visibleSquad) {
     const group = p?.position
       ? POSITIONS.find((x) => x.value === p.position)?.group ?? "Unassigned"
       : "Unassigned";
@@ -145,6 +288,10 @@ export default async function SquadPage({
         </div>
       </div>
 
+      {!membersError && squad.length > 0 && (
+        <SquadFilters initialQuery={rawQuery} active={filter} counts={counts} />
+      )}
+
       {membersError ? (
         <Card className="border-destructive/50">
           <CardHeader>
@@ -169,6 +316,23 @@ export default async function SquadPage({
               </Link>
             </Button>
           </CardContent>
+        </Card>
+      ) : visibleSquad.length === 0 ? (
+        /* Distinct from "no players yet" on purpose — the squad is not
+           empty, the search or filter just matched nobody. */
+        <Card>
+          <CardHeader>
+            <CardTitle>No players match</CardTitle>
+            <CardDescription>
+              {query
+                ? `Nobody in this squad matches "${rawQuery.trim()}".`
+                : "No player in this squad matches that filter."}{" "}
+              <Link href={`/dashboard/coach/squad?team=${team.id}`} className="text-primary hover:underline">
+                Clear it
+              </Link>
+              .
+            </CardDescription>
+          </CardHeader>
         </Card>
       ) : (
         <div className="space-y-8">
@@ -205,9 +369,20 @@ export default async function SquadPage({
                           )}
                         </Link>
 
-                        {/* Info */}
+                        {/* Info.
+                            The card used to carry the match-rating average
+                            and nothing else — not the attribute Overall
+                            every other surface shows, not attendance, not
+                            document status. All three were already computed
+                            elsewhere in the app; this is the screen where
+                            they actually change a decision. */}
                         <Link href={`/dashboard/coach/squad/${player.id}?team=${team.id}`} className="min-w-0 flex-1">
-                          <p className="truncate font-semibold leading-tight">{player.full_name}</p>
+                          <div className="flex items-baseline justify-between gap-2">
+                            <p className="truncate font-semibold leading-tight">{player.full_name}</p>
+                            {player.overall !== null && (
+                              <span className="shrink-0 text-sm font-bold tabular-nums">{player.overall}</span>
+                            )}
+                          </div>
                           <div className="mt-1 flex flex-wrap gap-1">
                             {player.age && (
                               <Badge variant="neutral" className="text-xs">Age {player.age}</Badge>
@@ -217,12 +392,28 @@ export default async function SquadPage({
                                 {player.preferred_foot}
                               </Badge>
                             )}
+                            {/* Only ever flagged when it needs action — red
+                                that always shows stops meaning anything. */}
+                            {player.belowThreshold && (
+                              <Badge variant="danger" className="text-xs">
+                                {player.attendance}% attendance
+                              </Badge>
+                            )}
+                            {player.docsOutstanding > 0 && (
+                              <Badge variant="warning" className="text-xs">
+                                {player.docsOutstanding} doc{player.docsOutstanding === 1 ? "" : "s"} due
+                              </Badge>
+                            )}
+                            {!player.assessed && (
+                              <Badge variant="neutral" className="text-xs">Not assessed</Badge>
+                            )}
                           </div>
-                          {player.avg && (
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              ★ {player.avg} avg · {player.ratingsCount}
-                            </p>
-                          )}
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {player.avg ? `★ ${player.avg} avg · ${player.ratingsCount}` : "No match ratings"}
+                            {player.attendance !== null && !player.belowThreshold
+                              ? ` · ${player.attendance}% training`
+                              : ""}
+                          </p>
                         </Link>
 
                         {/* Remove */}

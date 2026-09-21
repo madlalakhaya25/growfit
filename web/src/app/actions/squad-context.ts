@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { POSITIONS } from "@/lib/types";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { calculateAge } from "@/lib/player";
-import { attendancePct, isBelowWelfareThreshold, ATTENDANCE_WINDOW_DAYS, WELFARE_ATTENDANCE_THRESHOLD } from "@/lib/attendance";
+import { attendancePct, attendanceWindowStart, isBelowWelfareThreshold, ATTENDANCE_WINDOW_DAYS, WELFARE_ATTENDANCE_THRESHOLD } from "@/lib/attendance";
 import {
   ALL_ATTR_SELECT, CORE_ATTR_SELECT, ALL_ATTR_KEYS, ATTR_META,
   buildAttributeSnapshot, describeAttributes, isMissingAttributeColumn,
@@ -126,7 +126,7 @@ export async function buildSquadContext(
   const playerIds = players.map((p) => p.id);
 
   // Training attendance across the recent term
-  const since = new Date(Date.now() - ATTENDANCE_WINDOW_DAYS * 24 * 3600 * 1000).toISOString();
+  const since = attendanceWindowStart();
   const { data: sessions } = await supabase
     .from("training_sessions")
     .select("id")
