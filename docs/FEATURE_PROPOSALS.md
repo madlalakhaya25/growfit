@@ -11,6 +11,11 @@ follows is ordered by how much of the academy's *manual* work each one
 removes, because that is the platform's stated purpose — "digitises and
 scales what the academy does manually today."
 
+> **Sequencing now lives in [`BACKLOG.md`](./BACKLOG.md).** This document
+> stays authoritative for the reasoning behind each proposal; the backlog says
+> when, and deduplicates against the other two — proposal 4 here and
+> improvement-plan item 14 are the same job.
+
 A deliberate constraint runs through all of it: the academy is three people.
 Anything that needs someone to maintain it daily will not get maintained.
 

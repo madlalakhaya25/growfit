@@ -7,6 +7,11 @@ it came from; nothing here is a guess about what the code probably does.*
 Verification run before writing this: `tsc --noEmit` clean, 196/196 Jest tests
 pass, `npm ci` clean on `web/`.
 
+> **Sequencing now lives in [`BACKLOG.md`](./BACKLOG.md).** This document
+> stays authoritative for *why* each item exists and what the evidence for it
+> was; the backlog says when, and deduplicates against the roadmap and the
+> feature proposals.
+
 ---
 
 ## Part 1 — What the last two days actually fixed

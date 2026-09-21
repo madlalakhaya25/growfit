@@ -8,6 +8,11 @@ import/registration-card pipeline shipped since with no mention here at all.
 Rewritten from an actual audit of the codebase and commit history, not from
 memory of what was planned.
 
+> **Outstanding work is sequenced in [`BACKLOG.md`](./BACKLOG.md).** The
+> "Next" and "Architectural backlog" sections below stay accurate about what
+> is and is not built; the backlog puts them in one order alongside the
+> improvement plan and the feature proposals.
+
 ---
 
 ## Shipped ✅
