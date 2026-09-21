@@ -21,6 +21,16 @@ export async function saveDrill(data: {
 
   if (!data.name?.trim()) return { error: "Name is required." };
   if (!CATEGORIES.includes(data.category)) return { error: "Invalid category." };
+  // `category` was checked at runtime here but `difficulty` never was,
+  // despite both being optional user input validated against the same kind
+  // of CHECK constraint in the database (migration 012). A caller sending
+  // a raw form value cast to `DrillDifficulty` -- exactly what the edit
+  // form's <select> does -- bypassed this entirely at compile time and
+  // would only be caught by Postgres's own constraint error surfacing
+  // as a raw message instead of this action's usual friendly one.
+  if (data.difficulty && !DIFFICULTIES.includes(data.difficulty)) {
+    return { error: "Invalid difficulty." };
+  }
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -71,6 +81,9 @@ export async function updateDrill(
 
   if (!data.name?.trim()) return { error: "Name is required." };
   if (!CATEGORIES.includes(data.category)) return { error: "Invalid category." };
+  if (data.difficulty && !DIFFICULTIES.includes(data.difficulty)) {
+    return { error: "Invalid difficulty." };
+  }
 
   const { data: profile } = await supabase
     .from("profiles")

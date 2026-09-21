@@ -105,8 +105,13 @@ export async function getPlayerInsights(playerId: string): Promise<{
         .map((key) => `${ATTR_META[key].label}: ${snapshot.assessed[key]}`)
         .join(", ") || "No attribute assessments yet";
 
-    const ratingsSummary = (ratings ?? [])
-      .map((r: any) => {
+    type RatingRow = {
+      rating: number;
+      note: string | null;
+      fixtures: { opponent: string } | { opponent: string }[] | null;
+    };
+    const ratingsSummary = ((ratings ?? []) as RatingRow[])
+      .map((r) => {
         const fix = Array.isArray(r.fixtures) ? r.fixtures[0] : r.fixtures;
         return `${r.rating}/5 vs ${fix?.opponent ?? "training"}${
           r.note ? ` — "${r.note}"` : ""
@@ -114,8 +119,14 @@ export async function getPlayerInsights(playerId: string): Promise<{
       })
       .join("; ");
 
-    const completedMilestones = (milestones ?? [])
-      .map((m: any) => {
+    type MilestoneRow = {
+      development_milestone_templates:
+        | { title: string; category: string }
+        | { title: string; category: string }[]
+        | null;
+    };
+    const completedMilestones = ((milestones ?? []) as MilestoneRow[])
+      .map((m) => {
         const t = Array.isArray(m.development_milestone_templates)
           ? m.development_milestone_templates[0]
           : m.development_milestone_templates;

@@ -12,11 +12,6 @@ import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { getWelfareAlerts } from "@/app/actions/welfare";
 import { WelfareSummaryLink } from "@/components/welfare/welfare-summary-link";
 
-const SESSION_TYPE_LABEL: Record<string, string> = {
-  general: "General", technical: "Technical", tactical: "Tactical",
-  fitness: "Fitness", match_prep: "Match Prep", recovery: "Recovery",
-};
-
 export default async function CoachDashboardPage() {
   const { supabase, user } = await requireUser();
 

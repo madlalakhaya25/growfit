@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { ExternalLink, FileText, ChevronRight, Target, Download } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -260,7 +261,13 @@ export default async function PlayerDashboardPage() {
           <CardHeader className="flex-row items-center justify-between">
             <div className="flex items-center gap-3">
               {player.photo_url ? (
-                <img src={player.photo_url} alt={player.full_name} className="size-12 rounded-full object-cover" />
+                <Image
+                  src={player.photo_url}
+                  alt={player.full_name}
+                  width={48}
+                  height={48}
+                  className="size-12 rounded-full object-cover"
+                />
               ) : (
                 <span className="grid size-12 shrink-0 place-items-center rounded-full bg-brand/20 text-sm font-bold text-primary">
                   {getInitials(player.full_name)}

@@ -28,6 +28,14 @@ export function VoiceNoteRecorder({
   initialUrl: string | null;
   onChange?: (url: string | null) => void;
 }) {
+  // `url` used to re-sync from `initialUrl` via a `useEffect`, which only
+  // covered `url` itself -- switching which play this recorder is attached
+  // to left `recording`/`seconds`/`error` untouched, so a stale error
+  // message (or worse, an apparently-active recording) could bleed from one
+  // play into the next. The caller now remounts this component on play
+  // identity change instead (`key={playId ?? "new"}`, tactical-board.tsx /
+  // film-board.tsx), which resets every piece of state here at once -- the
+  // correct fix, not just the one that satisfied the linter.
   const [url, setUrl] = useState<string | null>(initialUrl);
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -38,7 +46,6 @@ export function VoiceNoteRecorder({
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => { setUrl(initialUrl); }, [initialUrl]);
   useEffect(() => () => {
     if (timerRef.current) clearInterval(timerRef.current);
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -150,7 +157,6 @@ export function VoiceNoteRecorder({
       </div>
 
       {url && !recording && (
-        // eslint-disable-next-line jsx-a11y/media-has-caption
         <audio controls src={url} className="w-full h-8" />
       )}
       {error && <p className="text-[11px] text-destructive">{error}</p>}

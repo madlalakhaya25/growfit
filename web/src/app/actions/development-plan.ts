@@ -73,10 +73,19 @@ export async function generateDevelopmentPlan(playerId: string): Promise<{
     const ratings = ratingsResult?.data ?? [];
     const completions = completionsResult?.data ?? [];
 
+    type CompletionRow = {
+      template_id: string;
+      development_milestone_templates:
+        | { title: string; category: string }
+        | { title: string; category: string }[]
+        | null;
+    };
+    const completionRows = completions as CompletionRow[];
+
     // Fetch incomplete milestones (templates the player has NOT completed)
     let incompleteMilestones: { title: string }[] = [];
     if (profile?.academy_id) {
-      const completedTemplateIds = (completions as any[]).map((c) => c.template_id);
+      const completedTemplateIds = completionRows.map((c) => c.template_id);
 
       const { data: allTemplates } = await supabase
         .from("development_milestone_templates")
@@ -113,9 +122,13 @@ export async function generateDevelopmentPlan(playerId: string): Promise<{
       ? attrEntries.map((e) => `${e.label}: ${e.value}`).join(", ")
       : "No attribute assessments yet";
 
+    type RatingRow = {
+      rating: number;
+      fixtures: { opponent: string } | { opponent: string }[] | null;
+    };
     // Build ratings summary
     const ratingsSummary = ratings.length
-      ? (ratings as any[])
+      ? (ratings as RatingRow[])
           .map((r) => {
             const fix = Array.isArray(r.fixtures) ? r.fixtures[0] : r.fixtures;
             return `${r.rating}/5 vs ${fix?.opponent ?? "training"}`;
@@ -124,8 +137,8 @@ export async function generateDevelopmentPlan(playerId: string): Promise<{
       : "No recent ratings";
 
     // Build completed milestones summary
-    const completedMilestoneSummary = completions.length
-      ? (completions as any[])
+    const completedMilestoneSummary = completionRows.length
+      ? completionRows
           .map((c) => {
             const t = Array.isArray(c.development_milestone_templates)
               ? c.development_milestone_templates[0]

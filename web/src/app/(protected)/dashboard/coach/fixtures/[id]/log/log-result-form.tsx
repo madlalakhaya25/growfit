@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { Star } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { logMatch } from "@/app/actions/fixtures";
 import { POSITIONS } from "@/lib/types";

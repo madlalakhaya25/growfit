@@ -226,6 +226,11 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
       strokeLinecap: "round" as const, strokeLinejoin: "round" as const,
       opacity: isDraft ? 0.75 : 1,
       style: { cursor: mode === "erase" ? "pointer" : "default" },
+      // onShapeDown calls snapshot(), which reads a ref -- but only once
+      // this handler actually fires from a real pointer event, never during
+      // the render that creates this closure. Same false-positive shape as
+      // tactical-board.tsx's identical pattern.
+      // eslint-disable-next-line react-hooks/refs
       onPointerDown: isDraft ? undefined : (e: React.PointerEvent) => onShapeDown(e, sh.id),
     };
     const a = sh.pts[0], b = sh.pts[sh.pts.length - 1];
@@ -292,6 +297,11 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
     if (res.plays) setPlays(res.plays);
   }
   useEffect(() => {
+    // Fetch-on-dependency-change: refreshPlays is async and its setState
+    // call (setPlays) happens after an await, not synchronously in this
+    // effect body -- same false-positive shape as tactical-board.tsx's
+    // identical pattern (see that file's comment for the full reasoning).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refreshPlays(teamId);
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [teamId]);
@@ -503,7 +513,12 @@ export function FilmBoard({ teams }: { teams: FilmTeam[] }) {
       </div>
 
       {currentPlayId && (
-        <VoiceNoteRecorder playId={currentPlayId} initialUrl={voiceUrl} onChange={setVoiceUrl} />
+        <VoiceNoteRecorder
+          key={currentPlayId}
+          playId={currentPlayId}
+          initialUrl={voiceUrl}
+          onChange={setVoiceUrl}
+        />
       )}
 
       <div className="flex flex-wrap items-center gap-1.5">

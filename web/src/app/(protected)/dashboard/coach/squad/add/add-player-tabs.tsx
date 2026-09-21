@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { addPlayerToSquad, createPlayer } from "@/app/actions/squad";
-import { POSITIONS, FEET, AGE_GROUPS } from "@/lib/types";
+import { POSITIONS, FEET } from "@/lib/types";
 import { calculateAge, getInitials } from "@/lib/player";
 
 type Player = {

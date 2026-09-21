@@ -40,7 +40,7 @@ export function AiInsightsPanel({ playerId }: { playerId: string }) {
 
       {!insights && !error && !isPending && (
         <p className="px-4 py-3 text-sm text-muted-foreground">
-          Click "Generate insights" to get AI-powered coaching recommendations based on this player's ratings, attributes, and development milestones.
+          Click &quot;Generate insights&quot; to get AI-powered coaching recommendations based on this player&apos;s ratings, attributes, and development milestones.
         </p>
       )}
 

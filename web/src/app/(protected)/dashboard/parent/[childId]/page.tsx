@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, ChevronRight, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -17,7 +18,6 @@ import {
   ALL_ATTR_SELECT,
   averageAttributeRows,
   calculateOverall,
-  getPositionAttrKeys,
   type AttrKey,
 } from "@/lib/attributes";
 import { matchRatingAverage } from "@/lib/player";
@@ -88,10 +88,6 @@ export default async function ChildDetailPage({
   );
   const matchAvg = matchRatingAverage(ratings.map((r) => r.rating));
   const overall = calculateOverall(attrs, player.position) ?? matchAvg;
-
-  const summaryKeys = getPositionAttrKeys(player.position).filter(
-    (key) => typeof attrs?.[key] === "number"
-  );
 
   const teamIds = (memberRows ?? []).map((m: { team_id: string }) => m.team_id);
   const teamMap = new Map(
@@ -233,7 +229,13 @@ export default async function ChildDetailPage({
           <CardHeader>
             <div className="flex items-center justify-between">
               {player.photo_url ? (
-                <img src={player.photo_url} alt={player.full_name} className="size-16 rounded-full object-cover" />
+                <Image
+                  src={player.photo_url}
+                  alt={player.full_name}
+                  width={64}
+                  height={64}
+                  className="size-16 rounded-full object-cover"
+                />
               ) : (
                 <span className="grid size-16 place-items-center rounded-full bg-brand/20 text-lg font-bold text-primary">
                   {initials}

@@ -62,6 +62,13 @@ export default async function AnalyticsPage() {
     supabase
       .from("player_ratings")
       .select("rating, created_at, fixtures ( team_id, teams ( academy_id ) )")
+      // react-hooks/purity flags any impure call in a component body, but this
+      // is a Server Component: it renders once, server-side, per request, with
+      // no client-side reconciliation of this value to diverge from -- unlike a
+      // Client Component (see new-session-form.tsx's real fix for that case),
+      // there's no hydration pass here that could disagree with the server's
+      // answer. The rule can't distinguish the two component kinds.
+      // eslint-disable-next-line react-hooks/purity
       .gte("created_at", new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000).toISOString()),
     supabase
       .from("player_documents")

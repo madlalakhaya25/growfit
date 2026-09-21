@@ -89,8 +89,14 @@ export function NewSessionForm({
   // Session fields
   const [selectedTeamId, setSelectedTeamId] = useState(teamId);
   const [title, setTitle] = useState("");
-  const defaultDate = new Date(Date.now() + 2 * 86_400_000).toISOString().slice(0, 16);
-  const [sessionDate, setSessionDate] = useState(defaultDate);
+  // Computed once in a lazy initializer, not inline during render: reading
+  // the clock during render is impure (this is a client component, so it
+  // hydrates — a value computed at SSR time and a value recomputed on the
+  // client's first render could genuinely differ, exactly the class of bug
+  // toDateTimeLocal's own fix (fixture-fields.tsx) already found once).
+  const [sessionDate, setSessionDate] = useState(() =>
+    new Date(Date.now() + 2 * 86_400_000).toISOString().slice(0, 16)
+  );
   const [location, setLocation] = useState("");
   const [sessionType, setSessionType] = useState("general");
   const [notes, setNotes] = useState("");

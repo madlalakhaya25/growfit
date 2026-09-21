@@ -59,7 +59,6 @@ export default async function PlayerPlayPage({
       {play.voice_url && (
         <div className="rounded-xl border border-border bg-card p-4 space-y-2">
           <p className="text-sm font-semibold">Your coach explains this play</p>
-          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
           <audio controls src={play.voice_url} className="w-full" />
         </div>
       )}

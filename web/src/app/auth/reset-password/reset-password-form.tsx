@@ -32,7 +32,17 @@ export function ResetPasswordForm() {
   useEffect(() => {
     if (!code) return;
     const supabase = createClient();
-    if (!supabase) { setSessionError("Auth service unavailable — check Supabase env vars."); return; }
+    if (!supabase) {
+      // A genuine one-time setState directly in the effect body -- but this
+      // only runs once per mount, guarded behind `code` even existing, and
+      // is reporting that browser client construction itself failed (a
+      // config problem, not a data flow this effect is meant to
+      // synchronize). Deferring it further would only delay a message the
+      // user needs immediately.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSessionError("Auth service unavailable — check Supabase env vars.");
+      return;
+    }
 
     supabase.auth.exchangeCodeForSession(code).then(({ error }: { error: { message: string } | null }) => {
       if (error) {

@@ -22,7 +22,7 @@ import {
   getPitch, PITCHES, toBoardSpace, EQUIPMENT_SPECS, resolveSpotlightCenter, RECORDABLE_SHAPE_KINDS,
   GROUP_COLOR,
   type EquipmentKind, type BoardObject, type PlayerNote,
-  type Token, type Shape, type ShapeKind, type Frame as ModelFrame,
+  type Token, type Shape, type Frame as ModelFrame,
 } from "@/lib/board-model";
 import { AiProse } from "@/components/ai/ai-prose";
 import { PitchLayer } from "@/components/tactics/pitch-layer";
@@ -277,11 +277,18 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const [noteDraft, setNoteDraft] = useState("");
 
   const stateRef = useRef(state);
-  stateRef.current = state;
   const pitchIdRef = useRef(pitchId);
-  pitchIdRef.current = pitchId;
   const framesRef = useRef(frames);
-  framesRef.current = frames;
+  // Synced in an effect rather than assigned during render (writing to a
+  // ref mid-render is what `react-hooks/refs` flags — refs are for values
+  // read outside rendering, in event handlers and other effects, which by
+  // the time they run have always seen this effect flush first). One effect
+  // for all three since they're read together everywhere that uses them.
+  useEffect(() => {
+    stateRef.current = state;
+    pitchIdRef.current = pitchId;
+    framesRef.current = frames;
+  });
   const past = useRef<SnapshotEntry[]>([]);
   const future = useRef<SnapshotEntry[]>([]);
   const [, forceRender] = useState(0);
@@ -439,9 +446,6 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   // the way a deleted or reordered step does.
   function setFrameDuration(i: number, ms: number) {
     setFrames((fs) => fs.map((f, idx) => (idx === i ? { ...f, durationMs: Math.max(100, ms) } : f)));
-  }
-  function setFrameEase(i: number, ease: NonNullable<Frame["ease"]>) {
-    setFrames((fs) => fs.map((f, idx) => (idx === i ? { ...f, ease } : f)));
   }
   /** Jump the board to a stored step so the coach can edit it. */
   function gotoFrame(i: number) {
@@ -805,6 +809,14 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     if (res.plays) setPlays(res.plays);
   }
   useEffect(() => {
+    // Standard fetch-on-dependency-change: refreshPlays/listLinkTargets are
+    // async, and their setState calls (setPlays, setTargets) happen after
+    // an await, not synchronously in this effect body. The
+    // react-hooks/set-state-in-effect rule traces the call graph of
+    // `void refreshPlays(teamId)` and can't tell "sets state now" from
+    // "sets state once its own await resolves," so it flags this exactly
+    // like a real synchronous double-render. It isn't one.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refreshPlays(teamId);
     if (teamId) void listLinkTargets(teamId).then(setTargets);
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
@@ -1407,6 +1419,12 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       strokeLinecap: "round" as const, strokeLinejoin: "round" as const,
       opacity: isDraft ? 0.75 : 1,
       style: { cursor: mode === "erase" ? "pointer" : "default" },
+      // onShapeDown calls snapshot(), which reads stateRef/pitchIdRef/framesRef
+      // — but only once this handler actually fires from a real pointer
+      // event, never during the render that creates this closure. The
+      // react-hooks/refs rule can't distinguish "creates a callback that
+      // reads a ref later" from "reads a ref now"; this is the former.
+      // eslint-disable-next-line react-hooks/refs
       onPointerDown: isDraft ? undefined : (e: React.PointerEvent) => onShapeDown(e, sh.id),
     };
     const a = sh.pts[0], b = sh.pts[sh.pts.length - 1];
@@ -1996,7 +2014,12 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               )}
             </div>
             {/* Voice note — the coach's own explanation, heard by players */}
-            <VoiceNoteRecorder playId={currentPlayId} initialUrl={voiceUrl} onChange={setVoiceUrl} />
+            <VoiceNoteRecorder
+              key={currentPlayId ?? "new"}
+              playId={currentPlayId}
+              initialUrl={voiceUrl}
+              onChange={setVoiceUrl}
+            />
 
             {description && (
               <div className="rounded-md border border-border bg-background p-2 space-y-1 max-h-56 overflow-y-auto">
@@ -2079,6 +2102,10 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                     {notes.map((n) => (
                       <li key={n.id} className="flex items-start gap-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-xs">
                         <span className="flex-1">{n.body}</span>
+                        {/* Same false-positive shape as onShapeDown above:
+                            deletePlayerNote() reads a ref via snapshot(),
+                            but only once this onClick actually fires. */}
+                        {/* eslint-disable-next-line react-hooks/refs */}
                         <button type="button" onClick={() => deletePlayerNote(n.id)} title="Delete note" className="text-muted-foreground hover:text-destructive">
                           <Trash2 className="size-3" aria-hidden="true" />
                         </button>
@@ -2093,6 +2120,10 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                     onChange={(e) => setNoteDraft(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && noteDraft.trim()) {
+                        // Same false-positive shape as onShapeDown above:
+                        // addPlayerNote() reads a ref via snapshot(), only
+                        // once this Enter keydown actually fires.
+                        // eslint-disable-next-line react-hooks/refs
                         addPlayerNote(playerId, noteDraft);
                         setNoteDraft("");
                       }

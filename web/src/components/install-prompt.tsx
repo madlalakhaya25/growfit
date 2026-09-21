@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { Download, X, Share } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,15 @@ export function InstallPrompt() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // Reads a browser API to sync into state -- window/navigator/
+    // sessionStorage aren't available during SSR, so this legitimately
+    // needs a real client-side pass to know the true value; there's no way
+    // to compute it during the server render. This is React's own
+    // documented purpose for an effect ("synchronize with an external
+    // system"), applied to the browser environment itself rather than a
+    // subscription -- the one-render cost is the price of not guessing at
+    // a value the server genuinely cannot know.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     setIsStandalone(window.matchMedia("(display-mode: standalone)").matches);
     setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as Window & { MSStream?: unknown }).MSStream);
@@ -55,7 +65,7 @@ export function InstallPrompt() {
           "fixed bottom-20 left-4 right-4 z-50 flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-lg lg:bottom-4 lg:left-auto lg:right-6 lg:max-w-sm"
         )}
       >
-        <img src="/growfit.png" alt="Growfit FA" width={40} height={40} className="shrink-0 rounded-lg" />
+        <Image src="/growfit.png" alt="Growfit FA" width={40} height={40} className="shrink-0 rounded-lg" />
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-sm leading-tight">Install Growfit FA</p>
           <p className="text-xs text-muted-foreground mt-0.5">Add to home screen for the best experience</p>

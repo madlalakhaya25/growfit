@@ -48,6 +48,14 @@ export default function RegisterPage() {
     formState: { errors, isSubmitting },
   } = useForm<RegisterInput>({ resolver: zodResolver(registerSchema) });
 
+  // react-hook-form's `watch()` returns a function the React Compiler can't
+  // safely memoize (its identity is stable but its return value isn't pure
+  // w.r.t. that identity), so this rule flags every component that calls
+  // it. Purely advisory here: this project doesn't enable the React
+  // Compiler (no `experimental.reactCompiler` in next.config.ts), so
+  // nothing is actually being skipped -- there's no compiler running to
+  // skip it. Worth revisiting if that ever changes.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const selectedRole = watch("role");
   const clubCodeValue = watch("club_code") ?? "";
   const [codePeek, setCodePeek] = useState<PeekAccessCodeResult | null>(null);

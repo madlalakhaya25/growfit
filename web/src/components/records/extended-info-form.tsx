@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useTransition } from "react";
+import { useActionState } from "react";
 import { savePlayerExtendedInfo } from "@/app/actions/records";
 
 type Props = {

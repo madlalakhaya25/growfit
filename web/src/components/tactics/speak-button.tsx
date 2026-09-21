@@ -13,6 +13,15 @@ export function SpeakButton({ text, label = "Listen" }: { text: string; label?: 
   const [speaking, setSpeaking] = useState(false);
 
   useEffect(() => {
+    // Reads a browser API to sync into state -- window/navigator/
+    // sessionStorage aren't available during SSR, so this legitimately
+    // needs a real client-side pass to know the true value; there's no way
+    // to compute it during the server render. This is React's own
+    // documented purpose for an effect ("synchronize with an external
+    // system"), applied to the browser environment itself rather than a
+    // subscription -- the one-render cost is the price of not guessing at
+    // a value the server genuinely cannot know.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSupported(typeof window !== "undefined" && "speechSynthesis" in window);
     return () => { if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel(); };
   }, []);

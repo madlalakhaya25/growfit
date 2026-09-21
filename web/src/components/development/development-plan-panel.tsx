@@ -40,7 +40,7 @@ export function DevelopmentPlanPanel({ playerId }: { playerId: string }) {
 
       {!plan && !error && !isPending && (
         <p className="px-4 py-3 text-sm text-muted-foreground">
-          Generate a personalised 4-week development plan based on this player's attributes, ratings, and milestone progress.
+          Generate a personalised 4-week development plan based on this player&apos;s attributes, ratings, and milestone progress.
         </p>
       )}
 

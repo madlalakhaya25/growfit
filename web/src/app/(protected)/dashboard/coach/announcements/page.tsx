@@ -87,6 +87,13 @@ export default async function CoachAnnouncementsPage() {
           </p>
           {(announcements ?? []).map((a) => {
             const teamName = teamMap.get(a.team_id);
+            // react-hooks/purity flags any impure call in a component body, but this
+            // is a Server Component: it renders once, server-side, per request, with
+            // no client-side reconciliation of this value to diverge from -- unlike a
+            // Client Component (see new-session-form.tsx's real fix for that case),
+            // there's no hydration pass here that could disagree with the server's
+            // answer. The rule can't distinguish the two component kinds.
+            // eslint-disable-next-line react-hooks/purity
             const isRecent = Date.now() - new Date(a.created_at).getTime() < 24 * 3_600_000;
             const readCount = readCountMap.get(a.id) ?? 0;
             return (

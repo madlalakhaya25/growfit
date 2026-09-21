@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Star, Download } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -95,7 +96,13 @@ export default async function AdminPlayerDetailPage({
           <CardHeader>
             <div className="flex items-center justify-between">
               {player.photo_url ? (
-                <img src={player.photo_url} alt={player.full_name} className="size-16 rounded-full object-cover" />
+                <Image
+                  src={player.photo_url}
+                  alt={player.full_name}
+                  width={64}
+                  height={64}
+                  className="size-16 rounded-full object-cover"
+                />
               ) : (
                 <span className="grid size-16 place-items-center rounded-full bg-brand/20 text-lg font-bold text-primary">
                   {initials}

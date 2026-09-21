@@ -171,7 +171,7 @@ export function PlayViewer({ data }: { data: PlayData }) {
       {notes.length > 0 && (
         <div className="space-y-1.5">
           <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            <MessageSquare className="size-3.5" aria-hidden="true" /> Coach's notes
+            <MessageSquare className="size-3.5" aria-hidden="true" /> Coach&apos;s notes
           </p>
           <ul className="space-y-1">
             {notes.map((n) => {
