@@ -2,6 +2,16 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { CoachAssistantPanel, type AssistantTeam, type AssistantFixture } from "@/components/ai/coach-assistant-panel";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
+import type { BoardPlayer } from "@/lib/board-model";
+
+type MemberRow = {
+  active: boolean;
+  players: { id: string; full_name: string; position: string | null } | { id: string; full_name: string; position: string | null }[] | null;
+};
+type TeamWithRosterRow = {
+  id: string;
+  team_members: MemberRow[] | null;
+};
 
 export default async function CoachAssistantPage() {
   const supabase = await createClient();
@@ -10,12 +20,23 @@ export default async function CoachAssistantPage() {
 
   const { data: teamRows } = await supabase
     .from("teams")
-    .select("id, name, age_group")
+    .select("id, name, age_group, team_members(active, players(id, full_name, position))")
     .in("id", await getCoachedTeamIds(supabase, user.id))
     .eq("active", true)
     .order("name");
 
-  const teams = (teamRows ?? []) as AssistantTeam[];
+  const teams = (teamRows ?? []) as (AssistantTeam & TeamWithRosterRow)[];
+
+  // Rosters keyed by team id — same shape board/page.tsx already loads for
+  // the tactical board — so the assistant's Apply-suggested-XI flow can
+  // match a suggested name to a real player without a second round trip.
+  const roster: Record<string, BoardPlayer[]> = {};
+  for (const t of teams) {
+    roster[t.id] = (t.team_members ?? [])
+      .filter((m) => m.active && m.players)
+      .flatMap((m) => (Array.isArray(m.players) ? m.players : [m.players!]))
+      .map((p) => ({ id: p.id, full_name: p.full_name, position: p.position }));
+  }
 
   // Upcoming fixtures per team, for the XI and match-plan tools.
   const fixtures: Record<string, AssistantFixture[]> = {};
@@ -63,7 +84,7 @@ export default async function CoachAssistantPage() {
           will have something to work with.
         </p>
       ) : (
-        <CoachAssistantPanel teams={teams} fixtures={fixtures} />
+        <CoachAssistantPanel teams={teams} fixtures={fixtures} roster={roster} />
       )}
     </div>
   );

@@ -1,7 +1,7 @@
 import {
   interpolateFrames, totalDurationMs, DEFAULT_FRAME_DURATION_MS,
   shapeColor, shapeWidth, dribblePath, polyPath, getPitch, PITCHES, resolveSpotlightCenter,
-  groupOf, assignToSlots, compress,
+  groupOf, assignToSlots, compress, mapNamedPositionsToSlots,
   type Frame, type Shape, type BoardPlayer,
 } from "@/lib/board-model";
 import type { Formation } from "@/lib/formations";
@@ -209,6 +209,52 @@ describe("assignToSlots", () => {
     expect(out[0]?.id).toBe("1");
     expect(out[1]).toBeUndefined();
     expect(out[2]).toBeUndefined();
+  });
+});
+
+describe("mapNamedPositionsToSlots", () => {
+  const formation: Formation = {
+    id: "test-3",
+    label: "Test",
+    size: 5,
+    format: "test",
+    slots: [
+      { x: 50, y: 142, role: "gk" },
+      { x: 30, y: 112, role: "cb" },
+      { x: 50, y: 50, role: "st" },
+    ],
+  };
+
+  it("resolves a freeform label to the matching slot via exact value match", () => {
+    const out = mapNamedPositionsToSlots(formation, [{ position: "st", playerId: "p1" }]);
+    expect(out[2]).toBe("p1");
+  });
+
+  it("resolves a label with an abbreviation suffix, e.g. 'Right Back (RB)', via the label match", () => {
+    const out = mapNamedPositionsToSlots(formation, [{ position: "Centre Back (CB)", playerId: "p1" }]);
+    expect(out[1]).toBe("p1");
+  });
+
+  it("resolves a bare abbreviation pulled from parentheses when nothing else matches", () => {
+    const out = mapNamedPositionsToSlots(formation, [{ position: "Some Unknown Role (CB)", playerId: "p1" }]);
+    expect(out[1]).toBe("p1");
+  });
+
+  it("falls through to a leftover slot when the label matches nothing at all", () => {
+    const out = mapNamedPositionsToSlots(formation, [{ position: "Mystery Position", playerId: "p1" }]);
+    // groupOf(null) falls back to Midfielder, which doesn't match gk/cb/st's
+    // groups, so this pick can only land via the leftover pass.
+    expect(out).toContain("p1");
+  });
+
+  it("still prefers a group match over a leftover fill, same as assignToSlots", () => {
+    // "Left Back" isn't an exact match for "cb" but is the same Defender group.
+    const out = mapNamedPositionsToSlots(formation, [
+      { position: "Left Back (LB)", playerId: "defender" },
+      { position: "Mystery Position", playerId: "wildcard" },
+    ]);
+    expect(out[1]).toBe("defender");
+    expect(out[0]).toBe("wildcard");
   });
 });
 

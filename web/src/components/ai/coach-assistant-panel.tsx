@@ -1,15 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { MessageSquare, Send, ListChecks, ClipboardList, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { MessageSquare, Send, ListChecks, ClipboardList, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
-import { askCoachAssistant, suggestLineup, generateMatchPlan, type CoachMessage } from "@/app/actions/coach-assistant";
+import {
+  askCoachAssistant, suggestLineup, generateMatchPlan,
+  type CoachMessage, type LineupStructured, type MatchPlanStructured,
+} from "@/app/actions/coach-assistant";
+import { savePlay } from "@/app/actions/tactic-plays";
 import { SpeakButton } from "@/components/tactics/speak-button";
 import { AiProse } from "@/components/ai/ai-prose";
 import { FORMATIONS } from "@/lib/formations";
+import { mapNamedPositionsToSlots, groupOf, shortLabel, uid, type BoardPlayer, type Token } from "@/lib/board-model";
 
 export interface AssistantTeam { id: string; name: string; age_group: string | null }
 export interface AssistantFixture { id: string; label: string; when: string }
+
+type Output =
+  | { kind: "lineup"; text: string; structured?: LineupStructured }
+  | { kind: "plan"; text: string; structured?: MatchPlanStructured; fixtureId: string };
 
 const STARTERS = [
   "Who should start on Sunday?",
@@ -21,9 +31,14 @@ const STARTERS = [
 export function CoachAssistantPanel({
   teams,
   fixtures,
+  roster,
 }: {
   teams: AssistantTeam[];
   fixtures: Record<string, AssistantFixture[]>;
+  /** Team rosters keyed by team id, so a suggested XI can be matched to real
+   * players and saved as a play — sourced the same way board/page.tsx loads
+   * its own roster. */
+  roster: Record<string, BoardPlayer[]>;
 }) {
   const [teamId, setTeamId] = useState(teams[0]?.id ?? "");
   const [messages, setMessages] = useState<CoachMessage[]>([]);
@@ -33,13 +48,16 @@ export function CoachAssistantPanel({
 
   const [fixtureId, setFixtureId] = useState("");
   const [formation, setFormation] = useState("11-4-3-3");
-  const [output, setOutput] = useState<{ title: string; text: string } | null>(null);
+  const [output, setOutput] = useState<Output | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [applying, setApplying] = useState(false);
+  const [applied, setApplied] = useState(false);
 
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   const teamFixtures = fixtures[teamId] ?? [];
+  const teamRoster = roster[teamId] ?? [];
 
   function send(question: string) {
     const q = question.trim();
@@ -64,20 +82,86 @@ export function CoachAssistantPanel({
   async function runLineup() {
     setBusy("lineup");
     setOutput(null);
+    setApplied(false);
     const res = await suggestLineup({ teamId, fixtureId: fixtureId || undefined, formation });
     setBusy(null);
     if (res.error) { setError(res.error); toast.error(res.error); return; }
-    setOutput({ title: "Suggested XI", text: res.lineup ?? "" });
+    setOutput({ kind: "lineup", text: res.lineup ?? "", structured: res.structured });
+  }
+
+  /**
+   * Save the suggested XI as a brand-new play — never overwriting whatever
+   * the coach currently has open on the tactical board (confirmed,
+   * non-negotiable: this always inserts, so savePlay is called with no
+   * playId). Matches each suggested name to the real roster by
+   * case-insensitive full-name comparison, then reuses assignToSlots' exact
+   * cascade (via mapNamedPositionsToSlots) so a suggested position label
+   * that doesn't exactly match a formation slot's role still lands
+   * sensibly rather than erroring.
+   */
+  async function applyLineup(structured: LineupStructured) {
+    const formationObj = FORMATIONS.find((f) => f.label === formation) ?? FORMATIONS.find((f) => f.id === formation);
+    if (!formationObj) { toast.error("Could not resolve the selected formation."); return; }
+    if (teamRoster.length === 0) { toast.error("No roster loaded for this team."); return; }
+
+    const byName = new Map(teamRoster.map((p) => [p.full_name.trim().toLowerCase(), p]));
+    const picks: { position: string; playerId: string }[] = [];
+    const unmatched: string[] = [];
+    for (const pick of structured.startingXI) {
+      const player = byName.get(pick.name.trim().toLowerCase());
+      if (player) picks.push({ position: pick.position, playerId: player.id });
+      else unmatched.push(pick.name);
+    }
+    if (picks.length === 0) {
+      toast.error("None of the suggested names matched this team's roster.");
+      return;
+    }
+
+    const slotPlayerIds = mapNamedPositionsToSlots(formationObj, picks);
+    const byId = new Map(teamRoster.map((p) => [p.id, p]));
+    const tokens: Token[] = [];
+    slotPlayerIds.forEach((playerId, i) => {
+      if (!playerId) return;
+      const player = byId.get(playerId);
+      if (!player) return;
+      const slot = formationObj.slots[i];
+      tokens.push({
+        id: uid("t"),
+        kind: "player",
+        x: slot.x,
+        y: slot.y,
+        label: shortLabel(player.full_name),
+        group: groupOf(player.position),
+        playerId: player.id,
+      });
+    });
+
+    setApplying(true);
+    const res = await savePlay({
+      teamId,
+      name: `AI suggestion — ${new Date().toLocaleDateString()}`,
+      data: { tokens, shapes: [], objects: [], playerNotes: [] },
+    });
+    setApplying(false);
+
+    if (res.error) { toast.error(res.error); return; }
+    setApplied(true);
+    toast.success(
+      unmatched.length > 0
+        ? `Saved as a new play (${unmatched.length} name${unmatched.length === 1 ? "" : "s"} not matched to the roster).`
+        : "Saved as a new play."
+    );
   }
 
   async function runPlan() {
     if (!fixtureId) { setError("Pick a fixture to build a match plan."); return; }
     setBusy("plan");
     setOutput(null);
+    setApplied(false);
     const res = await generateMatchPlan({ teamId, fixtureId });
     setBusy(null);
     if (res.error) { setError(res.error); toast.error(res.error); return; }
-    setOutput({ title: "Match plan", text: res.plan ?? "" });
+    setOutput({ kind: "plan", text: res.plan ?? "", structured: res.structured, fixtureId });
   }
 
   return (
@@ -90,7 +174,7 @@ export function CoachAssistantPanel({
         {teams.length > 1 && (
           <select
             value={teamId}
-            onChange={(e) => { setTeamId(e.target.value); setMessages([]); setOutput(null); setFixtureId(""); }}
+            onChange={(e) => { setTeamId(e.target.value); setMessages([]); setOutput(null); setApplied(false); setFixtureId(""); }}
             aria-label="Team"
             className="rounded-md border border-border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
           >
@@ -144,12 +228,37 @@ export function CoachAssistantPanel({
         </div>
 
         {output && (
-          <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 space-y-1">
+          <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{output.title}</p>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                {output.kind === "lineup" ? "Suggested XI" : "Match plan"}
+              </p>
               <SpeakButton text={output.text} />
             </div>
             <AiProse text={output.text} />
+            {output.kind === "lineup" && output.structured && (
+              <div className="pt-1">
+                {applied ? (
+                  <p className="text-xs text-muted-foreground">
+                    Saved.{" "}
+                    <Link href="/dashboard/coach/tactics/board" className="underline hover:text-foreground">
+                      Open the tactical board
+                    </Link>{" "}
+                    to view it under Saved Plays.
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => applyLineup(output.structured!)}
+                    disabled={applying}
+                    className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted disabled:opacity-50"
+                  >
+                    {applying ? <Loader2 className="size-3 animate-spin" aria-hidden="true" /> : <Save className="size-3 text-primary" aria-hidden="true" />}
+                    Apply — save as new play
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 

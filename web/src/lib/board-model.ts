@@ -473,3 +473,59 @@ export function compress(slot: { x: number; y: number }, side: "home" | "away"):
     ? { x: slot.x, y: 146 - t * 68 }        // 146 (own goal) → 78 (just short of halfway)
     : { x: BOARD_W - slot.x, y: 4 + t * 68 };     // 4 (their goal) → 72, mirrored across
 }
+
+/**
+ * Best-effort match of a freeform AI-suggested position label (e.g. "Right
+ * Back", "Right Back (RB)", "CB", "Striker") to a real POSITIONS value.
+ * Tried in order: exact value match, label match with the "(ABBR)" suffix
+ * stripped, then the abbreviation pulled out of the raw text's own
+ * parentheses. Returns null when nothing matches, rather than guessing —
+ * the caller (mapNamedPositionsToSlots) treats that the same as any other
+ * unmatched slot and falls through to its own leftover-fill pass.
+ */
+function normalizePositionLabel(raw: string): string | null {
+  const s = raw.trim().toLowerCase();
+  if (!s) return null;
+
+  const byValue = POSITIONS.find((p) => p.value.toLowerCase() === s);
+  if (byValue) return byValue.value;
+
+  const byLabel = POSITIONS.find(
+    (p) => p.label.toLowerCase().replace(/\s*\([^)]*\)\s*/g, "").trim() === s
+  );
+  if (byLabel) return byLabel.value;
+
+  const abbrevMatch = raw.match(/\(([A-Za-z]+)\)/);
+  if (abbrevMatch) {
+    const abbrev = abbrevMatch[1].toLowerCase();
+    const byAbbrev = POSITIONS.find((p) => p.value.toLowerCase() === abbrev);
+    if (byAbbrev) return byAbbrev.value;
+  }
+  return null;
+}
+
+/**
+ * Places AI-suggested-XI picks (a freeform position label plus an
+ * already-resolved player id — see the Apply flow in
+ * coach-assistant-panel.tsx) onto a formation's slots. Reuses
+ * assignToSlots' exact exact-role -> same-group -> leftover cascade, first
+ * normalising each pick's freeform label to a real POSITIONS value so a
+ * label like "Right Back" (which would never exact-match a slot's "rb"
+ * role code, nor group-match anything since groupOf falls back to
+ * Midfielder for unrecognised text) still lands as a Defender rather than
+ * being shoved to a leftover slot ahead of players who actually needed one.
+ *
+ * Returns one entry per formation slot: the assigned pick's playerId, or
+ * undefined if the roster of picks ran out before this slot was filled.
+ */
+export function mapNamedPositionsToSlots(
+  formation: Formation,
+  picks: { position: string; playerId: string }[]
+): (string | undefined)[] {
+  const asRoster: BoardPlayer[] = picks.map((p) => ({
+    id: p.playerId,
+    full_name: "",
+    position: normalizePositionLabel(p.position),
+  }));
+  return assignToSlots(formation, asRoster).map((p) => p?.id);
+}
