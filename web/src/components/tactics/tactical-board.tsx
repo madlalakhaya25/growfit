@@ -4,14 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   MousePointer2, Eraser, Undo2, Redo2, RotateCcw, Users, Circle,
   ArrowUpRight, Minus, Waves, Pencil, Download, Tag, Grid3x3,
-  Play, Square, Plus, Trash2, Film, Video,
-  ChevronUp, ChevronDown, Copy, Target, MessageSquare,
+  Play, Square, Plus, Trash2,
+  Target, MessageSquare,
 } from "lucide-react";
 import { FORMATIONS, FORMATION_SIZES } from "@/lib/formations";
 import { drawBoard, pickRecorderMime } from "@/lib/board-render";
 import { framesFromShapes } from "@/lib/play-motion";
 import {
-  BOARD_W, BOARD_H, dribblePath, polyPath, shapeColor, interpolateFrames, totalDurationMs, DEFAULT_FRAME_DURATION_MS,
+  BOARD_W, BOARD_H, dribblePath, polyPath, shapeColor, interpolateFrames, totalDurationMs,
   getPitch, PITCHES, toBoardSpace, EQUIPMENT_SPECS, resolveSpotlightCenter, RECORDABLE_SHAPE_KINDS,
   GROUP_COLOR, groupOf, shortLabel, uid, assignToSlots, compress,
   type EquipmentKind, type BoardObject, type BoardPlayer, type BoardTeam,
@@ -20,6 +20,7 @@ import {
 import { PitchLayer } from "@/components/tactics/pitch-layer";
 import { EquipmentLayer } from "@/components/tactics/equipment-layer";
 import { SavedPlaysPanel } from "@/components/tactics/saved-plays-panel";
+import { AnimationPanel } from "@/components/tactics/animation-panel";
 import { useBoardStore, type BoardState } from "@/store/boardStore";
 import { useBoardSetupStore } from "@/store/boardSetupStore";
 import { useSavedPlaysStore } from "@/store/savedPlaysStore";
@@ -170,9 +171,12 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   // below) — everything else the saved-plays panel needs, it now reads
   // from this same shared store itself; see saved-plays-panel.tsx.
   const { playName, setPlayName, setCurrentPlayId, resetPanel: resetSavedPlaysPanel } = useSavedPlaysStore();
+  // scrubMs/scrubbing/recording's own values are read by animation-panel.tsx
+  // now (via the same store hook); only the setters are still called
+  // directly here, by recordAnimation/scrubTo/endScrub.
   const {
-    frames, setFrames, playing, setPlaying, scrubMs, setScrubMs,
-    scrubbing, setScrubbing, recording, setRecording, anim, setAnim,
+    frames, setFrames, playing, setPlaying, setScrubMs,
+    setScrubbing, setRecording, anim, setAnim,
     reset: resetPlayback,
   } = useBoardPlaybackStore();
   // Blank the board once on mount — plain useState gave this for free (a
@@ -1504,139 +1508,22 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
 
         {/* Bench + legend */}
         <div className="space-y-4">
-          {/* ── Animation ─────────────────────────────────────── */}
-          <div className="rounded-lg border border-border bg-card p-3 space-y-2">
-            <div className="flex items-center gap-1.5">
-              <Film className="size-3.5 text-primary" aria-hidden="true" />
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                Play sequence
-              </p>
-            </div>
-            <p className="text-[11px] text-muted-foreground leading-snug">
-              Draw runs and passes and press Play — the players follow your arrows. For finer control, capture steps by hand.
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              <button type="button" onClick={captureFrame} disabled={playing} className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
-                <Plus className="size-3" aria-hidden="true" /> Capture step
-              </button>
-              {playing ? (
-                <button type="button" onClick={stopPlayback} className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground">
-                  <Square className="size-3" aria-hidden="true" /> Stop
-                </button>
-              ) : (
-                <button type="button" onClick={() => playAnimation()} disabled={state.tokens.length === 0} className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground disabled:opacity-50">
-                  <Play className="size-3" aria-hidden="true" /> Play
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={recordAnimation}
-                disabled={state.tokens.length === 0 || playing || recording || !pitch.supportsFormations}
-                title={pitch.supportsFormations ? "Record the sequence as a video" : "Video recording needs the full pitch"}
-                className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50"
-              >
-                <Video className="size-3 text-primary" aria-hidden="true" />
-                {recording ? "Recording…" : "Record"}
-              </button>
-              {frames.length > 0 && (
-                <button
-                  type="button"
-                  // Frame edits are now folded into the same undo/redo
-                  // history as tokens/shapes/objects (see snapshot()), so
-                  // this is one Undo away like every other destructive
-                  // action on the board — no separate confirm needed.
-                  onClick={() => { snapshot(); setFrames([]); }}
-                  disabled={playing || recording}
-                  className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-
-            {frames.length >= 2 && (
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="range"
-                    min={0}
-                    max={totalDurationMs(frames)}
-                    step={10}
-                    value={scrubMs}
-                    onChange={(e) => scrubTo(Number(e.target.value))}
-                    onPointerUp={endScrub}
-                    disabled={playing}
-                    aria-label="Scrub the sequence"
-                    className="flex-1 accent-primary disabled:opacity-50"
-                  />
-                  {/* A pointer drag ends preview on release (onPointerUp
-                      above), but arrow-key/Home/End interaction with the
-                      slider never fires a pointer event at all — without
-                      this, a keyboard user had no way back to the live,
-                      editable board once they'd touched the scrub bar. */}
-                  {scrubbing && (
-                    <button
-                      type="button"
-                      onClick={endScrub}
-                      className="shrink-0 rounded-md border border-border bg-background px-2 py-1 text-[10px] hover:bg-muted"
-                    >
-                      Done previewing
-                    </button>
-                  )}
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                  {scrubbing ? "Previewing — drag to scrub, editing a pose needs Step ▸ below." : "Drag to preview the sequence at any point."}
-                </p>
-              </div>
-            )}
-
-            {frames.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No steps captured yet.</p>
-            ) : (
-              <ol className="space-y-1">
-                {frames.map((f, i) => (
-                  <li key={f.id} className="flex flex-wrap items-center gap-1.5 rounded-md border border-border bg-background/50 p-1.5">
-                    <div className="flex flex-col">
-                      <button type="button" onClick={() => moveFrame(i, -1)} disabled={playing || i === 0} title="Move earlier" className="rounded px-0.5 hover:bg-muted disabled:opacity-30">
-                        <ChevronUp className="size-3" aria-hidden="true" />
-                      </button>
-                      <button type="button" onClick={() => moveFrame(i, 1)} disabled={playing || i === frames.length - 1} title="Move later" className="rounded px-0.5 hover:bg-muted disabled:opacity-30">
-                        <ChevronDown className="size-3" aria-hidden="true" />
-                      </button>
-                    </div>
-                    <button type="button" onClick={() => gotoFrame(i)} disabled={playing} className="flex-1 min-w-[4rem] rounded-md border border-border bg-background px-2 py-1 text-left text-xs hover:bg-muted disabled:opacity-50">
-                      Step {i + 1}
-                    </button>
-                    {i > 0 && (
-                      <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                        <input
-                          type="number"
-                          min={100}
-                          step={100}
-                          value={f.durationMs ?? DEFAULT_FRAME_DURATION_MS}
-                          onChange={(e) => setFrameDuration(i, Number(e.target.value))}
-                          disabled={playing}
-                          aria-label={`Step ${i + 1} duration in milliseconds`}
-                          className="w-16 rounded border border-border bg-background px-1 py-0.5 text-[10px] disabled:opacity-50"
-                        />
-                        ms
-                      </label>
-                    )}
-                    <button type="button" onClick={() => updateFrame(i)} disabled={playing} title="Update this step to the current board" className="rounded-md border border-border bg-background px-1.5 py-1 text-[10px] hover:bg-muted disabled:opacity-50">Set</button>
-                    <button type="button" onClick={() => insertFrameAfter(i)} disabled={playing} title="Insert the current board as a new step after this one" className="rounded-md border border-border bg-background px-1.5 py-1 text-[10px] hover:bg-muted disabled:opacity-50">
-                      <Plus className="size-3" aria-hidden="true" />
-                    </button>
-                    <button type="button" onClick={() => duplicateFrame(i)} disabled={playing} title="Duplicate step" className="rounded-md border border-border bg-background px-1.5 py-1 hover:bg-muted disabled:opacity-50">
-                      <Copy className="size-3" aria-hidden="true" />
-                    </button>
-                    <button type="button" onClick={() => deleteFrame(i)} disabled={playing} title="Delete step" className="rounded-md border border-border bg-background px-2 py-2 sm:py-1 hover:bg-muted disabled:opacity-50">
-                      <Trash2 className="size-3" aria-hidden="true" />
-                    </button>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </div>
+          <AnimationPanel
+            captureFrame={captureFrame}
+            stopPlayback={stopPlayback}
+            playAnimation={playAnimation}
+            recordAnimation={recordAnimation}
+            snapshot={snapshot}
+            scrubTo={scrubTo}
+            endScrub={endScrub}
+            gotoFrame={gotoFrame}
+            setFrameDuration={setFrameDuration}
+            updateFrame={updateFrame}
+            insertFrameAfter={insertFrameAfter}
+            duplicateFrame={duplicateFrame}
+            deleteFrame={deleteFrame}
+            moveFrame={moveFrame}
+          />
 
           <SavedPlaysPanel
             ageGroup={team?.age_group ?? "U15"}
