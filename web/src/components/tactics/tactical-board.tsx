@@ -8,7 +8,7 @@ import {
   ChevronUp, ChevronDown, Copy, Target, MessageSquare,
 } from "lucide-react";
 import { FORMATIONS, FORMATION_SIZES } from "@/lib/formations";
-import { savePlay, listPlays, loadPlay, deletePlay, sharePlayToSquad, listLinkTargets, type SavedPlaySummary, type LinkTarget } from "@/app/actions/tactic-plays";
+import { savePlay, listPlays, loadPlay, deletePlay, sharePlayToSquad, listLinkTargets } from "@/app/actions/tactic-plays";
 import { describePlay, analyseOpponent } from "@/app/actions/tactics";
 import { SpeakButton } from "@/components/tactics/speak-button";
 import { VoiceNoteRecorder } from "@/components/tactics/voice-note-recorder";
@@ -28,6 +28,7 @@ import { PitchLayer } from "@/components/tactics/pitch-layer";
 import { EquipmentLayer } from "@/components/tactics/equipment-layer";
 import { useBoardStore, type BoardState } from "@/store/boardStore";
 import { useBoardSetupStore } from "@/store/boardSetupStore";
+import { useSavedPlaysStore } from "@/store/savedPlaysStore";
 
 // ── Types ────────────────────────────────────────────────────────
 // Token, Shape, ShapeKind and the Frame shape all come from board-model.ts
@@ -169,12 +170,17 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     teamId, setTeamId, homeFormationId, setHomeFormationId, awayFormationId, setAwayFormationId,
     pitchId, setPitchId: setPitchIdState, equipmentKind, setEquipmentKind, resetForTeam,
   } = useBoardSetupStore();
+  const {
+    plays, setPlays, playName, setPlayName, currentPlayId, setCurrentPlayId,
+    conceptIds, setConceptIds, sessionId, setSessionId, fixtureId, setFixtureId,
+    targets, setTargets, filterConcept, setFilterConcept, resetPanel: resetSavedPlaysPanel,
+  } = useSavedPlaysStore();
   // Blank the board once on mount — plain useState gave this for free (a
   // fresh component instance always started blank); a zustand store is a
   // module-level singleton that would otherwise leak a previous visit's
-  // tokens/team/formation selection into a freshly-mounted board.
+  // tokens/team/formation/open-play selection into a freshly-mounted board.
   /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  useEffect(() => { resetBoardState(); resetForTeam(teams[0]?.id ?? ""); }, []);
+  useEffect(() => { resetBoardState(); resetForTeam(teams[0]?.id ?? ""); resetSavedPlaysPanel(); }, []);
 
   // Animation
   const [frames, setFrames] = useState<Frame[]>([]);
@@ -191,19 +197,12 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const [anim, setAnim] = useState<Pick<BoardState, "tokens" | "shapes"> | null>(null);
   const rafRef = useRef<number | null>(null);
 
-  // Saved plays
-  const [plays, setPlays] = useState<SavedPlaySummary[]>([]);
-  const [playName, setPlayName] = useState("");
-  const [currentPlayId, setCurrentPlayId] = useState<string | null>(null);
+  // busy/notice stay local: used board-wide (animation capture, recording,
+  // AI describe/analyse, substitutions, pitch switching), not just by the
+  // saved-plays panel — see savedPlaysStore.ts's own note on why they were
+  // deliberately left out of that slice.
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-
-  // Tagging + linking
-  const [conceptIds, setConceptIds] = useState<string[]>([]);
-  const [sessionId, setSessionId] = useState<string>("");
-  const [fixtureId, setFixtureId] = useState<string>("");
-  const [targets, setTargets] = useState<{ sessions: LinkTarget[]; fixtures: LinkTarget[] }>({ sessions: [], fixtures: [] });
-  const [filterConcept, setFilterConcept] = useState<string>("");
 
   // AI describer + opponent analysis
   const [description, setDescription] = useState<string | null>(null);
@@ -748,12 +747,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   useEffect(() => {
     // Standard fetch-on-dependency-change: refreshPlays/listLinkTargets are
     // async, and their setState calls (setPlays, setTargets) happen after
-    // an await, not synchronously in this effect body. The
-    // react-hooks/set-state-in-effect rule traces the call graph of
-    // `void refreshPlays(teamId)` and can't tell "sets state now" from
-    // "sets state once its own await resolves," so it flags this exactly
-    // like a real synchronous double-render. It isn't one.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // an await, not synchronously in this effect body.
     void refreshPlays(teamId);
     if (teamId) void listLinkTargets(teamId).then(setTargets);
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
