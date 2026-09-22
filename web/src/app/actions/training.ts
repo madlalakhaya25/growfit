@@ -269,6 +269,75 @@ export async function addDrill(formData: FormData) {
   return { success: true };
 }
 
+/**
+ * Insert several drills at once — the Apply path for the AI session
+ * generator's structured output (session-generator-panel.tsx) onto an
+ * already-existing session. One multi-row insert with `sort_order`
+ * computed once up front, rather than N sequential calls to addDrill: a
+ * partial failure partway through N sequential inserts would leave the
+ * session half-populated with drills in a confusing partial order, which
+ * this avoids entirely by succeeding or failing as one statement.
+ */
+export async function addDrills(
+  sessionId: string,
+  drills: { title: string; description: string; video_url: string }[]
+): Promise<{ success?: true; error?: string }> {
+  const { supabase, user } = await requireUser();
+
+  if (drills.length === 0) return { error: "No drills to add." };
+
+  const parsedDrills = [];
+  for (const d of drills) {
+    const parsed = drillSchema.safeParse({
+      session_id: sessionId,
+      title: d.title,
+      description: d.description || undefined,
+      video_url: d.video_url || undefined,
+    });
+    if (!parsed.success) {
+      const msgs = parsed.error.flatten().fieldErrors;
+      return { error: Object.values(msgs).flat()[0] ?? "Invalid drill." };
+    }
+    parsedDrills.push(parsed.data);
+  }
+
+  // Verify the caller coaches this session's team — not that they personally
+  // created it. A co-coach on the same team may add drills to a colleague's
+  // session; see migration 038.
+  const teamIds = await getCoachTeamIds(supabase, user.id);
+  const { data: session } = await supabase
+    .from("training_sessions")
+    .select("id")
+    .eq("id", sessionId)
+    .in("team_id", teamIds)
+    .single();
+
+  if (!session) return { error: "Session not found." };
+
+  const { data: existing } = await supabase
+    .from("training_drills")
+    .select("sort_order")
+    .eq("session_id", sessionId)
+    .order("sort_order", { ascending: false })
+    .limit(1);
+
+  const startOrder = ((existing?.[0] as { sort_order: number } | undefined)?.sort_order ?? -1) + 1;
+
+  const rows = parsedDrills.map((d, i) => ({
+    session_id: sessionId,
+    title: d.title,
+    description: d.description ?? null,
+    video_url: d.video_url || null,
+    sort_order: startOrder + i,
+  }));
+
+  const { error } = await supabase.from("training_drills").insert(rows);
+  if (error) return { error: friendlyError(error) };
+
+  revalidatePath(`/dashboard/coach/training/${sessionId}`, "page");
+  return { success: true };
+}
+
 export async function deleteDrill(drillId: string, sessionId: string) {
   const { supabase, user } = await requireUser();
 

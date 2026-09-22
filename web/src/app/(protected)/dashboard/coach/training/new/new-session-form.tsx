@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { generateSessionPlan } from "@/app/actions/session-generator";
 import { createTrainingSessionWithDrills } from "@/app/actions/training";
+import { packDrillDescription } from "@/lib/drill-description";
 
 const SESSION_TYPES = [
   { value: "general", label: "General" },
@@ -35,38 +36,6 @@ interface DrillItem {
   title: string;
   description: string;
   video_url: string;
-}
-
-function parseAIDrills(text: string): DrillItem[] {
-  const drills: DrillItem[] = [];
-  const lines = text.split("\n");
-  let currentTitle = "";
-  let descLines: string[] = [];
-
-  const flush = () => {
-    if (!currentTitle) return;
-    drills.push({
-      id: crypto.randomUUID(),
-      title: currentTitle,
-      description: descLines.filter(Boolean).join("\n"),
-      video_url: "",
-    });
-    currentTitle = "";
-    descLines = [];
-  };
-
-  for (const raw of lines) {
-    const line = raw.trim();
-    const match = line.match(/^DRILL\s+\d+:\s*(.+)/i);
-    if (match) {
-      flush();
-      currentTitle = match[1].trim();
-    } else if (currentTitle && line) {
-      descLines.push(line);
-    }
-  }
-  flush();
-  return drills;
 }
 
 const inputCls =
@@ -144,10 +113,15 @@ export function NewSessionForm({
       if (result.error) {
         setAiError(result.error);
         toast.error(result.error);
-      } else if (result.plan) {
-        const parsed = parseAIDrills(result.plan);
+      } else if (result.structured) {
+        const parsed: DrillItem[] = result.structured.drills.map((d) => ({
+          id: crypto.randomUUID(),
+          title: d.name,
+          description: packDrillDescription(d),
+          video_url: "",
+        }));
         if (parsed.length === 0) {
-          setAiError("Could not parse drills from AI response. Try again.");
+          setAiError("AI did not return any drills. Try again.");
         } else {
           setAiSuggestions(parsed);
         }
