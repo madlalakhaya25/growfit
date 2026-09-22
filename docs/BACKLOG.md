@@ -505,6 +505,17 @@ a migration nobody can run makes the unapplied backlog worse.
 already a dependency. Wants a test suite around the board first — refactoring
 the academy's most complex surface with no safety net is how this goes wrong.
 
+**Shipped (step 1 of 2 — pure-helper extraction):** `groupOf`, `shortLabel`,
+`uid`, `assignToSlots`, and `compress`, plus the `BoardPlayer`/`BoardTeam`
+interfaces, moved out of `tactical-board.tsx` into `lib/board-model.ts` as
+plain exported functions — no behavior change, `tactical-board.tsx`
+re-exports the types so `board/page.tsx`'s existing import keeps working.
+This is the safety net the zustand/panel-extraction step above still needs:
+`assignToSlots`'s exact-role → same-group → leftover-fill cascade is now
+covered by unit tests in `lib/__tests__/board-model.test.ts`, along with
+`compress`'s home/away mirroring and `groupOf`'s null/unknown fallback. The
+zustand slices and panel extraction themselves are still outstanding.
+
 ### 3.4 The design pass — `IP-20`, `RM`
 Every card the same radius, one text size doing every job, red spent
 decoratively rather than semantically.
