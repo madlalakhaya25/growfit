@@ -20,12 +20,13 @@ import {
   BOARD_W, BOARD_H, dribblePath, polyPath, shapeColor, interpolateFrames, totalDurationMs, DEFAULT_FRAME_DURATION_MS,
   getPitch, PITCHES, toBoardSpace, EQUIPMENT_SPECS, resolveSpotlightCenter, RECORDABLE_SHAPE_KINDS,
   GROUP_COLOR, groupOf, shortLabel, uid, assignToSlots, compress,
-  type EquipmentKind, type BoardObject, type PlayerNote, type BoardPlayer, type BoardTeam,
+  type EquipmentKind, type BoardObject, type BoardPlayer, type BoardTeam,
   type Token, type Shape, type Frame as ModelFrame,
 } from "@/lib/board-model";
 import { AiProse } from "@/components/ai/ai-prose";
 import { PitchLayer } from "@/components/tactics/pitch-layer";
 import { EquipmentLayer } from "@/components/tactics/equipment-layer";
+import { useBoardStore, type BoardState } from "@/store/boardStore";
 
 // ── Types ────────────────────────────────────────────────────────
 // Token, Shape, ShapeKind and the Frame shape all come from board-model.ts
@@ -40,16 +41,9 @@ import { EquipmentLayer } from "@/components/tactics/equipment-layer";
 // so board/page.tsx's existing `import { TacticalBoard, type BoardTeam }
 // from "@/components/tactics/tactical-board"` keeps working unchanged.
 export type { BoardPlayer, BoardTeam };
-interface BoardState {
-  tokens: Token[];
-  shapes: Shape[];
-  /** Placed training equipment — new, additive. A play saved before this
-   * existed has none, and every reader treats that the same as []. */
-  objects: BoardObject[];
-  /** Coach notes about individual players — new, additive, same reasoning
-   * as objects above. */
-  playerNotes: PlayerNote[];
-}
+// BoardState (tokens/shapes/objects/playerNotes) and the `state`/`draft`
+// pair now live in store/boardStore.ts — the first slice of this
+// component's state pulled into zustand, see docs/BACKLOG.md 3.3.
 type Mode = "move" | "run" | "pass" | "dribble" | "free" | "spotlight" | "erase";
 
 /** localStorage key prefix for the per-team unsaved-board draft. */
@@ -174,8 +168,13 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const [pitchId, setPitchIdState] = useState("full");
   const [equipmentKind, setEquipmentKind] = useState<EquipmentKind>("cone");
 
-  const [state, setState] = useState<BoardState>({ tokens: [], shapes: [], objects: [], playerNotes: [] });
-  const [draft, setDraft] = useState<Shape | null>(null);
+  const { state, setState, draft, setDraft, reset: resetBoardState } = useBoardStore();
+  // Blank the board once on mount — plain useState gave this for free (a
+  // fresh component instance always started blank); a zustand store is a
+  // module-level singleton that would otherwise leak a previous visit's
+  // tokens into a freshly-mounted board.
+  /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  useEffect(() => { resetBoardState(); }, []);
 
   // Animation
   const [frames, setFrames] = useState<Frame[]>([]);
