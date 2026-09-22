@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FileText } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -384,8 +384,17 @@ export default async function PlayerDetailPage({
                 className="space-y-1.5 pt-2 border-t border-border"
               />
 
-              <div className="pt-2">
+              <div className="pt-2 flex flex-wrap items-center gap-2">
                 <PlayerPhotoUpload playerId={player.id} />
+                <a
+                  href={`/print/term-report/${player.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium hover:bg-muted"
+                >
+                  <FileText className="size-3.5" aria-hidden="true" />
+                  Term report
+                </a>
               </div>
 
               {teamId && (

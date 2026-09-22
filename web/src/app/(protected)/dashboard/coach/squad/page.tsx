@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
-import { Upload, Plus } from "lucide-react";
+import { Upload, Plus, ShieldAlert } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -295,6 +295,12 @@ export default async function SquadPage({
         </div>
         <div className="flex gap-2 shrink-0">
           <CopyInviteLinkButton inviteCode={team.invite_code} />
+          <Button asChild variant="outline" className="shrink-0">
+            <Link href={`/dashboard/coach/squad/emergency?team=${team.id}`}>
+              <ShieldAlert className="size-4" aria-hidden="true" />
+              Emergency contacts
+            </Link>
+          </Button>
           <Button asChild variant="outline" className="shrink-0">
             <Link href={`/dashboard/coach/squad/import?team=${team.id}`}>
               <Upload className="size-4" aria-hidden="true" />

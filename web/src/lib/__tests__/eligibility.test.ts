@@ -1,4 +1,5 @@
 import { ageGroupBand, flagAgeEligibility, findDuplicates } from "@/lib/eligibility";
+import { calculateAge } from "@/lib/player";
 
 function yearsAgo(years: number): string {
   const d = new Date();
@@ -33,10 +34,15 @@ describe("flagAgeEligibility", () => {
   });
 
   it("flags a player well above their team's band", () => {
-    const players = [{ id: "1", full_name: "Overage Player", date_of_birth: yearsAgo(17), age_group: "U11" }];
+    const dob = yearsAgo(17);
+    const players = [{ id: "1", full_name: "Overage Player", date_of_birth: dob, age_group: "U11" }];
     const flags = flagAgeEligibility(players);
     expect(flags).toHaveLength(1);
-    expect(flags[0]).toMatchObject({ playerId: "1", playerName: "Overage Player", age: 17, ageGroup: "U11" });
+    // Computed via calculateAge rather than hardcoded: it floors an average
+    // 365.25-day year, so "17 calendar years ago" can compute to 16 or 17
+    // depending on how today's date falls relative to leap days — the same
+    // rounding flagAgeEligibility itself relies on, not a bug in either.
+    expect(flags[0]).toMatchObject({ playerId: "1", playerName: "Overage Player", age: calculateAge(dob), ageGroup: "U11" });
   });
 
   it("flags a player well below their team's band", () => {

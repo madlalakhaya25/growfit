@@ -1,13 +1,22 @@
-# Migration Runbook — 030 → 039
+# Migration Runbook — 030 → 040
 
 *Written 2026-09-21. Backlog item 0.1. Extended the same day to cover 038-039
-(Phase 1, backlog items 1.2/1.5).*
+(Phase 1, backlog items 1.2/1.5), and again on 2026-09-22 to cover 040
+(more of 1.5's same audit).*
 
-Ten migrations are checked in and **not applied to the live Supabase
+Eleven migrations are checked in and **not applied to the live Supabase
 project**. Nothing in a Claude Code session can apply them: there is no
 Supabase CLI, no project link and no credentials in that environment. This
 document exists so the person who *can* apply them does not have to take it
 on faith.
+
+**If a verification query below errors with `42P01: relation "..." does not
+exist`, that table's own migration hasn't run yet either** — this runbook
+covers 030 onward on the assumption `001` through `029` are already applied.
+A brand-new Supabase project needs every migration run in order starting
+from `001_schema.sql`, not just the ones listed here; `supabase db push` (or
+pasting each file into the SQL editor in numeric order) handles that
+correctly on its own.
 
 Every claim below was verified against a real PostgreSQL 16 instance, with
 Supabase's `auth.uid()`, `anon` / `authenticated` roles and grants
@@ -24,6 +33,7 @@ reproduced, and the app's own seed shapes inserted.
 | `037` | Calendar subscriptions resolve to an empty feed |
 | `038` | A co-coach on a team cannot see, mark attendance for, or manage drills on a session a colleague created — `training_sessions`/`training_drills`/`training_attendance` RLS still gates on `coach_id = auth.uid()` (migration 003/005/012, predates the `team_coaches` multi-coach model added in `019`) |
 | `039` | No way to record a player as injured/unavailable — squad selection (by hand and by the AI) treats every registered player as equally available |
+| `040` | A co-coach who isn't a team's original `teams.coach_id` cannot log a match result at all (`logMatch()` fails with a misleading "Fixture not found"), cannot mark match-day attendance, and cannot see any player's emergency contacts, consent status or document compliance — five more policies/functions from before the `team_coaches` multi-coach model (`019`), missed by `038`'s first pass |
 | `030`–`034` | Expanded player attributes, passport attributes, parent-link verification, tactical attributes, claim verification |
 
 ---
@@ -106,13 +116,41 @@ Reproduced the bug before proving the fix:
   constraint, confirming only `available`/`injured`/`unavailable` can ever
   be written.
 
+### 040 — more multi-coach RLS
+
+Same method as `038`: reproduced each bug on the pre-040 policy shapes
+before fixing, using a team with a head coach (`teams.coach_id`) and a
+second, non-head coach present only in `team_coaches`:
+
+1. As the non-head coach, `SELECT` on `player_medical` for a player on
+   their shared team returned **0 rows** — the emergency contact was
+   invisible. `log_match_result()` returned `{"error": "Fixture not
+   found."}` for a fixture that plainly existed. `INSERT` into
+   `match_attendance` raised an RLS violation. **All three bugs reproduced.**
+2. Applied `040`. All three now succeed as the non-head coach — and
+   `log_match_result()`'s effects were checked, not just its return value:
+   `match_results` actually holds the submitted score and `fixtures.status`
+   actually moved to `'completed'`.
+3. **Cross-academy isolation holds**: a third coach profile in a different
+   academy gets 0 rows on the same `player_medical` read, the same
+   "Fixture not found" from `log_match_result()`, and the same RLS
+   violation on `match_attendance` — the fix widened "the team's original
+   coach" to "any coach on this team," not to "any coach anywhere."
+
+`log_match_result()`'s replacement body was copied verbatim from `001`,
+not rewritten, specifically because a plausible-looking delete-then-insert
+rewrite of its appearances/ratings upserts would have silently deleted
+every *other* coach's ratings for a shared fixture — `player_ratings` has
+one row per `(fixture_id, player_id, coach_id)`, not per `(fixture_id,
+player_id)`.
+
 ### Idempotency
 
-`030`–`039` were re-run against the already-migrated database. **All ten
+`030`–`040` were re-run against the already-migrated database. **All eleven
 re-apply cleanly**, and the post-re-run state is still correct (parent can
 read `players`; the attendance constraint is still the P/A/L/E one; `038`'s
-policies still show the academy-wide shape; `039`'s columns and constraint
-survive a second run). Running the set twice is safe.
+and `040`'s policies still show the academy-wide/multi-coach shape; `039`'s
+columns and constraint survive a second run). Running the set twice is safe.
 
 ---
 
@@ -121,7 +159,7 @@ survive a second run). Running the set twice is safe.
 Either route works. Take a backup first regardless.
 
 **Supabase SQL editor** — paste each file in numeric order, `030` through
-`039`, checking each succeeds before the next.
+`040`, checking each succeeds before the next.
 
 **CLI**, from a machine with it installed and linked:
 
@@ -150,12 +188,20 @@ SELECT tablename, policyname, qual FROM pg_policies
 
 -- 039: every existing player defaulted to 'available'.
 SELECT availability_status, count(*) FROM players GROUP BY availability_status;
+
+-- 040: none of these should mention "coach_id = auth.uid()" without an OR
+-- against team_coaches alongside it.
+SELECT tablename, policyname, qual FROM pg_policies
+ WHERE tablename IN ('player_medical', 'player_consents', 'player_documents', 'match_attendance');
+SELECT prosrc FROM pg_proc WHERE proname = 'log_match_result';
 ```
 
 Then, in the app: open a squad page (exercises 035), mark a training
 register (036), create a calendar link in Settings (037), have a second
 coach on a shared team open a training session the first coach created
-(038), and mark a player injured from their profile (039).
+(038), mark a player injured from their profile (039), and have that same
+second coach open a player's medical tab and log a match result for a
+fixture on the shared team (040).
 
 ### If something goes wrong
 

@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ChevronRight, Star } from "lucide-react";
+import { ArrowLeft, ChevronRight, Star, FileText } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -267,6 +267,15 @@ export default async function ChildDetailPage({
             position={player.position}
             className="space-y-2 border-t border-border pt-3"
           />
+          <a
+            href={`/print/term-report/${player.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium hover:bg-muted"
+          >
+            <FileText className="size-3.5" aria-hidden="true" />
+            Term report
+          </a>
         </PlayerPassportCard>
 
         {/* Ratings + Fixtures */}

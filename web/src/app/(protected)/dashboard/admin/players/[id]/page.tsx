@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Star, Download } from "lucide-react";
+import { ArrowLeft, Star, Download, FileText } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -127,6 +127,12 @@ export default async function AdminPlayerDetailPage({
               <a href={`/api/players/${player.id}/card`}>
                 <Download className="size-3.5" aria-hidden="true" />
                 Download card
+              </a>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <a href={`/print/term-report/${player.id}`} target="_blank" rel="noopener noreferrer">
+                <FileText className="size-3.5" aria-hidden="true" />
+                Term report
               </a>
             </Button>
           </div>

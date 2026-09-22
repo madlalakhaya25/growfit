@@ -252,6 +252,31 @@ patched as a drive-by fix to a security-sensitive `SECURITY DEFINER`
 trigger — full detail in `supabase/seed.sql`'s header comment and Phase 0.3
 above; left for deliberate, dedicated handling.
 
+**A fifth round, found while building 2.8's offline emergency-contacts
+view:** the same "predates `team_coaches`" bug in `038` turned out not to
+be fully swept. Auditing every remaining RLS policy that joins through
+`teams t` the way `038`'s targets did turned up five more, all still
+gating on `teams.coach_id = auth.uid()` alone — three of them read-only,
+which is exactly how this class of bug hides (a denied co-coach sees an
+empty page, not an error): `coaches_read_medical`, `coaches_read_consents`
+and `coaches_read_documents` (a co-coach saw no emergency contacts, no
+consent status, and an empty 2.2 document funnel for players on their own
+team), plus `coaches_manage_match_attendance` (couldn't mark who played)
+and — the most severe of the five — the `log_match_result()` SECURITY
+DEFINER function behind the "Log result" form itself, which returned a
+misleading `{"error": "Fixture not found."}` to a co-coach submitting a
+real Sunday result for a fixture that plainly existed. Fixed in migration
+`040` with the same OR-against-`team_coaches` pattern `get_calendar_events`
+(`037`) already used correctly, and reproduced-then-fixed the same way as
+`038` (full detail in `docs/MIGRATION_RUNBOOK.md`'s 040 section) —
+including checking `log_match_result()`'s actual effects, not just its
+return value, since a plausible-looking rewrite of its
+appearances/ratings upserts would have silently deleted every *other*
+coach's ratings for a shared fixture (`player_ratings` is keyed on
+`(fixture_id, player_id, coach_id)`, not `(fixture_id, player_id)`) — so
+its replacement body was copied verbatim rather than reconstructed from
+memory.
+
 ### 1.6 Clear the standing lint debt — **Done**
 Not glamorous, but it was load-bearing: `tactical-board.tsx` carried seven
 `react-hooks/refs` errors and `ai-insights.ts` / `development-plan.ts`
@@ -307,11 +332,32 @@ everything else needs `'signed'` — matching `DocumentHub`'s own per-group
 counts as a single per-cell check. Linked from the players list, which also
 still has its own per-player X/6 badge for a quick glance.
 
-### 2.3 Term reports parents can keep — `FP-5`
+### 2.3 Term reports parents can keep — `FP-5` — **Done**
 One PDF per player per term: attendance, milestones across the five corners,
 ratings, a coach's note, the attribute passport. Every input exists and the
 PDF pipeline exists — this is mostly assembly. It is also the artefact that
 makes the academy look like an institution rather than a WhatsApp group.
+
+**Shipped:** `/print/term-report/[playerId]` — reuses the exact print-to-PDF
+pattern already established at `/print/document/[playerId]/[type]`
+(`PrintTrigger`/`PrintButton`, imported directly rather than duplicated) so
+"Term report" is just another `window.print()` page, not new PDF
+infrastructure. One page, five sections: attendance over the same 90-day
+rolling window the welfare check-in uses (`attendanceWindowStart()`/
+`summariseAttendance()` from `lib/training-attendance.ts` — there's no
+explicit term-boundary column in the schema, only a `season` year string,
+so this reuses the same practical proxy rather than inventing a second
+one), development milestones grouped by the five corners
+(`development_milestone_templates` joined to the current season's
+`player_milestone_completions`), the full match-ratings history with an
+average, the attribute passport (`buildAttributeSnapshot()`, already used
+elsewhere), and a "Coach's note" pulled from whichever coach's
+`player_attributes.notes` was most recently `assessed_at` — the same
+"most recent wins" convention the passport itself already uses for
+attribute values, applied to notes instead. Linked as "Term report" from
+the three places a coach or parent already looks at one player: the admin
+player page, the coach's squad player page, and the parent's child page —
+each opens it in a new tab next to the existing "Download card" link.
 
 ### 2.4 Age-group eligibility and duplicate checks — `FP-7` — **Done**
 Flag any player whose age falls outside their team's band, and any two players
@@ -328,9 +374,18 @@ banner plus a per-row badge on `/dashboard/admin/players` — not a block,
 matching how the welfare threshold works (surfacing the question, not
 deciding it). Unit tested (`lib/__tests__/eligibility.test.ts`).
 
-### 2.5 Stream the three long AI generators — `IP-15`
+### 2.5 Stream the three long AI generators — `IP-15` — **Deliberately skipped this pass**
 Match plan, match report, session generator. Sits behind 3.1: if the output
 becomes structured, the streaming surface changes anyway.
+
+Left alone rather than implemented: 3.1 is explicitly "blocked on product
+decisions, not effort" (what an applied XI does to a squad selection,
+whether a generated session lands as a draft or a real row, and so on) —
+decisions this pass has no basis to make. Streaming today's plain-prose
+output would mean re-wiring the response handling again once 3.1 lands and
+the shape changes from prose to structured data with an **Apply** action;
+that is the wasted-effort scenario the backlog's own "sits behind 3.1" note
+is warning against, not a reason to do it twice.
 
 ### 2.6 Quick-assess mode + squad median marks — `IP-17` — **Done**
 A coach assessing fifteen players after training faces 450 slider decisions.
@@ -373,11 +428,33 @@ markup for a 1:1 content match; the only intentional behaviour change is
 one cosmetic reorder on the player dashboard (a remove-photo button now
 renders after the badges instead of before).
 
-### 2.8 Offline reads — `FP-9`
+### 2.8 Offline reads — `FP-9` — **Done**
 Attendance writes queue offline; everything else assumes a connection. A coach
 at a ground with no signal cannot see emergency contacts, which is exactly what
 the Injury & Medical Emergency Policy assumes is at hand. Cache squad,
 contacts and next fixture, and label the view with when it was last updated.
+
+**Shipped:** `/dashboard/coach/squad/emergency`, with no new
+offline-storage code at all — the key finding was that `public/sw.js`
+already caches every navigation request network-first with a cache
+fallback, for the whole app, so any ordinary Server Component page a coach
+opens once while they still have signal is already available with none.
+The actual gap wasn't caching, it was that no single page combined squad +
+emergency contacts + next fixture into the one view worth pre-loading
+before setting off for an away match. The page shows each player's
+allergy/condition/medication flags (filtering out `'NONE'`-valued fields so
+only genuinely flagged conditions render, as red badges) and up to two
+emergency contacts each with a `tel:` link, plus the team's next upcoming
+fixture, and a "Loaded `<timestamp>`" label rendered into the HTML at
+request time — so a page served from the service worker's cache correctly
+shows when it was last actually fetched rather than claiming to be live.
+Linked from the main squad page. While wiring this up, a broader audit
+(`grep -rn "JOIN teams t\|FROM teams t" supabase/migrations/*.sql`) for the
+same "predates `team_coaches`" bug class migration 038 fixed turned up five
+more instances — see migration `040` and 1.5 below; two of them
+(`player_medical` and `player_documents` RLS) would otherwise have made
+this exact feature and the 2.2 document funnel both return nothing for any
+co-coach who isn't a team's original `teams.coach_id`.
 
 ### 2.9 Multi-coach visibility — `FP-10` — **Done (partial)**
 Attribution on the surfaces where two coaches can disagree without noticing —
