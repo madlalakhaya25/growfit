@@ -1,8 +1,10 @@
-# Migration Runbook — 030 → 040
+# Migration Runbook — 030 → 041
 
 *Written 2026-09-21. Backlog item 0.1. Extended the same day to cover 038-039
-(Phase 1, backlog items 1.2/1.5), and again on 2026-09-22 to cover 040
-(more of 1.5's same audit).*
+(Phase 1, backlog items 1.2/1.5), again on 2026-09-22 to cover 040 (more of
+1.5's same audit), and again on 2026-09-22 to add 041 — see that section for
+why 041's verification is not held to the same standard as everything else
+on this page.
 
 Eleven migrations are checked in and **not applied to the live Supabase
 project**. Nothing in a Claude Code session can apply them: there is no
@@ -144,6 +146,38 @@ every *other* coach's ratings for a shared fixture — `player_ratings` has
 one row per `(fixture_id, player_id, coach_id)`, not per `(fixture_id,
 player_id)`.
 
+### 041 — fixture_match_plans
+
+**Not verified against the local PostgreSQL 16 harness that every other
+migration on this page was proven against — a deliberate exception, made on
+the record, not an oversight.** New table, new feature (Phase 3.1/3.2's
+match-plan Apply flow, docs/BACKLOG.md), nothing currently broken depends on
+it, so unlike `035`–`040` there is no live bug this needed to be reproduced
+against first.
+
+What was actually done instead: `041`'s single RLS policy —
+`is_admin_or_coach() AND academy_id = auth_academy_id()` — is checked by
+inspection against the exact two SECURITY DEFINER helpers migration `001`
+defines (read in full, not assumed) and against `tactic_plays`' own
+identically-shaped policy (`015_tactic_plays.sql`, already proven correct by
+this document's `035`-era audit and in real production use since). Same
+helpers, same boolean structure, same `FOR ALL` shape 038/040 established as
+the current convention for a new staff-writable table — see the SQL file's
+own header comment for the specific claims this reasoning supports (and, as
+importantly, what it does *not* cover: co-coach-via-`team_coaches` scoping,
+which this policy deliberately leaves to `match-plans.ts`'s app-level
+`requireCoachTeam` check, not RLS).
+
+**Before this is trusted in production, someone with real Supabase access
+should do what this session couldn't:** run `041` against the actual
+project (or a disposable branch of it) and confirm, with two real coach
+profiles, that a coach on a different academy gets 0 rows / an RLS
+violation on `fixture_match_plans`, and that `upsert(..., { onConflict:
+"fixture_id" })` from `match-plans.ts` actually overwrites the existing row
+rather than erroring on the unique constraint. Both are the kind of thing
+that reads correctly on paper and still fails the first time it meets a
+real Postgres instance's exact constraint-conflict behavior.
+
 ### Idempotency
 
 `030`–`040` were re-run against the already-migrated database. **All eleven
@@ -151,6 +185,10 @@ re-apply cleanly**, and the post-re-run state is still correct (parent can
 read `players`; the attendance constraint is still the P/A/L/E one; `038`'s
 and `040`'s policies still show the academy-wide/multi-coach shape; `039`'s
 columns and constraint survive a second run). Running the set twice is safe.
+`041` was not run at all in this environment (see above), so it has no
+re-apply result to report yet either — its SQL uses the same `IF NOT
+EXISTS`/`DROP POLICY IF EXISTS` guards as every other migration on this
+page, so it is expected, not proven, to be idempotent.
 
 ---
 
@@ -159,7 +197,7 @@ columns and constraint survive a second run). Running the set twice is safe.
 Either route works. Take a backup first regardless.
 
 **Supabase SQL editor** — paste each file in numeric order, `030` through
-`040`, checking each succeeds before the next.
+`041`, checking each succeeds before the next.
 
 **CLI**, from a machine with it installed and linked:
 
