@@ -9,6 +9,7 @@ import {
   type CoachMessage, type LineupStructured, type MatchPlanStructured,
 } from "@/app/actions/coach-assistant";
 import { savePlay } from "@/app/actions/tactic-plays";
+import { saveMatchPlan } from "@/app/actions/match-plans";
 import { SpeakButton } from "@/components/tactics/speak-button";
 import { AiProse } from "@/components/ai/ai-prose";
 import { FORMATIONS } from "@/lib/formations";
@@ -164,6 +165,21 @@ export function CoachAssistantPanel({
     setOutput({ kind: "plan", text: res.plan ?? "", structured: res.structured, fixtureId });
   }
 
+  /**
+   * Save the generated match plan against its fixture — always an
+   * upsert-in-place (fixture_match_plans.fixture_id is UNIQUE), so
+   * re-applying overwrites the previous plan rather than accumulating
+   * history (confirmed decision, same as tactic_plays' upsert-on-playId).
+   */
+  async function applyMatchPlan(structured: MatchPlanStructured, planFixtureId: string) {
+    setApplying(true);
+    const res = await saveMatchPlan({ fixtureId: planFixtureId, teamId, data: structured });
+    setApplying(false);
+    if (res.error) { toast.error(res.error); return; }
+    setApplied(true);
+    toast.success("Match plan saved to this fixture.");
+  }
+
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-border">
@@ -255,6 +271,23 @@ export function CoachAssistantPanel({
                   >
                     {applying ? <Loader2 className="size-3 animate-spin" aria-hidden="true" /> : <Save className="size-3 text-primary" aria-hidden="true" />}
                     Apply — save as new play
+                  </button>
+                )}
+              </div>
+            )}
+            {output.kind === "plan" && output.structured && (
+              <div className="pt-1">
+                {applied ? (
+                  <p className="text-xs text-muted-foreground">Saved to this fixture.</p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => applyMatchPlan(output.structured!, output.fixtureId)}
+                    disabled={applying}
+                    className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted disabled:opacity-50"
+                  >
+                    {applying ? <Loader2 className="size-3 animate-spin" aria-hidden="true" /> : <Save className="size-3 text-primary" aria-hidden="true" />}
+                    Apply — save to fixture
                   </button>
                 )}
               </div>
