@@ -7,8 +7,7 @@ import {
   Play, Square, Plus, Save, FolderOpen, Send, Trash2, Film, Video, Sparkles, Swords,
   ChevronUp, ChevronDown, Copy, Target, MessageSquare,
 } from "lucide-react";
-import { POSITIONS } from "@/lib/types";
-import { FORMATIONS, FORMATION_SIZES, type Formation } from "@/lib/formations";
+import { FORMATIONS, FORMATION_SIZES } from "@/lib/formations";
 import { savePlay, listPlays, loadPlay, deletePlay, sharePlayToSquad, listLinkTargets, type SavedPlaySummary, type LinkTarget } from "@/app/actions/tactic-plays";
 import { describePlay, analyseOpponent } from "@/app/actions/tactics";
 import { SpeakButton } from "@/components/tactics/speak-button";
@@ -20,8 +19,8 @@ import { framesFromShapes } from "@/lib/play-motion";
 import {
   BOARD_W, BOARD_H, dribblePath, polyPath, shapeColor, interpolateFrames, totalDurationMs, DEFAULT_FRAME_DURATION_MS,
   getPitch, PITCHES, toBoardSpace, EQUIPMENT_SPECS, resolveSpotlightCenter, RECORDABLE_SHAPE_KINDS,
-  GROUP_COLOR,
-  type EquipmentKind, type BoardObject, type PlayerNote,
+  GROUP_COLOR, groupOf, shortLabel, uid, assignToSlots, compress,
+  type EquipmentKind, type BoardObject, type PlayerNote, type BoardPlayer, type BoardTeam,
   type Token, type Shape, type Frame as ModelFrame,
 } from "@/lib/board-model";
 import { AiProse } from "@/components/ai/ai-prose";
@@ -36,17 +35,11 @@ import { EquipmentLayer } from "@/components/tactics/equipment-layer";
 // for the film board's tools (components/tactics/film-board.tsx), not this
 // one — RECORDABLE_SHAPE_KINDS is what actually gates what the canvas
 // recorder here can draw, not this board's own tool set.
-export interface BoardPlayer {
-  id: string;
-  full_name: string;
-  position: string | null;
-}
-export interface BoardTeam {
-  id: string;
-  name: string;
-  age_group: string | null;
-  players: BoardPlayer[];
-}
+//
+// BoardPlayer/BoardTeam also live in board-model.ts now — re-exported here
+// so board/page.tsx's existing `import { TacticalBoard, type BoardTeam }
+// from "@/components/tactics/tactical-board"` keeps working unchanged.
+export type { BoardPlayer, BoardTeam };
 interface BoardState {
   tokens: Token[];
   shapes: Shape[];
@@ -104,61 +97,6 @@ const W = BOARD_W;
 const H = BOARD_H;
 
 const GROUP_ORDER = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
-
-function groupOf(position: string | null): string {
-  if (!position) return "Midfielder";
-  return POSITIONS.find((p) => p.value === position)?.group ?? "Midfielder";
-}
-function shortLabel(name: string): string {
-  const first = name.trim().split(/\s+/)[0] ?? name;
-  return first.length > 9 ? first.slice(0, 8) + "…" : first;
-}
-
-let idc = 0;
-const uid = (p: string) => `${p}-${++idc}`;
-
-/**
- * Assign real players to formation slots: exact position match first, then
- * same position group, then whoever is left — so a right back lands at right
- * back rather than wherever the list order happens to put them.
- */
-function assignToSlots(formation: Formation, roster: BoardPlayer[]): (BoardPlayer | undefined)[] {
-  const pool = [...roster];
-  const out: (BoardPlayer | undefined)[] = new Array(formation.slots.length).fill(undefined);
-
-  const take = (pred: (p: BoardPlayer) => boolean) => {
-    const i = pool.findIndex(pred);
-    return i === -1 ? undefined : pool.splice(i, 1)[0];
-  };
-
-  formation.slots.forEach((slot, i) => {
-    const p = take((pl) => pl.position === slot.role);
-    if (p) out[i] = p;
-  });
-  formation.slots.forEach((slot, i) => {
-    if (out[i]) return;
-    const p = take((pl) => groupOf(pl.position) === groupOf(slot.role));
-    if (p) out[i] = p;
-  });
-  formation.slots.forEach((_, i) => {
-    if (out[i]) return;
-    out[i] = pool.shift();
-  });
-  return out;
-}
-
-/**
- * Squeeze a full-pitch formation slot into one half, so two teams can be shown
- * facing each other. Home keeps the bottom half, away is mirrored into the top.
- * GK sits deepest, the furthest forward player sits nearest halfway.
- */
-function compress(slot: { x: number; y: number }, side: "home" | "away"): { x: number; y: number } {
-  const DEEPEST = 142, HIGHEST = 38; // y range formations actually use
-  const t = Math.max(0, Math.min(1, (DEEPEST - slot.y) / (DEEPEST - HIGHEST)));
-  return side === "home"
-    ? { x: slot.x, y: 146 - t * 68 }        // 146 (own goal) → 78 (just short of halfway)
-    : { x: W - slot.x, y: 4 + t * 68 };     // 4 (their goal) → 72, mirrored across
-}
 
 /**
  * Tactical overlays. Half-spaces are the two channels between the centre and

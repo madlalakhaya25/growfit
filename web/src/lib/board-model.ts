@@ -13,6 +13,9 @@
 // and pure functions — no React, no DOM — so it's usable from a `"use
 // client"` SVG component, a canvas 2D context, and a plain test file alike.
 
+import { POSITIONS } from "@/lib/types";
+import type { Formation } from "@/lib/formations";
+
 // ── Geometry ─────────────────────────────────────────────────────
 
 export interface Point {
@@ -390,4 +393,83 @@ export interface BoardObject {
   y: number;
   /** degrees, for equipment that has a facing (goals, hurdles, poles). */
   rotation?: number;
+}
+
+// ── Roster / formation assignment ───────────────────────────────
+//
+// Moved out of tactical-board.tsx so board/page.tsx's roster loading and any
+// other future formation-driven UI (e.g. the AI-suggested-XI Apply flow)
+// can reuse the same types and assignment logic instead of redefining them.
+
+export interface BoardPlayer {
+  id: string;
+  full_name: string;
+  position: string | null;
+}
+export interface BoardTeam {
+  id: string;
+  name: string;
+  age_group: string | null;
+  players: BoardPlayer[];
+}
+
+/** A position's broad group (Goalkeeper/Defender/Midfielder/Forward),
+ * falling back to Midfielder for a null/unrecognised position rather than
+ * leaving a player ungrouped. */
+export function groupOf(position: string | null): string {
+  if (!position) return "Midfielder";
+  return POSITIONS.find((p) => p.value === position)?.group ?? "Midfielder";
+}
+
+/** A short display label for a token: the player's first name, truncated. */
+export function shortLabel(name: string): string {
+  const first = name.trim().split(/\s+/)[0] ?? name;
+  return first.length > 9 ? first.slice(0, 8) + "…" : first;
+}
+
+let idc = 0;
+/** A short, session-unique id with the given prefix (e.g. "t-1", "t-2"). */
+export const uid = (p: string) => `${p}-${++idc}`;
+
+/**
+ * Assign real players to formation slots: exact position match first, then
+ * same position group, then whoever is left — so a right back lands at right
+ * back rather than wherever the list order happens to put them.
+ */
+export function assignToSlots(formation: Formation, roster: BoardPlayer[]): (BoardPlayer | undefined)[] {
+  const pool = [...roster];
+  const out: (BoardPlayer | undefined)[] = new Array(formation.slots.length).fill(undefined);
+
+  const take = (pred: (p: BoardPlayer) => boolean) => {
+    const i = pool.findIndex(pred);
+    return i === -1 ? undefined : pool.splice(i, 1)[0];
+  };
+
+  formation.slots.forEach((slot, i) => {
+    const p = take((pl) => pl.position === slot.role);
+    if (p) out[i] = p;
+  });
+  formation.slots.forEach((slot, i) => {
+    if (out[i]) return;
+    const p = take((pl) => groupOf(pl.position) === groupOf(slot.role));
+    if (p) out[i] = p;
+  });
+  formation.slots.forEach((_, i) => {
+    if (out[i]) return;
+    out[i] = pool.shift();
+  });
+  return out;
+}
+
+/**
+ * Squeeze a full-pitch formation slot into one half, so two teams can be shown
+ * facing each other. Home keeps the bottom half, away is mirrored into the top.
+ * GK sits deepest, the furthest forward player sits nearest halfway.
+ */
+export function compress(slot: { x: number; y: number }, side: "home" | "away"): { x: number; y: number } {
+  const DEEPEST = 142, HIGHEST = 38; // y range formations actually use
+  const t = Math.max(0, Math.min(1, (DEEPEST - slot.y) / (DEEPEST - HIGHEST)));
+  return side === "home"
+    ? { x: slot.x, y: 146 - t * 68 }        // 146 (own goal) → 78 (just short of halfway)
+    : { x: BOARD_W - slot.x, y: 4 + t * 68 };     // 4 (their goal) → 72, mirrored across
 }
