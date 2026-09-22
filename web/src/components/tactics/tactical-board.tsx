@@ -27,6 +27,7 @@ import { AiProse } from "@/components/ai/ai-prose";
 import { PitchLayer } from "@/components/tactics/pitch-layer";
 import { EquipmentLayer } from "@/components/tactics/equipment-layer";
 import { useBoardStore, type BoardState } from "@/store/boardStore";
+import { useBoardSetupStore } from "@/store/boardSetupStore";
 
 // ── Types ────────────────────────────────────────────────────────
 // Token, Shape, ShapeKind and the Frame shape all come from board-model.ts
@@ -159,22 +160,21 @@ function OverlayLayer({ overlay }: { overlay: Overlay }) {
 }
 
 export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
-  const [teamId, setTeamId] = useState(teams[0]?.id ?? "");
-  const [homeFormationId, setHomeFormationId] = useState("11-4-3-3");
-  const [awayFormationId, setAwayFormationId] = useState("11-4-4-2");
   const [mode, setMode] = useState<Mode>("move");
   const [showNames, setShowNames] = useState(true);
   const [overlay, setOverlay] = useState<Overlay>("none");
-  const [pitchId, setPitchIdState] = useState("full");
-  const [equipmentKind, setEquipmentKind] = useState<EquipmentKind>("cone");
 
   const { state, setState, draft, setDraft, reset: resetBoardState } = useBoardStore();
+  const {
+    teamId, setTeamId, homeFormationId, setHomeFormationId, awayFormationId, setAwayFormationId,
+    pitchId, setPitchId: setPitchIdState, equipmentKind, setEquipmentKind, resetForTeam,
+  } = useBoardSetupStore();
   // Blank the board once on mount — plain useState gave this for free (a
   // fresh component instance always started blank); a zustand store is a
   // module-level singleton that would otherwise leak a previous visit's
-  // tokens into a freshly-mounted board.
+  // tokens/team/formation selection into a freshly-mounted board.
   /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  useEffect(() => { resetBoardState(); }, []);
+  useEffect(() => { resetBoardState(); resetForTeam(teams[0]?.id ?? ""); }, []);
 
   // Animation
   const [frames, setFrames] = useState<Frame[]>([]);
