@@ -576,21 +576,94 @@ already-proven identical shape), and what a person with real Supabase access
 should still confirm — cross-academy isolation and the upsert-on-conflict
 behaviour — before this is trusted in production.
 
-### 3.3 Board state → zustand, extract panels — `IP-19`
+### 3.3 Board state → zustand, extract panels — `IP-19` — **Done**
 `tactical-board.tsx` is 2,000 lines with 27 `useState` hooks, and `zustand` is
 already a dependency. Wants a test suite around the board first — refactoring
 the academy's most complex surface with no safety net is how this goes wrong.
 
-**Shipped (step 1 of 2 — pure-helper extraction):** `groupOf`, `shortLabel`,
-`uid`, `assignToSlots`, and `compress`, plus the `BoardPlayer`/`BoardTeam`
-interfaces, moved out of `tactical-board.tsx` into `lib/board-model.ts` as
-plain exported functions — no behavior change, `tactical-board.tsx`
-re-exports the types so `board/page.tsx`'s existing import keeps working.
-This is the safety net the zustand/panel-extraction step above still needs:
-`assignToSlots`'s exact-role → same-group → leftover-fill cascade is now
-covered by unit tests in `lib/__tests__/board-model.test.ts`, along with
-`compress`'s home/away mirroring and `groupOf`'s null/unknown fallback. The
-zustand slices and panel extraction themselves are still outstanding.
+**Shipped, in the order this doc's own framing asked for (test the ground
+first, then move state, then extract panels):**
+
+*Pure-helper extraction.* `groupOf`, `shortLabel`, `uid`, `assignToSlots`,
+and `compress`, plus the `BoardPlayer`/`BoardTeam` interfaces, moved out of
+`tactical-board.tsx` into `lib/board-model.ts` as plain exported functions —
+no behavior change, `tactical-board.tsx` re-exports the types so
+`board/page.tsx`'s existing import keeps working. Unit tests cover
+`assignToSlots`'s exact-role → same-group → leftover-fill cascade,
+`compress`'s home/away mirroring, and `groupOf`'s null/unknown fallback —
+this is what step 4's Apply-suggested-XI flow (3.1) later reused and could
+have silently broken without coverage.
+
+*Four zustand stores*, one commit each, `authStore.ts`'s exact convention
+(`create<State>()((set) => ({...}))`, flat interface, no middleware):
+`store/boardStore.ts` (tokens/shapes/objects/playerNotes, plus the
+in-progress freehand `draft` shape), `store/boardSetupStore.ts` (team/
+formations/pitch/equipment), `store/savedPlaysStore.ts` (the saved-plays
+panel's own play list/name/tags/links), `store/boardPlaybackStore.ts`
+(frames/playing/scrub/recording — moved last, most entangled with undo-
+history and the canvas recorder). Each store gained a `reset()`/
+`resetForTeam()` action wired into one shared mount-only effect, replacing
+the "always starts blank" guarantee plain `useState`'s per-mount
+initializer gave for free — a zustand store is a module-level singleton
+that would otherwise leak one visit's board into the next. `busy`/`notice`
+were deliberately kept out of every slice despite looking like panel state
+at a glance: both are genuinely used board-wide (animation capture,
+recording, substitutions, pitch switching all set them too).
+
+Added `lib/__tests__/play-motion.test.ts` (zero prior coverage) before
+moving the animation slice specifically, per this doc's own sequencing —
+covers `framesFromShapes`'s run/pass/dribble movement derivation, the
+freehand-ignored case, nearest-player selection, and the no-ball-on-board
+edge case.
+
+*Three panel extractions*, each with its own render test:
+`saved-plays-panel.tsx` (the "Plays" card — template/name/tags/links/
+save/share/list, **and** the AI describe/analyse UI), `animation-panel.tsx`
+(the "Play sequence" card — capture/play/record/scrub/timeline),
+`draft-recovery-banner.tsx` (the "unsaved board" offer). `tactical-board.tsx`
+is now 1,684 lines, down from ~2,253.
+
+**Where this diverged from the original 6-way (a–f) extraction plan, and
+why:** the plan assumed cleaner visual boundaries than the actual markup
+has. The AI describe/analyse UI (planned as a separate, later item "f")
+was never a separate visual region from the saved-plays card — it's one
+interleaved card, always was — so extracting them apart would have been a
+UI redesign, not a behavior-preserving refactor; item (a) covers both.
+"History/undo controls" (b) and "export" (e) turned out to be individual
+buttons (Undo, Redo, PNG, Clear lines, Reset) sharing one flat toolbar row
+with mode-selection, add-ball/opponent, equipment and overlay controls —
+not separable panels at all; splitting them out would fragment one visual
+toolbar into meaningless fragments for no real component boundary, so they
+stay inline in `tactical-board.tsx` exactly as before. The keyboard-shortcut
+`useEffect` (paired with animation controls in the original plan) renders
+no JSX and reads/writes `mode` (used everywhere in the file, not just
+playback), so it also stays put rather than being hidden inside a
+render-only panel.
+
+Deliberately out of scope, per the plan's own instruction: pointer/drag
+handling and coordinate-transform code. Both stay exactly as they were —
+the highest-risk, most performance-sensitive part of this file, and this
+repo's no-network-mocking test convention makes them expensive to cover
+safely without dedicated interaction tests this pass didn't add.
+
+**Two narrow, documented test-infra workarounds were needed to get any of
+this component-level testing at all**, both inline-commented at their call
+sites: a `TextEncoder`/`TextDecoder` polyfill in `jest.setup.ts` (jsdom
+doesn't provide them, and `next/cache`'s `revalidatePath` needs them just
+to *load*, before any request context exists), and a `jest.mock` of
+`next/cache` plus the `tactics.ts` AI-action module (which pulls in an
+ESM-only package Jest's default transform can't parse) wherever a test
+renders a component that transitively imports either. Neither mock's
+behavior is ever exercised by the tests that need them — both are
+build-graph workarounds for a jsdom/Next.js incompatibility, not fakes of
+this app's own logic.
+
+**Not verified in this environment:** an actual click-through of the live
+board (placing a token, saving a play, running an animation, restoring a
+draft) — there was no real Supabase project or authenticated session
+available in this session. The new render/unit tests are this work's real
+safety net; treat the manual walkthrough as still outstanding before
+trusting this refactor in production.
 
 ### 3.4 The design pass — `IP-20`, `RM`
 Every card the same radius, one text size doing every job, red spent
