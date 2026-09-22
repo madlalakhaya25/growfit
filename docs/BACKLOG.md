@@ -496,9 +496,85 @@ existing squad selection? Does a generated session land as a draft or a real
 row? What happens when a coach edits after applying? Those want answering
 before any code.
 
+**Shipped (with a deliberate scope narrowing):** structured output + an
+Apply action for 3 of the app's 13 AI generators — `suggestLineup`,
+`generateMatchPlan`, `generateSessionPlan` — not all 13. The other ten stay
+prose-only; this was a scope decision made up front, not a shortfall.
+
+Each of the three now calls Gemini in JSON mode (`responseSchema` built with
+`Type.OBJECT`/`Type.ARRAY`, following `extractPlayersFromPdf`'s existing
+pattern in `player-import.ts` exactly, including its JSON.parse +
+regex-fallback for when the model wraps JSON in prose anyway) and returns
+both a `structured` field and the original prose field, the prose now
+rendered server-side from the structured data by a plain template — no
+second model call — so every existing `AiProse` display call site kept
+rendering unchanged.
+
+Three Apply actions, one per generator:
+- **Suggested XI → new saved play.** `coach-assistant-panel.tsx` matches
+  each suggested name to the team roster (case-insensitive full name), maps
+  positions to formation slots via a new `mapNamedPositionsToSlots()` in
+  `board-model.ts` (reusing `assignToSlots`' exact/group/leftover cascade
+  from 3.3 step 1, after normalising the AI's freeform position label to a
+  real `POSITIONS` value), and calls `savePlay` with **no** `playId` — always
+  an insert, so applying a suggestion can never silently overwrite whatever
+  the coach currently has open on their board (confirmed, non-negotiable).
+- **Session plan → drills.** Two entry points. A brand-new session's form
+  maps `structured.drills` directly, replacing the old `parseAIDrills` regex
+  parser entirely. An already-existing session gets a new `addDrills()`
+  batch action (one multi-row insert, `sort_order` computed once up front,
+  rather than N sequential `addDrill` calls that could leave a session
+  half-populated on a partial failure). Both entry points pack the AI's five
+  rich fields into `training.ts`'s 500-character `description` cap via a
+  shared `packDrillDescription()` (`lib/drill-description.ts`, unit tested),
+  truncating `instructions` first. **This is a documented, deliberate
+  lossy-by-design tradeoff** — the AI's structured output is genuinely
+  richer than the DB column allows, and the fix is truncation, not expanding
+  the schema to chase it.
+- **Match plan → `fixture_match_plans`.** See 3.2 below for the table; the
+  Apply action (`match-plans.ts`) upserts on `fixture_id`, so re-applying
+  overwrites the plan in place — no history/versioning (confirmed decision,
+  same convention as `tactic_plays`' own upsert-on-`playId`). Its app-level
+  `requireCoachTeam` guard mirrors `tactic-plays.ts`'s own, and matters for
+  the same reason documented in 1.5: RLS on this table is academy-wide, not
+  per-team.
+
+Verified: `tsc`, `jest`, `eslint`, and full `npm run build` (dummy Supabase
+env vars) all pass at every step, plus new unit tests for
+`mapNamedPositionsToSlots` and `packDrillDescription`. **Not verified in
+this environment:** an actual click-through of all three AI panels and
+their Apply buttons against a real Gemini key and a real Supabase project —
+there was neither in this session. The prose-rendering templates were
+written by matching the old prompts' exact label wording against
+`AiProse`'s parsing regexes line by line, but a live check against real
+model output, and a real end-to-end Apply (suggest → apply → open the board
+and see the saved play; generate a session → apply → open the session and
+see the drills; generate a match plan → apply → confirm the fixture's saved
+plan), are both still outstanding before this should be considered fully
+proven.
+
 ### 3.2 Persist AI artefacts — `IP-16`
 Saving a match plan against its fixture needs a new table. Behind 0.1: adding
 a migration nobody can run makes the unapplied backlog worse.
+
+**Shipped:** `supabase/migrations/041_fixture_match_plans.sql` — a new
+`fixture_match_plans` table (`fixture_id UNIQUE`, one row per fixture,
+`data JSONB` so the shape can evolve without another migration), modelled on
+`tactic_plays` (migration 015) but using the current academy-wide RLS shape
+from migrations 038/040 (`is_admin_or_coach() AND academy_id =
+auth_academy_id()`) rather than 015's older split-by-command policies. The
+0.1 blocker this item names (no live Supabase access to apply a migration)
+still holds — 030 through 040 are proven-but-unapplied for the same reason —
+so 041 joins that same queue rather than clearing it.
+
+**Not verified against the local PostgreSQL 16 harness** that migrations
+035-040 were each proven against, per an explicit instruction this round to
+skip that step. `docs/MIGRATION_RUNBOOK.md`'s new 041 section documents this
+plainly: what was checked instead (the policy's shape against the real
+helper functions from migration 001, and against `tactic_plays`' own
+already-proven identical shape), and what a person with real Supabase access
+should still confirm — cross-academy isolation and the upsert-on-conflict
+behaviour — before this is trusted in production.
 
 ### 3.3 Board state → zustand, extract panels — `IP-19`
 `tactical-board.tsx` is 2,000 lines with 27 `useState` hooks, and `zustand` is
