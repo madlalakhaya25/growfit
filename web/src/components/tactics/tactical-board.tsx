@@ -29,6 +29,7 @@ import { EquipmentLayer } from "@/components/tactics/equipment-layer";
 import { useBoardStore, type BoardState } from "@/store/boardStore";
 import { useBoardSetupStore } from "@/store/boardSetupStore";
 import { useSavedPlaysStore } from "@/store/savedPlaysStore";
+import { useBoardPlaybackStore } from "@/store/boardPlaybackStore";
 
 // ── Types ────────────────────────────────────────────────────────
 // Token, Shape, ShapeKind and the Frame shape all come from board-model.ts
@@ -175,26 +176,19 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     conceptIds, setConceptIds, sessionId, setSessionId, fixtureId, setFixtureId,
     targets, setTargets, filterConcept, setFilterConcept, resetPanel: resetSavedPlaysPanel,
   } = useSavedPlaysStore();
+  const {
+    frames, setFrames, playing, setPlaying, scrubMs, setScrubMs,
+    scrubbing, setScrubbing, recording, setRecording, anim, setAnim,
+    reset: resetPlayback,
+  } = useBoardPlaybackStore();
   // Blank the board once on mount — plain useState gave this for free (a
   // fresh component instance always started blank); a zustand store is a
   // module-level singleton that would otherwise leak a previous visit's
-  // tokens/team/formation/open-play selection into a freshly-mounted board.
+  // tokens/team/formation/open-play/playback selection into a
+  // freshly-mounted board.
   /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  useEffect(() => { resetBoardState(); resetForTeam(teams[0]?.id ?? ""); resetSavedPlaysPanel(); }, []);
+  useEffect(() => { resetBoardState(); resetForTeam(teams[0]?.id ?? ""); resetSavedPlaysPanel(); resetPlayback(); }, []);
 
-  // Animation
-  const [frames, setFrames] = useState<Frame[]>([]);
-  const [playing, setPlaying] = useState(false);
-  // Scrub preview: dragging the timeline sets `anim` to the interpolated
-  // pose at that instant (read-only preview), exactly like playback does —
-  // it never touches `state`/undo history. To actually edit a step's pose,
-  // jump to it with gotoFrame(), which does commit to state.
-  const [scrubMs, setScrubMs] = useState(0);
-  const [scrubbing, setScrubbing] = useState(false);
-  const [recording, setRecording] = useState(false);
-  // Equipment doesn't move during playback, so the animated snapshot only
-  // ever carries tokens/shapes — objects always come from live state.
-  const [anim, setAnim] = useState<Pick<BoardState, "tokens" | "shapes"> | null>(null);
   const rafRef = useRef<number | null>(null);
 
   // busy/notice stay local: used board-wide (animation capture, recording,
