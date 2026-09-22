@@ -1,6 +1,6 @@
 "use server";
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
@@ -16,6 +16,59 @@ interface SessionParams {
   sessionId?: string;
 }
 
+export interface SessionDrill {
+  name: string;
+  durationMinutes: number;
+  ltpdFocus: string;
+  fourCorner: string;
+  setup: string;
+  instructions: string;
+  coachingPoints: string;
+}
+export interface SessionPlanStructured {
+  drills: SessionDrill[];
+  coachReflection: string;
+}
+
+/** Same JSON-mode parsing fallback as coach-assistant.ts / player-import.ts. */
+function parseJsonObject(raw: string): Record<string, unknown> | null {
+  const text = raw.trim();
+  if (!text) return null;
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    try {
+      return JSON.parse(match[0]) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  }
+}
+
+/**
+ * Renders the exact "DRILL N: Name (X min)" prose shape the old freeform
+ * prompt produced, from the now-structured data — session-generator-panel.tsx
+ * still splits on `/(?=DRILL \d+:)/g` to render each drill, so this keeps
+ * that display completely unchanged.
+ */
+function renderSessionPlanProse(s: SessionPlanStructured): string {
+  const lines: string[] = [];
+  s.drills.forEach((d, i) => {
+    if (i > 0) lines.push("");
+    lines.push(`DRILL ${i + 1}: ${d.name} (${d.durationMinutes} min)`);
+    lines.push(`LTPD Focus: ${d.ltpdFocus}`);
+    lines.push(`4-Corner: ${d.fourCorner}`);
+    lines.push(`Setup: ${d.setup}`);
+    lines.push(`Instructions: ${d.instructions}`);
+    lines.push(`Coaching Points: ${d.coachingPoints}`);
+  });
+  lines.push("");
+  lines.push(`COACH REFLECTION: ${s.coachReflection}`);
+  return lines.join("\n");
+}
+
 function getLTDPPhase(ageGroup: string): string {
   const match = ageGroup.match(/\d+/);
   if (!match) return "Training to Train (U13-U15)";
@@ -29,7 +82,7 @@ function getLTDPPhase(ageGroup: string): string {
 
 export async function generateSessionPlan(
   params: SessionParams
-): Promise<{ plan?: string; error?: string }> {
+): Promise<{ plan?: string; structured?: SessionPlanStructured; error?: string }> {
   try {
     const { user } = await requireUser();
     // One AI call against this user's hourly budget. Counts attempts, not
@@ -62,63 +115,52 @@ DESIGN REQUIREMENTS:
 - Align drills with SAFA NDP competency standards for the age group
 - Reflect South African grassroots context (limited equipment, mixed ability squads are common)
 
-Generate exactly 5 drills in this exact format (plain text, no markdown, no asterisks):
-
-DRILL 1: [Drill Name] ([X] min)
-LTPD Focus: [specific competency this builds at this age phase]
-4-Corner: [Technical / Tactical / Physical / Social — pick primary]
-Setup: [pitch dimensions, cones, groups, equipment needed]
-Instructions: [clear numbered steps — how to run the drill]
-Coaching Points: [2 precise, age-appropriate cues coaches should give]
-
-DRILL 2: [Drill Name] ([X] min)
-LTPD Focus: [specific competency this builds at this age phase]
-4-Corner: [Technical / Tactical / Physical / Social — pick primary]
-Setup: [pitch dimensions, cones, groups, equipment needed]
-Instructions: [clear numbered steps — how to run the drill]
-Coaching Points: [2 precise, age-appropriate cues coaches should give]
-
-DRILL 3: [Drill Name] ([X] min)
-LTPD Focus: [specific competency this builds at this age phase]
-4-Corner: [Technical / Tactical / Physical / Social — pick primary]
-Setup: [pitch dimensions, cones, groups, equipment needed]
-Instructions: [clear numbered steps — how to run the drill]
-Coaching Points: [2 precise, age-appropriate cues coaches should give]
-
-DRILL 4: [Drill Name] ([X] min)
-LTPD Focus: [specific competency this builds at this age phase]
-4-Corner: [Technical / Tactical / Physical / Social — pick primary]
-Setup: [pitch dimensions, cones, groups, equipment needed]
-Instructions: [clear numbered steps — how to run the drill]
-Coaching Points: [2 precise, age-appropriate cues coaches should give]
-
-DRILL 5: [Drill Name] ([X] min) — Small-Sided Game
-LTPD Focus: [specific competency this builds at this age phase]
-4-Corner: [Technical / Tactical / Physical / Social — pick primary]
-Setup: [pitch dimensions, cones, groups, equipment needed — max 7v7]
-Instructions: [clear numbered steps — how to run the drill]
-Coaching Points: [2 precise, age-appropriate cues coaches should give]
-
-COACH REFLECTION: [One question the coach should ask the squad after the session to reinforce the learning]`;
+Generate exactly 5 drills, the 5th a small-sided game of max 7v7. For each: a name, its duration in minutes (summing to roughly ${durationMinutes} minutes across all 5), the specific LTPD competency it builds at this age phase, its primary 4-Corner focus (Technical / Tactical / Physical / Social), the setup (pitch dimensions, cones, groups, equipment needed), clear numbered-step instructions for how to run it, and 2 precise age-appropriate coaching points. Finish with one question the coach should ask the squad after the session to reinforce the learning.`;
 
     const response = await ai.models.generateContent({
       model: AI_MODEL,
       contents: prompt,
       config: {
-        maxOutputTokens: 1000,
+        maxOutputTokens: 1800,
         // Disable thinking: this is a direct-answer task, and unbudgeted
         // thinking tokens were silently eating the whole visible-output budget,
         // truncating the answer before the reader ever saw it end.
         thinkingConfig: { thinkingBudget: 0 },
         systemInstruction:
           "You are a UEFA Pro Licence and SAFA Level 4 Coaching Badge qualified youth development specialist. Your training sessions are grounded in FIFA's Long-Term Player Development (LTPD) framework, the 4-Corner Player Development Model (Technical, Tactical, Physical, Social/Psychological), SAFA's National Development Programme curriculum, and CAF youth development principles. You understand the South African grassroots football landscape and design sessions that are practical, player-centred, and aligned to international best practice. Plain text only — no asterisks, no Markdown formatting.",
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            drills: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  durationMinutes: { type: Type.NUMBER },
+                  ltpdFocus: { type: Type.STRING },
+                  fourCorner: { type: Type.STRING },
+                  setup: { type: Type.STRING },
+                  instructions: { type: Type.STRING },
+                  coachingPoints: { type: Type.STRING },
+                },
+                required: ["name", "durationMinutes", "ltpdFocus", "fourCorner", "setup", "instructions", "coachingPoints"],
+              },
+            },
+            coachReflection: { type: Type.STRING },
+          },
+          required: ["drills", "coachReflection"],
+        },
       },
     });
 
-    let text = response.text ?? "";
-    text = text.replace(/\*/g, "");
+    const parsed = parseJsonObject(response.text ?? "");
+    if (!parsed) return { error: "Could not read the AI's session plan. Try again." };
+    const structured = parsed as unknown as SessionPlanStructured;
+    const plan = renderSessionPlanProse(structured).replace(/\*/g, "");
 
-    return { plan: text };
+    return { plan, structured };
   } catch (err) {
     return { error: aiError(err) };
   }

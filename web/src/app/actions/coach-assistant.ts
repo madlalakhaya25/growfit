@@ -1,6 +1,6 @@
 "use server";
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
 import { buildSquadContext } from "./squad-context";
@@ -20,6 +20,94 @@ const COACH_SYSTEM =
 export interface CoachMessage {
   role: "user" | "model";
   text: string;
+}
+
+/**
+ * Parse a JSON-mode Gemini response into an object, the same way
+ * player-import.ts's extractPlayersFromPdf does: try a straight JSON.parse
+ * first, then fall back to the first `{...}` object in the text for when the
+ * model wraps its JSON in prose despite the schema. Returns null rather than
+ * throwing so callers can fall back to a plain error message.
+ */
+function parseJsonObject(raw: string): Record<string, unknown> | null {
+  const text = raw.trim();
+  if (!text) return null;
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    try {
+      return JSON.parse(match[0]) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  }
+}
+
+export interface LineupPick {
+  position: string;
+  name: string;
+  reason: string;
+}
+export interface MustGetMinutes {
+  name: string;
+  why: string;
+}
+export interface LineupStructured {
+  shape: string;
+  startingXI: LineupPick[];
+  bench: string[];
+  mustGetMinutes: MustGetMinutes[];
+  notes: string;
+}
+
+/**
+ * Renders the exact prose shape the old freeform prompt asked the model
+ * for, from the now-structured data, so every existing AiProse call site
+ * (coach-assistant-panel.tsx) keeps reading exactly as it did before this
+ * became structured — no second model call for the prose, just a template.
+ */
+function renderLineupProse(s: LineupStructured, fallbackFormation: string): string {
+  const lines: string[] = [];
+  lines.push(`SHAPE: ${s.shape || fallbackFormation}`);
+  lines.push("STARTING XI:");
+  for (const p of s.startingXI) lines.push(`${p.position} — ${p.name} — ${p.reason}`);
+  lines.push(`BENCH: ${s.bench.join(", ")}`);
+  lines.push(`MUST GET MINUTES: ${s.mustGetMinutes.map((m) => `${m.name} (${m.why})`).join("; ")}`);
+  lines.push(`SELECTION NOTES: ${s.notes}`);
+  return lines.join("\n");
+}
+
+export interface MatchPlanStructured {
+  planSummary: string;
+  shapeAndWhy: string;
+  inPossession: string[];
+  outOfPossession: string[];
+  setPieces: { attacking: string; defending: string };
+  keyPlayers: { name: string; job: string }[];
+  worries: string[];
+  teamTalk: string[];
+  rehearseAtTraining: string;
+}
+
+function renderMatchPlanProse(s: MatchPlanStructured): string {
+  const lines: string[] = [];
+  lines.push(`THE PLAN IN A SENTENCE: ${s.planSummary}`);
+  lines.push(`OUR SHAPE AND WHY: ${s.shapeAndWhy}`);
+  lines.push("IN POSSESSION:");
+  s.inPossession.forEach((item, i) => lines.push(`${i + 1}. ${item}`));
+  lines.push("OUT OF POSSESSION:");
+  s.outOfPossession.forEach((item, i) => lines.push(`${i + 1}. ${item}`));
+  lines.push(`SET PIECES: Attacking — ${s.setPieces.attacking} Defending — ${s.setPieces.defending}`);
+  lines.push("KEY PLAYERS:");
+  s.keyPlayers.forEach((p) => lines.push(`- ${p.name} — ${p.job}`));
+  lines.push("WHAT WORRIES ME:");
+  s.worries.forEach((w) => lines.push(`- ${w}`));
+  lines.push("TEAM TALK:");
+  s.teamTalk.forEach((t, i) => lines.push(`${i + 1}. ${t}`));
+  lines.push(`REHEARSE AT TRAINING: ${s.rehearseAtTraining}`);
+  return lines.join("\n");
 }
 
 /**
@@ -94,7 +182,7 @@ export async function suggestLineup(params: {
   teamId: string;
   fixtureId?: string;
   formation: string;
-}): Promise<{ lineup?: string; error?: string }> {
+}): Promise<{ lineup?: string; structured?: LineupStructured; error?: string }> {
   try {
     const { user } = await requireUser();
     // One AI call against this user's hourly budget. Counts attempts, not
@@ -117,23 +205,53 @@ Selection rules:
 - These are children at ${context.ageGroup}: everyone should get football, so name the bench and say who must get minutes.
 - If the squad is too small for the shape, say that plainly.
 
-Return plain text (no markdown, no asterisks) in exactly this structure:
-
-SHAPE: ${params.formation}
-STARTING XI:
-[one line per player: Position — Name — one short reason]
-BENCH: [names, comma separated]
-MUST GET MINUTES: [1-2 names who need game time, and why]
-SELECTION NOTES: [2 sentences on the balance of the side and any risk]`;
+Return the starting XI (one entry per outfield role in ${params.formation}), the bench, 1-2 players who must get minutes and why, and 2 sentences of selection notes on the balance of the side and any risk.`;
 
     const response = await ai.models.generateContent({
       model: AI_MODEL,
       contents: prompt,
-      config: { maxOutputTokens: 1000, thinkingConfig: { thinkingBudget: 0 }, systemInstruction: COACH_SYSTEM },
+      config: {
+        maxOutputTokens: 1200,
+        thinkingConfig: { thinkingBudget: 0 },
+        systemInstruction: COACH_SYSTEM,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            shape: { type: Type.STRING },
+            startingXI: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  position: { type: Type.STRING },
+                  name: { type: Type.STRING },
+                  reason: { type: Type.STRING },
+                },
+                required: ["position", "name", "reason"],
+              },
+            },
+            bench: { type: Type.ARRAY, items: { type: Type.STRING } },
+            mustGetMinutes: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: { name: { type: Type.STRING }, why: { type: Type.STRING } },
+                required: ["name", "why"],
+              },
+            },
+            notes: { type: Type.STRING },
+          },
+          required: ["shape", "startingXI", "bench", "mustGetMinutes", "notes"],
+        },
+      },
     });
 
-    const text = (response.text ?? "").replace(/\*/g, "");
-    return { lineup: text };
+    const parsed = parseJsonObject(response.text ?? "");
+    if (!parsed) return { error: "Could not read the AI's suggestion. Try again." };
+    const structured = parsed as unknown as LineupStructured;
+    const lineup = renderLineupProse(structured, params.formation).replace(/\*/g, "");
+    return { lineup, structured };
   } catch (err) {
     return { error: aiError(err) };
   }
@@ -143,7 +261,7 @@ SELECTION NOTES: [2 sentences on the balance of the side and any risk]`;
 export async function generateMatchPlan(params: {
   teamId: string;
   fixtureId: string;
-}): Promise<{ plan?: string; error?: string }> {
+}): Promise<{ plan?: string; structured?: MatchPlanStructured; error?: string }> {
   try {
     const { user } = await requireUser();
     // One AI call against this user's hourly budget. Counts attempts, not
@@ -158,28 +276,55 @@ export async function generateMatchPlan(params: {
 
 ${context.brief}
 
-Use the squad's real names and numbers. Never build the plan or KEY PLAYERS around a player flagged INJURED, UNAVAILABLE or listed under UNAVAILABLE in the brief. If we have played this opponent before, use what happened last time and say what to change. If we have never played them, say the plan is based on our own strengths and what to check in the warm-up.
+Use the squad's real names and numbers. Never build the plan or key players around a player flagged INJURED, UNAVAILABLE or listed under UNAVAILABLE in the brief. If we have played this opponent before, use what happened last time and say what to change. If we have never played them, say the plan is based on our own strengths and what to check in the warm-up.
 
-Return plain text (no markdown, no asterisks) in exactly this structure:
-
-THE PLAN IN A SENTENCE: [one sentence the squad could repeat]
-OUR SHAPE AND WHY: [2 sentences]
-IN POSSESSION: [3 numbered instructions]
-OUT OF POSSESSION: [3 numbered instructions]
-SET PIECES: [1 attacking and 1 defending instruction]
-KEY PLAYERS: [2 of our players by name and their job on the day]
-WHAT WORRIES ME: [2 risks, based on the data above]
-TEAM TALK: [3 short points to say before kick-off, in plain language a young player understands]
-REHEARSE AT TRAINING: [1 sentence on what to drill this week]`;
+Produce: one sentence the squad could repeat as the plan; 2 sentences on our shape and why; exactly 3 in-possession instructions; exactly 3 out-of-possession instructions; one attacking and one defending set-piece instruction; exactly 2 key players by name and their job on the day; exactly 2 risks based on the data above; exactly 3 short team-talk points in plain language a young player understands; and one sentence on what to rehearse at training this week.`;
 
     const response = await ai.models.generateContent({
       model: AI_MODEL,
       contents: prompt,
-      config: { maxOutputTokens: 1200, thinkingConfig: { thinkingBudget: 0 }, systemInstruction: COACH_SYSTEM },
+      config: {
+        maxOutputTokens: 1500,
+        thinkingConfig: { thinkingBudget: 0 },
+        systemInstruction: COACH_SYSTEM,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            planSummary: { type: Type.STRING },
+            shapeAndWhy: { type: Type.STRING },
+            inPossession: { type: Type.ARRAY, items: { type: Type.STRING } },
+            outOfPossession: { type: Type.ARRAY, items: { type: Type.STRING } },
+            setPieces: {
+              type: Type.OBJECT,
+              properties: { attacking: { type: Type.STRING }, defending: { type: Type.STRING } },
+              required: ["attacking", "defending"],
+            },
+            keyPlayers: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: { name: { type: Type.STRING }, job: { type: Type.STRING } },
+                required: ["name", "job"],
+              },
+            },
+            worries: { type: Type.ARRAY, items: { type: Type.STRING } },
+            teamTalk: { type: Type.ARRAY, items: { type: Type.STRING } },
+            rehearseAtTraining: { type: Type.STRING },
+          },
+          required: [
+            "planSummary", "shapeAndWhy", "inPossession", "outOfPossession",
+            "setPieces", "keyPlayers", "worries", "teamTalk", "rehearseAtTraining",
+          ],
+        },
+      },
     });
 
-    const text = (response.text ?? "").replace(/\*/g, "");
-    return { plan: text };
+    const parsed = parseJsonObject(response.text ?? "");
+    if (!parsed) return { error: "Could not read the AI's match plan. Try again." };
+    const structured = parsed as unknown as MatchPlanStructured;
+    const plan = renderMatchPlanProse(structured).replace(/\*/g, "");
+    return { plan, structured };
   } catch (err) {
     return { error: aiError(err) };
   }
