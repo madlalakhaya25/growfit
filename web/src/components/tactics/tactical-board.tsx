@@ -21,6 +21,7 @@ import { PitchLayer } from "@/components/tactics/pitch-layer";
 import { EquipmentLayer } from "@/components/tactics/equipment-layer";
 import { SavedPlaysPanel } from "@/components/tactics/saved-plays-panel";
 import { AnimationPanel } from "@/components/tactics/animation-panel";
+import { DraftRecoveryBanner } from "@/components/tactics/draft-recovery-banner";
 import { useBoardStore, type BoardState } from "@/store/boardStore";
 import { useBoardSetupStore } from "@/store/boardSetupStore";
 import { useSavedPlaysStore } from "@/store/savedPlaysStore";
@@ -47,8 +48,9 @@ type Mode = "move" | "run" | "pass" | "dribble" | "free" | "spotlight" | "erase"
 /** localStorage key prefix for the per-team unsaved-board draft. */
 const DRAFT_KEY_PREFIX = "growfit.tactics.draft.";
 
-/** An unsaved board, kept in localStorage so closing the tab doesn't lose it. */
-interface BoardDraft {
+/** An unsaved board, kept in localStorage so closing the tab doesn't lose it.
+ * Exported for draft-recovery-banner.tsx's own prop typing. */
+export interface BoardDraft {
   state: BoardState;
   frames: Frame[];
   pitchId: string;
@@ -1188,37 +1190,11 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           silently restoring over a coach who opened a blank board on
           purpose would be its own kind of data loss. */}
       {draftOffer && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/5 px-4 py-3">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold">You have an unsaved board</p>
-            <p className="text-xs text-muted-foreground">
-              {draftOffer.playName ? `"${draftOffer.playName}" — ` : ""}
-              last edited{" "}
-              {new Date(draftOffer.savedAt).toLocaleString("en-ZA", {
-                day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
-              })}
-              {draftOffer.frames?.length
-                ? ` · ${draftOffer.frames.length} step${draftOffer.frames.length === 1 ? "" : "s"}`
-                : ""}
-            </p>
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <button
-              type="button"
-              onClick={() => restoreDraft(draftOffer)}
-              className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground"
-            >
-              Restore it
-            </button>
-            <button
-              type="button"
-              onClick={() => { setDraftOffer(null); clearDraft(); }}
-              className="inline-flex h-9 items-center rounded-md border border-border bg-background px-3 text-xs hover:bg-muted"
-            >
-              Discard
-            </button>
-          </div>
-        </div>
+        <DraftRecoveryBanner
+          draft={draftOffer}
+          onRestore={() => restoreDraft(draftOffer)}
+          onDiscard={() => { setDraftOffer(null); clearDraft(); }}
+        />
       )}
 
       {/* Team + formations */}
