@@ -18,16 +18,21 @@ there, not just at the page level (`/offline` was missing from it for a
 while, which meant the PWA's own offline fallback page redirected to login
 instead of ever showing — silently defeating its purpose).
 
-## Migrations are checked in, not applied
+## Migrations auto-deploy from `main`, but not from a Claude Code session
 
 `supabase/migrations/*.sql` are sequentially numbered (`NNN_description.sql`)
-files kept in the repo for history and review — nothing in a Claude Code
-session applies them. There is no Supabase CLI, no project link, and no
-`supabase/config.toml` in this environment. After adding a migration, it
-still has to be run against the live Supabase project by hand (SQL editor,
-or `supabase db push` from a machine that has the CLI installed and linked)
-before the code that depends on it will actually work. Check the latest
-existing number before adding a new file.
+files. `.github/workflows/db-migrations.yml` runs `supabase db push` against
+the live project whenever a push to `main` touches `supabase/migrations/**`,
+using `SUPABASE_ACCESS_TOKEN` / `SUPABASE_DB_PASSWORD` / `SUPABASE_PROJECT_ID`
+repo secrets — see docs/MIGRATION_RUNBOOK.md. That replaces the old
+copy-paste-into-the-SQL-editor step for anything merged to `main`.
+
+It still doesn't run inside a Claude Code session: there is no Supabase CLI
+and no linked project in this environment, and a feature branch isn't `main`
+anyway. So a migration added here still needs a human to actually merge the
+PR before it takes effect — check the latest existing number before adding a
+new file, but don't expect `supabase db push` to do anything useful from
+inside this session itself.
 
 This has already bitten once in production: migration `013` (the 19 expanded
 player attributes) was never run, so saving a coach assessment failed with

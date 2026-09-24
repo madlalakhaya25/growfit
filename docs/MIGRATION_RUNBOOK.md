@@ -6,11 +6,24 @@
 why 041's verification is not held to the same standard as everything else
 on this page.
 
-Eleven migrations are checked in and **not applied to the live Supabase
-project**. Nothing in a Claude Code session can apply them: there is no
-Supabase CLI, no project link and no credentials in that environment. This
-document exists so the person who *can* apply them does not have to take it
-on faith.
+Eleven migrations are checked in and, as of this writing, **not applied to
+the live Supabase project**. Nothing in a Claude Code session can apply
+them: there is no Supabase CLI, no project link and no credentials in that
+environment. This document exists so the person who *can* apply them does
+not have to take it on faith.
+
+`.github/workflows/db-migrations.yml` now runs `supabase db push` against
+the live project automatically on every push to `main` that touches
+`supabase/migrations/**`, once three repo secrets are configured
+(`SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_ID` — see
+README.md's setup section). That doesn't retroactively apply anything by
+itself: the workflow only fires on a push that touches the migrations
+folder, so this backlog still needs one deliberate trigger — either a no-op
+push to `main` (e.g. `workflow_dispatch` from the Actions tab, which needs
+no file change) once the secrets exist, or a manual run via the methods
+below. After that first run, `db push` catches every future migration
+automatically and this runbook's manual-apply instructions become a
+fallback rather than the only path.
 
 **If a verification query below errors with `42P01: relation "..." does not
 exist`, that table's own migration hasn't run yet either** — this runbook
@@ -194,7 +207,16 @@ page, so it is expected, not proven, to be idempotent.
 
 ## How to apply
 
-Either route works. Take a backup first regardless.
+Any of these routes works. Take a backup first regardless.
+
+**GitHub Actions (now the default)** — once `SUPABASE_ACCESS_TOKEN`,
+`SUPABASE_DB_PASSWORD` and `SUPABASE_PROJECT_ID` are set as repo secrets,
+trigger `.github/workflows/db-migrations.yml` from the Actions tab
+(**Deploy Database Migrations > Run workflow**), or just push any change
+touching `supabase/migrations/**` to `main`. It runs `supabase db push`,
+which applies every migration the project hasn't seen yet, in order —
+`030` through `041` on a first run, and everything after automatically from
+then on.
 
 **Supabase SQL editor** — paste each file in numeric order, `030` through
 `041`, checking each succeeds before the next.
@@ -202,6 +224,7 @@ Either route works. Take a backup first regardless.
 **CLI**, from a machine with it installed and linked:
 
 ```bash
+supabase link --project-ref your-project-ref
 supabase db push
 ```
 

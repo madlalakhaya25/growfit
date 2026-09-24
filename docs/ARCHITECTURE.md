@@ -490,7 +490,9 @@ web/
 │       ├── player-card-pdf.ts      ← SAFA-style card PDF generation
 │       ├── offline-attendance-queue.ts ← IndexedDB queue for attendance writes made offline
 │       └── supabase/{client,server}.ts
-└── supabase/migrations/           ← 29 sequentially-numbered files, checked in but NOT auto-applied — see the gotcha below
+└── supabase/migrations/           ← sequentially-numbered files, auto-applied to `main` by
+                                      .github/workflows/db-migrations.yml once its repo secrets
+                                      are set — see the gotcha below and docs/MIGRATION_RUNBOOK.md
 ```
 
 ---
@@ -542,8 +544,10 @@ single-tenant pilot, has been deleted along with the rest of
   `auth_academy_id()`) hit `profiles` on every query. Migration
   `022_profiles_covering_index.sql` adds a covering index on
   `(id, role, academy_id)` so those lookups resolve from the index alone —
-  written but **not yet applied**; nothing in this repo's dev environment
-  runs migrations against the live project (see `web/CLAUDE.md`)
+  written and, once `.github/workflows/db-migrations.yml`'s repo secrets are
+  configured, auto-applied on merge to `main`; nothing in this repo's dev
+  environment (a Claude Code session) runs migrations against the live
+  project itself (see `web/CLAUDE.md`)
 - **Real-time**: used for two things now — `FixtureNotifier` (a new fixture
   notifies players) and `AnnouncementNotifier` (a new announcement notifies
   players and parents), both the same `postgres_changes` INSERT pattern,

@@ -152,10 +152,33 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
 ### 3. Apply the database schema
 
-Run each migration file in order via the Supabase SQL Editor:
+For a project wired up with the GitHub Action below, merging a migration to
+`main` applies it automatically — nothing to do by hand. Setting that up
+(once, per Supabase project) needs three repo secrets under **Settings >
+Secrets and variables > Actions**:
 
-Run every migration in `supabase/migrations/` in numerical order, from
-`001_schema.sql` through `029_shared_play_notes_privacy.sql`. Each one is
+| Secret | Where to find it |
+|---|---|
+| `SUPABASE_ACCESS_TOKEN` | supabase.com/dashboard/account/tokens |
+| `SUPABASE_DB_PASSWORD` | Project Settings > Database |
+| `SUPABASE_PROJECT_ID` | Project Settings > General (the project ref) |
+
+With those set, `.github/workflows/db-migrations.yml` runs `supabase db push`
+on every push to `main` that touches `supabase/migrations/**`, plus on
+demand from the Actions tab. See `docs/MIGRATION_RUNBOOK.md` for details and
+for what's currently pending.
+
+Without that set up (or for a brand-new project before its first PR), run
+each migration file in order via the Supabase SQL Editor, or from a machine
+with the Supabase CLI installed and linked:
+
+```bash
+supabase link --project-ref your-project-ref
+supabase db push
+```
+
+Either way, run every migration in `supabase/migrations/` in numerical
+order, from `001_schema.sql` through the highest-numbered file. Each one is
 idempotent, so re-running a migration is safe.
 
 The tactics features need `015`–`017` in particular: `015` creates saved
