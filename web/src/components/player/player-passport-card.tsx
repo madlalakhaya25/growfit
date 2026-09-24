@@ -1,7 +1,6 @@
-import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { RatingRing } from "@/components/ui/rating-ring";
-import { getInitials } from "@/lib/player";
+import { PlayerAvatar } from "@/components/ui/player-avatar";
 import { cn } from "@/lib/utils";
 
 /**
@@ -62,23 +61,7 @@ export function PlayerPassportCard({
   headerExtra?: React.ReactNode;
   children?: React.ReactNode;
 }) {
-  const photo = photoUrl ? (
-    <Image
-      src={photoUrl}
-      alt={fullName}
-      width={photoSize}
-      height={photoSize}
-      className="shrink-0 rounded-full object-cover"
-      style={{ width: photoSize, height: photoSize }}
-    />
-  ) : (
-    <span
-      className="grid shrink-0 place-items-center rounded-full bg-brand/20 font-bold text-primary"
-      style={{ width: photoSize, height: photoSize, fontSize: Math.max(12, photoSize * 0.28) }}
-    >
-      {getInitials(fullName)}
-    </span>
-  );
+  const photo = <PlayerAvatar name={fullName} photoUrl={photoUrl} size={photoSize} />;
 
   return (
     <Card className={cn("overflow-hidden", className)}>

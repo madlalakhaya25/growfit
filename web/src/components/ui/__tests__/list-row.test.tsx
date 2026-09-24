@@ -29,4 +29,20 @@ describe("ListRow", () => {
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
+
+  // Regression: a fixture row with a score plus two badges in `trailing`
+  // squeezed the title/subtitle column down to almost nothing on a phone
+  // (390px), truncating a venue name that had plenty of room to show in
+  // full. jsdom can't verify the actual wrap, but it can guard the two
+  // classes that make it possible from being quietly removed: flex-wrap
+  // on the row (so a full trailing column can drop to its own line) and a
+  // width floor on the title/subtitle column (so it cedes that line
+  // before shrinking toward zero).
+  it("keeps the classes that let a crowded trailing column wrap onto its own line", () => {
+    render(<ListRow title="vs Durban Rovers" trailing="2 – 1" href="#" />);
+    const row = screen.getByRole("link");
+    expect(row).toHaveClass("flex-wrap");
+    expect(row.querySelector(".min-w-32")).not.toBeNull();
+    expect(row.querySelector(".flex-wrap.justify-end")).not.toBeNull();
+  });
 });

@@ -7,7 +7,14 @@ interface PlayerAvatarProps {
   photoUrl?: string | null;
   /** Squad/shirt number, shown as a small badge on the avatar's corner. */
   jerseyNumber?: number | string | null;
-  size?: "sm" | "md" | "lg";
+  /**
+   * A named size (36/48/80px), or an exact pixel size for a caller that
+   * doesn't fit the three variants — e.g. PlayerPassportCard, which is
+   * shared across four surfaces (public passport, coach player detail,
+   * player dashboard, parent child page) each sizing its header photo a
+   * little differently. Prefer a named size where one fits.
+   */
+  size?: "sm" | "md" | "lg" | number;
   className?: string;
 }
 
@@ -35,14 +42,27 @@ function initials(name: string) {
  * them.
  */
 export function PlayerAvatar({ name, photoUrl, jerseyNumber, size = "md", className }: PlayerAvatarProps) {
-  const { box, text, badge, px } = SIZES[size];
+  const named = typeof size === "number" ? null : SIZES[size];
+  const px = named?.px ?? (size as number);
+  const boxClass = named?.box;
+  const boxStyle = named ? undefined : { width: px, height: px };
+  const textClass = named?.text ?? undefined;
+  const textStyle = named ? undefined : { fontSize: Math.max(11, px * 0.32) };
+  // Badge corner offset/size scale with the box for a custom pixel size,
+  // matching the proportions the three named sizes already use.
+  const badgeClass = named?.badge ?? "";
+  const badgeStyle = named
+    ? undefined
+    : { width: px * 0.28, height: px * 0.28, right: -px * 0.02, bottom: -px * 0.02, fontSize: Math.max(9, px * 0.16) };
+
   return (
-    <div className={cn("relative shrink-0", box, className)}>
+    <div className={cn("relative shrink-0", boxClass, className)} style={boxStyle}>
       <div
         className={cn(
           "shield-clip flex size-full items-center justify-center overflow-hidden bg-secondary text-secondary-foreground",
-          text
+          textClass
         )}
+        style={textStyle}
       >
         {photoUrl ? (
           <Image
@@ -60,8 +80,9 @@ export function PlayerAvatar({ name, photoUrl, jerseyNumber, size = "md", classN
         <span
           className={cn(
             "absolute flex items-center justify-center rounded-full bg-primary font-display font-bold text-primary-foreground ring-2 ring-background",
-            badge
+            badgeClass
           )}
+          style={badgeStyle}
           aria-hidden="true"
         >
           {jerseyNumber}
