@@ -7,15 +7,27 @@
  * Design tokens — Tailwind v4 single-source-of-truth.
  * @theme declares the default (light) values as CSS variables in :root.
  * .dark overrides those same variables for dark mode.
+ *
+ * "Matchday" palette — warm paper and ink instead of the cool zinc grey
+ * this started with, built around the academy's actual crest colours
+ * rather than a generic dashboard neutral. See docs/AI_FEATURES_AND_IA.md
+ * Part 4 for the reasoning.
  */
 @theme {
-  /* Surfaces */
-  --color-background:           #fbfbfb;
-  --color-foreground:           #0a0a0b;
+  /* Surfaces — warm paper, not cool zinc */
+  --color-background:           #faf7f2;
+  --color-foreground:           #191512;
   --color-card:                 #ffffff;
-  --color-card-foreground:      #0a0a0b;
+  --color-card-foreground:      #191512;
   --color-popover:              #ffffff;
-  --color-popover-foreground:   #0a0a0b;
+  --color-popover-foreground:   #191512;
+
+  /* Ink — the dark band colour for matchday heroes, the sidebar, and
+     anything that should read as "the pitch at night" rather than just
+     an inverted card. Distinct from --color-foreground so a dark band
+     doesn't move when text colour changes. */
+  --color-ink:                  #141414;
+  --color-ink-foreground:       #faf7f2;
 
   /* Brand — Growfit red.
      #A71817 is the academy's actual institutional colour, off its crest.
@@ -28,23 +40,24 @@
   --color-brand:                #a71817;
   --color-brand-foreground:     #ffffff;
 
-  /* Neutrals */
-  --color-secondary:            #f4f4f5;
-  --color-secondary-foreground: #18181b;
-  --color-muted:                #f4f4f5;
-  --color-muted-foreground:     #52525b;
+  /* Neutrals — warm stone, not cool zinc */
+  --color-secondary:            #f2ede4;
+  --color-secondary-foreground: #241f1a;
+  --color-muted:                #f2ede4;
+  --color-muted-foreground:     #6b6157;
   --color-accent:               #fcefee;
   --color-accent-foreground:    #6b1512;
 
-  /* Status */
+  /* Status — success/available is green, warning/at-risk is amber;
+     these two are semantically fixed and never repurposed elsewhere. */
   --color-success:              #16a34a;
   --color-warning:              #d97706;
   --color-destructive:          #dc2626;
   --color-destructive-foreground: #ffffff;
 
   /* Lines & focus */
-  --color-border:               #e4e4e7;
-  --color-input:                #e4e4e7;
+  --color-border:               #e7e0d4;
+  --color-input:                #e7e0d4;
   --color-ring:                 #a71817;
 
   /* Rating scale */
@@ -52,35 +65,45 @@
   --color-rating-mid:           #d97706;
   --color-rating-low:           #dc2626;
 
-  /* Radius */
-  --radius-sm: 0.5rem;
-  --radius-md: 0.625rem;
-  --radius-lg: 0.875rem;
-  --radius-xl: 1.125rem;
+  /* Radius — tighter than the original 0.5–1.125rem scale; a matchday
+     ticket or a scoreline reads more confident with a crisper corner. */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.875rem;
 
-  /* Fonts */
-  --font-sans: var(--font-geist-sans);
+  /* Fonts — Barlow Condensed for display (titles, scorelines, jersey
+     numbers, big stats), Barlow for body text. Both load via
+     next/font/google in layout.tsx; --font-mono is unused now that
+     numerals are tabular by default (see @layer base below) but kept
+     for any inline code in AI output. */
+  --font-sans: var(--font-barlow);
+  --font-display: var(--font-barlow-condensed);
   --font-mono: var(--font-geist-mono);
 }
 
 /* Dark-mode overrides — same variable names, different values */
 .dark {
-  --color-background:           #0a0a0b;
-  --color-foreground:           #fafafa;
-  --color-card:                 #141417;
-  --color-card-foreground:      #fafafa;
-  --color-popover:              #141417;
-  --color-popover-foreground:   #fafafa;
+  --color-background:           #14110e;
+  --color-foreground:           #f7f3ec;
+  --color-card:                 #1e1a16;
+  --color-card-foreground:      #f7f3ec;
+  --color-popover:              #1e1a16;
+  --color-popover-foreground:   #f7f3ec;
+
+  --color-ink:                  #0a0a0a;
+  --color-ink-foreground:       #f7f3ec;
 
   --color-primary:              #e24b49;
   --color-primary-foreground:   #ffffff;
   --color-brand:                #e24b49;
   --color-brand-foreground:     #ffffff;
 
-  --color-secondary:            #1f1f23;
-  --color-secondary-foreground: #fafafa;
-  --color-muted:                #1a1a1d;
-  --color-muted-foreground:     #a1a1aa;
+  --color-secondary:            #2a251f;
+  --color-secondary-foreground: #f7f3ec;
+  --color-muted:                #221e19;
+  --color-muted-foreground:     #b0a596;
+
   --color-accent:               #2a1110;
   --color-accent-foreground:    #f2a3a0;
 
@@ -89,8 +112,8 @@
   --color-destructive:          #f87171;
   --color-destructive-foreground: #0a0a0b;
 
-  --color-border:               #27272a;
-  --color-input:                #27272a;
+  --color-border:               #33291f;
+  --color-input:                #33291f;
   --color-ring:                 #e24b49;
 
   --color-rating-high:          #4ade80;
@@ -107,6 +130,7 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans), system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
     transition: background-color 0.25s ease, color 0.25s ease;
   }
 
@@ -130,5 +154,45 @@
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
+  }
+}
+
+@layer utilities {
+  /* Display type — page titles, scorelines, jersey numbers, big stat
+     numbers. Condensed weights read as "matchday poster", not "admin
+     dashboard". Use sparingly: body copy stays on --font-sans. */
+  .font-display {
+    font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  /* A faint pitch-line texture for hero bands only (the Today hero, the
+     matchday ticket header) — never on body surfaces, where it would
+     just read as noise behind text.
+     Deliberately named without a `bg-` prefix: tailwind-merge's cn()
+     helper treats any two `bg-*` classes as the same conflicting
+     "background-color" group and silently drops one of them, which
+     dropped `bg-ink` in FixtureTicket and left it fully transparent
+     (only visible by accident against the dark theme's own near-black
+     page background — see the render check in PR2 that caught this). */
+  .pitch-lines {
+    background-image:
+      repeating-linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--color-ink-foreground) 6%, transparent) 0px,
+        color-mix(in srgb, var(--color-ink-foreground) 6%, transparent) 1px,
+        transparent 1px,
+        transparent 64px
+      );
+  }
+
+  /* Shield clip-path for crests and player avatars — a rounded shield,
+     not a circle or a square, so a headshot or initials reads as "this
+     club's player" rather than a generic avatar. */
+  .shield-clip {
+    clip-path: polygon(
+      50% 0%, 100% 0%, 100% 55%, 50% 100%, 0% 55%, 0% 0%
+    );
   }
 }
