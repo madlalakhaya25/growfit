@@ -11,10 +11,13 @@ interface PlayerAvatarProps {
   className?: string;
 }
 
-const SIZES: Record<NonNullable<PlayerAvatarProps["size"]>, { box: string; text: string; badge: string }> = {
-  sm: { box: "size-9", text: "text-xs", badge: "text-[10px] -bottom-0.5 -right-0.5 size-4" },
-  md: { box: "size-12", text: "text-sm", badge: "text-[11px] -bottom-1 -right-1 size-5" },
-  lg: { box: "size-20", text: "text-xl", badge: "text-xs -bottom-1.5 -right-1.5 size-7" },
+// `px` matches each box size's actual rendered pixels (size-9/12/20 = 36/48/80px
+// in Tailwind's default spacing scale) so the fetched image is sized for what's
+// actually displayed, not a constant 80px regardless of variant.
+const SIZES: Record<NonNullable<PlayerAvatarProps["size"]>, { box: string; text: string; badge: string; px: number }> = {
+  sm: { box: "size-9", text: "text-xs", badge: "text-[10px] -bottom-0.5 -right-0.5 size-4", px: 36 },
+  md: { box: "size-12", text: "text-sm", badge: "text-[11px] -bottom-1 -right-1 size-5", px: 48 },
+  lg: { box: "size-20", text: "text-xl", badge: "text-xs -bottom-1.5 -right-1.5 size-7", px: 80 },
 };
 
 function initials(name: string) {
@@ -32,7 +35,7 @@ function initials(name: string) {
  * them.
  */
 export function PlayerAvatar({ name, photoUrl, jerseyNumber, size = "md", className }: PlayerAvatarProps) {
-  const { box, text, badge } = SIZES[size];
+  const { box, text, badge, px } = SIZES[size];
   return (
     <div className={cn("relative shrink-0", box, className)}>
       <div
@@ -45,8 +48,8 @@ export function PlayerAvatar({ name, photoUrl, jerseyNumber, size = "md", classN
           <Image
             src={photoUrl}
             alt={name}
-            width={80}
-            height={80}
+            width={px}
+            height={px}
             className="size-full object-cover"
           />
         ) : (

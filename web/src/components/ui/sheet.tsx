@@ -29,6 +29,21 @@ export function Sheet({ open, onClose, title, children, className }: SheetProps)
   const panelRef = React.useRef<HTMLDivElement>(null);
   const previouslyFocused = React.useRef<HTMLElement | null>(null);
 
+  // Every caller today opens with `useState(false)`, so this doesn't
+  // reproduce yet -- but `!open || typeof document === "undefined"` alone
+  // would still be a real hydration-mismatch trap for any future caller
+  // that opens on first render: the server has no `document` and renders
+  // null, the client's first render *does* have one and would render the
+  // portal immediately, and React flags the mismatch. Gating on `mounted`
+  // (flipped true only inside an effect, so it's false on both the
+  // server's render and the client's first render before hydration)
+  // makes the two always agree, regardless of what `open` starts as.
+  const [mounted, setMounted] = React.useState(false);
+  // Same documented pattern as theme-toggle.tsx: `document` genuinely
+  // isn't knowable during SSR, so this needs one real client-side pass.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  React.useEffect(() => setMounted(true), []);
+
   // Held in a ref rather than depended on directly below: every caller so
   // far passes an inline `onClose={() => setOpen(false)}`, a fresh
   // function on every render of *that caller* — a loading-state change in
@@ -80,7 +95,7 @@ export function Sheet({ open, onClose, title, children, className }: SheetProps)
     };
   }, [open]);
 
-  if (!open || typeof document === "undefined") return null;
+  if (!open || !mounted) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-stretch sm:justify-end">

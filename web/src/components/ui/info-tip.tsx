@@ -27,7 +27,7 @@ export function InfoTip({ children, className }: InfoTipProps) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        aria-controls={id}
+        aria-controls={open ? id : undefined}
         aria-describedby={open ? id : undefined}
         aria-label="More information"
         className="inline-flex size-4 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
