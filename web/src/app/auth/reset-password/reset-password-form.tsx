@@ -71,7 +71,7 @@ export function ResetPasswordForm() {
       <div className="flex min-h-dvh flex-col items-center justify-center px-4">
         <div className="w-full max-w-sm space-y-4 text-center">
           <Logo />
-          <h1 className="text-2xl font-bold tracking-tight">Invalid link</h1>
+          <h1 className="font-display text-2xl">Invalid link</h1>
           <p className="text-sm text-muted-foreground">
             Invalid or expired reset link. Request a new one.
           </p>
@@ -88,7 +88,7 @@ export function ResetPasswordForm() {
       <div className="flex min-h-dvh flex-col items-center justify-center px-4">
         <div className="w-full max-w-sm space-y-4 text-center">
           <Logo />
-          <h1 className="text-2xl font-bold tracking-tight">Link expired</h1>
+          <h1 className="font-display text-2xl">Link expired</h1>
           <p className="text-sm text-muted-foreground">{sessionError}</p>
           <Link href="/auth/forgot-password" className="text-sm font-medium text-primary underline-offset-4 hover:underline">
             Request a new reset link
@@ -111,7 +111,7 @@ export function ResetPasswordForm() {
       <div className="w-full max-w-sm space-y-8">
         <div className="flex flex-col items-center gap-3">
           <Logo />
-          <h1 className="text-2xl font-bold tracking-tight">Set new password</h1>
+          <h1 className="font-display text-2xl">Set new password</h1>
           <p className="text-center text-sm text-muted-foreground">
             Choose a strong password for your account.
           </p>

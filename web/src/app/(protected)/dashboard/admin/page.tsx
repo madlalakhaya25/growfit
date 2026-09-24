@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Shield, Calendar, Star, ChevronRight, UserPlus, Settings, BarChart2 } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatTile } from "@/components/ui/stat-tile";
+import { ListRow, ListRowGroup } from "@/components/ui/list-row";
+import { Users, Shield, Calendar, Star, UserPlus, Settings, BarChart2 } from "lucide-react";
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient();
@@ -42,53 +45,36 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Academy Overview</h1>
+      <PageHeader title="Academy Overview" />
 
-      {/* Stat cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map(({ label, value, Icon, href }) => {
-          const inner = (
-            <Card className={href ? "transition-colors hover:border-primary/40 cursor-pointer" : undefined}>
-              <CardHeader className="flex-row items-center gap-3 pb-2">
-                <span className="grid size-9 place-items-center rounded-lg bg-brand/15 text-primary shrink-0">
-                  <Icon className="size-4" aria-hidden="true" />
-                </span>
-                <CardTitle className="text-sm font-medium text-muted-foreground flex-1 leading-tight">{label}</CardTitle>
-                {href && <ChevronRight className="size-4 text-muted-foreground/40 shrink-0" aria-hidden="true" />}
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold tabular-nums">{value}</p>
-              </CardContent>
-            </Card>
-          );
-          return href ? (
+      {/* Stat tiles */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {stats.map(({ label, value, Icon, href }) =>
+          href ? (
             <Link key={label} href={href} className="block">
-              {inner}
+              <StatTile label={label} value={value} icon={Icon} className="transition-colors hover:border-primary/40" />
             </Link>
           ) : (
-            <div key={label}>{inner}</div>
-          );
-        })}
+            <StatTile key={label} label={label} value={value} icon={Icon} />
+          )
+        )}
       </div>
 
       {/* Quick actions */}
       <div>
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Quick actions</p>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {quickActions.map(({ label, href, Icon }) => (
-            <Link
-              key={label}
-              href={href}
-              className="group flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/40"
-            >
-              <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted transition-colors group-hover:bg-primary/10 group-hover:text-primary">
-                <Icon className="size-4" aria-hidden="true" />
-              </span>
-              <span className="flex-1">{label}</span>
-              <ChevronRight className="size-4 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-            </Link>
-          ))}
-        </div>
+        <Card>
+          <ListRowGroup className="px-4">
+            {quickActions.map(({ label, href, Icon }) => (
+              <ListRow
+                key={label}
+                leading={<Icon className="size-5 text-primary" aria-hidden="true" />}
+                title={label}
+                href={href}
+              />
+            ))}
+          </ListRowGroup>
+        </Card>
       </div>
     </div>
   );

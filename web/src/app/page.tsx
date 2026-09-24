@@ -205,7 +205,7 @@ export default function Home() {
             <Badge variant="brand" className="mb-4">
               #WeBuildChampions
             </Badge>
-            <h1 className="text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+            <h1 className="font-display text-4xl leading-tight sm:text-5xl lg:text-6xl">
               Football development, built for{" "}
               <span className="text-primary">South African academies.</span>
             </h1>
@@ -288,7 +288,7 @@ export default function Home() {
         {/* ── Roles ──────────────────────────────────────────── */}
         <section id="roles" className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
           <div className="mb-10">
-            <h2 className="text-3xl font-bold tracking-tight">One platform, every role</h2>
+            <h2 className="font-display text-3xl">One platform, every role</h2>
             <p className="mt-2 text-muted-foreground max-w-xl">
               Every person in the academy sees what matters to them, without the clutter.
             </p>
@@ -326,7 +326,7 @@ export default function Home() {
             <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
               <div>
                 <Badge variant="brand" className="mb-4">AI-Powered Development</Badge>
-                <h2 className="text-3xl font-bold tracking-tight">
+                <h2 className="font-display text-3xl">
                   Thirteen AI tools, each shaped by{" "}
                   <span className="text-primary">FIFA, SAFA and CAF standards.</span>
                 </h2>
@@ -365,7 +365,7 @@ export default function Home() {
         {/* ── Features ───────────────────────────────────────── */}
         <section id="features" className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
           <div className="mb-10">
-            <h2 className="text-3xl font-bold tracking-tight">Everything the academy needs</h2>
+            <h2 className="font-display text-3xl">Everything the academy needs</h2>
             <p className="mt-2 text-muted-foreground max-w-xl">
               From the first registration document to match day, Growfit FA handles
               the admin so coaches can focus on the football.
@@ -388,7 +388,7 @@ export default function Home() {
         <section className="border-t border-border bg-muted/40">
           <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-5 px-4 py-16 text-center sm:px-6">
             <Badge variant="brand">#WeBuildChampions</Badge>
-            <h2 className="text-3xl font-bold tracking-tight max-w-xl">
+            <h2 className="font-display text-3xl max-w-xl">
               Get your academy up and running today.
             </h2>
             <p className="text-muted-foreground max-w-md">

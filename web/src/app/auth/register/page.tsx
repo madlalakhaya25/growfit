@@ -158,7 +158,7 @@ export default function RegisterPage() {
       <div className="flex min-h-dvh flex-col items-center justify-center px-4">
         <div className="w-full max-w-sm space-y-4 text-center">
           <Logo />
-          <h1 className="text-2xl font-bold tracking-tight">Check your email</h1>
+          <h1 className="font-display text-2xl">Check your email</h1>
           <p className="text-sm text-muted-foreground">
             Check your email to confirm your account.
           </p>
@@ -180,7 +180,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-md space-y-8">
         <div className="flex flex-col items-center gap-3">
           <Logo />
-          <h1 className="text-2xl font-bold tracking-tight">Create your account</h1>
+          <h1 className="font-display text-2xl">Create your account</h1>
           <p className="text-center text-sm text-muted-foreground">
             Already have an account?{" "}
             <Link href="/auth/login" className="font-medium text-primary hover:underline underline-offset-4">
