@@ -169,7 +169,7 @@ export default function RolePage() {
         <div className="w-full max-w-2xl space-y-8">
           {/* Heading */}
           <div className="text-center space-y-2">
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">What&apos;s your role?</h1>
+            <h1 className="font-display text-2xl sm:text-3xl">What&apos;s your role?</h1>
             <p className="text-muted-foreground text-sm sm:text-base">
               Pick the role that fits you. Each one has its own dashboard and tools built around what you actually need.
             </p>

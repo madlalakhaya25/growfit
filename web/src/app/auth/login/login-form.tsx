@@ -111,7 +111,7 @@ export function LoginForm() {
         <div className="w-full max-w-sm space-y-8">
           <div className="flex flex-col items-center gap-3">
             <Logo />
-            <h1 className="text-2xl font-bold tracking-tight">Sign in</h1>
+            <h1 className="font-display text-2xl">Sign in</h1>
             <p className="text-center text-sm text-muted-foreground">
               Enter your email and password to sign in.
             </p>
