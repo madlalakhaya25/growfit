@@ -1,19 +1,31 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
+import { getProfile } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, Calendar, Plus, Dumbbell, ChevronRight } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { FixtureTicket } from "@/components/ui/fixture-ticket";
+import { ListRow, ListRowGroup } from "@/components/ui/list-row";
+import { Users, Calendar, Plus, Dumbbell, ClipboardList, HeartPulse, CheckCircle2 } from "lucide-react";
 import { CreateTeamForm } from "@/components/create-team-form";
 import { JoinTeamForm } from "@/components/join-team-form";
 import { CopyButton } from "@/components/copy-button";
 import { daysFromNow } from "@/lib/utils";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { getWelfareAlerts } from "@/app/actions/welfare";
-import { WelfareSummaryLink } from "@/components/welfare/welfare-summary-link";
+
+function greeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Morning";
+  if (hour < 17) return "Afternoon";
+  return "Evening";
+}
 
 export default async function CoachDashboardPage() {
   const { supabase, user } = await requireUser();
+  const profile = await getProfile();
+  const firstName = profile?.full_name?.trim().split(/\s+/)[0] ?? "Coach";
 
   const { data: teamRows } = await supabase
     .from("teams")
@@ -24,6 +36,7 @@ export default async function CoachDashboardPage() {
   const rawTeams = teamRows ?? [];
   const teamIds = rawTeams.map((t) => t.id);
   const now = new Date().toISOString();
+  const weekAgo = new Date(new Date(now).getTime() - 7 * 24 * 3600 * 1000).toISOString();
 
   // Batch queries instead of O(2n) per-team round-trips
   const [{ data: memberRows }, { data: upcomingRows }] = await Promise.all([
@@ -74,22 +87,53 @@ export default async function CoachDashboardPage() {
   const nextSession = nextSessions?.[0] ?? null;
   const multiTeam = allTeams.length > 1;
 
-  const welfareResult = teamIds.length ? await getWelfareAlerts() : { alerts: [] };
-  const welfareAlerts = "alerts" in welfareResult ? welfareResult.alerts : [];
+  // ── To-do: what actually needs the coach's attention today ─────────
+  // Deliberately scoped to counts + a link to the relevant list, not a
+  // deep link per item -- see docs/AI_FEATURES_AND_IA.md Part 4's Today
+  // redesign. Bounded windows (results: unbounded backwards, since any
+  // unlogged past fixture is worth flagging regardless of age; registers:
+  // trailing 7 days, since a register from a month ago is history, not a
+  // to-do) keep both queries cheap and the counts meaningful.
+  const [{ data: unloggedFixtures }, { data: recentSessions }, welfareResult] = await Promise.all([
+    teamIds.length
+      ? supabase.from("fixtures").select("id").in("team_id", teamIds).eq("status", "upcoming").lt("fixture_date", now)
+      : Promise.resolve({ data: [] }),
+    teamIds.length
+      ? supabase.from("training_sessions").select("id").in("team_id", teamIds).gte("session_date", weekAgo).lt("session_date", now)
+      : Promise.resolve({ data: [] }),
+    teamIds.length ? getWelfareAlerts() : Promise.resolve({ alerts: [] }),
+  ]);
+
+  const recentSessionIds = (recentSessions ?? []).map((s: { id: string }) => s.id);
+  let registersNotTaken = 0;
+  if (recentSessionIds.length) {
+    const { data: takenRows } = await supabase
+      .from("training_attendance")
+      .select("session_id")
+      .in("session_id", recentSessionIds);
+    const takenSet = new Set((takenRows ?? []).map((r: { session_id: string }) => r.session_id));
+    registersNotTaken = recentSessionIds.filter((id) => !takenSet.has(id)).length;
+  }
+
+  const resultsNotLogged = unloggedFixtures?.length ?? 0;
+  const welfareAlerts = "alerts" in welfareResult ? welfareResult.alerts.length : 0;
+  const hasTodos = resultsNotLogged > 0 || registersNotTaken > 0 || welfareAlerts > 0;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        {allTeams.length > 0 && (
-          <Button asChild>
-            <Link href="#create-team">
-              <Plus className="size-4" aria-hidden="true" />
-              New team
-            </Link>
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title={`${greeting()}, ${firstName}`}
+        action={
+          allTeams.length > 0 && (
+            <Button asChild size="sm" variant="outline">
+              <Link href="#create-team">
+                <Plus className="size-4" aria-hidden="true" />
+                New team
+              </Link>
+            </Button>
+          )
+        }
+      />
 
       {allTeams.length === 0 ? (
         <div className="space-y-4">
@@ -118,15 +162,6 @@ export default async function CoachDashboardPage() {
         </div>
       ) : (
         <div className="space-y-6">
-
-          {/* The full check-in list moved to /dashboard/coach/welfare.
-              A standing list of children needing a conversation sat above
-              "what's next" on every load, and an alert that is always there
-              stops being read — it only clears when attendance actually
-              recovers, so it can sit unchanged for weeks. This keeps the
-              signal one line and one tap from the dashboard. */}
-          <WelfareSummaryLink count={welfareAlerts.length} />
-
           {/* ── What's Next ───────────────────────────────────────── */}
           {!nextFixture && !nextSession && (
             <div className="rounded-xl border border-dashed border-border bg-card/50 px-5 py-6 space-y-3">
@@ -147,124 +182,118 @@ export default async function CoachDashboardPage() {
               </div>
             </div>
           )}
-          {(nextFixture || nextSession) && (
-            <section className="grid gap-3 sm:grid-cols-2">
-              {nextFixture && (() => {
-                const days = daysFromNow(nextFixture.fixture_date);
-                const date = new Date(nextFixture.fixture_date);
-                const teamName = multiTeam
-                  ? (Array.isArray(nextFixture.teams)
-                    ? nextFixture.teams[0]?.name
-                    : (nextFixture.teams as { name: string } | null)?.name)
-                  : null;
-                const daysLabel = days <= 0 ? "Today" : days === 1 ? "Tomorrow" : `In ${days} days`;
-                return (
-                  <Link href={`/dashboard/coach/fixtures/${nextFixture.id}`}>
-                    <div className="group flex h-full items-start gap-3 overflow-hidden rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40">
-                      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                        <Calendar className="size-5 text-primary" aria-hidden="true" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                          Next fixture · {daysLabel}
-                        </p>
-                        <p className="mt-1 font-semibold leading-snug">
-                          {nextFixture.is_home ? "vs" : "@"} {nextFixture.opponent}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {date.toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short" })}
-                          {" · "}
-                          {date.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}
-                          {teamName && ` · ${teamName}`}
-                        </p>
-                      </div>
-                      <ChevronRight className="mt-1 size-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
-                    </div>
-                  </Link>
-                );
-              })()}
+          {nextFixture && (() => {
+            const date = new Date(nextFixture.fixture_date);
+            const teamName = multiTeam
+              ? (Array.isArray(nextFixture.teams) ? nextFixture.teams[0]?.name : (nextFixture.teams as { name: string } | null)?.name)
+              : null;
+            return (
+              <FixtureTicket
+                href={`/dashboard/coach/fixtures/${nextFixture.id}`}
+                weekday={date.toLocaleDateString("en-ZA", { weekday: "short" })}
+                day={date.toLocaleDateString("en-ZA", { day: "numeric" })}
+                month={date.toLocaleDateString("en-ZA", { month: "short" })}
+                time={date.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}
+                opponent={nextFixture.opponent}
+                isHome={nextFixture.is_home}
+                teamName={teamName}
+              />
+            );
+          })()}
+          {!nextFixture && nextSession && (() => {
+            const days = daysFromNow(nextSession.session_date);
+            const date = new Date(nextSession.session_date);
+            const teamName = multiTeam
+              ? (Array.isArray(nextSession.teams) ? nextSession.teams[0]?.name : (nextSession.teams as { name: string } | null)?.name)
+              : null;
+            const daysLabel = days <= 0 ? "Today" : days === 1 ? "Tomorrow" : `In ${days} days`;
+            return (
+              <Link href={`/dashboard/coach/training/${nextSession.id}`}>
+                <div className="group flex h-full items-start gap-3 overflow-hidden rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                    <Dumbbell className="size-5 text-primary" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                      Next training · {daysLabel}
+                    </p>
+                    <p className="mt-1 font-semibold leading-snug">{nextSession.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {date.toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short" })}
+                      {" · "}
+                      {date.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}
+                      {nextSession.location && ` · ${nextSession.location}`}
+                      {teamName && ` · ${teamName}`}
+                    </p>
+                  </div>
+                </div>
+              </Link>
+            );
+          })()}
 
-              {nextSession && (() => {
-                const days = daysFromNow(nextSession.session_date);
-                const date = new Date(nextSession.session_date);
-                const teamName = multiTeam
-                  ? (Array.isArray(nextSession.teams)
-                    ? nextSession.teams[0]?.name
-                    : (nextSession.teams as { name: string } | null)?.name)
-                  : null;
-                const daysLabel = days <= 0 ? "Today" : days === 1 ? "Tomorrow" : `In ${days} days`;
-                return (
-                  <Link href={`/dashboard/coach/training/${nextSession.id}`}>
-                    <div className="group flex h-full items-start gap-3 overflow-hidden rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40">
-                      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                        <Dumbbell className="size-5 text-primary" aria-hidden="true" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                          Next training · {daysLabel}
-                        </p>
-                        <p className="mt-1 font-semibold leading-snug">{nextSession.title}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {date.toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short" })}
-                          {" · "}
-                          {date.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}
-                          {nextSession.location && ` · ${nextSession.location}`}
-                          {teamName && ` · ${teamName}`}
-                        </p>
-                      </div>
-                      <ChevronRight className="mt-1 size-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
-                    </div>
-                  </Link>
-                );
-              })()}
-            </section>
+          {/* ── To-do ─────────────────────────────────────────────── */}
+          {hasTodos ? (
+            <Card>
+              <ListRowGroup className="px-4">
+                {resultsNotLogged > 0 && (
+                  <ListRow
+                    leading={<ClipboardList className="size-5 text-primary" aria-hidden="true" />}
+                    title={`${resultsNotLogged} result${resultsNotLogged === 1 ? "" : "s"} still to log`}
+                    subtitle="Kickoff has passed"
+                    href="/dashboard/coach/fixtures"
+                  />
+                )}
+                {registersNotTaken > 0 && (
+                  <ListRow
+                    leading={<Dumbbell className="size-5 text-primary" aria-hidden="true" />}
+                    title={`${registersNotTaken} register${registersNotTaken === 1 ? "" : "s"} not taken`}
+                    subtitle="From the past week"
+                    href="/dashboard/coach/training"
+                  />
+                )}
+                {welfareAlerts > 0 && (
+                  <ListRow
+                    leading={<HeartPulse className="size-5 text-primary" aria-hidden="true" />}
+                    title={`${welfareAlerts} welfare check-in${welfareAlerts === 1 ? "" : "s"} needed`}
+                    subtitle="Below the 75% attendance threshold"
+                    href="/dashboard/coach/welfare"
+                  />
+                )}
+              </ListRowGroup>
+            </Card>
+          ) : (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CheckCircle2 className="size-4 text-success" aria-hidden="true" />
+              All caught up — nothing needs you right now.
+            </p>
           )}
 
           {/* ── Teams ─────────────────────────────────────────────── */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {allTeams.map((team) => (
-              <Card key={team.id} className="flex flex-col overflow-hidden">
-                <div className="h-1 bg-primary" />
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-lg leading-tight">{team.name}</CardTitle>
-                    {team.age_group && (
-                      <Badge variant="brand" className="shrink-0 text-xs">
-                        {team.age_group}
-                      </Badge>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="flex flex-1 flex-col gap-4">
-                  <div className="flex flex-wrap gap-2">
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs font-medium">
-                      <Users className="size-3 text-muted-foreground" aria-hidden="true" />
-                      {team.squadCount} players
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs font-medium">
-                      <Calendar className="size-3 text-muted-foreground" aria-hidden="true" />
-                      {team.upcomingCount} upcoming
-                    </span>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Player invite code</p>
-                    <CopyButton text={team.invite_code} />
-                  </div>
-                  <div className="mt-auto grid grid-cols-3 gap-2">
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={`/dashboard/coach/squad?team=${team.id}`}>Squad</Link>
-                    </Button>
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={`/dashboard/coach/fixtures?team=${team.id}`}>Fixtures</Link>
-                    </Button>
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={`/dashboard/coach/training?team=${team.id}`}>Training</Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <Card>
+            <ListRowGroup className="px-4">
+              {allTeams.map((team) => (
+                <ListRow
+                  key={team.id}
+                  leading={<Users className="size-5 text-primary" aria-hidden="true" />}
+                  title={team.name}
+                  subtitle={`${team.squadCount} players · ${team.upcomingCount} upcoming`}
+                  trailing={
+                    team.age_group ? <Badge variant="brand" className="text-xs">{team.age_group}</Badge> : undefined
+                  }
+                  href={`/dashboard/coach/squad?team=${team.id}`}
+                />
+              ))}
+            </ListRowGroup>
+          </Card>
+
+          {allTeams.map((team) => (
+            <details key={team.id} className="text-xs text-muted-foreground">
+              <summary className="cursor-pointer select-none">{team.name} invite code</summary>
+              <div className="mt-2">
+                <CopyButton text={team.invite_code} />
+              </div>
+            </details>
+          ))}
 
           <Card id="create-team">
             <CardHeader>

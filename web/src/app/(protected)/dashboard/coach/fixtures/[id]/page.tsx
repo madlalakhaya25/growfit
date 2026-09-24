@@ -5,9 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 import { getTrainingAttendanceSummaries } from "@/lib/training-attendance";
 import type { AttendanceSummary } from "@/lib/attendance";
 import { isMissingAttributeColumn } from "@/lib/attributes";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ListRow, ListRowGroup } from "@/components/ui/list-row";
+import { PlayerAvatar } from "@/components/ui/player-avatar";
 import { CancelFixtureButton } from "./cancel-fixture-button";
 import { EditFixtureButton } from "./edit-fixture-button";
 import { LogResultForm } from "./log/log-result-form";
@@ -16,7 +18,6 @@ import { MediaGallery } from "@/components/media/media-gallery";
 import { MatchAttendanceForm } from "@/components/attendance/match-attendance-form";
 import { MatchReportPanel } from "@/components/ai/match-report-panel";
 import { fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
-import { getInitials } from "@/lib/player";
 
 export default async function FixtureDetailPage({
   params,
@@ -157,18 +158,27 @@ export default async function FixtureDetailPage({
         </Button>
       </div>
 
-      {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">
-            {fixture.is_home ? "vs" : "@"} {fixture.opponent}
-          </h1>
-          <p className="text-muted-foreground">
-            {date.toLocaleDateString("en-ZA", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-            {fixture.venue && ` · ${fixture.venue}`}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+      {/* Matchday header — an ink band with the scoreline (or "vs" for an
+          upcoming fixture), replacing the plain h1/badge row. */}
+      <div className="rounded-lg bg-ink px-5 py-6 text-ink-foreground pitch-lines">
+        <p className="text-center text-xs font-medium uppercase tracking-wide text-white/60">
+          {date.toLocaleDateString("en-ZA", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          {fixture.venue && ` · ${fixture.venue}`}
+        </p>
+        <p className="mt-2 flex items-center justify-center gap-3 font-display text-2xl sm:text-3xl">
+          <span>Growfit</span>
+          {result ? (
+            <span className="tabular-nums" aria-label={`${result.team_score} to ${result.opponent_score}`}>
+              {result.team_score}
+              <span className="mx-1.5 text-white/50">–</span>
+              {result.opponent_score}
+            </span>
+          ) : (
+            <span className="text-base font-sans font-medium text-white/70">{fixture.is_home ? "vs" : "@"}</span>
+          )}
+          <span>{fixture.opponent}</span>
+        </p>
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
           <Badge variant={fixtureStatusVariant(fixture)} className="capitalize">
             {fixtureStatusLabel(fixture)}
           </Badge>
@@ -222,67 +232,50 @@ export default async function FixtureDetailPage({
         </section>
       )}
 
-      {/* Result */}
-      {result && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Result</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-center gap-6">
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-                  {fixture.is_home ? "Us" : fixture.opponent}
-                </p>
-                <p className="text-5xl font-black tabular-nums">{fixture.is_home ? result.team_score : result.opponent_score}</p>
-              </div>
-              <span className="text-2xl text-muted-foreground font-light">—</span>
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-                  {fixture.is_home ? fixture.opponent : "Us"}
-                </p>
-                <p className="text-5xl font-black tabular-nums">{fixture.is_home ? result.opponent_score : result.team_score}</p>
-              </div>
-            </div>
-            {result.match_notes && (
-              <p className="mt-4 text-center text-sm text-muted-foreground">{result.match_notes}</p>
-            )}
-          </CardContent>
-        </Card>
+      {result?.match_notes && (
+        <p className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-center text-sm text-muted-foreground">
+          {result.match_notes}
+        </p>
       )}
 
       {/* Appearances + Ratings */}
       {appearances.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-lg font-semibold">Squad appearances</h2>
-          <div className="divide-y divide-border rounded-xl border border-border">
-            {appearances.map((a, i) => {
-              const player = Array.isArray(a.players) ? a.players[0] : a.players;
-              if (!player) return null;
-              const rating = ratingsMap.get(player.id);
-              const initials = getInitials(player.full_name);
-              return (
-                <div key={i} className="flex items-center gap-3 px-4 py-3">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-brand/15 text-xs font-bold text-primary">
-                    {initials}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{player.full_name}</p>
-                  </div>
-                  {rating && (
-                    <div className="flex shrink-0 gap-0.5">
-                      {[1,2,3,4,5].map((n) => (
-                        <Star key={n} className={`size-3.5 ${n <= rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`} aria-hidden="true" />
-                      ))}
-                    </div>
-                  )}
-                  <Badge variant={a.played ? "success" : "neutral"} className="shrink-0">
-                    {a.played ? "Played" : "Absent"}
-                  </Badge>
-                </div>
-              );
-            })}
-          </div>
+          <Card>
+            <ListRowGroup className="px-4">
+              {appearances.map((a, i) => {
+                const player = Array.isArray(a.players) ? a.players[0] : a.players;
+                if (!player) return null;
+                const rating = ratingsMap.get(player.id);
+                return (
+                  <ListRow
+                    key={i}
+                    leading={<PlayerAvatar name={player.full_name} photoUrl={player.photo_url} size="sm" />}
+                    title={player.full_name}
+                    trailing={
+                      <div className="flex items-center gap-2">
+                        {rating && (
+                          <div className="flex shrink-0 gap-0.5">
+                            {[1, 2, 3, 4, 5].map((n) => (
+                              <Star
+                                key={n}
+                                className={`size-3.5 ${n <= rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`}
+                                aria-hidden="true"
+                              />
+                            ))}
+                          </div>
+                        )}
+                        <Badge variant={a.played ? "success" : "neutral"} className="shrink-0">
+                          {a.played ? "Played" : "Absent"}
+                        </Badge>
+                      </div>
+                    }
+                  />
+                );
+              })}
+            </ListRowGroup>
+          </Card>
         </div>
       )}
 
