@@ -29,6 +29,19 @@ export function Sheet({ open, onClose, title, children, className }: SheetProps)
   const panelRef = React.useRef<HTMLDivElement>(null);
   const previouslyFocused = React.useRef<HTMLElement | null>(null);
 
+  // Held in a ref rather than depended on directly below: every caller so
+  // far passes an inline `onClose={() => setOpen(false)}`, a fresh
+  // function on every render of *that caller* — a loading-state change in
+  // ask-growfit-sheet.tsx while the sheet is open is a real, live case of
+  // this. Depending on `onClose` in the effect re-ran its cleanup and
+  // setup on that re-render alone, stealing focus back to the panel (and
+  // overwriting `previouslyFocused`) away from whatever the user was
+  // doing inside the open sheet, e.g. typing.
+  const onCloseRef = React.useRef(onClose);
+  React.useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   React.useEffect(() => {
     if (!open) return;
 
@@ -37,7 +50,7 @@ export function Sheet({ open, onClose, title, children, className }: SheetProps)
 
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== "Tab" || !panelRef.current) return;
@@ -65,7 +78,7 @@ export function Sheet({ open, onClose, title, children, className }: SheetProps)
       document.body.style.overflow = originalOverflow;
       previouslyFocused.current?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open || typeof document === "undefined") return null;
 
