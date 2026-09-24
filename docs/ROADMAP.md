@@ -237,6 +237,11 @@ correctness items at the top of "Near term" are graded **Breaks the job** or
 **Costs real time** in the source audit — everything past them is a genuine
 improvement, not a gap.
 
+> **A market scan of AI football products, sixteen proposed AI features, and
+> a navigation/design rebuild live in
+> [`AI_FEATURES_AND_IA.md`](./AI_FEATURES_AND_IA.md).** It also refines one
+> of this document's non-goals below — see that document's Part 3 for why.
+
 ### Near term (weeks, not sprints — these are small)
 
 - ~~**Enforce photo consent before display.**~~ **Done**, scoped to the
@@ -376,6 +381,10 @@ Unchanged, still deliberate:
 - **Social network features** — likes, comments, follower graphs
 - **Gamification** — points, leaderboards, streaks, unless clearly validated
   with users
-- **Video hosting/transcoding** — link out, don't host
-- **Custom AI/ML** (e.g. automated attribute scoring from video) — out of
-  scope for the current team size
+- **Video hosting/transcoding** — link out, don't host. Ephemeral,
+  delete-after-analysis clip review via the existing AI provider is not
+  hosting and is in scope — see `AI_FEATURES_AND_IA.md` Part 3 for the
+  consent and deletion rules that gate it.
+- **Custom AI/ML** (e.g. automated attribute scoring from video, or face
+  recognition) — still out of scope. A general-purpose model reading a
+  short clip and returning a coaching note is not custom ML in this sense.
