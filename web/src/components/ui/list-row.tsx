@@ -49,8 +49,10 @@ export function ListRow({ leading, title, subtitle, trailing, href, onClick, cla
   );
 
   if (href) {
+    // onClick alongside href is deliberate — e.g. closing a Sheet the row
+    // lives in at the same time the Link navigates (quick-actions-sheet.tsx).
     return (
-      <Link href={href} className={rowClass}>
+      <Link href={href} onClick={onClick} className={rowClass}>
         {content}
       </Link>
     );

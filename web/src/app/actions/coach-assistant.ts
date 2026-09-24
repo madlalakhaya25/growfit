@@ -5,6 +5,18 @@ import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
 import { buildSquadContext } from "./squad-context";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
+import { getAssistantContext, type AssistantContext } from "@/lib/assistant-context";
+
+/**
+ * Lazily fetches the same teams/roster/fixtures brief the dedicated
+ * assistant page loads server-side, for the "Ask Growfit" header sheet
+ * (`ask-growfit-sheet.tsx`) — called only once the coach actually opens
+ * it, rather than on every page's initial render.
+ */
+export async function getAssistantContextAction(): Promise<AssistantContext> {
+  const { supabase, user } = await requireUser();
+  return getAssistantContext(supabase, user.id);
+}
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
