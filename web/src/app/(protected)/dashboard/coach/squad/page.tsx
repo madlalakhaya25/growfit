@@ -1,16 +1,16 @@
 import Link from "next/link";
-import Image from "next/image";
 import { redirect } from "next/navigation";
 import { Upload, Plus, ShieldAlert } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { PlayerAvatar } from "@/components/ui/player-avatar";
 import { RemovePlayerButton } from "./remove-player-button";
 import { CopyInviteLinkButton } from "@/components/copy-invite-link-button";
 import { POSITIONS } from "@/lib/types";
-import { calculateAge, getInitials } from "@/lib/player";
-import { cn } from "@/lib/utils";
+import { calculateAge } from "@/lib/player";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import {
   ALL_ATTR_SELECT, CORE_ATTR_SELECT,
@@ -266,55 +266,41 @@ export default async function SquadPage({
 
   return (
     <div className="space-y-6">
-      {allTeams.length > 1 && (
-        <div className="flex flex-wrap gap-2">
-          {allTeams.map((t) => (
-            <Link
-              key={t.id}
-              href={`/dashboard/coach/squad?team=${t.id}`}
-              className={cn(
-                "rounded-full px-3 py-1 text-sm font-medium border transition-colors",
-                t.id === team.id
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "border-border text-muted-foreground hover:border-primary/50"
-              )}
-            >
-              {t.name} {t.age_group && `· ${t.age_group}`}
-            </Link>
-          ))}
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Squad</h1>
-          <p className="text-sm text-muted-foreground">
+      {/* Which team is being shown when a coach has more than one is now
+          the header's TeamSwitcher (dashboard-shell.tsx) — this used to
+          duplicate that as its own pill row. */}
+      <PageHeader
+        title="Squad"
+        description={
+          <>
             {team.name}{team.age_group && ` · ${team.age_group}`}
             {!membersError && ` · ${squad.length} ${squad.length === 1 ? "player" : "players"}`}
-          </p>
-        </div>
-        <div className="flex gap-2 shrink-0">
-          <CopyInviteLinkButton inviteCode={team.invite_code} />
-          <Button asChild variant="outline" className="shrink-0">
-            <Link href={`/dashboard/coach/squad/emergency?team=${team.id}`}>
-              <ShieldAlert className="size-4" aria-hidden="true" />
-              Emergency contacts
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="shrink-0">
-            <Link href={`/dashboard/coach/squad/import?team=${team.id}`}>
-              <Upload className="size-4" aria-hidden="true" />
-              Import
-            </Link>
-          </Button>
-          <Button asChild className="shrink-0">
-            <Link href={`/dashboard/coach/squad/add?team=${team.id}`}>
-              <Plus className="size-4" aria-hidden="true" />
-              Add player
-            </Link>
-          </Button>
-        </div>
-      </div>
+          </>
+        }
+        action={
+          <div className="flex flex-wrap gap-2">
+            <CopyInviteLinkButton inviteCode={team.invite_code} />
+            <Button asChild size="sm" variant="outline" className="shrink-0">
+              <Link href={`/dashboard/coach/squad/emergency?team=${team.id}`}>
+                <ShieldAlert className="size-4" aria-hidden="true" />
+                Emergency contacts
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="outline" className="shrink-0">
+              <Link href={`/dashboard/coach/squad/import?team=${team.id}`}>
+                <Upload className="size-4" aria-hidden="true" />
+                Import
+              </Link>
+            </Button>
+            <Button asChild size="sm" className="shrink-0">
+              <Link href={`/dashboard/coach/squad/add?team=${team.id}`}>
+                <Plus className="size-4" aria-hidden="true" />
+                Add player
+              </Link>
+            </Button>
+          </div>
+        }
+      />
 
       {!membersError && squad.length > 0 && (
         <SquadFilters initialQuery={rawQuery} active={filter} counts={counts} />
@@ -374,7 +360,6 @@ export default async function SquadPage({
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {byPosition[pos].map((player) => {
                     if (!player) return null;
-                    const initials = getInitials(player.full_name);
                     return (
                       <div
                         key={player.id}
@@ -382,19 +367,7 @@ export default async function SquadPage({
                       >
                         {/* Avatar */}
                         <Link href={`/dashboard/coach/squad/${player.id}?team=${team.id}`} className="flex-shrink-0">
-                          {player.photo_url ? (
-                            <Image
-                              src={player.photo_url}
-                              alt={player.full_name}
-                              width={48}
-                              height={48}
-                              className="size-12 rounded-full object-cover"
-                            />
-                          ) : (
-                            <span className="grid size-12 place-items-center rounded-full bg-brand/20 text-sm font-bold text-primary">
-                              {initials}
-                            </span>
-                          )}
+                          <PlayerAvatar name={player.full_name} photoUrl={player.photo_url} size="md" />
                         </Link>
 
                         {/* Info.

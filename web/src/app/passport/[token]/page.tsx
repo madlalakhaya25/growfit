@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/ca
 import { Badge } from "@/components/ui/badge";
 import { PlayerPassportCard } from "@/components/player/player-passport-card";
 import { AttributeSummary } from "@/components/player/attribute-summary";
+import { ListRow, ListRowGroup } from "@/components/ui/list-row";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { POSITIONS, FEET } from "@/lib/types";
@@ -274,33 +275,33 @@ export default async function PublicPassportPage({
                   </CardHeader>
                 </Card>
               ) : (
-                <div className="divide-y divide-border rounded-xl border border-border">
-                  {[...ratings]
-                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                    .map((r, i) => (
-                      <div key={i} className="flex items-start gap-4 px-4 py-3">
-                        <div className="flex shrink-0 gap-0.5 pt-0.5">
-                          {[1,2,3,4,5].map((n) => (
-                            <Star
-                              key={n}
-                              className={`size-4 ${n <= r.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`}
-                              aria-hidden="true"
-                            />
-                          ))}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          {r.opponent && <p className="font-medium text-sm">vs {r.opponent}</p>}
-                          {!r.opponent && <p className="font-medium text-sm text-muted-foreground">Standalone assessment</p>}
-                          {r.note && <p className="text-sm text-muted-foreground mt-0.5">&ldquo;{r.note}&rdquo;</p>}
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {new Date(r.created_at).toLocaleDateString("en-ZA", {
-                              day: "numeric", month: "short", year: "numeric",
-                            })}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                </div>
+                <Card>
+                  <ListRowGroup className="px-4">
+                    {[...ratings]
+                      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                      .map((r, i) => (
+                        <ListRow
+                          key={i}
+                          leading={
+                            <div className="flex shrink-0 gap-0.5">
+                              {[1, 2, 3, 4, 5].map((n) => (
+                                <Star
+                                  key={n}
+                                  className={`size-4 ${n <= r.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`}
+                                  aria-hidden="true"
+                                />
+                              ))}
+                            </div>
+                          }
+                          title={r.opponent ? `vs ${r.opponent}` : "Standalone assessment"}
+                          subtitle={r.note ? `“${r.note}”` : undefined}
+                          trailing={new Date(r.created_at).toLocaleDateString("en-ZA", {
+                            day: "numeric", month: "short",
+                          })}
+                        />
+                      ))}
+                  </ListRowGroup>
+                </Card>
               )}
             </div>
           </div>

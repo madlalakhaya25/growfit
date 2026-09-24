@@ -4,6 +4,7 @@ import { ArrowLeft, ChevronRight, Star, FileText } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ListRow, ListRowGroup } from "@/components/ui/list-row";
 import { POSITIONS, FEET } from "@/lib/types";
 import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
 import { calculateAge } from "@/lib/player";
@@ -147,21 +148,22 @@ export default async function ChildDetailPage({
     const attendanceStatus = matchAttendanceMap.get(f.id);
     const teamInfo = teamMap.get(f.team_id) as { name: string; age_group: string | null } | null | undefined;
     return (
-      <div className="px-4 py-3 space-y-1">
-        <div className="flex items-center justify-between">
-          <div className="min-w-0">
-            <p className="font-medium">{f.is_home ? "vs" : "@"} {f.opponent}</p>
-            <p className="text-xs text-muted-foreground">
-              {date.toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short" })}
-              {f.venue && ` · ${f.venue}`}
-            </p>
-            {teamIds.length > 1 && teamInfo && (
-              <span className="text-xs text-muted-foreground">{teamInfo.name}</span>
+      <ListRow
+        title={`${f.is_home ? "vs" : "@"} ${f.opponent}`}
+        subtitle={
+          <>
+            {date.toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short" })}
+            {f.venue && ` · ${f.venue}`}
+            {teamIds.length > 1 && teamInfo && ` · ${teamInfo.name}`}
+            {f.status === "cancelled" && f.cancellation_reason && (
+              <span className="text-destructive"> · Cancelled: {f.cancellation_reason}</span>
             )}
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
+          </>
+        }
+        trailing={
+          <div className="flex items-center gap-2">
             {result && (
-              <span className="font-bold tabular-nums text-sm">
+              <span className="font-bold tabular-nums text-sm text-foreground">
                 {f.is_home ? result.team_score : result.opponent_score}
                 {" – "}
                 {f.is_home ? result.opponent_score : result.team_score}
@@ -176,15 +178,19 @@ export default async function ChildDetailPage({
                 {appearance.played ? "Played" : "Absent"}
               </Badge>
             ) : null}
-            <Badge variant={fixtureStatusVariant(f)} className="capitalize">
-              {fixtureStatusLabel(f)}
-            </Badge>
+            {/* A logged score already says "completed" — the status badge
+                only earns its place for the cases a score doesn't cover
+                (upcoming, cancelled, postponed, or completed with no
+                score logged yet). Showing "Completed" next to a 2–1 was
+                the third badge crowding this row on a phone. */}
+            {!result && (
+              <Badge variant={fixtureStatusVariant(f)} className="capitalize">
+                {fixtureStatusLabel(f)}
+              </Badge>
+            )}
           </div>
-        </div>
-        {f.status === "cancelled" && f.cancellation_reason && (
-          <p className="text-xs text-destructive">Cancelled: {f.cancellation_reason}</p>
-        )}
-      </div>
+        }
+      />
     );
   }
 
@@ -291,41 +297,37 @@ export default async function ChildDetailPage({
                 </CardHeader>
               </Card>
             ) : (
-              <div className="divide-y divide-border rounded-xl border border-border">
-                {[...ratings]
-                  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                  .map((r) => {
-                    const fixture = Array.isArray(r.fixtures) ? r.fixtures[0] : r.fixtures;
-                    return (
-                      <div key={r.id} className="flex items-start gap-4 px-4 py-3">
-                        <div className="flex shrink-0 gap-0.5 pt-0.5">
-                          {[1, 2, 3, 4, 5].map((n) => (
-                            <Star
-                              key={n}
-                              className={`size-4 ${n <= r.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`}
-                              aria-hidden="true"
-                            />
-                          ))}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium text-sm">
-                            {fixture ? `vs ${fixture.opponent}` : "Standalone assessment"}
-                          </p>
-                          {r.note && (
-                            <p className="text-sm text-muted-foreground mt-0.5">&ldquo;{r.note}&rdquo;</p>
-                          )}
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {new Date(r.created_at).toLocaleDateString("en-ZA", {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            })}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
+              <Card>
+                <ListRowGroup className="px-4">
+                  {[...ratings]
+                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                    .map((r) => {
+                      const fixture = Array.isArray(r.fixtures) ? r.fixtures[0] : r.fixtures;
+                      return (
+                        <ListRow
+                          key={r.id}
+                          leading={
+                            <div className="flex shrink-0 gap-0.5">
+                              {[1, 2, 3, 4, 5].map((n) => (
+                                <Star
+                                  key={n}
+                                  className={`size-4 ${n <= r.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`}
+                                  aria-hidden="true"
+                                />
+                              ))}
+                            </div>
+                          }
+                          title={fixture ? `vs ${fixture.opponent}` : "Standalone assessment"}
+                          subtitle={r.note ? `“${r.note}”` : undefined}
+                          trailing={new Date(r.created_at).toLocaleDateString("en-ZA", {
+                            day: "numeric",
+                            month: "short",
+                          })}
+                        />
+                      );
+                    })}
+                </ListRowGroup>
+              </Card>
             )}
           </section>
 
@@ -353,9 +355,11 @@ export default async function ChildDetailPage({
                     <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                       Upcoming
                     </p>
-                    <div className="divide-y divide-border rounded-xl border border-border">
-                      {upcoming.map((f) => <FixtureRow key={f.id} f={f} />)}
-                    </div>
+                    <Card>
+                      <ListRowGroup className="px-4">
+                        {upcoming.map((f) => <FixtureRow key={f.id} f={f} />)}
+                      </ListRowGroup>
+                    </Card>
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground px-1">No upcoming matches scheduled.</p>
@@ -365,9 +369,11 @@ export default async function ChildDetailPage({
                     <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                       Past
                     </p>
-                    <div className="divide-y divide-border rounded-xl border border-border">
-                      {past.map((f) => <FixtureRow key={f.id} f={f} />)}
-                    </div>
+                    <Card>
+                      <ListRowGroup className="px-4">
+                        {past.map((f) => <FixtureRow key={f.id} f={f} />)}
+                      </ListRowGroup>
+                    </Card>
                   </div>
                 )}
               </div>

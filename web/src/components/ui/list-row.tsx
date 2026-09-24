@@ -26,13 +26,22 @@ export function ListRow({ leading, title, subtitle, trailing, href, onClick, cla
   const content = (
     <>
       {leading && <div className="shrink-0">{leading}</div>}
-      <div className="min-w-0 flex-1">
+      {/* min-w-32 (not min-w-0): still narrow enough that `truncate` below
+          keeps doing its job, but wide enough to give the flex algorithm a
+          floor to hit — once there isn't room for both this and trailing on
+          one line, trailing wraps to its own line instead of this column
+          getting squeezed toward zero first. */}
+      <div className="min-w-32 flex-1">
         <p className="truncate font-medium leading-snug">{title}</p>
         {subtitle && (
           <p className="truncate text-sm text-muted-foreground">{subtitle}</p>
         )}
       </div>
-      {trailing && <div className="shrink-0 text-sm text-muted-foreground">{trailing}</div>}
+      {trailing && (
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 text-sm text-muted-foreground">
+          {trailing}
+        </div>
+      )}
       {(href || onClick) && (
         <ChevronRight
           className="size-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5"
@@ -43,7 +52,13 @@ export function ListRow({ leading, title, subtitle, trailing, href, onClick, cla
   );
 
   const rowClass = cn(
-    "group flex items-center gap-3 px-1 py-3 first:pt-0 last:pb-0",
+    // flex-wrap: a trailing column with several badges (a fixture's
+    // score plus attendance plus status, say) mustn't squeeze the
+    // title/subtitle column down to nothing on a narrow phone — it wraps
+    // onto its own line under them instead. A row with a short trailing
+    // value still renders on one line, since nothing forces the wrap
+    // unless the content actually needs it.
+    "group flex flex-wrap items-center gap-3 px-1 py-3 first:pt-0 last:pb-0",
     (href || onClick) && "cursor-pointer",
     className
   );
