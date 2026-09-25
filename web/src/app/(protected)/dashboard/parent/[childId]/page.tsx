@@ -319,6 +319,7 @@ export default async function ChildDetailPage({
                           }
                           title={fixture ? `vs ${fixture.opponent}` : "Standalone assessment"}
                           subtitle={r.note ? `“${r.note}”` : undefined}
+                          wrapSubtitle
                           trailing={new Date(r.created_at).toLocaleDateString("en-ZA", {
                             day: "numeric",
                             month: "short",

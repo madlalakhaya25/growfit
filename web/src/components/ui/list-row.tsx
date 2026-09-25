@@ -8,6 +8,13 @@ interface ListRowProps {
   leading?: React.ReactNode;
   title: React.ReactNode;
   subtitle?: React.ReactNode;
+  /**
+   * Let `subtitle` wrap onto multiple lines instead of hard-truncating to
+   * one. Use for real human-written text (a coach's note, a report) where
+   * clipping loses the actual content — not for the usual one-line facts
+   * (a date, a position, a count) that are fine cut off.
+   */
+  wrapSubtitle?: boolean;
   /** Trailing content before the chevron, e.g. a Badge or a stat. */
   trailing?: React.ReactNode;
   href?: string;
@@ -22,7 +29,7 @@ interface ListRowProps {
  * makes sense for a dashboard tile; a squad of 18 players doesn't need 18
  * bordered boxes.
  */
-export function ListRow({ leading, title, subtitle, trailing, href, onClick, className }: ListRowProps) {
+export function ListRow({ leading, title, subtitle, wrapSubtitle, trailing, href, onClick, className }: ListRowProps) {
   const content = (
     <>
       {leading && <div className="shrink-0">{leading}</div>}
@@ -34,7 +41,9 @@ export function ListRow({ leading, title, subtitle, trailing, href, onClick, cla
       <div className="min-w-32 flex-1">
         <p className="truncate font-medium leading-snug">{title}</p>
         {subtitle && (
-          <p className="truncate text-sm text-muted-foreground">{subtitle}</p>
+          <p className={cn("text-sm text-muted-foreground", wrapSubtitle ? "whitespace-pre-line" : "truncate")}>
+            {subtitle}
+          </p>
         )}
       </div>
       {trailing && (
