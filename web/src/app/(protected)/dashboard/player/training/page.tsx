@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Dumbbell } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
+import { formatTime, formatWeekdayDayMonth } from "@/lib/time";
 
 const TYPE_STYLES: Record<string, { label: string; chip: string }> = {
   general:    { label: "General",    chip: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" },
@@ -88,9 +89,9 @@ export default async function PlayerTrainingPage() {
         <div className="min-w-0 flex-1">
           <p className="font-medium leading-snug">{s.title}</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {date.toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short" })}
+            {formatWeekdayDayMonth(date)}
             {" · "}
-            {date.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}
+            {formatTime(date)}
             {s.location && ` · ${s.location}`}
           </p>
           {teamIds.length > 1 && teamInfo && (

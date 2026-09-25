@@ -39,6 +39,7 @@ import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
 import { ProfileTabs } from "./profile-tabs";
 import { reportError } from "@/lib/report-error";
+import { formatDayMonth } from "@/lib/time";
 
 
 export default async function PlayerDetailPage({
@@ -263,7 +264,7 @@ export default async function PlayerDetailPage({
       const fixture = Array.isArray(r.fixtures) ? r.fixtures[0] : r.fixtures;
       const dateStr = fixture?.fixture_date ?? r.created_at;
       return {
-        date: new Date(dateStr).toLocaleDateString("en-ZA", { day: "numeric", month: "short" }),
+        date: formatDayMonth(dateStr),
         rating: r.rating,
         opponent: fixture?.opponent ?? undefined,
       };

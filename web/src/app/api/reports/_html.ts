@@ -1,3 +1,5 @@
+import { formatInTimezone } from "@/lib/time";
+
 export function htmlTable(headers: string[], rows: unknown[][]): string {
   const th = headers.map((h) => `<th>${h}</th>`).join("");
   const trs = rows
@@ -13,7 +15,7 @@ export function htmlReport(
   options: { landscape?: boolean; footerNote?: string } = {}
 ): string {
   const { landscape = false, footerNote = "" } = options;
-  const date = new Date().toLocaleDateString("en-ZA", {
+  const date = formatInTimezone(new Date(), {
     day: "numeric", month: "long", year: "numeric",
   });
   const pageSize = `A4${landscape ? " landscape" : ""}`;

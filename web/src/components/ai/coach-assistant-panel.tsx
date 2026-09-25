@@ -15,6 +15,7 @@ import { AiProse } from "@/components/ai/ai-prose";
 import { FORMATIONS } from "@/lib/formations";
 import { mapNamedPositionsToSlots, groupOf, shortLabel, uid, type BoardPlayer, type Token } from "@/lib/board-model";
 import { useAskGrowfitStore } from "@/store/askGrowfitStore";
+import { formatInTimezone } from "@/lib/time";
 import { readCurrentTeamCookie, resolveCurrentTeamId, writeCurrentTeamCookie } from "@/lib/current-team";
 
 export interface AssistantTeam { id: string; name: string; age_group: string | null }
@@ -171,7 +172,7 @@ export function CoachAssistantPanel({
     setApplying(true);
     const res = await savePlay({
       teamId: resolvedTeamId,
-      name: `AI suggestion — ${new Date().toLocaleDateString()}`,
+      name: `AI suggestion — ${formatInTimezone(new Date())}`,
       data: { tokens, shapes: [], objects: [], playerNotes: [] },
     });
     setApplying(false);

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { signDocumentDigitally, signConsentDocument, uploadDocumentScan } from "@/app/actions/records";
 import { DOCUMENTS } from "@/lib/document-definitions";
 import type { DocDef } from "@/lib/document-definitions";
+import { formatDayMonthYear } from "@/lib/time";
 
 
 type DocumentRecord = {
@@ -32,9 +33,7 @@ function StatusBadge({ doc }: { doc: DocumentRecord | undefined }) {
     );
   }
   if (doc.status === "signed") {
-    const date = doc.signed_at
-      ? new Date(doc.signed_at).toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" })
-      : "";
+    const date = doc.signed_at ? formatDayMonthYear(doc.signed_at) : "";
     return (
       <span className="inline-flex items-center rounded-full bg-green-500/10 px-2.5 py-0.5 text-xs font-semibold text-green-700">
         Signed digitally{date ? ` · ${date}` : ""}{doc.signer_name ? ` · ${doc.signer_name}` : ""}
@@ -42,9 +41,7 @@ function StatusBadge({ doc }: { doc: DocumentRecord | undefined }) {
     );
   }
   if (doc.status === "uploaded") {
-    const date = doc.uploaded_at
-      ? new Date(doc.uploaded_at).toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" })
-      : "";
+    const date = doc.uploaded_at ? formatDayMonthYear(doc.uploaded_at) : "";
     return (
       <span className="inline-flex items-center rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
         {doc.upload_url ? (

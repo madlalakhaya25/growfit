@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { savePlayerConsents } from "@/app/actions/records";
+import { formatDayMonthYear } from "@/lib/time";
 
 type Props = {
   playerId: string;
@@ -37,7 +38,7 @@ export function ConsentsForm({ playerId, season, initial }: Props) {
     <div className="space-y-4">
       {signedAt && signedBy && (
         <div className="inline-flex items-center gap-1.5 rounded-full bg-green-500/10 px-3 py-1 text-xs font-semibold text-green-700">
-          Signed {new Date(signedAt).toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" })} by {signedBy}
+          Signed {formatDayMonthYear(signedAt)} by {signedBy}
         </div>
       )}
 

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { HeartPulse, ChevronRight } from "lucide-react";
 import { logWelfareCheckin } from "@/app/actions/welfare";
 import type { WelfareAlert } from "@/app/actions/welfare";
+import { formatDayMonth } from "@/lib/time";
 
 interface Props {
   alerts: WelfareAlert[];
@@ -40,10 +41,7 @@ export function WelfareCheckinsPanel({ alerts }: Props) {
                   {a.lastCheckin && (
                     <>
                       {" · last checked in "}
-                      {new Date(a.lastCheckin.createdAt).toLocaleDateString("en-ZA", {
-                        day: "numeric",
-                        month: "short",
-                      })}
+                      {formatDayMonth(a.lastCheckin.createdAt)}
                       {a.lastCheckin.loggedBy && ` by ${a.lastCheckin.loggedBy}`}
                     </>
                   )}

@@ -66,7 +66,16 @@ export function MonthCalendar({
 
   const prevMonth = month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
   const nextMonth = month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
-  const monthLabel = firstOfMonth.toLocaleDateString("en-ZA", { month: "long", year: "numeric" });
+  // Built from the explicit year/month numbers, not `firstOfMonth`, and
+  // displayed in UTC rather than the academy's timezone: this is a pure
+  // label for a month this component was already told to show, not an
+  // instant in time, so it should never be at risk of a timezone
+  // conversion pushing it into a different calendar month.
+  const monthLabel = new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("en-ZA", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 
   const today = new Date();
   const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month - 1;

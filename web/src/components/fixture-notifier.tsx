@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import type { RealtimePostgresInsertPayload } from "@supabase/supabase-js";
+import { formatWeekdayDayMonth } from "@/lib/time";
 
 interface FixtureRow {
   id: string;
@@ -42,11 +43,7 @@ export function FixtureNotifier({ teamIds }: Props) {
           if (seenIds.current.has(fixture.id)) return;
           seenIds.current.add(fixture.id);
 
-          const date = new Date(fixture.fixture_date).toLocaleDateString("en-ZA", {
-            weekday: "short",
-            day: "numeric",
-            month: "short",
-          });
+          const date = formatWeekdayDayMonth(fixture.fixture_date);
           const venue = fixture.is_home ? "Home" : "Away";
 
           toast("New fixture added", {

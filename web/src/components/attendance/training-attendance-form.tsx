@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { CheckCircle2, XCircle, Clock, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatDayMonth } from "@/lib/time";
 import { markTrainingAttendance, markAllPresent } from "@/app/actions/attendance";
 import { enqueueAttendanceWrite } from "@/lib/offline-attendance-queue";
 import {
@@ -209,7 +210,7 @@ export function TrainingAttendanceForm({ sessionId, players, existing, lastMarke
           {lastMarkedBy && (
             <p className="text-xs text-muted-foreground">
               Last marked by {lastMarkedBy.name},{" "}
-              {new Date(lastMarkedBy.at).toLocaleDateString("en-ZA", { day: "numeric", month: "short" })}
+              {formatDayMonth(lastMarkedBy.at)}
             </p>
           )}
         </div>
