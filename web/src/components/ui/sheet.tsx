@@ -126,7 +126,7 @@ export function Sheet({ open, onClose, title, children, className }: SheetProps)
       className="fixed inset-0 z-50 flex items-end justify-center sm:items-stretch sm:justify-end"
     >
       <div
-        className="absolute inset-0 bg-ink/60"
+        className="absolute inset-0 bg-scrim/60"
         onClick={onClose}
         aria-hidden="true"
       />

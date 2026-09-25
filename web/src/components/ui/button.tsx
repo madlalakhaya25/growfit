@@ -18,6 +18,21 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive text-destructive-foreground hover:opacity-90",
         link: "text-primary underline-offset-4 hover:underline",
+        /**
+         * `outline`/`ghost` key off `--color-foreground`/`--color-border` —
+         * tokens tuned for sitting on the page's own background. `--color-ink`
+         * (the coach fixture-detail scoreline header, FixtureTicket) is now
+         * *aliased* to `--color-foreground` specifically so it inverts against
+         * the page — dark band on the light page, light band on the dark page
+         * — so `outline`'s page-tuned colours are exactly backwards on it in
+         * every theme. This variant keys off `--color-ink-foreground` instead
+         * (aliased the other way, to `--color-background`), which is always
+         * the correct contrast colour for whichever way `--color-ink` is
+         * currently inverted. Use it for any button placed directly on a
+         * `bg-ink` surface.
+         */
+        onInk:
+          "border border-ink-foreground/25 bg-ink-foreground/10 text-ink-foreground hover:bg-ink-foreground/20",
       },
       size: {
         sm: "h-9 px-3.5",

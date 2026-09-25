@@ -64,7 +64,13 @@ export function EditFixtureButton({
 
   if (!editing) {
     return (
-      <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+      // onInk, not outline: this collapsed trigger sits directly on the
+      // matchday header's bg-ink band (see page.tsx), which inverts
+      // against the page rather than being fixed-dark, so outline's
+      // page-tuned colours are backwards on it. The expanded form below is
+      // a separate, opaque bg-card island floating on that same band, so
+      // it keeps the ordinary variants.
+      <Button size="sm" variant="onInk" onClick={() => setEditing(true)}>
         <Pencil className="size-3.5" aria-hidden="true" />
         Edit
       </Button>

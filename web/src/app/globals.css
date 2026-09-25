@@ -22,15 +22,30 @@
   --color-popover:              #ffffff;
   --color-popover-foreground:   #191512;
 
-  /* Ink — the dark band colour for matchday heroes and anything that
-     should read as "the pitch at night" rather than just an inverted
-     card. Distinct from --color-foreground so a dark band doesn't move
-     when text colour changes.
-     Was #141414 -- a near-void black that read as a flat hole cut in the
-     warm page rather than a designed surface. Warmed up to match the
-     paper/stone palette instead of pure black. */
-  --color-ink:                  #221d1a;
-  --color-ink-foreground:       #faf7f2;
+  /* Ink — the scoreline/hero band colour: matchday scoreboards read as
+     bold precisely because they invert against whatever's around them,
+     so this band should be dark on the paper-light page and light on the
+     ink-dark page, not a fixed dark tile that goes muddy the moment the
+     app itself turns dark. Aliased straight to --color-foreground/
+     --color-background rather than given its own literal values, so it
+     tracks the theme automatically instead of needing a second hand-tuned
+     pair kept in sync with every future palette change.
+     Was a fixed #221d1a/#141414-ish dark tile in both themes for a long
+     time — correct in light mode, but in dark mode that put a *light*
+     surface's job (standing out from the page) on a tile *darker* than
+     the page it sat on, and every control drawn on it (Edit/Cancel/Delete
+     on the coach fixture-detail header) had to be styled for "always
+     dark" rather than "opposite of the page", which is what actually
+     broke in light mode: near-black button text on a near-black band. */
+  --color-ink:                  var(--color-foreground);
+  --color-ink-foreground:       var(--color-background);
+
+  /* Modal/sheet backdrop scrim — always a dim, blackish veil regardless
+     of theme (dimming the page behind a sheet is the same move whether
+     the page itself is light or dark). Was piggybacking on --color-ink
+     back when that was a fixed dark tile; now that --color-ink inverts
+     with the theme, the scrim needs its own literal value instead. */
+  --color-scrim:                #0a0806;
 
   /* Brand — Growfit red.
      #A71817 is the academy's actual institutional colour, off its crest.
@@ -57,6 +72,19 @@
   --color-warning:              #d97706;
   --color-destructive:          #dc2626;
   --color-destructive-foreground: #ffffff;
+
+  /* Destructive, but for something drawn on the inverted --color-ink band
+     rather than the page — the Delete button on the coach fixture-detail
+     header is the one user today. --color-destructive is tuned for
+     whichever background the *page* currently has, but --color-ink is
+     always the *opposite* of that, so pairing Delete with plain
+     --color-destructive is exactly backwards in dark mode: this page's
+     dark-mode red (#f87171, lightened to read on a dark page) would land
+     on --color-ink's now-*light* inverted band. This is the other theme's
+     destructive red — literally swapped between the two blocks below —
+     so it's always correct on a surface that's always the opposite of the
+     page's own background. */
+  --color-destructive-on-ink:   #f87171;
 
   /* Lines & focus */
   --color-border:               #e7e0d4;
@@ -94,12 +122,17 @@
   --color-popover:              #1e1a16;
   --color-popover-foreground:   #f7f3ec;
 
-  /* Was #0a0a0a -- darker than --color-background itself (#14110e), so the
-     "hero" band actually sat *below* the page and a plain --color-card
-     read as more elevated than it did. Lifted above both background and
-     card so it reads as the elevated surface it's meant to be. */
-  --color-ink:                  #2e2823;
-  --color-ink-foreground:       #f7f3ec;
+  /* Redeclared, not just inherited: a custom property's var() reference
+     is substituted into a concrete value at the element where it's
+     *declared*, using whatever --color-foreground/--color-background
+     resolve to right there — not re-resolved fresh at every element that
+     inherits --color-ink later. Leaving this block without its own copy
+     left --color-ink permanently frozen at :root's light-mode value, dark
+     in both themes, which is the exact bug this alias exists to fix.
+     --color-scrim isn't redefined: a dim near-black veil behind a sheet
+     reads the same in both themes. */
+  --color-ink:                  var(--color-foreground);
+  --color-ink-foreground:       var(--color-background);
 
   --color-primary:              #e24b49;
   --color-primary-foreground:   #ffffff;
@@ -118,6 +151,11 @@
   --color-warning:              #fbbf24;
   --color-destructive:          #f87171;
   --color-destructive-foreground: #0a0a0b;
+  /* The light theme's destructive red — see the light-theme comment on
+     --color-destructive-on-ink above. --color-ink is light in dark mode
+     (inverted from this dark page), so it needs the red tuned for a light
+     background, not this theme's own. */
+  --color-destructive-on-ink:   #dc2626;
 
   --color-border:               #33291f;
   --color-input:                #33291f;
