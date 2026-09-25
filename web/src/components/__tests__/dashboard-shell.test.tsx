@@ -54,14 +54,32 @@ describe("DashboardShell", () => {
     expect(screen.getByRole("link", { name: "Emergency" })).toBeInTheDocument();
   });
 
-  it("hides a feature-gated section when the academy has turned it off", () => {
+  it("drops only the feature-gated tab, keeping its sibling tab and the section itself", () => {
+    // Regression test for 4.9: `tactics: false` used to remove the whole
+    // Develop section -- Training along with Tactics -- because the
+    // feature was checked per-section rather than per-tab. Develop should
+    // now survive, pointing at its one remaining tab, Training.
     mockPathname = "/dashboard/coach";
     render(
       <DashboardShell profile={profile} features={{ tactics: false }}>
         <p>content</p>
       </DashboardShell>
     );
-    expect(screen.queryByRole("link", { name: "Develop" })).not.toBeInTheDocument();
+    for (const link of screen.getAllByRole("link", { name: "Develop" })) {
+      expect(link).toHaveAttribute("href", "/dashboard/coach/training");
+    }
+  });
+
+  it("drops only the feature-gated tab for the Matchday section too", () => {
+    mockPathname = "/dashboard/coach";
+    render(
+      <DashboardShell profile={profile} features={{ film: false }}>
+        <p>content</p>
+      </DashboardShell>
+    );
+    for (const link of screen.getAllByRole("link", { name: "Matchday" })) {
+      expect(link).toHaveAttribute("href", "/dashboard/coach/fixtures");
+    }
   });
 
   it("shows the team switcher only with more than one team", () => {

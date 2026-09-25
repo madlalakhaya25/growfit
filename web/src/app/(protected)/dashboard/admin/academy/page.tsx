@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AcademyInfoForm } from "./academy-info-form";
+import { AcademyFeaturesForm } from "./academy-features-form";
 import { ResetJoinCodeButton } from "./reset-join-code-button";
-import { updateAcademyInfo } from "@/app/actions/academy";
+import { updateAcademyInfo, updateAcademyFeatures } from "@/app/actions/academy";
+import { getAcademyFeatures } from "@/lib/features";
 
 export default async function AcademySettingsPage() {
   const supabase = await createClient();
@@ -24,6 +26,8 @@ export default async function AcademySettingsPage() {
     .single();
 
   if (!academy) redirect("/dashboard/admin");
+
+  const features = await getAcademyFeatures(supabase, academy.id);
 
   return (
     <div className="space-y-8 max-w-2xl">
@@ -65,6 +69,17 @@ export default async function AcademySettingsPage() {
           </div>
           <ResetJoinCodeButton />
         </div>
+      </section>
+
+      {/* Feature toggles card */}
+      <section className="rounded-xl border border-border bg-card p-6 space-y-4">
+        <div>
+          <h2 className="text-base font-semibold">Features</h2>
+          <p className="text-sm text-muted-foreground">
+            Turn optional features on or off for everyone at your academy.
+          </p>
+        </div>
+        <AcademyFeaturesForm action={updateAcademyFeatures} initial={features} />
       </section>
     </div>
   );
