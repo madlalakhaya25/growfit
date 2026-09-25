@@ -204,6 +204,24 @@ reached the pitch. The board can now read the opponent's shape itself.
   (`getOpponentScouting`), counting only plays where the opponent was
   actually on the board.
 
+### Tactics board: analysis overlays (Phase 2 of the board roadmap)
+Four toolbar toggles, each computed live from the tokens showing, so they
+follow drags and playback. They are pure geometry in `lib/board-overlays.ts`,
+drawn by `components/tactics/analysis-layers.tsx`, and included in the PNG
+export:
+- **Passing lanes.** Lanes from the player on the ball to every teammate.
+  Green is open, amber is risky (an opponent within about 4m of the line),
+  red is cut out. A chip counts open and forward options.
+- **Space control.** Each patch of grass is given to the nearest player (a
+  grid-sampled Voronoi). A chip gives our share overall, in midfield and in
+  the final third.
+- **Offside & lines.** Their offside line drawn by the law: second-last
+  opponent or the ball, whichever is further forward, never past halfway.
+  Any of our players beyond it are ringed and tagged. Also shows our last
+  line and the metres between each side's lines.
+- **Numbers.** Us v them in each of the 15 grid zones. Green where we lead
+  by 2+, red where they do.
+
 ### Access-code flow fix (this cycle)
 A coach entering their team's join/coach code at registration could
 previously end up in an unrecoverable state — wrong role assigned, no
@@ -368,12 +386,8 @@ Every "Near term" item from the previous pass is now done.
 
 ### Tactics board roadmap (Phases 2–5)
 
-Phase 1 ("See the space") has shipped, see above. Planned next, in order:
+Phases 1 ("See the space") and 2 (analysis overlays) have shipped, see above. Planned next, in order:
 
-- **Phase 2: Analysis overlays.**
-  - Passing lanes from the ball carrier, each open or blocked by an opponent.
-  - A space-control (Voronoi) map of who owns which grass.
-  - The defensive/offside line, with a line-to-line compactness readout.
 - **Phase 3: AI coaching intelligence.**
   - "Critique my play": the AI reviews a drawn sequence and pins comments
     to specific frames and players.

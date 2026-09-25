@@ -6,10 +6,11 @@ import {
   ArrowUpRight, Minus, Waves, Pencil, Download, Tag, Grid3x3,
   Play, Square, Plus, Trash2,
   Target, MessageSquare, RectangleHorizontal, Type, Ruler,
-  FlipHorizontal2, Maximize2, Minimize2, Hexagon, Crosshair,
+  FlipHorizontal2, Maximize2, Minimize2, Hexagon, Crosshair, Share2, Map as MapIcon, AlignVerticalSpaceAround, Hash,
 } from "lucide-react";
 import { FORMATIONS, FORMATION_SIZES, type Formation } from "@/lib/formations";
 import { readOpponent } from "@/lib/board-analysis";
+import { passingLanes, spaceControl, offsideLines, zoneCounts } from "@/lib/board-overlays";
 import { counterExploits, counterRunShapes, type OpponentCounter } from "@/lib/opponent-counter";
 import { drawBoard, pickRecorderMime } from "@/lib/board-render";
 import { framesFromShapes } from "@/lib/play-motion";
@@ -29,12 +30,13 @@ import { SavedPlaysPanel } from "@/components/tactics/saved-plays-panel";
 import { AnimationPanel } from "@/components/tactics/animation-panel";
 import { DraftRecoveryBanner } from "@/components/tactics/draft-recovery-banner";
 import { ExploitLayer, ExploitLegend } from "@/components/tactics/exploit-layer";
+import { PassingLaneLayer, SpaceControlLayer, LinesLayer, ZoneCountLayer } from "@/components/tactics/analysis-layers";
 import { getOpponentScouting, type OpponentScouting } from "@/app/actions/tactic-plays";
 import { useBoardStore, type BoardState } from "@/store/boardStore";
 import { useBoardSetupStore } from "@/store/boardSetupStore";
 import { useSavedPlaysStore } from "@/store/savedPlaysStore";
 import { useBoardPlaybackStore } from "@/store/boardPlaybackStore";
-import { useBoardInsightsStore } from "@/store/boardInsightsStore";
+import { useBoardInsightsStore, type AnalysisLayer } from "@/store/boardInsightsStore";
 
 // ── Types ────────────────────────────────────────────────────────
 // Token, Shape, ShapeKind and the Frame shape all come from board-model.ts
@@ -285,7 +287,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const { playName, setPlayName, setCurrentPlayId, fixtureId, resetPanel: resetSavedPlaysPanel } = useSavedPlaysStore();
   const {
     showExploits, setShowExploits, focusedExploitId, setFocusedExploitId,
-    aiCounter, setAiCounter, reset: resetInsights,
+    aiCounter, setAiCounter, layers, toggleLayer, reset: resetInsights,
   } = useBoardInsightsStore();
   // scrubMs/scrubbing/recording's own values are read by animation-panel.tsx
   // now (via the same store hook); only the setters are still called
@@ -358,6 +360,14 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
    *  is showing — so it follows drags and playback. See board-analysis.ts. */
   const reading = useMemo(() => readOpponent(view.tokens, pitch), [view.tokens, pitch]);
   const aiExploits = useMemo(() => (aiCounter ? counterExploits(aiCounter) : []), [aiCounter]);
+
+  // Phase 2 analysis overlays — each computed only while switched on, and
+  // only on a match pitch (a training grid has no goals to attack).
+  const analysisOn = pitch.supportsFormations;
+  const lanes = useMemo(() => (analysisOn && layers.lanes ? passingLanes(view.tokens, pitch) : null), [analysisOn, layers.lanes, view.tokens, pitch]);
+  const control = useMemo(() => (analysisOn && layers.space ? spaceControl(view.tokens, pitch) : undefined), [analysisOn, layers.space, view.tokens, pitch]);
+  const lineReading = useMemo(() => (analysisOn && layers.lines ? offsideLines(view.tokens, pitch) : null), [analysisOn, layers.lines, view.tokens, pitch]);
+  const counts = useMemo(() => (analysisOn && layers.numbers ? zoneCounts(view.tokens) : null), [analysisOn, layers.numbers, view.tokens]);
 
   /** What we know about the linked fixture's opponent — drives the
    *  "usually plays…" shortcut in the Opponent card. */
@@ -1682,6 +1692,24 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
         >
           <Crosshair className="size-3.5" aria-hidden="true" /> Find space
         </button>
+        {([
+          ["lanes", Share2, "Passing lanes", "Every pass open to the player on the ball — green open, amber risky, red cut out"],
+          ["space", MapIcon, "Space control", "Who owns which grass: each patch goes to the nearest player"],
+          ["lines", AlignVerticalSpaceAround, "Offside & lines", "Their offside line, anyone beyond it, and the gaps between each side's lines"],
+          ["numbers", Hash, "Numbers", "Us v them in every zone"],
+        ] as [AnalysisLayer, typeof Share2, string, string][]).map(([key, Icon, label, title]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => toggleLayer(key)}
+            aria-pressed={layers[key]}
+            disabled={!pitch.supportsFormations}
+            title={title}
+            className={`inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border px-2.5 text-xs disabled:opacity-40 ${layers[key] ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border hover:bg-muted"}`}
+          >
+            <Icon className="size-3.5" aria-hidden="true" /> {label}
+          </button>
+        ))}
         <button type="button" onClick={mirrorBoard} title="Flip the board left-to-right" className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
           <FlipHorizontal2 className="size-3.5" aria-hidden="true" /> Mirror
         </button>
@@ -1778,6 +1806,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
 
               <PitchLayer pitch={pitch} stripeId="tb-stripe" />
 
+              {control !== undefined && <SpaceControlLayer control={control} h={pitch.h} />}
+
               {pitch.supportsFormations && <OverlayLayer overlay={overlay} />}
 
               {showShape && <TeamShapeLayer tokens={view.tokens} pitch={pitch} />}
@@ -1785,6 +1815,9 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               {showExploits && pitch.supportsFormations && (
                 <ExploitLayer exploits={{ engine: reading.exploits, ai: aiExploits }} lines={reading.lines} focusedId={focusedExploitId} />
               )}
+              {counts && <ZoneCountLayer counts={counts} />}
+              {lanes && <PassingLaneLayer lanes={lanes.lanes} h={pitch.h} />}
+              {lineReading && <LinesLayer lines={lineReading} tokens={view.tokens} w={pitch.w} h={pitch.h} />}
 
               {/* Shapes */}
               {view.shapes.map((sh) => renderShape(sh))}

@@ -92,4 +92,40 @@ describe("TacticalBoard", () => {
     expect(shapes[0].kind).toBe("run");
     expect(screen.getByText(/Switched to 4-2-3-1 and drew 1 suggested move/)).toBeInTheDocument();
   });
+
+  it("draws passing lanes from the player on the ball", async () => {
+    render(<TacticalBoard teams={[]} />);
+    await act(async () => { await Promise.resolve(); });
+    act(() => {
+      useBoardStore.getState().setState({
+        tokens: [
+          { id: "p1", label: "1", x: 50, y: 100, kind: "player", group: "Midfielder" },
+          { id: "p2", label: "2", x: 20, y: 100, kind: "player", group: "Midfielder" },
+          { id: "p3", label: "3", x: 50, y: 60, kind: "player", group: "Forward" },
+          { id: "o1", label: "", x: 50, y: 80, kind: "opponent", group: "Opponent" },
+          { id: "b", label: "", x: 51, y: 101, kind: "ball", group: "Ball" },
+        ],
+        shapes: [], objects: [], playerNotes: [],
+      });
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Passing lanes/ }));
+    const layer = screen.getByTestId("lanes-layer");
+    expect(layer.querySelectorAll("line")).toHaveLength(2);
+    expect(layer).toHaveTextContent("1 open pass · 0 forward");
+  });
+
+  it("shows the offside line and each side's line gaps", async () => {
+    render(<TacticalBoard teams={[]} />);
+    await act(async () => { await Promise.resolve(); });
+    fireEvent.click(screen.getByRole("button", { name: /Space control/ }));
+    expect(screen.getByTestId("space-layer")).toHaveTextContent("needs both teams");
+
+    fireEvent.click(screen.getByText("Set up my XI"));
+    fireEvent.click(screen.getByText("Set up opponent XI"));
+    fireEvent.click(screen.getByRole("button", { name: /Offside & lines/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Numbers/ }));
+    expect(screen.getByTestId("lines-layer")).toHaveTextContent("Offside line");
+    expect(screen.getByTestId("space-layer")).toHaveTextContent(/We own \d+%/);
+    expect(screen.getByTestId("numbers-layer")).toHaveTextContent(/\dv\d/);
+  });
 });
