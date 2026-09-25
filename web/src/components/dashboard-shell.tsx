@@ -29,7 +29,7 @@ import { SectionTabs } from "@/components/ui/section-tabs";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/authStore";
-import { isActiveHref } from "@/lib/nav";
+import { pickLongestActiveHref } from "@/lib/nav";
 import { readCurrentTeamCookie, resolveCurrentTeamId } from "@/lib/current-team";
 import type { UserRole } from "@/lib/types";
 import type { FeatureKey } from "@/lib/features";
@@ -167,9 +167,13 @@ export function DashboardShell({ profile, teams = [], features, children }: Prop
   const sections = allSections.filter((s) => !s.feature || features?.[s.feature] !== false);
   const [isSigningOut, startSignOut] = useTransition();
 
-  const activeSection = sections.find((s) =>
-    s.tabs.some((t) => isActiveHref(pathname, t.href, roleRoot))
-  );
+  // The single longest-matching href across every visible section's tabs,
+  // not just the first section that has any match at all -- see
+  // lib/nav.ts's own comment for the exact collision this fixes
+  // (/dashboard/admin/players/documents used to highlight People, not
+  // Compliance).
+  const bestHref = pickLongestActiveHref(pathname, sections.flatMap((s) => s.tabs.map((t) => t.href)), roleRoot);
+  const activeSection = sections.find((s) => s.tabs.some((t) => t.href === bestHref));
 
   // Reading the cookie here (rather than deferring to an effect) is safe:
   // this value only ever reaches the DOM through QuickActionsSheet's own

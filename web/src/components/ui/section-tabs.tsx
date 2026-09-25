@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { pickLongestActiveHref } from "@/lib/nav";
 
 export interface SectionTab {
   href: string;
@@ -23,6 +24,11 @@ interface SectionTabsProps {
  */
 export function SectionTabs({ tabs, className }: SectionTabsProps) {
   const pathname = usePathname();
+  // The longest-matching href, not every href that happens to match -- a
+  // sibling tab that's a prefix of another (e.g. "Players" at
+  // ".../squad" and "Emergency" at ".../squad/emergency") used to render
+  // both active at once. See lib/nav.ts.
+  const bestHref = pickLongestActiveHref(pathname, tabs.map((t) => t.href));
 
   return (
     <nav
@@ -30,7 +36,7 @@ export function SectionTabs({ tabs, className }: SectionTabsProps) {
       aria-label="Section navigation"
     >
       {tabs.map(({ href, label }) => {
-        const active = pathname === href || pathname.startsWith(href + "/");
+        const active = href === bestHref;
         return (
           <Link
             key={href}
