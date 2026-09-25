@@ -303,6 +303,7 @@ export default async function PublicPassportPage({
                           }
                           title={r.opponent ? `vs ${r.opponent}` : "Standalone assessment"}
                           subtitle={r.note ? `“${r.note}”` : undefined}
+                          wrapSubtitle
                           trailing={formatDayMonth(r.created_at)}
                         />
                       ))}
