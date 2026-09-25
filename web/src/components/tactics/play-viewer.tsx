@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Play, Square, RotateCcw, MessageSquare } from "lucide-react";
 import {
-  GROUP_COLOR as BOARD_GROUP_COLOR,
   dribblePath, polyPath, shapeColor, shapeWidth, interpolateFrames, totalDurationMs, getPitch, resolveSpotlightCenter,
   type Shape as ModelShape, type Frame as ModelFrame, type Token as ModelToken,
   type BoardObject, type PlayerNote,
 } from "@/lib/board-model";
 import { PitchLayer } from "@/components/tactics/pitch-layer";
+import { TokenDefs, TokenGlyph } from "@/components/tactics/token-glyph";
+import { ArrowMarkers, arrowMarkerUrl } from "@/components/tactics/arrow-markers";
 import { EquipmentLayer } from "@/components/tactics/equipment-layer";
 import { framesFromShapes } from "@/lib/play-motion";
 
@@ -99,13 +100,10 @@ export function PlayViewer({ data }: { data: PlayData }) {
             also throws off coordinates, not just the visual frame. */}
         <div className="w-full overflow-hidden rounded-xl border border-border" style={{ aspectRatio: `${pitch.w} / ${pitch.h}` }}>
           <svg viewBox={`0 0 ${pitch.w} ${pitch.h}`} className="h-full w-full select-none">
-            <defs>
-              <marker id="pv-arrow" viewBox="0 0 10 10" refX={8} refY={5} markerWidth={4.5} markerHeight={4.5} orient="auto-start-reverse">
-                <path d="M0,0 L10,5 L0,10 z" fill="#fde047" />
-              </marker>
-            </defs>
+            <ArrowMarkers prefix="pv-arrow" />
 
             <PitchLayer pitch={pitch} stripeId="pv-stripe" />
+            <TokenDefs prefix="pv-tok" />
 
             {shapes.map((sh) => {
               const a = sh.pts[0], b = sh.pts[sh.pts.length - 1];
@@ -132,12 +130,12 @@ export function PlayViewer({ data }: { data: PlayData }) {
                 return <path key={sh.id} d={polyPath(sh.pts) + " Z"} {...common} fill={stroke} fillOpacity={0.18} />;
               }
               if (sh.kind === "dribble") {
-                return <path key={sh.id} d={dribblePath(a.x, a.y, b.x, b.y)} markerEnd="url(#pv-arrow)" {...common} />;
+                return <path key={sh.id} d={dribblePath(a.x, a.y, b.x, b.y)} markerEnd={arrowMarkerUrl("pv-arrow", stroke)} {...common} />;
               }
               return (
                 <line key={sh.id} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
                   strokeDasharray={sh.kind === "pass" ? "3 2" : undefined}
-                  markerEnd="url(#pv-arrow)" {...common} />
+                  markerEnd={arrowMarkerUrl("pv-arrow", stroke)} {...common} />
               );
             })}
 
@@ -145,23 +143,7 @@ export function PlayViewer({ data }: { data: PlayData }) {
 
             {tokens.map((tok) => (
               <g key={tok.id} transform={`translate(${tok.x} ${tok.y})`}>
-                {tok.kind === "ball" ? (
-                  <circle r={2.4} fill="#f8fafc" stroke="#111" strokeWidth={0.4} />
-                ) : (
-                  <>
-                    <circle r={4.2} fill={BOARD_GROUP_COLOR[tok.group] ?? "#22c55e"}
-                      stroke={tok.kind === "opponent" ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.35)"} strokeWidth={0.5} />
-                    {tok.kind === "opponent" && tok.label && (
-                      <text y={1.2} textAnchor="middle" fontSize={3.4} fill="#fff" fontWeight="bold">{tok.label}</text>
-                    )}
-                    {tok.kind === "player" && tok.label && (
-                      <text y={7.6} textAnchor="middle" fontSize={3} fill="#fff"
-                        style={{ paintOrder: "stroke", stroke: "rgba(0,0,0,0.6)", strokeWidth: 0.5 }}>
-                        {tok.label}
-                      </text>
-                    )}
-                  </>
-                )}
+                <TokenGlyph tok={tok} prefix="pv-tok" />
               </g>
             ))}
           </svg>
