@@ -665,14 +665,229 @@ available in this session. The new render/unit tests are this work's real
 safety net; treat the manual walkthrough as still outstanding before
 trusting this refactor in production.
 
-### 3.4 The design pass — `IP-20`, `RM`
+### 3.4 The design pass — `IP-20`, `RM` — **Reviewed, redesign declined**
 Every card the same radius, one text size doing every job, red spent
 decoratively rather than semantically.
 
-**Note:** the roadmap refers to "a specific, three-direction design proposal
-[that] exists and was reviewed". It is not in this repository. Either find it
-or redo that step — starting a full visual pass without it means re-litigating
-a decision that was already made.
+**Update (2026-09-25):** the missing three-direction proposal this note
+asked for was produced — a full implementation review, a distinct-UI
+research pass, and three real visual directions (A "Team Sheet", B
+"Floodlight", C "Club Poster") rendered as actual screens and shown to the
+product owner. **Decision: keep the current UI as it is.** No further visual
+work — no new type/color/shape tokens, no shell rebuild, no football-object
+system, no page-by-page visual migration — is in scope going forward. If a
+future session is asked to "make it feel less generic" again, the three
+renders and their tradeoffs already exist; don't restart this from scratch,
+and don't skip straight to a visual pass without them the way this entry
+originally warned against.
+
+**What does still move forward, on the current UI, unchanged:** the real
+bugs the implementation review found (4.x below) and the new AI features
+from `docs/AI_FEATURES_AND_IA.md` Part 2 (5.x below), both scoped to build
+into the app's existing pages and components as they look today — `Card`,
+`ListRow`, the current `dashboard-shell.tsx`, the current fixture/squad/
+welfare pages — not onto any of the three declined directions' new
+primitives.
+
+---
+
+## Phase 4 — Correctness fixes, independent of any visual decision
+
+Found during the implementation review that led to 3.4's redesign proposal.
+None of these are about how anything looks — they're either wrong today or
+regressed in the nav/AI rebuild (`941e487`..`0c4dbd0`). **Each item below is
+sized to be its own session/PR**, per the product owner's instruction to do
+each phase in a fresh session. Do them in roughly this order; 4.1–4.3 are
+the highest-impact.
+
+### 4.1 Today can lie — `AI-IA`
+Every query on `coach/page.tsx` (and `lib/assistant-context.ts`, and the
+admin overview) drops its `error` silently. A failed load reads as "All
+caught up — nothing needs you right now," which is worse than showing
+nothing. Surface the error per section with a retry, the way the squad page
+already does it correctly.
+
+### 4.2 Today misses whole categories — `AI-IA`
+`coach/page.tsx` only shows the next training session when there's **no**
+upcoming fixture (`!nextFixture && nextSession`), and only queries one
+fixture across all of a coach's teams. A coach running U11/U13/U15 sees one
+team's Sunday and nobody's Wednesday. Show one ticket per team with a
+fixture in the next 7 days, and training alongside fixtures, not instead of.
+
+### 4.3 "Current team" means four different things — `AI-IA`
+`TeamSwitcher` defaults by name order; the squad/fixtures/training pages
+default by `created_at` order; the quick-actions "+" button always
+pre-scopes to `teams[0]` and ignores `?team=`, so it can silently create a
+fixture for the wrong team; the assistant panel keeps its own separate
+`teamId` state. Add one `lib/current-team.ts` resolver (URL param, then a
+cookie, then a defined default order), have every one of these read it, and
+delete the quick-actions button's own guess.
+
+### 4.4 Ask Growfit forgets you and can't recover — `AI-IA`
+The sheet unmounts on close (`sheet.tsx` returns `null` when `!open`), which
+wipes the whole conversation and any suggested XI. Data-loading is also
+one-shot per session (`if (state.status !== "idle") return`): a dropped
+request on patchy pitch-side data disables the assistant until a hard
+reload, and it never refreshes even after you add a player or a fixture.
+Move the conversation into a small store (sessionStorage, not localStorage —
+this is about children), and make the fetch retry and go stale after ~60s.
+
+### 4.5 Nav highlights the wrong section — `AI-IA`
+`isActiveHref` plus `sections.find` picks the first prefix match, so
+`/admin/players/documents` highlights People instead of Compliance, and
+`/coach/squad/emergency` highlights both Players and Emergency at once. Fix:
+longest-match wins, with unit tests for the known collisions.
+
+### 4.6 Fixture actions trust a status column that lags reality — `AI-IA`
+Edit, Cancel, **and the Log Result form** all show based on
+`status === "upcoming"` alone (`fixtures/[id]/page.tsx`), which is exactly
+the "status enum ≠ reality" trap `web/CLAUDE.md` already documents — a coach
+can currently log a result for next Sunday's match. Gate all three on the
+existing `isFixturePast()` helper instead.
+
+### 4.7 No timezone handling anywhere — `AI-IA`
+Every `toLocale*String` call (58 of them) and the Today greeting's
+`getHours()` run in server-local time, with no `timeZone` set anywhere in
+the repo. On a non-SAST host, kickoff times and the greeting are wrong.
+Centralise formatting in `lib/time.ts` with `timeZone:
+"Africa/Johannesburg"` and replace the 58 call sites.
+
+### 4.8 Coach notes get cut off — `AI-IA`
+Ratings and coach notes rendered through `ListRow`'s `subtitle` are
+hard-truncated to one line (`list-row.tsx`), on the parent child page and
+the public passport — the one sentence a parent actually reads gets clipped
+with no way to expand it. Add a `wrap` variant for anywhere real
+human-written text is shown, and use it there.
+
+### 4.9 Feature toggles remove more than they should, and nothing can set them — `AI-IA`
+`academies.features` (migration 042) is per-section, not per-tab —
+switching off `film` removes the whole Matchday section including Fixtures,
+and `tactics: false` removes Training for coaches and Development for
+players. There's also no UI anywhere to set a toggle; it's SQL-only. Move
+`feature` from section to tab, and add the three switches to
+`admin/academy`.
+
+### 4.10 Children's headshots are in a public bucket — `AI-IA`, **POPIA**
+Storage policy has no consent check at display time, and the bucket itself
+is public-readable. Required, not optional, before any feature that shows
+more headshots ships. Needs a live Supabase project to apply the storage
+policy change — flag this clearly to whoever picks up the session.
+
+### 4.11 Smaller fixes, same session as something above or their own quick one — `AI-IA`
+- `Sheet`'s hand-rolled focus trap includes disabled buttons (Tab can escape
+  the modal), has no `inert` on the background, and uses `85vh` instead of
+  `dvh` (can sit under the iOS URL bar). The Ask button has no accessible
+  name on mobile (`hidden sm:inline` on its only label).
+- `PlayerAvatar` has no image-error fallback — a removed photo shows the
+  browser's broken-image icon, not initials.
+- `StatTile` renders a failed count as a real "0".
+- The protected layout's queries (`getAcademyFeatures`, `getCoachedTeamIds`,
+  teams) run sequentially where they could run in parallel — same fix
+  everywhere `getCoachedTeamIds` is called more than once per request
+  (currently 3× on Coach Today alone); wrap it in React `cache()`.
+
+---
+
+## Phase 5 — New AI features, on the current UI — `docs/AI_FEATURES_AND_IA.md` Part 2
+
+The "Now" and "Next" tier features from that document's market scan,
+scoped to build into the app's existing pages exactly as they look today —
+no new design tokens, no new shell. Each reuses existing plumbing
+(`squad-context.ts`, `ai-guard.ts`, `ai-models.ts`,
+`voice-note-recorder.tsx`, `speak-button.tsx`, `board-model.ts`) per that
+document's own stated architecture. **Each numbered item is sized to be its
+own session/PR.** Do 5.0 first — everything else in this phase depends on
+it.
+
+### 5.0 Migration `043` — schema for fair game time and the voice log
+Additive, nullable/safely-defaulted, checked in and run by hand against the
+live Supabase project per this repo's convention (see `MIGRATION_RUNBOOK.md`):
+`team_members.shirt_number`, `academies.short_code`,
+`match_appearances.started`, `.minutes_played`, `.goals`,
+`fixtures.match_minutes`, and a new `fixture_rotations` table (same shape
+and RLS policy as `fixture_match_plans`, 041). Every read falls back the way
+`isMissingAttributeColumn()` does in `attributes.ts` — the app must keep
+working before this migration is actually run. **Approved by the product
+owner.** Also fix, in the same session: `saveMatchPlan`
+(`app/actions/match-plans.ts`) currently replaces the *whole* `data`
+jsonb column on every save — once the rotation plan lands in
+`data.rotation` alongside the existing `data.lineup`, saving one would wipe
+the other. Make it merge only the key it's writing.
+
+### 5.1 Fair game-time planner — Part 2 #2
+A pure, tested rotation function (`lib/rotation.ts`) that balances a
+fixture's minutes across the squad — inputs: selected squad minus
+injured/unavailable players, match length, block count, season minutes to
+date, the keeper held fixed, optional coach locks. A UI section on the
+existing fixture detail page ("Plan fair minutes" → draft → keep/discard,
+using the app's current list/card components, not a new "rotation strip"
+object). One `AI_MODEL_LITE` call explains the kept plan in three sentences
+— **the AI never decides minutes, only explains a decision code already
+made.** Minutes/goals also get prefilled onto the existing Log Result form
+once a plan is kept.
+
+### 5.2 Voice match log — Part 2 #3
+Extract the recording logic already in `voice-note-recorder.tsx` into a
+reusable `useVoiceCapture()` hook (it's currently tied to uploading and
+storing the recording, which match narration must **not** do — nothing gets
+saved to Storage). A "Tell me how it went" control on the Log Result form
+sends the audio to `AI_MODEL_DOC`, matches players only against that
+fixture's actual squad (never guesses an ambiguous name), and fills the form
+as a draft the coach reviews before saving through the existing `logMatch`.
+
+### 5.3 Post-match parent recap — Part 2 #4
+New work, not a restyle of the existing `ParentReportPanel` (that one is
+parent-initiated, per child, on demand — this is coach-initiated, per
+fixture, for the whole team, the moment a result is logged). A draft
+appears next to the existing match-report panel with hard content rules
+(first names only, nothing negative, no medical/availability detail),
+Copy-for-WhatsApp, and an optional isiZulu toggle — shipped switched off
+until a staff member who reads isiZulu approves sample output.
+
+### 5.4 Welfare and load watch — Part 2 #7
+Needs migration `044` (`training_attendance.rpe`, plus `player_growth` —
+see below): an optional 1–10 effort entry after the register ("everyone: 6,
+then adjust the exceptions"), and three new reasons in the existing
+`getWelfareAlerts()` — falling attendance trend, falling ratings, and a
+load spike (last-7-day load ≥ 1.5× the 28-day average, match load computed
+from `minutes_played` × a documented constant). No AI call anywhere in this
+one — each flag is a threshold with a plain-language template. **Height/
+growth tracking (the fourth input Part 2 describes) stays out of this item
+and off by default** — the product owner put it on hold entirely pending
+confirmation that the medical consent form actually covers routine growth
+measurement, not just emergencies. Don't build the height table or UI until
+that's separately confirmed.
+
+### 5.5 Opponent memory — Part 2 #8 (the cheap third of it)
+`buildSquadContext()` adds past results against the same opponent, matched
+on normalised `fixtures.opponent` text (case/whitespace only — never
+fuzzy; a miss is safe, a wrong match isn't). Feeds the existing match-plan
+Apply flow. Small enough to be part of 5.1's session rather than its own.
+
+### 5.6 Constraint-aware sessions, with a diagram go/no-go — Part 2 #5
+Real space/kit/player-count constraints into `session-generator.ts`
+(`SessionParams`), prefilled from recent register attendance. Diagrams are a
+**separate, explicit go/no-go step**: generate ~20 drill layouts against the
+existing `board-model.ts` types and *look at them* (per `web/CLAUDE.md`'s
+render-to-verify rule) before building anything permanent. Ship the
+constraints regardless of the diagram outcome.
+
+### Explicitly not in Phase 5
+- **Touchline mode, the live substitution timer, and the half-time
+  assistant** (Part 2 #6) — the product owner ruled touchline mode out of
+  scope. Nothing in Phase 5 depends on it.
+- **Height/growth tracking** — on hold, see 5.4.
+- **Full isiZulu i18n** — declined; the per-recap toggle in 5.3 covers the
+  cheap, high-value part.
+- **Clip Coach, My Moments, Skills Challenge** (Part 2 #9–10) — not
+  approved. These need a POPIA consent-gate built first, which is
+  compliance infrastructure, not a feature session — raise it as its own,
+  separate decision if it comes up again, starting with someone actually
+  reading the current consent form.
+- **Performance curves / best-suited position** (the rest of Part 2 #8) —
+  `rating-chart.tsx` already covers most of the chart half; a "best
+  position" suggestion for a 12-year-old is a bad idea even coach-only
+  (works against long-term player development). Not scheduled.
 
 ---
 
