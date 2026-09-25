@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
+import { formatWeekdayDayMonth } from "@/lib/time";
 
 export default async function PlayerFixturesPage() {
   const supabase = await createClient();
@@ -87,7 +88,7 @@ export default async function PlayerFixturesPage() {
           <div className="min-w-0">
             <p className="font-medium">{f.is_home ? "vs" : "@"} {f.opponent}</p>
             <p className="text-xs text-muted-foreground">
-              {date.toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short" })}
+              {formatWeekdayDayMonth(date)}
               {f.venue && ` · ${f.venue}`}
             </p>
             {teamIds.length > 1 && teamInfo && (

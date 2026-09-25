@@ -3,6 +3,7 @@ import { useActionState, useTransition } from "react";
 import { ExternalLink, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { addPlayerClip, deletePlayerClip } from "@/app/actions/clips";
+import { formatDayMonth } from "@/lib/time";
 
 interface Fixture {
   id: string;
@@ -159,7 +160,7 @@ export function ClipsSection({ playerId, clips, fixtures }: Props) {
                 <option value="">None</option>
                 {fixtures.map((f) => (
                   <option key={f.id} value={f.id}>
-                    vs {f.opponent} ({new Date(f.fixture_date).toLocaleDateString("en-ZA", { day: "numeric", month: "short" })})
+                    vs {f.opponent} ({formatDayMonth(f.fixture_date)})
                   </option>
                 ))}
               </select>

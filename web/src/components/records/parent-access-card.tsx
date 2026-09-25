@@ -11,6 +11,7 @@ import {
 } from "@/app/actions/parent";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { formatParentLinkCode, type ParentLinkCodeSummary } from "@/lib/parent-link";
+import { formatDayMonthYear } from "@/lib/time";
 
 export interface LinkedAdult {
   parent_id: string;
@@ -29,11 +30,7 @@ const METHOD_LABEL: Record<string, string> = {
 };
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleDateString("en-ZA", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return formatDayMonthYear(value);
 }
 
 /**

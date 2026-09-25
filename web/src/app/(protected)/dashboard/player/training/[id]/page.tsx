@@ -4,6 +4,7 @@ import { MapPin, Clock, PlayCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { AttendanceButton } from "@/components/attendance-button";
+import { formatInTimezone, formatTime } from "@/lib/time";
 
 const TYPE_STYLES: Record<string, { label: string; chip: string; header: string }> = {
   general:    { label: "General",    chip: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",       header: "bg-slate-500/10" },
@@ -79,9 +80,9 @@ export default async function PlayerTrainingSessionPage({
           <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <Clock className="size-3.5 shrink-0" aria-hidden="true" />
-              {date.toLocaleDateString("en-ZA", { weekday: "long", day: "numeric", month: "long" })}
+              {formatInTimezone(date, { weekday: "long", day: "numeric", month: "long" })}
               {" · "}
-              {date.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}
+              {formatTime(date)}
             </span>
             {session.location && (
               <span className="flex items-center gap-1.5">

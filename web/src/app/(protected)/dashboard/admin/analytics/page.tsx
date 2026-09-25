@@ -5,6 +5,7 @@ import { PositionPieChart } from "@/components/analytics/position-pie-chart";
 import { RatingTrendChart } from "@/components/analytics/rating-trend-chart";
 import { ComplianceBar } from "@/components/analytics/compliance-bar";
 import { AcademyHealthPanel } from "@/components/ai/academy-health-panel";
+import { formatInTimezone } from "@/lib/time";
 
 const DOC_TYPES = [
   "registration_agreement",
@@ -110,8 +111,7 @@ export default async function AnalyticsPage() {
 
   const monthBuckets: Record<string, number[]> = {};
   for (const r of academyRatings) {
-    const d = new Date(r.created_at);
-    const key = d.toLocaleDateString("en-ZA", { month: "short", year: "2-digit" });
+    const key = formatInTimezone(r.created_at, { month: "short", year: "2-digit" });
     (monthBuckets[key] ??= []).push(r.rating);
   }
   const ratingTrendData = Object.entries(monthBuckets)

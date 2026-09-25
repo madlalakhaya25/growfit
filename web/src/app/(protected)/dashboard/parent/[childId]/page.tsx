@@ -8,6 +8,7 @@ import { ListRow, ListRowGroup } from "@/components/ui/list-row";
 import { POSITIONS, FEET } from "@/lib/types";
 import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
 import { calculateAge } from "@/lib/player";
+import { formatDayMonth, formatWeekdayDayMonth } from "@/lib/time";
 import { RemovePlayerPhotoButton } from "@/components/remove-player-photo-button";
 import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
@@ -152,7 +153,7 @@ export default async function ChildDetailPage({
         title={`${f.is_home ? "vs" : "@"} ${f.opponent}`}
         subtitle={
           <>
-            {date.toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short" })}
+            {formatWeekdayDayMonth(date)}
             {f.venue && ` · ${f.venue}`}
             {teamIds.length > 1 && teamInfo && ` · ${teamInfo.name}`}
             {f.status === "cancelled" && f.cancellation_reason && (
@@ -319,10 +320,7 @@ export default async function ChildDetailPage({
                           }
                           title={fixture ? `vs ${fixture.opponent}` : "Standalone assessment"}
                           subtitle={r.note ? `“${r.note}”` : undefined}
-                          trailing={new Date(r.created_at).toLocaleDateString("en-ZA", {
-                            day: "numeric",
-                            month: "short",
-                          })}
+                          trailing={formatDayMonth(r.created_at)}
                         />
                       );
                     })}

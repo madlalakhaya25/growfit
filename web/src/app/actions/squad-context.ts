@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { POSITIONS } from "@/lib/types";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { calculateAge } from "@/lib/player";
+import { formatDayMonth, formatInTimezone } from "@/lib/time";
 import {
   ATTENDANCE_WINDOW_DAYS, WELFARE_ATTENDANCE_THRESHOLD,
   attendanceWindowStart, isAttendanceStatus, summariseAttendance,
@@ -325,12 +326,12 @@ export async function buildSquadContext(
   if (results.length > 0) {
     lines.push("", "RECENT RESULTS (most recent first):");
     for (const r of results) {
-      lines.push(`- ${new Date(r.fixture_date).toLocaleDateString("en-ZA", { day: "numeric", month: "short" })} ${r.is_home ? "vs" : "away to"} ${r.opponent}: ${scoreOf(r)}`);
+      lines.push(`- ${formatDayMonth(r.fixture_date)} ${r.is_home ? "vs" : "away to"} ${r.opponent}: ${scoreOf(r)}`);
     }
   }
 
   if (upcoming) {
-    lines.push("", `NEXT MATCH: ${upcoming.is_home ? "home vs" : "away to"} ${upcoming.opponent} on ${new Date(upcoming.fixture_date).toLocaleDateString("en-ZA", { weekday: "long", day: "numeric", month: "long" })}.`);
+    lines.push("", `NEXT MATCH: ${upcoming.is_home ? "home vs" : "away to"} ${upcoming.opponent} on ${formatInTimezone(upcoming.fixture_date, { weekday: "long", day: "numeric", month: "long" })}.`);
 
     // Opponent memory — what happened last time we played them
     const history = results.filter((r) => r.opponent.toLowerCase() === upcoming!.opponent.toLowerCase());
@@ -339,7 +340,7 @@ export async function buildSquadContext(
       for (const h of history) {
         const mr = Array.isArray(h.match_results) ? h.match_results[0] : h.match_results;
         lines.push(
-          `- ${new Date(h.fixture_date).toLocaleDateString("en-ZA", { day: "numeric", month: "short" })}: ${scoreOf(h)}` +
+          `- ${formatDayMonth(h.fixture_date)}: ${scoreOf(h)}` +
           (mr?.match_notes ? ` — notes: ${mr.match_notes.slice(0, 200)}` : "")
         );
       }

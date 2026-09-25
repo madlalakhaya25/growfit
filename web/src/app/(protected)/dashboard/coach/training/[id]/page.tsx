@@ -13,6 +13,7 @@ import { AddFromLibrary } from "./add-from-library";
 import { MediaUploadForm } from "@/components/media/media-upload-form";
 import { MediaGallery } from "@/components/media/media-gallery";
 import { TrainingAttendanceForm } from "@/components/attendance/training-attendance-form";
+import { formatInTimezone, formatTime } from "@/lib/time";
 import { SessionGeneratorPanel } from "@/components/ai/session-generator-panel";
 
 const TYPE_STYLES: Record<string, { label: string; chip: string; header: string }> = {
@@ -169,9 +170,9 @@ export default async function CoachTrainingSessionPage({
           <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <Clock className="size-3.5 shrink-0" aria-hidden="true" />
-              {date.toLocaleDateString("en-ZA", { weekday: "long", day: "numeric", month: "long" })}
+              {formatInTimezone(date, { weekday: "long", day: "numeric", month: "long" })}
               {" · "}
-              {date.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}
+              {formatTime(date)}
             </span>
             {session.location && (
               <span className="flex items-center gap-1.5">

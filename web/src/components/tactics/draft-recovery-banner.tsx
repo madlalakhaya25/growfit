@@ -1,6 +1,7 @@
 "use client";
 
 import type { BoardDraft } from "@/components/tactics/tactical-board";
+import { formatInTimezone } from "@/lib/time";
 
 /**
  * "You have an unsaved board" banner — offered rather than applied
@@ -29,7 +30,7 @@ export function DraftRecoveryBanner({ draft, onRestore, onDiscard }: DraftRecove
         <p className="text-xs text-muted-foreground">
           {draft.playName ? `"${draft.playName}" — ` : ""}
           last edited{" "}
-          {new Date(draft.savedAt).toLocaleString("en-ZA", {
+          {formatInTimezone(draft.savedAt, {
             day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
           })}
           {draft.frames?.length

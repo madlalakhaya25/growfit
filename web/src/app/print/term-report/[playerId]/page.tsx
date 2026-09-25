@@ -13,6 +13,7 @@ import {
   isMissingAttributeColumn,
   type AttrKey,
 } from "@/lib/attributes";
+import { formatDayMonth, formatInTimezone } from "@/lib/time";
 import {
   attendanceWindowStart,
   isAttendanceStatus,
@@ -165,7 +166,7 @@ export default async function TermReportPrintPage({
 
   const posLabel = POSITIONS.find((p) => p.value === player.position)?.label ?? "—";
   const age = calculateAge(player.date_of_birth);
-  const generatedAt = new Date().toLocaleDateString("en-ZA", {
+  const generatedAt = formatInTimezone(new Date(), {
     day: "numeric", month: "long", year: "numeric",
   });
 
@@ -299,7 +300,7 @@ export default async function TermReportPrintPage({
                 const fx = Array.isArray(r.fixtures) ? r.fixtures[0] : r.fixtures;
                 return (
                   <tr key={i}>
-                    <td>{new Date(fx?.fixture_date ?? r.created_at).toLocaleDateString("en-ZA", { day: "numeric", month: "short" })}</td>
+                    <td>{formatDayMonth(fx?.fixture_date ?? r.created_at)}</td>
                     <td>{fx?.opponent ?? "—"}</td>
                     <td>{r.rating}/5</td>
                     <td>{r.note ?? ""}</td>

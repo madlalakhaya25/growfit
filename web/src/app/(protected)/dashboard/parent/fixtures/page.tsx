@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/ca
 import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
 import { MonthCalendar, type CalendarEvent } from "@/components/calendar/month-calendar";
 import { cn } from "@/lib/utils";
+import { formatInTimezone, formatTime } from "@/lib/time";
 
 export default async function ParentFixturesPage({
   searchParams,
@@ -127,9 +128,9 @@ export default async function ParentFixturesPage({
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <Calendar className="size-3" aria-hidden="true" />
-            {date.toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+            {formatInTimezone(date, { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
             {" · "}
-            {date.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}
+            {formatTime(date)}
           </span>
           {f.venue && (
             <span className="flex items-center gap-1">

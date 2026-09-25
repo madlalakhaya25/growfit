@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getTrainingAttendanceSummaries } from "@/lib/training-attendance";
 import type { AttendanceSummary } from "@/lib/attendance";
 import { isMissingAttributeColumn } from "@/lib/attributes";
+import { formatDayMonthYear } from "@/lib/time";
 import { LogResultForm } from "./log-result-form";
 
 export default async function LogResultPage({
@@ -74,9 +75,7 @@ export default async function LogResultPage({
         <h1 className="text-2xl font-bold">Log result</h1>
         <p className="text-sm text-muted-foreground">
           {fixture.is_home ? "vs" : "@"} {fixture.opponent} ·{" "}
-          {new Date(fixture.fixture_date).toLocaleDateString("en-ZA", {
-            day: "numeric", month: "short", year: "numeric",
-          })}
+          {formatDayMonthYear(fixture.fixture_date)}
         </p>
       </div>
       <LogResultForm

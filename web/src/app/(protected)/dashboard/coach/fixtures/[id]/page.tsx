@@ -18,6 +18,7 @@ import { MediaGallery } from "@/components/media/media-gallery";
 import { MatchAttendanceForm } from "@/components/attendance/match-attendance-form";
 import { MatchReportPanel } from "@/components/ai/match-report-panel";
 import { fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
+import { formatInTimezone } from "@/lib/time";
 
 export default async function FixtureDetailPage({
   params,
@@ -162,7 +163,7 @@ export default async function FixtureDetailPage({
           upcoming fixture), replacing the plain h1/badge row. */}
       <div className="rounded-lg bg-ink px-5 py-6 text-ink-foreground pitch-lines">
         <p className="text-center text-xs font-medium uppercase tracking-wide text-white/60">
-          {date.toLocaleDateString("en-ZA", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          {formatInTimezone(date, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
           {fixture.venue && ` · ${fixture.venue}`}
         </p>
         <p className="mt-2 flex items-center justify-center gap-3 font-display text-2xl sm:text-3xl">

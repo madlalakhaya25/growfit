@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { StatBar } from "@/components/ui/stat-bar";
 import { POSITIONS } from "@/lib/types";
 import { calculateAge, matchRatingAverage } from "@/lib/player";
+import { formatDayMonth } from "@/lib/time";
 import { RemovePlayerPhotoButton } from "@/components/remove-player-photo-button";
 import { CopyButton } from "@/components/copy-button";
 import { AttributeSummary } from "@/components/player/attribute-summary";
@@ -177,7 +178,7 @@ export default async function PlayerDashboardPage() {
       const fixture = Array.isArray(r.fixtures) ? r.fixtures[0] : r.fixtures;
       const dateStr = fixture?.fixture_date ?? r.created_at;
       return {
-        date: new Date(dateStr).toLocaleDateString("en-ZA", { day: "numeric", month: "short" }),
+        date: formatDayMonth(dateStr),
         rating: r.rating,
         opponent: fixture?.opponent ?? undefined,
       };
