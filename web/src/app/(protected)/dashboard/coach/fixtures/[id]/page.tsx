@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { ListRow, ListRowGroup } from "@/components/ui/list-row";
 import { PlayerAvatar } from "@/components/ui/player-avatar";
 import { CancelFixtureButton } from "./cancel-fixture-button";
+import { DeleteFixtureButton } from "./delete-fixture-button";
 import { EditFixtureButton } from "./edit-fixture-button";
 import { LogResultForm } from "./log/log-result-form";
 import { MediaUploadForm } from "@/components/media/media-upload-form";
@@ -203,6 +204,14 @@ export default async function FixtureDetailPage({
               />
               <CancelFixtureButton fixtureId={id} />
             </>
+          )}
+          {/* Delete has no cancellation-notice trail, so it's offered
+              whenever there's nothing historical to lose — same boundary
+              deleteFixture() itself enforces — rather than only pre-kickoff,
+              so a coach can also clean up a cancelled or wrongly-dated
+              entry instead of it sitting there forever. */}
+          {fixture.status !== "completed" && (
+            <DeleteFixtureButton fixtureId={id} />
           )}
         </div>
       </div>
