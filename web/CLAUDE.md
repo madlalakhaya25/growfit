@@ -118,6 +118,31 @@ that column as "has this happened yet" was wrong until it also checked
 (document status, team active flag, etc.) deserves the same suspicion if
 it's ever used to answer a date/time-based question.
 
+## A Server Action's `{ error } | { success }` return type only type-checks against fresh literals
+
+Every mutating Server Action here returns `{ error: string }` on failure or
+`{ success: true }` on success, and every caller reads it as `if (res?.error)
+toast.error(res.error)`. That pattern only type-checks because *every* branch
+returns a fresh object literal (`return { error: "..." };`) — TypeScript's
+return-type inference from several literal returns lets a caller read a
+property that exists on only some of the union's members, but only while
+every branch stays a literal. Swap even one branch to `return
+SOME_SHARED_CONSTANT;` (e.g. hoisting a repeated `"Fixture not found."`
+message into a module-level `const` to please a linter) and the *caller's*
+`res.error` access starts failing with `TS2339: Property 'error' does not
+exist on type '{ success: boolean }'` — same structural type, different
+result, because the constant reference breaks the literal-only inference
+path. Never hoist a Server Action's per-branch return literal into a shared
+constant; duplicate the string instead.
+
+This one also exposed that `npx tsc --noEmit` in this environment is
+**incremental** (`tsconfig.tsbuildinfo`, gitignored) and can fail to
+re-surface a real cross-file error it already knows about after a
+same-directory edit — it took `rm tsconfig.tsbuildinfo` to get an honest
+result. If a change touches a function's inferred return type and something
+about the result feels too clean, delete that file before re-running `tsc`.
+CI's fresh checkout doesn't have this problem; a local "clean" run might.
+
 ## Server Actions have a 1MB default body size limit
 
 Raised to `15mb` in `next.config.ts` (`experimental.serverActions.bodySizeLimit`)
