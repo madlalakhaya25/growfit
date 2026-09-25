@@ -22,11 +22,14 @@
   --color-popover:              #ffffff;
   --color-popover-foreground:   #191512;
 
-  /* Ink — the dark band colour for matchday heroes, the sidebar, and
-     anything that should read as "the pitch at night" rather than just
-     an inverted card. Distinct from --color-foreground so a dark band
-     doesn't move when text colour changes. */
-  --color-ink:                  #141414;
+  /* Ink — the dark band colour for matchday heroes and anything that
+     should read as "the pitch at night" rather than just an inverted
+     card. Distinct from --color-foreground so a dark band doesn't move
+     when text colour changes.
+     Was #141414 -- a near-void black that read as a flat hole cut in the
+     warm page rather than a designed surface. Warmed up to match the
+     paper/stone palette instead of pure black. */
+  --color-ink:                  #221d1a;
   --color-ink-foreground:       #faf7f2;
 
   /* Brand — Growfit red.
@@ -91,7 +94,11 @@
   --color-popover:              #1e1a16;
   --color-popover-foreground:   #f7f3ec;
 
-  --color-ink:                  #0a0a0a;
+  /* Was #0a0a0a -- darker than --color-background itself (#14110e), so the
+     "hero" band actually sat *below* the page and a plain --color-card
+     read as more elevated than it did. Lifted above both background and
+     card so it reads as the elevated surface it's meant to be. */
+  --color-ink:                  #2e2823;
   --color-ink-foreground:       #f7f3ec;
 
   --color-primary:              #e24b49;
