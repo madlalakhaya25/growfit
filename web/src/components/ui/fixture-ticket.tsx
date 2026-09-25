@@ -20,9 +20,14 @@ interface FixtureTicketProps {
 }
 
 /**
- * A matchday-poster-style fixture card: a date block, the crest-vs-opponent
- * line, venue and competition tag. Used as the Today hero and in fixture
- * lists — see docs/AI_FEATURES_AND_IA.md Part 4.
+ * A fixture card: a date block, the crest-vs-opponent line, venue and
+ * competition tag. Used as the Today hero and in fixture lists.
+ *
+ * This used to be a dark "ink" band — a deliberate matchday-poster look
+ * (see docs/AI_FEATURES_AND_IA.md Part 4) — but that put a near-black
+ * surface in the middle of the app's otherwise light-in-light-mode,
+ * dark-in-dark-mode pages, which read as broken rather than designed.
+ * It's the plain Card surface now, like everything else.
  */
 export function FixtureTicket({
   href,
@@ -44,26 +49,25 @@ export function FixtureTicket({
     <Wrapper
       {...(wrapperProps as { href: string })}
       className={cn(
-        "group flex items-stretch gap-4 rounded-lg bg-ink px-4 py-4 text-ink-foreground",
-        "pitch-lines",
+        "group flex items-stretch gap-4 rounded-lg border border-border bg-card px-4 py-4 text-card-foreground shadow-sm",
         href && "transition-transform hover:-translate-y-0.5",
         className
       )}
     >
-      <div className="flex flex-col items-center justify-center border-r border-white/15 pr-4 text-center leading-none">
-        <span className="text-xs font-medium uppercase tracking-wide text-white/60">{weekday}</span>
+      <div className="flex flex-col items-center justify-center border-r border-border pr-4 text-center leading-none">
+        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{weekday}</span>
         <span className="font-display text-3xl">{day}</span>
-        <span className="text-xs font-medium uppercase tracking-wide text-white/60">{month}</span>
+        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{month}</span>
       </div>
       <div className="min-w-0 flex-1 space-y-1">
-        <p className="text-xs font-medium uppercase tracking-wide text-white/60">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {competition}
           {teamName && ` · ${teamName}`}
         </p>
         <p className="truncate font-display text-xl leading-tight">
           {isHome ? "vs" : "@"} {opponent}
         </p>
-        <p className="text-sm text-white/70">
+        <p className="text-sm text-muted-foreground">
           {time}
           {venue && ` · ${venue}`}
         </p>
