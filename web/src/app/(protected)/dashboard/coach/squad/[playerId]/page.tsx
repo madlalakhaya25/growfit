@@ -40,6 +40,7 @@ import { DocumentHub } from "@/components/records/document-hub";
 import { ProfileTabs } from "./profile-tabs";
 import { reportError } from "@/lib/report-error";
 import { formatDayMonth } from "@/lib/time";
+import { signPlayerPhotoUrl } from "@/lib/player-photo";
 
 
 export default async function PlayerDetailPage({
@@ -124,6 +125,8 @@ export default async function PlayerDetailPage({
   }
 
   if (!player) notFound();
+
+  const photoUrl = await signPlayerPhotoUrl(supabase, player.photo_url);
 
   // Who can currently see this child's records, and any unused link codes.
   // Both are staff-only; `listParentLinkCodes` fails soft when migration 032
@@ -318,7 +321,7 @@ export default async function PlayerDetailPage({
         <div className="lg:sticky lg:top-6">
           {/* Passport card */}
           <PlayerPassportCard
-            photoUrl={player.photo_url}
+            photoUrl={photoUrl}
             fullName={player.full_name}
             overall={overall}
             posLabel={posLabel}

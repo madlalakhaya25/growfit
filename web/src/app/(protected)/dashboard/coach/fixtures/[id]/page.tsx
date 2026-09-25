@@ -18,6 +18,7 @@ import { MediaGallery } from "@/components/media/media-gallery";
 import { MatchAttendanceForm } from "@/components/attendance/match-attendance-form";
 import { MatchReportPanel } from "@/components/ai/match-report-panel";
 import { fixtureStatusLabel, fixtureStatusVariant, isFixturePast } from "@/lib/fixtures";
+import { signPlayerPhotoUrls } from "@/lib/player-photo";
 import { formatInTimezone } from "@/lib/time";
 
 export default async function FixtureDetailPage({
@@ -85,6 +86,11 @@ export default async function FixtureDetailPage({
   const appearances: Appearance[] = fixture.match_appearances ?? [];
   const ratings: PRating[] = fixture.player_ratings ?? [];
   const date = new Date(fixture.fixture_date);
+
+  const signedPhotoByUrl = await signPlayerPhotoUrls(
+    supabase,
+    appearances.map((a) => (Array.isArray(a.players) ? a.players[0] : a.players)?.photo_url ?? null)
+  );
 
   const ratingsMap = new Map(ratings.map((r) => {
     const p = Array.isArray(r.players) ? r.players[0] : r.players;
@@ -255,7 +261,7 @@ export default async function FixtureDetailPage({
                 return (
                   <ListRow
                     key={i}
-                    leading={<PlayerAvatar name={player.full_name} photoUrl={player.photo_url} size="sm" />}
+                    leading={<PlayerAvatar name={player.full_name} photoUrl={player.photo_url ? signedPhotoByUrl.get(player.photo_url) ?? null : null} size="sm" />}
                     title={player.full_name}
                     trailing={
                       <div className="flex items-center gap-2">

@@ -24,6 +24,7 @@ import {
 import { DOCUMENTS } from "@/lib/document-definitions";
 import { SquadFilters, type SquadFilter } from "./squad-filters";
 import { reportError } from "@/lib/report-error";
+import { signPlayerPhotoUrls } from "@/lib/player-photo";
 
 /** Every document a player owes per season — the document hub's own list. */
 const REQUIRED_DOC_COUNT = DOCUMENTS.length;
@@ -136,6 +137,7 @@ export default async function SquadPage({
 
   const playerIds = basePlayers.map((b) => b.player.id);
   const currentSeason = new Date().getFullYear().toString();
+  const signedPhotoByUrl = await signPlayerPhotoUrls(supabase, basePlayers.map((b) => b.player.photo_url));
 
   // Training attendance and document compliance for the whole squad, in two
   // queries rather than one per player.
@@ -221,6 +223,7 @@ export default async function SquadPage({
 
     return {
       ...p,
+      photo_url: (p.photo_url && signedPhotoByUrl.get(p.photo_url)) ?? null,
       avg,
       ratingsCount: ratings.length,
       age,

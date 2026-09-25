@@ -3,6 +3,7 @@ import { readFile } from "fs/promises";
 import path from "path";
 import { createClient } from "@/lib/supabase/server";
 import { generatePlayerCardPdf } from "@/lib/player-card-pdf";
+import { extractPlayerPhotoPath } from "@/lib/player-photo";
 
 /**
  * Downloadable registration card PDF for one player.
@@ -67,17 +68,21 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     ? (Array.isArray(membership.teams) ? membership.teams[0] : membership.teams)
     : null;
 
+  // player-photos is a private bucket (migration 043) -- the caller's own
+  // entitlement check above already proves they're allowed to see this
+  // photo, so download it with their own session rather than fetching the
+  // old public URL, which 404s now.
   let photo: { bytes: Uint8Array; kind: "jpg" | "png" } | null = null;
-  if (player.photo_url) {
+  const photoPath = extractPlayerPhotoPath(player.photo_url);
+  if (photoPath) {
     try {
-      const res = await fetch(player.photo_url);
-      if (res.ok) {
-        const contentType = res.headers.get("content-type") ?? "";
-        const bytes = new Uint8Array(await res.arrayBuffer());
-        photo = { bytes, kind: contentType.includes("png") ? "png" : "jpg" };
+      const { data: blob, error } = await supabase.storage.from("player-photos").download(photoPath);
+      if (!error && blob) {
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        photo = { bytes, kind: blob.type.includes("png") ? "png" : "jpg" };
       }
     } catch {
-      // No photo yet, or the fetch failed — the card renders an initials
+      // No photo yet, or the download failed — the card renders an initials
       // placeholder instead. Never block the download over a missing image.
     }
   }

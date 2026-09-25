@@ -10,6 +10,7 @@ import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/f
 import { calculateAge } from "@/lib/player";
 import { formatDayMonth, formatWeekdayDayMonth } from "@/lib/time";
 import { RemovePlayerPhotoButton } from "@/components/remove-player-photo-button";
+import { signPlayerPhotoUrl } from "@/lib/player-photo";
 import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
 import { ParentReportPanel } from "@/components/ai/parent-report-panel";
@@ -89,6 +90,8 @@ export default async function ChildDetailPage({
   );
   const matchAvg = matchRatingAverage(ratings.map((r) => r.rating));
   const overall = calculateOverall(attrs, player.position) ?? matchAvg;
+
+  const photoUrl = await signPlayerPhotoUrl(supabase, player.photo_url);
 
   const teamIds = (memberRows ?? []).map((m: { team_id: string }) => m.team_id);
   const teamMap = new Map(
@@ -231,7 +234,7 @@ export default async function ChildDetailPage({
         {/* Passport card */}
         <PlayerPassportCard
           contentClassName="space-y-4"
-          photoUrl={player.photo_url}
+          photoUrl={photoUrl}
           fullName={player.full_name}
           overall={overall}
           posLabel={posLabel}
