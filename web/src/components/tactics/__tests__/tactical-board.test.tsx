@@ -24,6 +24,7 @@ jest.mock("@/app/actions/tactics", () => ({
 import { TacticalBoard } from "@/components/tactics/tactical-board";
 import { useBoardInsightsStore } from "@/store/boardInsightsStore";
 import { useBoardStore } from "@/store/boardStore";
+import { useBoardSetupStore } from "@/store/boardSetupStore";
 
 /**
  * The board's own state now lives in store/boardStore.ts (a zustand
@@ -144,5 +145,55 @@ describe("TacticalBoard", () => {
     expect(screen.getByRole("button", { name: "Oval" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Hatched" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Bend left" })).toBeNull();
+  });
+
+  it("builds a press around the opponent on the ball and lists each player's job", async () => {
+    render(<TacticalBoard teams={[]} />);
+    await act(async () => { await Promise.resolve(); });
+    act(() => {
+      useBoardStore.getState().setState({
+        tokens: [
+          { id: "ball", label: "", x: 50, y: 60, kind: "ball", group: "Ball" },
+          { id: "c", label: "6", x: 50, y: 58, kind: "opponent", group: "Opponent" },
+          { id: "o1", label: "7", x: 30, y: 55, kind: "opponent", group: "Opponent" },
+          { id: "o2", label: "8", x: 70, y: 55, kind: "opponent", group: "Opponent" },
+          { id: "p1", label: "Sipho", x: 50, y: 75, kind: "player", group: "Midfielder" },
+          { id: "p2", label: "Thabo", x: 35, y: 80, kind: "player", group: "Midfielder" },
+          { id: "p3", label: "Lwazi", x: 65, y: 80, kind: "player", group: "Midfielder" },
+        ],
+        shapes: [], objects: [], playerNotes: [],
+      });
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Build press/ }));
+    const shapes = useBoardStore.getState().state.shapes;
+    expect(shapes.map((sh) => sh.kind)).toEqual(["press", "run", "run"]);
+    expect(screen.getByText(/Press drawn: 1 presser, 2 cutting the passing lanes/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Player jobs/ }));
+    const jobs = screen.getByTestId("player-jobs");
+    expect(jobs).toHaveTextContent(/Sipho.*1\. Press \d+m/);
+
+    fireEvent.click(screen.getByRole("button", { name: /Run times/ }));
+    expect(screen.getByTestId("times-layer").querySelectorAll("text")).toHaveLength(3);
+  });
+
+  it("asks for a ball at an opponent's feet before building a press", async () => {
+    render(<TacticalBoard teams={[]} />);
+    await act(async () => { await Promise.resolve(); });
+    fireEvent.click(screen.getByRole("button", { name: /Build press/ }));
+    expect(screen.getByText(/Put the ball at an opponent's feet first/)).toBeInTheDocument();
+  });
+
+  it("switches the pitch look and the broadcast view", async () => {
+    render(<TacticalBoard teams={[]} />);
+    await act(async () => { await Promise.resolve(); });
+    const floodlit = screen.getByRole("radio", { name: /Floodlit/ });
+    fireEvent.click(floodlit);
+    expect(floodlit).toHaveAttribute("aria-checked", "true");
+    expect(useBoardSetupStore.getState().pitchThemeId).toBe("night");
+
+    fireEvent.click(screen.getByRole("button", { name: "Broadcast view" }));
+    expect(screen.getByText(/Broadcast view · tap the camera to edit/)).toBeInTheDocument();
   });
 });

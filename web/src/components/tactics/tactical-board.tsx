@@ -6,11 +6,13 @@ import {
   Pencil, Download, Tag, Grid3x3,
   Play, Square, Plus, Trash2,
   Target, MessageSquare, Type, Ruler,
-  FlipHorizontal2, Maximize2, Minimize2, Hexagon, Crosshair, Share2, Map as MapIcon, AlignVerticalSpaceAround, Hash,
+  FlipHorizontal2, Maximize2, Minimize2, Hexagon, Video, Magnet, Timer, ListChecks, Crosshair, Share2, Map as MapIcon, AlignVerticalSpaceAround, Hash,
 } from "lucide-react";
 import { FORMATIONS, FORMATION_SIZES, type Formation } from "@/lib/formations";
 import { readOpponent } from "@/lib/board-analysis";
+import { PITCH_THEME_LIST } from "@/lib/pitch-themes";
 import { passingLanes, spaceControl, offsideLines, zoneCounts } from "@/lib/board-overlays";
+import { shiftToBall, reachTimes, pressingPlan, playerJobs } from "@/lib/board-coaching";
 import { counterExploits, counterRunShapes, type OpponentCounter } from "@/lib/opponent-counter";
 import { drawBoard, pickRecorderMime } from "@/lib/board-render";
 import { framesFromShapes } from "@/lib/play-motion";
@@ -34,7 +36,8 @@ import { SavedPlaysPanel } from "@/components/tactics/saved-plays-panel";
 import { AnimationPanel } from "@/components/tactics/animation-panel";
 import { DraftRecoveryBanner } from "@/components/tactics/draft-recovery-banner";
 import { ExploitLayer, ExploitLegend } from "@/components/tactics/exploit-layer";
-import { PassingLaneLayer, SpaceControlLayer, LinesLayer, ZoneCountLayer } from "@/components/tactics/analysis-layers";
+import { PassingLaneLayer, SpaceControlLayer, LinesLayer, ZoneCountLayer, ReachTimeLayer } from "@/components/tactics/analysis-layers";
+import { PlayerJobsList } from "@/components/tactics/player-jobs";
 import { getOpponentScouting, type OpponentScouting } from "@/app/actions/tactic-plays";
 import { useBoardStore, type BoardState } from "@/store/boardStore";
 import { useBoardSetupStore } from "@/store/boardSetupStore";
@@ -89,6 +92,7 @@ export interface BoardDraft {
   state: BoardState;
   frames: Frame[];
   pitchId: string;
+  pitchThemeId?: string;
   homeFormationId?: string;
   awayFormationId?: string;
   playName?: string;
@@ -301,11 +305,18 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const [textValue, setTextValue] = useState("");
   const boardWrapRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  /** Broadcast-camera tilt for presenting. View-only: pointer maths assumes
+   *  a flat board, and a 3D-tilted one would put every tap in the wrong place. */
+  const [tilted, setTilted] = useState(false);
+  /** Auto-shift: which side slides with the ball, and where each of its
+   *  players stood when it was switched on (the shape it shifts from). */
+  const [autoShift, setAutoShift] = useState<{ side: "player" | "opponent"; anchors: Token[] } | null>(null);
 
   const { state, setState, draft, setDraft, reset: resetBoardState } = useBoardStore();
   const {
     teamId, setTeamId, homeFormationId, setHomeFormationId, awayFormationId, setAwayFormationId,
     pitchId, setPitchId: setPitchIdState, equipmentKind, setEquipmentKind, resetForTeam,
+    pitchThemeId, setPitchThemeId,
   } = useBoardSetupStore();
   // Only playName/setCurrentPlayId are still read/written directly here
   // (draft autosave, video export filename, and the team-switch handler
@@ -395,6 +406,15 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const control = useMemo(() => (analysisOn && layers.space ? spaceControl(view.tokens, pitch) : undefined), [analysisOn, layers.space, view.tokens, pitch]);
   const lineReading = useMemo(() => (analysisOn && layers.lines ? offsideLines(view.tokens, pitch) : null), [analysisOn, layers.lines, view.tokens, pitch]);
   const counts = useMemo(() => (analysisOn && layers.numbers ? zoneCounts(view.tokens) : null), [analysisOn, layers.numbers, view.tokens]);
+  const ageGroup = team?.age_group ?? "U15";
+  const times = useMemo(
+    () => (layers.times ? reachTimes(view.tokens, view.shapes, pitch, ageGroup) : null),
+    [layers.times, view.tokens, view.shapes, pitch, ageGroup]
+  );
+  const jobs = useMemo(
+    () => (layers.jobs ? playerJobs(state.tokens, state.shapes, pitch) : null),
+    [layers.jobs, state.tokens, state.shapes, pitch]
+  );
 
   /** What we know about the linked fixture's opponent — drives the
    *  "usually plays…" shortcut in the Opponent card. */
@@ -792,14 +812,14 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     const timer = setTimeout(() => {
       try {
         const draft: BoardDraft = {
-          state, frames, pitchId, homeFormationId, awayFormationId,
+          state, frames, pitchId, pitchThemeId, homeFormationId, awayFormationId,
           playName, savedAt: Date.now(),
         };
         window.localStorage.setItem(draftKey, JSON.stringify(draft));
       } catch { /* quota or unavailable — the board still works */ }
     }, 800);
     return () => clearTimeout(timer);
-  }, [draftKey, state, frames, pitchId, homeFormationId, awayFormationId, playName]);
+  }, [draftKey, state, frames, pitchId, pitchThemeId, homeFormationId, awayFormationId, playName]);
 
   // Warn before leaving with unsaved work. The browser shows its own
   // wording; the string is only required to trigger the prompt at all.
@@ -835,6 +855,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setState(draft.state);
     setFrames(draft.frames ?? []);
     setPitchIdState(draft.pitchId ?? "full");
+    setPitchThemeId(draft.pitchThemeId ?? "classic");
     if (draft.homeFormationId) setHomeFormationId(draft.homeFormationId);
     if (draft.awayFormationId) setAwayFormationId(draft.awayFormationId);
     if (draft.playName) setPlayName(draft.playName);
@@ -1042,6 +1063,32 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setNotice(
       `${reshape ? `Switched to ${f!.label}` : "Kept your shape"} and drew ${runs.length} suggested move${runs.length === 1 ? "" : "s"} — press Play to watch, or drag them to adjust. Undo reverts it.`
     );
+  }
+
+  /** Draw a press on the opponent with the ball — see pressingPlan(). */
+  function buildPress() {
+    const plan = pressingPlan(stateRef.current.tokens);
+    if (!plan.carrierId) {
+      setNotice("Put the ball at an opponent's feet first — the press is built around whoever has it.");
+      return;
+    }
+    snapshot();
+    setState((st) => ({ ...st, shapes: [...st.shapes, ...plan.shapes] }));
+    const n = (r: string) => plan.roles.filter((x) => x.role === r).length;
+    setNotice(`Press drawn: 1 presser, ${n("cover")} cutting the passing lanes, ${n("mark")} marking goal-side. Press Play to watch it, drag any line to adjust.`);
+  }
+  function toggleAutoShift(side: "player" | "opponent" | null) {
+    if (!side || autoShift?.side === side) {
+      setAutoShift(null);
+      return;
+    }
+    const anchors = stateRef.current.tokens.filter((t) => t.kind === side);
+    if (anchors.length < 3 || !stateRef.current.tokens.some((t) => t.kind === "ball")) {
+      setNotice(`Auto-shift needs the ${side === "opponent" ? "opponent" : "team"} set up and a ball on the pitch.`);
+      return;
+    }
+    setAutoShift({ side, anchors });
+    setNotice(`Auto-shift on — drag the ball and ${side === "opponent" ? "they" : "we"} slide and squeeze as a unit.`);
   }
 
   function placePlayer(p: BoardPlayer) {
@@ -1260,14 +1307,22 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
         d.moved = true;
         commitSnapshot(d.pending);
       }
-      setState((st) => ({
-        ...st,
-        tokens: st.tokens.map((t) =>
-          t.id === d.id
-            ? { ...t, x: Math.max(2, Math.min(pitch.w - 2, x + d.dx)), y: Math.max(2, Math.min(pitch.h - 2, y + d.dy)) }
-            : t
-        ),
-      }));
+      setState((st) => {
+        const next = { x: Math.max(2, Math.min(pitch.w - 2, x + d.dx)), y: Math.max(2, Math.min(pitch.h - 2, y + d.dy)) };
+        const moved = st.tokens.find((t) => t.id === d.id);
+        // Auto-shift: moving the ball re-places the chosen side as a unit,
+        // from its resting shape — so the same ball spot always gives the
+        // same shape, and dragging the ball back restores it.
+        const shifted = moved?.kind === "ball" && autoShift ? shiftToBall(autoShift.anchors, next, autoShift.side) : null;
+        return {
+          ...st,
+          tokens: st.tokens.map((t) => {
+            if (t.id === d.id) return { ...t, ...next };
+            const p = shifted?.get(t.id);
+            return p ? { ...t, ...p } : t;
+          }),
+        };
+      });
     } else if (dragObj.current) {
       const { x, y } = toBoard(e.clientX, e.clientY);
       const d = dragObj.current;
@@ -1606,6 +1661,32 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
             A training grid — formations and pitch overlays are off. Place equipment and draw the drill.
           </p>
         )}
+        <div className="mt-2 flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Pitch look">
+          <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Look</span>
+          {PITCH_THEME_LIST.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="radio"
+              aria-checked={pitchThemeId === t.id}
+              onClick={() => setPitchThemeId(t.id)}
+              className={`inline-flex h-9 items-center gap-1.5 rounded-md border px-2 text-xs font-medium ${
+                pitchThemeId === t.id ? "border-primary ring-2 ring-primary/30" : "border-border hover:bg-muted"
+              }`}
+            >
+              {/* A tiny swatch of the theme itself: its stripes and line colour. */}
+              <span
+                aria-hidden="true"
+                className="inline-block h-5 w-4 rounded-sm border"
+                style={{
+                  backgroundImage: `repeating-linear-gradient(to bottom, ${t.stripes[0]} 0 3px, ${t.stripes[1]} 3px 6px)`,
+                  borderColor: t.line,
+                }}
+              />
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Tools */}
@@ -1789,6 +1870,54 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
         ))}
       </div>
 
+      {/* Coach: tools that do something to the board for you. */}
+      <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-card p-2">
+        <span className="mr-1 px-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Coach</span>
+        <div className="inline-flex items-center gap-0.5 rounded-md bg-muted p-0.5" role="group" aria-label="Auto-shift">
+          <span className="px-1.5 text-[11px] font-medium text-muted-foreground" title="Drag the ball and the chosen side slides and squeezes as a zonal unit">
+            <Magnet className="mr-1 inline size-3.5 align-[-2px]" aria-hidden="true" />Auto-shift
+          </span>
+          {([["opponent", "Them"], ["player", "Us"]] as const).map(([side, label]) => (
+            <button
+              key={side}
+              type="button"
+              onClick={() => toggleAutoShift(side)}
+              aria-pressed={autoShift?.side === side}
+              disabled={!pitch.supportsFormations}
+              className={`inline-flex h-8 items-center rounded px-2 text-[11px] font-medium disabled:opacity-40 ${
+                autoShift?.side === side ? "bg-background text-foreground shadow-sm ring-1 ring-border" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={buildPress}
+          disabled={!pitch.supportsFormations}
+          title="Put the ball at an opponent's feet: draws who presses, who cuts the passes and who marks"
+          className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted disabled:opacity-40"
+        >
+          <PressIcon className="size-4" aria-hidden="true" /> Build press
+        </button>
+        {([
+          ["times", Timer, "Run times", "How long each run takes at this age group, and whether the nearest opponent gets there first"],
+          ["jobs", ListChecks, "Player jobs", "Each player's movements as plain instructions — the same list players see on a shared play"],
+        ] as [AnalysisLayer, typeof Timer, string, string][]).map(([key, Icon, label, title]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => toggleLayer(key)}
+            aria-pressed={layers[key]}
+            title={title}
+            className={`inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border px-2.5 text-xs ${layers[key] ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border hover:bg-muted"}`}
+          >
+            <Icon className="size-3.5" aria-hidden="true" /> {label}
+          </button>
+        ))}
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-[1fr_16rem]">
         {/* Pitch.
             `max-w-md` (448px) used to apply at every breakpoint, so a coach
@@ -1824,7 +1953,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               assumes the viewBox fills this box exactly, so a wrong ratio
               also means every click lands at the wrong coordinate. */}
           <div
-            className="relative w-full overflow-hidden rounded-xl border border-border shadow-lg shadow-black/20 ring-1 ring-black/5"
+            className={`relative w-full overflow-hidden rounded-xl border border-border shadow-lg shadow-black/20 ring-1 ring-black/5 ${tilted ? "bg-gradient-to-b from-slate-950 via-slate-900 to-emerald-950" : ""}`}
             style={{
               aspectRatio: `${pitch.w} / ${pitch.h}`,
               // Full screen: as big as the screen allows at this pitch's ratio,
@@ -1841,6 +1970,21 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
             >
               {isFullscreen ? <Minimize2 className="size-4" aria-hidden="true" /> : <Maximize2 className="size-4" aria-hidden="true" />}
             </button>
+            <button
+              type="button"
+              onClick={() => setTilted((v) => !v)}
+              aria-pressed={tilted}
+              title={tilted ? "Back to the flat board (to edit)" : "Broadcast view — tilt the pitch for presenting"}
+              aria-label="Broadcast view"
+              className={`absolute right-11 top-2 z-10 inline-flex size-8 items-center justify-center rounded-md text-white backdrop-blur-sm ${tilted ? "bg-primary" : "bg-black/45 hover:bg-black/65"}`}
+            >
+              <Video className="size-4" aria-hidden="true" />
+            </button>
+            {tilted && (
+              <span className="absolute left-2 top-2 z-10 rounded-md bg-black/55 px-2 py-1 text-[11px] font-medium text-white backdrop-blur-sm">
+                Broadcast view · tap the camera to edit
+              </span>
+            )}
             {textAt && (
               <input
                 autoFocus
@@ -1861,7 +2005,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
             <svg
               ref={svgRef}
               viewBox={`0 0 ${pitch.w} ${pitch.h}`}
-              className="h-full w-full touch-none select-none"
+              className="h-full w-full touch-none select-none transition-transform duration-500 ease-out"
+              style={tilted ? { transform: "perspective(900px) rotateX(40deg) scale(0.9)", transformOrigin: "50% 70%", pointerEvents: "none" } : undefined}
               onPointerDown={onSvgDown}
               onPointerMove={onSvgMove}
               onPointerUp={onSvgUp}
@@ -1870,7 +2015,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               <ShapeDefs prefix="tb" />
               <TokenDefs prefix="tb-tok" />
 
-              <PitchLayer pitch={pitch} stripeId="tb-stripe" />
+              <PitchLayer pitch={pitch} stripeId="tb-stripe" themeId={pitchThemeId} />
 
               {control !== undefined && <SpaceControlLayer control={control} h={pitch.h} />}
 
@@ -1909,6 +2054,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                 </g>
               ))}
 
+              {/* Above the tokens: a time label hidden under a player is no use. */}
+              {times && <ReachTimeLayer times={times} />}
               {mode === "measure" && measure && <MeasureLayer a={measure.a} b={measure.b} pitch={pitch} />}
             </svg>
           </div>
@@ -1973,6 +2120,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               onClearAi={() => setAiCounter(null)}
             />
           )}
+          {jobs && <PlayerJobsList jobs={jobs} className="mt-3" />}
         </div>
 
         {/* Bench + legend */}

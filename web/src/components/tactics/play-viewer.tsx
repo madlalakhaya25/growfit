@@ -12,6 +12,8 @@ import { TokenDefs, TokenGlyph } from "@/components/tactics/token-glyph";
 import { ShapeDefs, ShapeGlyph } from "@/components/tactics/shape-glyph";
 import { EquipmentLayer } from "@/components/tactics/equipment-layer";
 import { framesFromShapes } from "@/lib/play-motion";
+import { playerJobs } from "@/lib/board-coaching";
+import { PlayerJobsList } from "@/components/tactics/player-jobs";
 
 // Read-only mirror of the board's data shape (see components/tactics/tactical-board).
 type VToken = ModelToken;
@@ -26,6 +28,8 @@ export interface PlayData {
    * `pitchId` defaults to the full pitch, `objects` to none, so it renders
    * exactly as it always did. */
   pitchId?: string;
+  /** New, additive: the coach's pitch theme (lib/pitch-themes.ts). */
+  pitchThemeId?: string;
   objects?: BoardObject[];
   /** New, additive: coach notes about individual players in this play. A
    * play saved before notes existed has none. */
@@ -45,6 +49,9 @@ export function PlayViewer({ data }: { data: PlayData }) {
   const pitch = getPitch(data.pitchId);
   const objects = data.objects ?? [];
   const notes = data.playerNotes ?? [];
+  // Our players' jobs only: a shared play is for our squad, and what the
+  // opponent does is the coach's framing, not an instruction to anyone.
+  const jobs = playerJobs(baseTokens, baseShapes, pitch).filter((j) => j.side === "player");
 
   const [tokens, setTokens] = useState<VToken[]>(baseTokens);
   const [shapes, setShapes] = useState<VShape[]>(baseShapes);
@@ -102,7 +109,7 @@ export function PlayViewer({ data }: { data: PlayData }) {
           <svg viewBox={`0 0 ${pitch.w} ${pitch.h}`} className="h-full w-full select-none">
             <ShapeDefs prefix="pv" />
 
-            <PitchLayer pitch={pitch} stripeId="pv-stripe" />
+            <PitchLayer pitch={pitch} stripeId="pv-stripe" themeId={data.pitchThemeId} />
             <TokenDefs prefix="pv-tok" />
 
             {shapes.map((sh) => <ShapeGlyph key={sh.id} sh={sh} prefix="pv" tokens={tokens} />)}
@@ -136,6 +143,8 @@ export function PlayViewer({ data }: { data: PlayData }) {
           </ul>
         </div>
       )}
+
+      {jobs.length > 0 && <PlayerJobsList jobs={jobs} />}
 
       {frames.length >= 2 ? (
         <div className="flex justify-center gap-2">
