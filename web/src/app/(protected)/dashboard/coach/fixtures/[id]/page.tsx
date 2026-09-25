@@ -17,7 +17,7 @@ import { MediaUploadForm } from "@/components/media/media-upload-form";
 import { MediaGallery } from "@/components/media/media-gallery";
 import { MatchAttendanceForm } from "@/components/attendance/match-attendance-form";
 import { MatchReportPanel } from "@/components/ai/match-report-panel";
-import { fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
+import { fixtureStatusLabel, fixtureStatusVariant, isFixturePast } from "@/lib/fixtures";
 import { formatInTimezone } from "@/lib/time";
 
 export default async function FixtureDetailPage({
@@ -183,7 +183,7 @@ export default async function FixtureDetailPage({
           <Badge variant={fixtureStatusVariant(fixture)} className="capitalize">
             {fixtureStatusLabel(fixture)}
           </Badge>
-          {fixture.status === "upcoming" && (
+          {!isFixturePast(fixture) && (
             <>
               <EditFixtureButton
                 fixtureId={id}
@@ -214,8 +214,11 @@ export default async function FixtureDetailPage({
         </p>
       )}
 
-      {/* Inline log result form */}
-      {fixture.status === "upcoming" && (
+      {/* Inline log result form — only once kickoff has actually passed
+          (isFixturePast), not just because the status column still says
+          "upcoming"; it can say that for days after the final whistle
+          since nothing flips it automatically. */}
+      {fixture.status === "upcoming" && isFixturePast(fixture) && (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
             <ClipboardList className="size-5 text-primary" aria-hidden="true" />

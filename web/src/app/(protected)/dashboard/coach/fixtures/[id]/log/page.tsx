@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getTrainingAttendanceSummaries } from "@/lib/training-attendance";
 import type { AttendanceSummary } from "@/lib/attendance";
 import { isMissingAttributeColumn } from "@/lib/attributes";
+import { isFixturePast } from "@/lib/fixtures";
 import { formatDayMonthYear } from "@/lib/time";
 import { LogResultForm } from "./log-result-form";
 
@@ -26,7 +27,13 @@ export default async function LogResultPage({
     .single();
 
   if (!fixture) notFound();
-  if (fixture.status !== "upcoming") redirect(`/dashboard/coach/fixtures/${id}`);
+  // "upcoming" alone isn't enough -- that column stays "upcoming" for days
+  // after a real kickoff since nothing flips it automatically, which let a
+  // coach open this page and log a result for a fixture that hasn't been
+  // played yet. isFixturePast is what actually knows whether kickoff has
+  // passed; a result already logged (status no longer "upcoming") is
+  // still redirected away as before.
+  if (fixture.status !== "upcoming" || !isFixturePast(fixture)) redirect(`/dashboard/coach/fixtures/${id}`);
 
   const { data: members } = await supabase
     .from("team_members")
