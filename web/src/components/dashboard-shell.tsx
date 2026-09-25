@@ -37,6 +37,11 @@ import type { FeatureKey } from "@/lib/features";
 interface Tab {
   href: string;
   label: string;
+  /** Hidden entirely when the academy has turned this feature off. Scoped
+   * to the one tab it actually belongs to — not the whole section, which
+   * used to take unrelated sibling tabs down with it (see `sections`
+   * below and docs/BACKLOG.md 4.9). */
+  feature?: FeatureKey;
 }
 
 interface NavSection {
@@ -45,12 +50,12 @@ interface NavSection {
   mobileLabel?: string;
   mobileHide?: boolean;
   Icon: React.ComponentType<{ className?: string }>;
-  /** Always at least one entry — the first is the section's own link and
-   * active-check target. A second+ entry renders as `SectionTabs` above
-   * the page content whenever that section is the active one. */
+  /** Always at least one entry here — the first is the section's own link
+   * and active-check target, and a second+ entry renders as `SectionTabs`
+   * above the page content whenever that section is the active one. This
+   * doesn't survive feature filtering though: `sections` below can and
+   * does drop a tab, so nothing downstream may assume the tuple is intact. */
   tabs: [Tab, ...Tab[]];
-  /** Hidden entirely when the academy has turned this feature off. */
-  feature?: FeatureKey;
 }
 
 // Grouped from the previous flat NAV_BY_ROLE lists (6 items for coach, with
@@ -91,9 +96,8 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
       key: "matchday", label: "Matchday", Icon: Calendar,
       tabs: [
         { href: "/dashboard/coach/fixtures", label: "Fixtures" },
-        { href: "/dashboard/coach/tactics/film", label: "Film" },
+        { href: "/dashboard/coach/tactics/film", label: "Film", feature: "film" },
       ],
-      feature: "film",
     },
     {
       key: "squad", label: "Squad", Icon: Users,
@@ -107,15 +111,14 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
       key: "develop", label: "Develop", Icon: Dumbbell,
       tabs: [
         { href: "/dashboard/coach/training", label: "Training" },
-        { href: "/dashboard/coach/tactics", label: "Tactics" },
+        { href: "/dashboard/coach/tactics", label: "Tactics", feature: "tactics" },
       ],
-      feature: "tactics",
     },
     {
       key: "more", label: "More", Icon: MoreHorizontal,
       tabs: [
         { href: "/dashboard/coach/announcements", label: "Posts" },
-        { href: "/dashboard/coach/assistant", label: "Assistant" },
+        { href: "/dashboard/coach/assistant", label: "Assistant", feature: "assistant" },
         { href: "/dashboard/coach/settings", label: "Settings" },
       ],
     },
@@ -132,10 +135,9 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
     {
       key: "learn", label: "Learn", Icon: Lightbulb,
       tabs: [
-        { href: "/dashboard/player/tactics", label: "Plays" },
+        { href: "/dashboard/player/tactics", label: "Plays", feature: "tactics" },
         { href: "/dashboard/player/development", label: "Development" },
       ],
-      feature: "tactics",
     },
     { key: "posts", label: "Announcements", mobileLabel: "Posts", Icon: Megaphone, tabs: [{ href: "/dashboard/player/announcements", label: "Posts" }] },
   ],
@@ -164,7 +166,13 @@ export function DashboardShell({ profile, teams = [], features, children }: Prop
   const role = profile.role as UserRole;
   const roleRoot = `/dashboard/${role}`;
   const allSections = NAV_BY_ROLE[role] ?? [];
-  const sections = allSections.filter((s) => !s.feature || features?.[s.feature] !== false);
+  // Filter per-tab, not per-section -- switching off `film` should only
+  // drop the Film tab, not take Fixtures down with it (same story for
+  // `tactics` and Training/Development). A section that loses every tab
+  // this way disappears entirely rather than rendering empty.
+  const sections = allSections
+    .map((s) => ({ ...s, tabs: s.tabs.filter((t) => !t.feature || features?.[t.feature] !== false) }))
+    .filter((s) => s.tabs.length > 0);
   const [isSigningOut, startSignOut] = useTransition();
 
   // The single longest-matching href across every visible section's tabs,
