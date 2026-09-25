@@ -92,72 +92,6 @@ guessing. If a future feature extracts two things from one document that
 need to be paired (a signature to a name, a barcode to a row), reach for an
 identifying field first; position is a last resort, not a starting point.
 
-## pr-agent's CLI rejects `--config.*` / `--github.*` dotted flags — use `--extra_config_url` instead
-
-`.github/workflows/pr-agent.yml` runs `pr-agent` (pip package, not the
-packaged GitHub Action) twice per PR — once against Gemini, once against
-`openrouter/free`. Getting the first one working cost about twenty commits
-of trial and error on a real PR (#5) before the actual causes were found by
-reading the real job logs instead of trusting a green checkmark — three
-real, distinct bugs, all confirmed from actual failed runs, not docs:
-
-1. **`pr-agent 0.45.0`'s CLI rejects `--config.model=...`,
-   `--config.git_provider=...`, `--github.deployment_type=...`, and
-   `--config.github_user_token=...`** as `unrecognized arguments`, exits 2,
-   and dumps its own `--help` text. The workflow had `continue-on-error:
-   true` on the pr-agent steps, which turned that real, repeated failure
-   into a job that showed green in the Actions tab while posting nothing to
-   the PR — a "clean" run that never actually reviewed anything. That's the
-   trap: **a workflow completing without error is not evidence it did its
-   job; check that a comment actually landed.** Fix: `--extra_config_url`
-   *is* a real, accepted top-level flag (it's in `--help`) that merges an
-   extra `.pr_agent.toml` — a URL or a local filesystem path — before any
-   repo-local config. Each job writes a one-line TOML to `$RUNNER_TEMP`
-   (`model="gemini/..."` or `model="openrouter/free"`) and points
-   `--extra_config_url` at it. No repo-local `.pr_agent.toml` exists, so
-   nothing overrides these per-job files. `continue-on-error` is gone — a
-   real failure shows red now, on purpose.
-2. **pr-agent's default `deployment_type` is `"user"`**, and in that mode
-   it reads the GitHub token from the *config* key `github.user_token` —
-   not the ambient `GITHUB_TOKEN` env var, even with that set. Each job's
-   TOML also sets `[github] user_token`, expanded from the real
-   `GITHUB_TOKEN` value at write time.
-3. **pr-agent keeps a hardcoded table of known models' max token counts**
-   and refuses to call anything missing from it. Gemini's model is already
-   in that table (no override needed); `openrouter/free` isn't, so that
-   job sets `custom_model_max_tokens=200000` (its documented context
-   window per openrouter.ai/openrouter/free).
-
-**The second reviewer routes through `openrouter/free`, not a named
-model — this replaced an earlier attempt at Qwen2.5-Coder specifically,
-which hit a real external rug-pull, not a bug.** All three fixes above were
-found and applied for the named-Qwen-slug attempt too. What actually killed
-it: OpenRouter's own API returned `"This model is unavailable for free. The
-paid version is available now"` — they discontinued the free tier for
-Qwen-coder models entirely between when this was planned and when it was
-tested against a real PR. Rather than chase OpenRouter's free-tier rotation
-by hand, the job now points at `openrouter/free` — OpenRouter's own
-auto-router, which randomly picks whatever's currently free and matches the
-request's needs. It self-heals against exactly the failure mode above, at
-the cost of not knowing in advance which specific model answered any given
-run.
-
-Other things worth knowing:
-- Each job only runs if its secret is present (`GEMINI_API_KEY` for
-  Gemini, `OPENROUTER_API_KEY` for the OpenRouter job) and the PR isn't a
-  draft; missing a secret prints a `::warning` and skips that reviewer
-  rather than failing — that's expected, not a bug.
-- Gemini reuses the app's own `GEMINI_API_KEY` and shares its quota/billing
-  with the live app's AI features — give CI its own key if that's ever a
-  problem.
-- Both jobs are advisory only. `pr-checks.yml` (tsc, jest, build,
-  Playwright) is the repo's actual required gate — never treat a pr-agent
-  thread as a merge blocker on its own.
-- **A pr-agent suggestion can itself be a false positive** — one run
-  claimed the (perfectly valid, actually-in-use) `gemini-3.6-flash` slug
-  "doesn't exist," because the reviewing model's own training data
-  predates it. Triage every finding before applying it; don't auto-apply.
-
 ## Verify generated visual/binary output by rendering it, not by reading the code
 
 Code that looks obviously correct for drawing a PDF, cropping an image, or laying out a card produced real, visible bugs that only showed up on
@@ -215,11 +149,11 @@ this first before assuming the bug is in the upload code itself.
 
 `.github/workflows/pr-checks.yml` runs `tsc`, `npm test`, `npm run build`,
 and the Playwright suite on every PR to `main` — this used to be nothing but
-SonarQube and CodeQL, neither of which catches a broken build. Two
-open-source reviewers also run automatically (`.github/workflows/pr-agent.yml`,
-The-PR-Agent backed by Gemini and OpenRouter's free-tier auto-router — a
-named Qwen slug was tried first and dropped when OpenRouter discontinued
-its free tier for it, see the gotcha above), each posting a narrative
-review plus inline suggestions. Branch protection isn't turned on yet, so
-none of this blocks a merge as of
-this note — that's a deliberate separate step, not an oversight.
+SonarQube and CodeQL, neither of which catches a broken build. CodeQL
+(`codeql.yml`) now runs on push to `main` and a weekly cron only, not on
+every PR — it was redundant to run twice for the same commit once it also
+runs on push. The `pr-agent.yml` Gemini-review workflow was removed
+entirely: it was advisory only and had become more failure than signal
+("Failed to review PR" on most recent runs). Branch protection isn't turned
+on yet, so none of this blocks a merge as of this note — that's a
+deliberate separate step, not an oversight.
