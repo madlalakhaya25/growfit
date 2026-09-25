@@ -61,17 +61,26 @@ export default async function CoachDashboardPage() {
     upcomingCount: upcomingCountMap.get(team.id) ?? 0,
   }));
 
-  const [{ data: nextFixtures }, { data: nextSessions }] = await Promise.all([
+  const weekAhead = new Date(new Date(now).getTime() + 7 * 24 * 3600 * 1000).toISOString();
+
+  type UpcomingFixtureRow = {
+    id: string; opponent: string; fixture_date: string; is_home: boolean; team_id: string;
+    teams: { name: string } | { name: string }[] | null;
+  };
+
+  const [{ data: upcomingFixtureRows }, { data: nextSessions }] = await Promise.all([
     teamIds.length
+      // Every team's own earliest fixture, not just one across the whole
+      // coach account — a coach running U11/U13/U15 has a Sunday for each.
       ? supabase
           .from("fixtures")
           .select("id, opponent, fixture_date, is_home, team_id, teams(name)")
           .in("team_id", teamIds)
           .eq("status", "upcoming")
           .gte("fixture_date", now)
+          .lte("fixture_date", weekAhead)
           .order("fixture_date")
-          .limit(1)
-      : Promise.resolve({ data: null }),
+      : Promise.resolve({ data: [] as UpcomingFixtureRow[] }),
     teamIds.length
       ? supabase
           .from("training_sessions")
@@ -83,7 +92,16 @@ export default async function CoachDashboardPage() {
       : Promise.resolve({ data: null }),
   ]);
 
-  const nextFixture = nextFixtures?.[0] ?? null;
+  // Earliest fixture per team, in team order lost — re-sorted by kickoff
+  // below so the soonest match leads regardless of which team it belongs to.
+  const nextFixtureByTeam = new Map<string, UpcomingFixtureRow>();
+  for (const f of (upcomingFixtureRows ?? []) as UpcomingFixtureRow[]) {
+    if (!nextFixtureByTeam.has(f.team_id)) nextFixtureByTeam.set(f.team_id, f);
+  }
+  const upcomingTeamFixtures = Array.from(nextFixtureByTeam.values()).sort(
+    (a, b) => new Date(a.fixture_date).getTime() - new Date(b.fixture_date).getTime()
+  );
+
   const nextSession = nextSessions?.[0] ?? null;
   const multiTeam = allTeams.length > 1;
 
@@ -163,7 +181,7 @@ export default async function CoachDashboardPage() {
       ) : (
         <div className="space-y-6">
           {/* ── What's Next ───────────────────────────────────────── */}
-          {!nextFixture && !nextSession && (
+          {upcomingTeamFixtures.length === 0 && !nextSession && (
             <div className="rounded-xl border border-dashed border-border bg-card/50 px-5 py-6 space-y-3">
               <p className="text-sm text-muted-foreground">No upcoming fixtures or training sessions yet.</p>
               <div className="flex flex-wrap gap-2">
@@ -182,25 +200,29 @@ export default async function CoachDashboardPage() {
               </div>
             </div>
           )}
-          {nextFixture && (() => {
-            const date = new Date(nextFixture.fixture_date);
+          {upcomingTeamFixtures.map((fixture) => {
+            const date = new Date(fixture.fixture_date);
             const teamName = multiTeam
-              ? (Array.isArray(nextFixture.teams) ? nextFixture.teams[0]?.name : (nextFixture.teams as { name: string } | null)?.name)
+              ? (Array.isArray(fixture.teams) ? fixture.teams[0]?.name : (fixture.teams as { name: string } | null)?.name)
               : null;
             return (
               <FixtureTicket
-                href={`/dashboard/coach/fixtures/${nextFixture.id}`}
+                key={fixture.id}
+                href={`/dashboard/coach/fixtures/${fixture.id}`}
                 weekday={date.toLocaleDateString("en-ZA", { weekday: "short" })}
                 day={date.toLocaleDateString("en-ZA", { day: "numeric" })}
                 month={date.toLocaleDateString("en-ZA", { month: "short" })}
                 time={date.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}
-                opponent={nextFixture.opponent}
-                isHome={nextFixture.is_home}
+                opponent={fixture.opponent}
+                isHome={fixture.is_home}
                 teamName={teamName}
               />
             );
-          })()}
-          {!nextFixture && nextSession && (() => {
+          })}
+          {/* Training always shows alongside fixtures now, not only when no
+              team has one — a coach with Sunday's match already ticketed
+              above still needs to see Wednesday's session. */}
+          {nextSession && (() => {
             const days = daysFromNow(nextSession.session_date);
             const date = new Date(nextSession.session_date);
             const teamName = multiTeam
