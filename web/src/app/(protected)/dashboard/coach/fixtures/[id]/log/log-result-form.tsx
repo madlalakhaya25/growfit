@@ -253,7 +253,7 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
           {pending ? "Saving…" : "Save result"}
         </Button>
         {!hideCancel && (
-          <Button type="button" variant="outline" onClick={() => router.back()}>
+          <Button type="button" variant="secondary" onClick={() => router.back()}>
             Cancel
           </Button>
         )}

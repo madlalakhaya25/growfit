@@ -11,7 +11,7 @@ const buttonVariants = cva(
         primary: "bg-primary text-primary-foreground hover:opacity-90",
         brand: "bg-brand text-brand-foreground hover:opacity-90",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "border border-border bg-secondary text-secondary-foreground hover:bg-secondary/80",
         outline:
           "border border-border bg-transparent text-foreground hover:bg-secondary/60",
         ghost: "bg-transparent text-foreground hover:bg-secondary/60",

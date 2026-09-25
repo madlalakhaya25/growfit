@@ -28,19 +28,15 @@ export function DeleteFixtureButton({ fixtureId }: { fixtureId: string }) {
   return (
     <>
       {dialog}
-      {/* onInk, not outline: this sits directly on the matchday header's
-          bg-ink band (page.tsx), which inverts against the page rather
-          than being fixed-dark. The destructive-on-ink overrides on top
-          (not the plain destructive tokens — see globals.css's comment on
-          --color-destructive-on-ink) keep it reading as the dangerous
-          action it is, with the correct red for whichever way the ink band
-          is currently inverted, rather than blending with Edit/Cancel. */}
+      {/* Keep the destructive action in the same card surface family as the
+          other header controls so it stays legible without the old pitch-band
+          treatment. */}
       <Button
-        variant="onInk"
+        variant="secondary"
         size="sm"
         onClick={handleDelete}
         disabled={pending}
-        className="border-destructive-on-ink/40 text-destructive-on-ink hover:bg-destructive-on-ink/10 hover:text-destructive-on-ink"
+        className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
       >
         {pending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Trash2 className="size-4" aria-hidden="true" />}
         {pending ? "Deleting…" : "Delete"}

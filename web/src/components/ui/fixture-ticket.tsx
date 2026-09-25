@@ -20,17 +20,10 @@ interface FixtureTicketProps {
 }
 
 /**
- * A matchday-poster-style fixture card: a date block, the crest-vs-opponent
- * line, venue and competition tag. Used as the Today hero and in fixture
- * lists — see docs/AI_FEATURES_AND_IA.md Part 4.
- *
- * `bg-ink`/`text-ink-foreground` invert against the page (see globals.css's
- * comment on `--color-ink`) rather than being a fixed dark tile, so this
- * reads as a bold scoreboard in both themes instead of going muddy — or
- * outright wrong-way-round — when the app itself turns dark. Every text
- * colour here is `ink-foreground` at some opacity for the same reason: a
- * literal `text-white/60` happened to be right for the old fixed-dark tile,
- * but is exactly backwards once the band inverts in dark mode.
+ * A matchday fixture card: a date block, the opponent line, venue and
+ * competition tag. Kept on the standard card surface rather than the old
+ * scoreline ink band so it reads consistently in both light and dark mode,
+ * without the pitch-texture noise.
  */
 export function FixtureTicket({
   href,
@@ -52,8 +45,7 @@ export function FixtureTicket({
     <Wrapper
       {...(wrapperProps as { href: string })}
       className={cn(
-        "group flex items-stretch gap-4 rounded-lg bg-ink px-4 py-4 text-ink-foreground",
-        "pitch-lines",
+        "group flex items-stretch gap-4 rounded-xl border border-border bg-card px-4 py-4 text-card-foreground shadow-sm",
         href && "transition-transform hover:-translate-y-0.5",
         className
       )}

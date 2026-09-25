@@ -25,12 +25,9 @@ export function CancelFixtureButton({ fixtureId }: { fixtureId: string }) {
 
   if (!open) {
     return (
-      // onInk, not outline: this sits directly on the matchday header's
-      // bg-ink band (page.tsx), which inverts against the page rather than
-      // being fixed-dark, so outline's page-tuned colours are backwards on
-      // it. The expanded form below has its own bg-muted island, so it's
-      // unaffected.
-      <Button variant="onInk" size="sm" onClick={() => setOpen(true)}>
+      // Match the score card's surface styling instead of the old ink-band
+      // treatment so the action stays consistent in light and dark mode.
+      <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
         <X className="size-4" aria-hidden="true" />
         Cancel fixture
       </Button>

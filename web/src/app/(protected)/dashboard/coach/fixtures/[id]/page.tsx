@@ -180,18 +180,12 @@ export default async function FixtureDetailPage({
         </Button>
       </div>
 
-      {/* Matchday header — an ink band with the scoreline (or "vs" for an
-          upcoming fixture), replacing the plain h1/badge row. `bg-ink`
-          inverts against the page (globals.css's comment on --color-ink)
-          rather than being a fixed dark tile, so it reads as a scoreboard —
-          dark on the light page, light on the dark page — in both themes.
-          Every control drawn directly on it (Edit/Cancel/Delete below) uses
-          the `onInk` button variant rather than `outline`, for the same
-          reason FixtureTicket's own text uses `ink-foreground` and not a
-          literal white: `outline`/`text-muted-foreground` are tuned for the
-          page's own background, which this band is deliberately not. */}
-      <div className="rounded-lg bg-ink px-5 py-6 text-ink-foreground pitch-lines">
-        <p className="text-center text-xs font-medium uppercase tracking-wide text-ink-foreground/60">
+      {/* Matchday header — a score panel that uses the same card surface as the
+          log-result form so it stays readable and consistent in both themes,
+          while keeping the fixture actions aligned with the same neutral card
+          styling instead of the old pitch-band treatment. */}
+      <div className="rounded-xl border border-border bg-card px-5 py-6 text-card-foreground shadow-sm">
+        <p className="text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {formatInTimezone(date, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
           {fixture.venue && ` · ${fixture.venue}`}
         </p>
@@ -200,16 +194,16 @@ export default async function FixtureDetailPage({
           {result ? (
             <span className="tabular-nums" aria-label={`${result.team_score} to ${result.opponent_score}`}>
               {result.team_score}
-              <span className="mx-1.5 text-ink-foreground/50">–</span>
+              <span className="mx-1.5 text-muted-foreground/70">–</span>
               {result.opponent_score}
             </span>
           ) : (
-            <span className="text-base font-sans font-medium text-ink-foreground/70">{fixture.is_home ? "vs" : "@"}</span>
+            <span className="text-base font-sans font-medium text-muted-foreground">{fixture.is_home ? "vs" : "@"}</span>
           )}
           <span>{fixture.opponent}</span>
         </p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-          <Badge variant="onInk" className="capitalize">
+          <Badge variant="neutral" className="capitalize border-border bg-secondary text-secondary-foreground">
             <span className={`size-1.5 rounded-full ${STATUS_DOT[fixtureStatusVariant(fixture)]}`} aria-hidden="true" />
             {fixtureStatusLabel(fixture)}
           </Badge>
