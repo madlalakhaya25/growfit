@@ -2,11 +2,19 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AssistantTeam, AssistantFixture } from "@/components/ai/coach-assistant-panel";
 import type { BoardPlayer } from "@/lib/board-model";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { reportError } from "@/lib/report-error";
 
 export interface AssistantContext {
   teams: AssistantTeam[];
   roster: Record<string, BoardPlayer[]>;
   fixtures: Record<string, AssistantFixture[]>;
+  /**
+   * True when a query behind this context failed. Callers must check this
+   * before treating an empty `teams`/`fixtures` as "no teams yet" — a
+   * failed read looks identical to a genuinely empty account otherwise,
+   * which is exactly how "Today can lie" bugs happen.
+   */
+  error: boolean;
 }
 
 type MemberRow = {
@@ -31,12 +39,20 @@ export async function getAssistantContext(
   supabase: SupabaseClient<any, any, any>,
   userId: string
 ): Promise<AssistantContext> {
-  const { data: teamRows } = await supabase
+  const { data: teamRows, error: teamsError } = await supabase
     .from("teams")
     .select("id, name, age_group, team_members(active, players(id, full_name, position))")
     .in("id", await getCoachedTeamIds(supabase, userId))
     .eq("active", true)
-    .order("name");
+    // Same default order every other "current team" fetch in the app uses —
+    // see lib/current-team.ts. Was `.order("name")`, which meant the
+    // assistant's own default team could silently disagree with the one the
+    // coach was actually looking at elsewhere.
+    .order("created_at");
+
+  if (teamsError) {
+    reportError(teamsError, { scope: "getAssistantContext", extra: { query: "teams" } });
+  }
 
   const teams = (teamRows ?? []) as (AssistantTeam & TeamWithRosterRow)[];
 
@@ -49,9 +65,10 @@ export async function getAssistantContext(
   }
 
   const fixtures: Record<string, AssistantFixture[]> = {};
+  let fixturesError: unknown = null;
   if (teams.length > 0) {
     const since = new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString();
-    const { data: fx } = await supabase
+    const { data: fx, error } = await supabase
       .from("fixtures")
       .select("id, team_id, opponent, fixture_date, is_home")
       .in("team_id", teams.map((t) => t.id))
@@ -59,6 +76,10 @@ export async function getAssistantContext(
       .gte("fixture_date", since)
       .order("fixture_date", { ascending: true })
       .limit(40);
+    fixturesError = error;
+    if (fixturesError) {
+      reportError(fixturesError, { scope: "getAssistantContext", extra: { query: "fixtures" } });
+    }
 
     for (const f of (fx ?? []) as { id: string; team_id: string; opponent: string; fixture_date: string; is_home: boolean }[]) {
       (fixtures[f.team_id] ??= []).push({
@@ -69,5 +90,10 @@ export async function getAssistantContext(
     }
   }
 
-  return { teams: teams.map(({ id, name, age_group }) => ({ id, name, age_group })), roster, fixtures };
+  return {
+    teams: teams.map(({ id, name, age_group }) => ({ id, name, age_group })),
+    roster,
+    fixtures,
+    error: Boolean(teamsError || fixturesError),
+  };
 }

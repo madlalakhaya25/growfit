@@ -15,6 +15,7 @@ import { AiProse } from "@/components/ai/ai-prose";
 import { FORMATIONS } from "@/lib/formations";
 import { mapNamedPositionsToSlots, groupOf, shortLabel, uid, type BoardPlayer, type Token } from "@/lib/board-model";
 import { useAskGrowfitStore } from "@/store/askGrowfitStore";
+import { readCurrentTeamCookie, resolveCurrentTeamId, writeCurrentTeamCookie } from "@/lib/current-team";
 
 export interface AssistantTeam { id: string; name: string; age_group: string | null }
 export interface AssistantFixture { id: string; label: string; when: string }
@@ -38,14 +39,6 @@ export function CoachAssistantPanel({
    * its own roster. */
   roster: Record<string, BoardPlayer[]>;
 }) {
-  // Rehydrates the persisted conversation once mounted. Deferred to an
-  // effect rather than read during the initial render, so the server's
-  // render (no sessionStorage) and the client's first render agree before
-  // this fills in — see askGrowfitStore.ts.
-  useEffect(() => {
-    useAskGrowfitStore.persist.rehydrate();
-  }, []);
-
   const teamId = useAskGrowfitStore((s) => s.teamId);
   const setTeamId = useAskGrowfitStore((s) => s.setTeamId);
   const messages = useAskGrowfitStore((s) => s.messages);
@@ -59,6 +52,26 @@ export function CoachAssistantPanel({
   const applied = useAskGrowfitStore((s) => s.applied);
   const setApplied = useAskGrowfitStore((s) => s.setApplied);
   const clearConversation = useAskGrowfitStore((s) => s.clearConversation);
+
+  // Rehydrates the persisted conversation once mounted, then — only if no
+  // team was persisted yet — picks up the coach's last explicit choice from
+  // elsewhere in the app (the cookie TeamSwitcher sets). Both deferred to an
+  // effect rather than read during the initial render, so the server's
+  // render (no sessionStorage/cookie) and the client's first render agree
+  // before either fills in — see askGrowfitStore.ts.
+  useEffect(() => {
+    (async () => {
+      await useAskGrowfitStore.persist.rehydrate();
+      const stored = useAskGrowfitStore.getState();
+      if (!stored.teamId) {
+        const fromCookie = resolveCurrentTeamId(teams, null, readCurrentTeamCookie());
+        if (fromCookie) stored.setTeamId(fromCookie);
+      }
+    })();
+    // Deliberately once-on-mount only, matching the "read the cookie once
+    // after mount" pattern used elsewhere — not every `teams` prop change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -208,7 +221,7 @@ export function CoachAssistantPanel({
         {teams.length > 1 && (
           <select
             value={resolvedTeamId}
-            onChange={(e) => { setTeamId(e.target.value); clearConversation(); setOutput(null); setApplied(false); setFixtureId(""); }}
+            onChange={(e) => { setTeamId(e.target.value); writeCurrentTeamCookie(e.target.value); clearConversation(); setOutput(null); setApplied(false); setFixtureId(""); }}
             aria-label="Team"
             className="rounded-md border border-border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
           >

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
+import { resolveCurrentTeamFromCookies } from "@/lib/current-team-server";
 
 export default async function CoachFixturesPage({
   searchParams,
@@ -28,7 +29,7 @@ export default async function CoachFixturesPage({
 
   if (!allTeams?.length) redirect("/dashboard/coach");
 
-  const team = allTeams.find((t) => t.id === teamParam) ?? allTeams[0];
+  const team = (await resolveCurrentTeamFromCookies(allTeams, teamParam)) ?? allTeams[0];
 
   const { data: fixtures } = await supabase
     .from("fixtures")

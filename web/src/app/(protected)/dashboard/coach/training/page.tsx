@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { resolveCurrentTeamFromCookies } from "@/lib/current-team-server";
 
 const TYPE_STYLES: Record<string, { label: string; chip: string }> = {
   general:    { label: "General",    chip: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" },
@@ -34,7 +35,7 @@ export default async function CoachTrainingPage({
 
   if (!allTeams?.length) redirect("/dashboard/coach");
 
-  const team = allTeams.find((t) => t.id === teamParam) ?? allTeams[0];
+  const team = (await resolveCurrentTeamFromCookies(allTeams, teamParam)) ?? allTeams[0];
 
   // `team.id` already comes from `allTeams`, itself scoped to
   // getCoachedTeamIds() above — no further ownership filter needed. This

@@ -30,7 +30,10 @@ export default async function ProtectedLayout({
       .select("id, name, age_group")
       .in("id", await getCoachedTeamIds(supabase, profile.id))
       .eq("active", true)
-      .order("name");
+      // Same default order the squad/fixtures/training pages already use —
+      // see lib/current-team.ts. Everywhere a "current team" gets guessed
+      // in the absence of a param or cookie now agrees on which team that is.
+      .order("created_at");
     teams = data ?? [];
   }
 
