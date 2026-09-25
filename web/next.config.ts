@@ -15,6 +15,13 @@ const nextConfig: NextConfig = {
         hostname: "*.supabase.co",
         pathname: "/storage/v1/object/public/**",
       },
+      {
+        // Signed URLs for the now-private player-photos bucket (migration
+        // 043) -- a different path prefix from the public one above.
+        protocol: "https",
+        hostname: "*.supabase.co",
+        pathname: "/storage/v1/object/sign/**",
+      },
     ],
   },
   async headers() {

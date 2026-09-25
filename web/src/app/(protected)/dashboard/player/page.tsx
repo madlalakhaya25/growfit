@@ -26,6 +26,7 @@ import {
   type AttrKey,
 } from "@/lib/attributes";
 import { reportError } from "@/lib/report-error";
+import { signPlayerPhotoUrl } from "@/lib/player-photo";
 
 
 
@@ -95,6 +96,8 @@ export default async function PlayerDashboardPage() {
       </div>
     );
   }
+
+  const photoUrl = await signPlayerPhotoUrl(supabase, player.photo_url);
 
   const wideAttrs = await supabase
     .from("player_attributes")
@@ -259,7 +262,7 @@ export default async function PlayerDashboardPage() {
         <PlayerPassportCard
           className="sm:col-span-2 lg:col-span-1"
           variant="inline"
-          photoUrl={player.photo_url}
+          photoUrl={photoUrl}
           fullName={player.full_name}
           overall={overall}
           posLabel={posLabel}

@@ -17,6 +17,7 @@ import {
 } from "@/lib/attributes";
 import { calculateAge, matchRatingAverage } from "@/lib/player";
 import { formatDayMonth } from "@/lib/time";
+import { signPlayerPhotoUrl } from "@/lib/player-photo";
 import QRCode from "qrcode";
 
 export const revalidate = 60;
@@ -149,6 +150,12 @@ export default async function PublicPassportPage({
   const shareUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://growfitfa.com"}/passport/${passport.share_token}`;
   const qrDataUrl = await QRCode.toDataURL(shareUrl, { width: 160, margin: 1 });
 
+  // `get_public_passport` already nulls this out server-side when consent is
+  // withheld -- signing it here too, on the same anonymous client the RPC
+  // call used, is a second, independent enforcement of that same rule at
+  // the storage layer (migration 043), not just a URL conversion.
+  const photoUrl = await signPlayerPhotoUrl(supabase, passport.photo_url);
+
   const posLabel = POSITIONS.find((p) => p.value === passport.position)?.label ?? "—";
   const secPosLabel = POSITIONS.find((p) => p.value === passport.secondary_pos)?.label;
   const footLabel = FEET.find((f) => f.value === passport.preferred_foot)?.label;
@@ -201,7 +208,7 @@ export default async function PublicPassportPage({
               barClassName="h-1.5"
               titleClassName="text-xl"
               contentClassName="space-y-4"
-              photoUrl={passport.photo_url}
+              photoUrl={photoUrl}
               fullName={passport.full_name}
               overall={overall}
               posLabel={posLabel}

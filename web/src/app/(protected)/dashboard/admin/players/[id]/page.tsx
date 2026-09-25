@@ -23,6 +23,7 @@ import {
   type AttrKey,
 } from "@/lib/attributes";
 import { matchRatingAverage } from "@/lib/player";
+import { signPlayerPhotoUrl } from "@/lib/player-photo";
 
 export default async function AdminPlayerDetailPage({
   params,
@@ -61,6 +62,8 @@ export default async function AdminPlayerDetailPage({
 
   if (!player) notFound();
 
+  const photoUrl = await signPlayerPhotoUrl(supabase, player.photo_url);
+
   const [{ data: medical }, { data: docs }] = await Promise.all([
     supabase.from("player_medical").select("*").eq("player_id", id).maybeSingle(),
     supabase.from("player_documents").select("document_type, status, signer_name, signed_at, uploaded_at, upload_url").eq("player_id", id).eq("season", currentSeason),
@@ -93,7 +96,7 @@ export default async function AdminPlayerDetailPage({
 
       <div className="grid gap-6 lg:grid-cols-3">
         <PlayerPassportCard
-          photoUrl={player.photo_url}
+          photoUrl={photoUrl}
           fullName={player.full_name}
           overall={avg}
           posLabel={posLabel}
