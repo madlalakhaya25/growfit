@@ -4,6 +4,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
+import { parseJsonObject } from "@/lib/ai-json";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -28,23 +29,6 @@ export interface SessionDrill {
 export interface SessionPlanStructured {
   drills: SessionDrill[];
   coachReflection: string;
-}
-
-/** Same JSON-mode parsing fallback as coach-assistant.ts / player-import.ts. */
-function parseJsonObject(raw: string): Record<string, unknown> | null {
-  const text = raw.trim();
-  if (!text) return null;
-  try {
-    return JSON.parse(text) as Record<string, unknown>;
-  } catch {
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    try {
-      return JSON.parse(match[0]) as Record<string, unknown>;
-    } catch {
-      return null;
-    }
-  }
 }
 
 /**

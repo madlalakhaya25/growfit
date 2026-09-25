@@ -3,33 +3,44 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   MousePointer2, Eraser, Undo2, Redo2, RotateCcw, Users, Circle,
-  ArrowUpRight, Minus, Waves, Pencil, Download, Tag, Grid3x3,
+  Pencil, Download, Tag, Grid3x3,
   Play, Square, Plus, Trash2,
-  Target, MessageSquare, RectangleHorizontal, Type, Ruler,
-  FlipHorizontal2, Maximize2, Minimize2, Hexagon,
+  Target, MessageSquare, Type, Ruler,
+  FlipHorizontal2, Maximize2, Minimize2, Hexagon, Crosshair, Share2, Map as MapIcon, AlignVerticalSpaceAround, Hash,
 } from "lucide-react";
-import { FORMATIONS, FORMATION_SIZES } from "@/lib/formations";
+import { FORMATIONS, FORMATION_SIZES, type Formation } from "@/lib/formations";
+import { readOpponent } from "@/lib/board-analysis";
+import { passingLanes, spaceControl, offsideLines, zoneCounts } from "@/lib/board-overlays";
+import { counterExploits, counterRunShapes, type OpponentCounter } from "@/lib/opponent-counter";
 import { drawBoard, pickRecorderMime } from "@/lib/board-render";
 import { framesFromShapes } from "@/lib/play-motion";
 import {
-  BOARD_W, BOARD_H, dribblePath, polyPath, shapeColor, interpolateFrames, totalDurationMs,
-  getPitch, PITCHES, toBoardSpace, EQUIPMENT_SPECS, resolveSpotlightCenter, RECORDABLE_SHAPE_KINDS,
+  BOARD_W, BOARD_H, polyPath, interpolateFrames, totalDurationMs, zonePolygon, simplifyPath, type ZoneShape,
+  getPitch, PITCHES, toBoardSpace, EQUIPMENT_SPECS, RECORDABLE_SHAPE_KINDS,
   GROUP_COLOR, groupOf, shortLabel, uid, assignToSlots, compress,
-  DRAW_COLORS, distanceMetres, teamShape, mirrorPoint, type Pitch,
+  DRAW_COLORS, SHAPE_STROKE, distanceMetres, teamShape, mirrorPoint, type Pitch,
   type EquipmentKind, type Point, type BoardObject, type BoardPlayer, type BoardTeam,
   type Token, type Shape, type Frame as ModelFrame,
 } from "@/lib/board-model";
 import { PitchLayer } from "@/components/tactics/pitch-layer";
 import { TokenDefs, TokenGlyph } from "@/components/tactics/token-glyph";
-import { ArrowMarkers, arrowMarkerUrl } from "@/components/tactics/arrow-markers";
+import { ShapeDefs, ShapeGlyph } from "@/components/tactics/shape-glyph";
+import {
+  RunIcon, PassIcon, DribbleIcon, ShotIcon, PressIcon, StraightIcon, CurveIcon, CurveRightIcon,
+  ZoneRectIcon, ZoneEllipseIcon, LassoIcon, SolidFillIcon, HatchIcon, ThinLineIcon, NormalLineIcon, BoldLineIcon,
+} from "@/components/tactics/tool-icons";
 import { EquipmentLayer } from "@/components/tactics/equipment-layer";
 import { SavedPlaysPanel } from "@/components/tactics/saved-plays-panel";
 import { AnimationPanel } from "@/components/tactics/animation-panel";
 import { DraftRecoveryBanner } from "@/components/tactics/draft-recovery-banner";
+import { ExploitLayer, ExploitLegend } from "@/components/tactics/exploit-layer";
+import { PassingLaneLayer, SpaceControlLayer, LinesLayer, ZoneCountLayer } from "@/components/tactics/analysis-layers";
+import { getOpponentScouting, type OpponentScouting } from "@/app/actions/tactic-plays";
 import { useBoardStore, type BoardState } from "@/store/boardStore";
 import { useBoardSetupStore } from "@/store/boardSetupStore";
 import { useSavedPlaysStore } from "@/store/savedPlaysStore";
 import { useBoardPlaybackStore } from "@/store/boardPlaybackStore";
+import { useBoardInsightsStore, type AnalysisLayer } from "@/store/boardInsightsStore";
 
 // ── Types ────────────────────────────────────────────────────────
 // Token, Shape, ShapeKind and the Frame shape all come from board-model.ts
@@ -48,10 +59,26 @@ export type { BoardPlayer, BoardTeam };
 // pair now live in store/boardStore.ts — the first slice of this
 // component's state pulled into zustand, see docs/BACKLOG.md 3.3.
 type Mode =
-  | "move" | "run" | "pass" | "dribble" | "free" | "zone" | "text"
+  | "move" | "run" | "pass" | "dribble" | "shot" | "press" | "free" | "zone" | "text"
   | "spotlight" | "measure" | "erase";
 /** The tools that draw a Shape by dragging from one point to another. */
-const DRAG_DRAW_MODES = new Set<Mode>(["run", "pass", "dribble", "free", "zone"]);
+const DRAG_DRAW_MODES = new Set<Mode>(["run", "pass", "dribble", "shot", "press", "free", "zone"]);
+/** Any icon the toolbar can show: lucide-react or tools-icons.tsx. */
+type ToolIcon = React.ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
+/** The movement tools — the ones the bend control applies to. */
+const ARROW_MODES = new Set<Mode>(["run", "pass", "dribble", "shot", "press"]);
+/** Line weights offered in the toolbar (board units). Picked by id rather
+ *  than compared as floats; "normal" stores nothing, so a line drawn at the
+ *  default weight saves exactly as it did before weights existed. */
+const LINE_WEIGHTS = [
+  { id: "thin", value: 0.8, label: "Thin" },
+  { id: "normal", value: undefined, label: "Normal" },
+  { id: "bold", value: 1.8, label: "Bold" },
+] as const;
+type LineWeightId = (typeof LINE_WEIGHTS)[number]["id"];
+const WEIGHT_ICONS: Record<LineWeightId, ToolIcon> = { thin: ThinLineIcon, normal: NormalLineIcon, bold: BoldLineIcon };
+/** How far a bent arrow bows, as a fraction of its length. */
+const BEND = 0.22;
 
 /** localStorage key prefix for the per-team unsaved-board draft. */
 const DRAFT_KEY_PREFIX = "growfit.tactics.draft.";
@@ -254,6 +281,13 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   /** Colour for the next drawn line/zone/label — null keeps each kind's
    *  own default (yellow runs, sky dribbles, …). */
   const [drawColor, setDrawColor] = useState<string | null>(null);
+  /** Line weight for the next drawn shape (board units). */
+  const [lineWeight, setLineWeight] = useState<LineWeightId>("normal");
+  /** Bend for the next movement arrow: 0 straight, ±BEND left/right. */
+  const [bend, setBend] = useState<number>(0);
+  /** What the zone tool draws, and how it's filled. */
+  const [zoneShape, setZoneShape] = useState<ZoneShape>("rect");
+  const [zoneFill, setZoneFill] = useState<"solid" | "hatch">("solid");
   /** Team-shape overlay: each side's outfield hull, unit lines, and a
    *  width/depth readout — follows the players through playback. */
   const [showShape, setShowShape] = useState(false);
@@ -277,7 +311,11 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   // (draft autosave, video export filename, and the team-switch handler
   // below) — everything else the saved-plays panel needs, it now reads
   // from this same shared store itself; see saved-plays-panel.tsx.
-  const { playName, setPlayName, setCurrentPlayId, resetPanel: resetSavedPlaysPanel } = useSavedPlaysStore();
+  const { playName, setPlayName, setCurrentPlayId, fixtureId, resetPanel: resetSavedPlaysPanel } = useSavedPlaysStore();
+  const {
+    showExploits, setShowExploits, focusedExploitId, setFocusedExploitId,
+    aiCounter, setAiCounter, layers, toggleLayer, reset: resetInsights,
+  } = useBoardInsightsStore();
   // scrubMs/scrubbing/recording's own values are read by animation-panel.tsx
   // now (via the same store hook); only the setters are still called
   // directly here, by recordAnimation/scrubTo/endScrub.
@@ -292,7 +330,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   // tokens/team/formation/open-play/playback selection into a
   // freshly-mounted board.
   /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  useEffect(() => { resetBoardState(); resetForTeam(teams[0]?.id ?? ""); resetSavedPlaysPanel(); resetPlayback(); }, []);
+  useEffect(() => { resetBoardState(); resetForTeam(teams[0]?.id ?? ""); resetSavedPlaysPanel(); resetPlayback(); resetInsights(); }, []);
 
   const rafRef = useRef<number | null>(null);
 
@@ -344,6 +382,36 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const view = anim ? { ...state, tokens: anim.tokens, shapes: anim.shapes } : state;
 
   const pitch = getPitch(pitchId);
+
+  /** The opponent's lines and the spaces they leave, read live off whatever
+   *  is showing — so it follows drags and playback. See board-analysis.ts. */
+  const reading = useMemo(() => readOpponent(view.tokens, pitch), [view.tokens, pitch]);
+  const aiExploits = useMemo(() => (aiCounter ? counterExploits(aiCounter) : []), [aiCounter]);
+
+  // Phase 2 analysis overlays — each computed only while switched on, and
+  // only on a match pitch (a training grid has no goals to attack).
+  const analysisOn = pitch.supportsFormations;
+  const lanes = useMemo(() => (analysisOn && layers.lanes ? passingLanes(view.tokens, pitch) : null), [analysisOn, layers.lanes, view.tokens, pitch]);
+  const control = useMemo(() => (analysisOn && layers.space ? spaceControl(view.tokens, pitch) : undefined), [analysisOn, layers.space, view.tokens, pitch]);
+  const lineReading = useMemo(() => (analysisOn && layers.lines ? offsideLines(view.tokens, pitch) : null), [analysisOn, layers.lines, view.tokens, pitch]);
+  const counts = useMemo(() => (analysisOn && layers.numbers ? zoneCounts(view.tokens) : null), [analysisOn, layers.numbers, view.tokens]);
+
+  /** What we know about the linked fixture's opponent — drives the
+   *  "usually plays…" shortcut in the Opponent card. */
+  const scoutingKey = teamId && fixtureId ? `${teamId}:${fixtureId}` : "";
+  const [scouted, setScouted] = useState<{ key: string; data: OpponentScouting | null }>({ key: "", data: null });
+  useEffect(() => {
+    let live = true;
+    if (scoutingKey) {
+      void getOpponentScouting(teamId, fixtureId).then((res) => {
+        if (live) setScouted({ key: scoutingKey, data: res.scouting ?? null });
+      });
+    }
+    return () => { live = false; };
+  }, [scoutingKey, teamId, fixtureId]);
+  // Keyed so switching fixture (or unlinking it) hides the old opponent at
+  // once, rather than showing it until the next fetch lands.
+  const scouting = scouted.key === scoutingKey ? scouted.data : null;
 
   // ── History ────────────────────────────────────────────────────
   // An undo step is the board state, the pitch id and the captured-steps
@@ -604,7 +672,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
 
   useEffect(() => {
     const TOOL_KEYS: Record<string, Mode> = {
-      v: "move", r: "run", p: "pass", d: "dribble",
+      v: "move", r: "run", p: "pass", d: "dribble", k: "shot", x: "press",
       f: "free", z: "zone", t: "text", s: "spotlight",
       m: "measure", e: "erase",
     };
@@ -873,37 +941,36 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   }
 
   // ── Setup actions ──────────────────────────────────────────────
-  function setUpHome() {
-    const f = FORMATIONS.find((x) => x.id === homeFormationId)!;
+  /** Our XI in formation `f`, real players assigned to the slots that match
+   *  how they play. Squeezed into our own half when the opponent is up too,
+   *  so the two shapes face each other instead of interleaving. */
+  function homeTokens(f: Formation, vsOpponent: boolean): Token[] {
     const assigned = assignToSlots(f, roster);
-    snapshot();
-    setState((st) => {
-      // Only use the full pitch when we're the only team on the board.
-      const vsOpponent = st.tokens.some((t) => t.kind === "opponent");
+    return f.slots.map((slot, i) => {
+      const p = assigned[i];
+      const pos = vsOpponent ? compress(slot, "home") : slot;
       return {
-        ...st,
-        tokens: [
-          ...st.tokens.filter((t) => t.kind !== "player"),
-          ...f.slots.map((slot, i) => {
-            const p = assigned[i];
-            const pos = vsOpponent ? compress(slot, "home") : slot;
-            return {
-              id: uid("h"),
-              label: p ? shortLabel(p.full_name) : String(i + 1),
-              x: pos.x, y: pos.y,
-              kind: "player" as const,
-              group: p ? groupOf(p.position) : groupOf(slot.role),
-              playerId: p?.id,
-            };
-          }),
-        ],
+        id: uid("h"),
+        label: p ? shortLabel(p.full_name) : String(i + 1),
+        x: pos.x, y: pos.y,
+        kind: "player" as const,
+        group: p ? groupOf(p.position) : groupOf(slot.role),
+        playerId: p?.id,
       };
     });
   }
-  function setUpAway() {
-    const f = FORMATIONS.find((x) => x.id === awayFormationId)!;
+  function setUpHome() {
+    const f = FORMATIONS.find((x) => x.id === homeFormationId)!;
+    snapshot();
+    setState((st) => ({
+      ...st,
+      // Only use the full pitch when we're the only team on the board.
+      tokens: [...st.tokens.filter((t) => t.kind !== "player"), ...homeTokens(f, st.tokens.some((t) => t.kind === "opponent"))],
+    }));
+  }
+  function setUpAway(formationId: string = awayFormationId) {
+    const f = FORMATIONS.find((x) => x.id === formationId)!;
     const home = FORMATIONS.find((x) => x.id === homeFormationId)!;
-    const assigned = assignToSlots(home, roster);
     snapshot();
     setState((st) => {
       const hadHome = st.tokens.some((t) => t.kind === "player");
@@ -913,20 +980,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           ...st.tokens.filter((t) => t.kind !== "opponent" && t.kind !== "player"),
           // With both teams up, each side is compressed into its own half so
           // the shapes face each other instead of interleaving through midfield.
-          ...(hadHome
-            ? home.slots.map((slot, i) => {
-                const p = assigned[i];
-                const c = compress(slot, "home");
-                return {
-                  id: uid("h"),
-                  label: p ? shortLabel(p.full_name) : String(i + 1),
-                  x: c.x, y: c.y,
-                  kind: "player" as const,
-                  group: p ? groupOf(p.position) : groupOf(slot.role),
-                  playerId: p?.id,
-                };
-              })
-            : []),
+          ...(hadHome ? homeTokens(home, true) : []),
           ...f.slots.map((slot, i) => {
             const c = compress(slot, "away");
             return {
@@ -966,6 +1020,28 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     }));
     setSelectedTokenId(null);
     setNotice(`${shortLabel(incoming.full_name)} on for ${outgoing.label}.`);
+  }
+
+  /**
+   * The AI counter, made real: switch our side to the suggested shape (same
+   * roster assignment as "Set up my XI") and draw its suggested runs as
+   * ordinary arrows — editable, saveable, and animated by Play because each
+   * run starts on the player it belongs to. One undo step for the lot.
+   */
+  function applyCounter(counter: OpponentCounter) {
+    const f = counter.counterFormationId ? FORMATIONS.find((x) => x.id === counter.counterFormationId) : undefined;
+    const current = stateRef.current;
+    const reshape = !!f && pitch.supportsFormations;
+    const tokens = reshape
+      ? [...current.tokens.filter((t) => t.kind !== "player"), ...homeTokens(f!, current.tokens.some((t) => t.kind === "opponent"))]
+      : current.tokens;
+    const runs = counterRunShapes(counter.counterRuns, tokens);
+    snapshot();
+    setState({ ...current, tokens, shapes: [...current.shapes, ...runs] });
+    if (reshape) setHomeFormationId(f!.id);
+    setNotice(
+      `${reshape ? `Switched to ${f!.label}` : "Kept your shape"} and drew ${runs.length} suggested move${runs.length === 1 ? "" : "s"} — press Play to watch, or drag them to adjust. Undo reverts it.`
+    );
   }
 
   function placePlayer(p: BoardPlayer) {
@@ -1165,6 +1241,11 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       kind: mode as Shape["kind"],
       pts: [{ x, y }, { x, y }],
       color: drawColor ?? undefined,
+      // Only stored when it differs from the default, so an ordinary line
+      // saves exactly as it did before these options existed.
+      width: LINE_WEIGHTS.find((lw) => lw.id === lineWeight)?.value,
+      curve: ARROW_MODES.has(mode) && bend ? bend : undefined,
+      fill: mode === "zone" && zoneFill === "hatch" ? "hatch" : undefined,
     });
     svgRef.current?.setPointerCapture?.(e.pointerId);
   }
@@ -1209,7 +1290,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       const { x, y } = toBoard(e.clientX, e.clientY);
       setDraft((d) => {
         if (!d) return d;
-        if (d.kind === "free") return { ...d, pts: [...d.pts, { x, y }] };
+        if (d.kind === "free" || (d.kind === "zone" && zoneShape === "lasso")) return { ...d, pts: [...d.pts, { x, y }] };
         return { ...d, pts: [d.pts[0], { x, y }] };
       });
     }
@@ -1251,9 +1332,12 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       } else if (draft.kind === "zone") {
         // Stored as a 4-corner polygon, the shape every zone renderer
         // (this board, play-viewer.tsx, the film board) already reads.
-        if (Math.abs(b.x - a.x) > 2 && Math.abs(b.y - a.y) > 2) {
+        // Ellipses and lassos are polygons too, so nothing downstream
+        // needs to know which tool drew them.
+        const pts = zoneShape === "lasso" ? simplifyPath(draft.pts) : zonePolygon(a, b, zoneShape);
+        const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
+        if (pts.length >= 3 && Math.max(...xs) - Math.min(...xs) > 2 && Math.max(...ys) - Math.min(...ys) > 2) {
           snapshot();
-          const pts = [a, { x: b.x, y: a.y }, b, { x: a.x, y: b.y }];
           setState((st) => ({ ...st, shapes: [...st.shapes, { ...draft, id: uid("s"), pts }] }));
         }
       } else if (dist > 3) {
@@ -1328,11 +1412,11 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   /** Key that selects each tool — mirrored by the keydown handler above and
    *  shown in the tooltip, since an unadvertised shortcut helps nobody. */
   const TOOL_SHORTCUT: Record<Mode, string> = {
-    move: "V", run: "R", pass: "P", dribble: "D",
+    move: "V", run: "R", pass: "P", dribble: "D", shot: "K", press: "X",
     free: "F", zone: "Z", text: "T", spotlight: "S",
     measure: "M", erase: "E",
   };
-  const toolBtn = (m: Mode, Icon: typeof MousePointer2, label: string) => (
+  const toolBtn = (m: Mode, Icon: ToolIcon, label: string) => (
     <button
       key={m}
       type="button"
@@ -1340,13 +1424,43 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       title={`${label} (${TOOL_SHORTCUT[m]})`}
       aria-label={`${label} tool`}
       aria-pressed={mode === m}
-      className={`inline-flex h-10 sm:h-9 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium ${
-        mode === m ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border hover:bg-muted"
+      className={`inline-flex h-10 sm:h-9 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors ${
+        mode === m ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-background border-border hover:bg-muted"
       }`}
     >
-      <Icon className="size-3.5" aria-hidden="true" />
+      <Icon className="size-4" aria-hidden="true" />
       {label}
     </button>
+  );
+  /** A small labelled cluster of tools — "Movement", "Areas", … */
+  const toolGroup = (label: string, children: React.ReactNode) => (
+    <div className="flex flex-col gap-1">
+      <span className="px-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{label}</span>
+      <div className="flex flex-wrap items-center gap-1">{children}</div>
+    </div>
+  );
+  /** One option in a segmented style control (bend, weight, zone shape, fill). */
+  const styleOpt = (active: boolean, onClick: () => void, Icon: ToolIcon, label: string, iconOnly = false) => (
+    <button
+      key={label}
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      title={label}
+      aria-label={label}
+      className={`inline-flex h-8 items-center gap-1 rounded px-2 text-[11px] font-medium transition-colors ${
+        active ? "bg-background text-foreground shadow-sm ring-1 ring-border" : "text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      <Icon className="size-4" aria-hidden="true" />
+      {!iconOnly && label}
+    </button>
+  );
+  const segmented = (label: string, children: React.ReactNode) => (
+    <div className="inline-flex items-center gap-1.5">
+      <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{label}</span>
+      <div className="inline-flex items-center gap-0.5 rounded-md bg-muted p-0.5">{children}</div>
+    </div>
   );
   const formationSelect = (value: string, onChange: (v: string) => void, id: string) => (
     <select
@@ -1367,58 +1481,21 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   );
 
   function renderShape(sh: Shape, isDraft = false) {
-    const stroke = shapeColor(sh);
-    const common = {
-      stroke, strokeWidth: 1.2, fill: "none",
-      strokeLinecap: "round" as const, strokeLinejoin: "round" as const,
-      opacity: isDraft ? 0.75 : 1,
-      style: { cursor: mode === "erase" ? "pointer" : "default" },
-      onPointerDown: isDraft ? undefined : (e: React.PointerEvent) => onShapeDown(e, sh.id),
-    };
-    const a = sh.pts[0], b = sh.pts[sh.pts.length - 1];
-    if (!a) return null;
-    const arrow = arrowMarkerUrl("tb-arrow", stroke);
-    if (sh.kind === "text") {
-      return (
-        <text
-          key={sh.id}
-          x={a.x} y={a.y}
-          fontSize={3.6}
-          fontWeight={700}
-          fill={stroke}
-          textAnchor="middle"
-          onPointerDown={common.onPointerDown}
-          style={{ ...common.style, paintOrder: "stroke", stroke: "rgba(0,0,0,0.7)", strokeWidth: 0.4 }}
-        >
-          {sh.text}
-        </text>
-      );
-    }
-    if (sh.kind === "zone") {
-      // A draft zone is still just [start, current] — drawn as the rect
-      // it will become on release.
-      const d = isDraft
-        ? polyPath([a, { x: b.x, y: a.y }, b, { x: a.x, y: b.y }])
-        : polyPath(sh.pts);
-      return <path key={sh.id} d={`${d} Z`} {...common} fill={stroke} fillOpacity={0.2} strokeDasharray="2 1.2" />;
-    }
-    if (sh.kind === "spotlight") {
-      // Centre comes from the live/animated token bound by playerId, not
-      // from the shape's own stored point — see resolveSpotlightCenter().
-      const c = resolveSpotlightCenter(sh, view.tokens) ?? a;
-      const r = isDraft ? Math.max(4, Math.hypot(b.x - a.x, b.y - a.y)) : (sh.radius ?? 8);
-      return <circle key={sh.id} cx={c.x} cy={c.y} r={r} strokeDasharray="1.5 1.2" {...common} />;
-    }
-    if (sh.kind === "free") return <path key={sh.id} d={polyPath(sh.pts)} {...common} />;
-    if (sh.kind === "dribble")
-      return <path key={sh.id} d={dribblePath(a.x, a.y, b.x, b.y)} markerEnd={arrow} {...common} />;
+    // A zone draft is still [start, current] (or the lasso's trail) —
+    // previewed as the polygon it becomes on release.
+    const shown =
+      isDraft && sh.kind === "zone" && zoneShape !== "lasso" && sh.pts.length >= 2
+        ? { ...sh, pts: zonePolygon(sh.pts[0], sh.pts[sh.pts.length - 1], zoneShape) }
+        : sh;
     return (
-      <line
+      <ShapeGlyph
         key={sh.id}
-        x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-        strokeDasharray={sh.kind === "pass" ? "3 2" : undefined}
-        markerEnd={arrow}
-        {...common}
+        sh={shown}
+        prefix="tb"
+        tokens={view.tokens}
+        isDraft={isDraft}
+        cursor={mode === "erase" ? "pointer" : undefined}
+        onPointerDown={isDraft ? undefined : (e) => onShapeDown(e, sh.id)}
       />
     );
   }
@@ -1481,7 +1558,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           {formationSelect(awayFormationId, setAwayFormationId, "tb-away-formation")}
           <button
             type="button"
-            onClick={setUpAway}
+            onClick={() => setUpAway()}
             disabled={!pitch.supportsFormations}
             title={pitch.supportsFormations ? undefined : "Formations need the full pitch — switch pitch below"}
             className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm font-semibold hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
@@ -1489,6 +1566,21 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
             <Circle className="size-3.5" aria-hidden="true" />
             Set up opponent XI
           </button>
+          {scouting && scouting.formations.length > 0 && pitch.supportsFormations && (
+            <button
+              type="button"
+              onClick={() => { setAwayFormationId(scouting.formations[0].formationId); setUpAway(scouting.formations[0].formationId); }}
+              title="Set them up in the shape you've used for them before"
+              className="w-full rounded-md border border-dashed border-primary/50 bg-primary/5 px-2 py-1.5 text-left text-xs hover:bg-primary/10"
+            >
+              <span className="font-semibold">{scouting.opponent}</span> usually set up as{" "}
+              <span className="font-semibold">{scouting.formations[0].label}</span>
+              <span className="text-muted-foreground"> ({scouting.formations[0].count} play{scouting.formations[0].count === 1 ? "" : "s"}) — use it</span>
+            </button>
+          )}
+          {scouting && scouting.formations.length === 0 && (
+            <p className="text-[11px] text-muted-foreground">No saved shape for {scouting.opponent} yet — set them up and save a play to remember it.</p>
+          )}
         </div>
       </div>
 
@@ -1519,20 +1611,50 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       {/* Tools */}
       <div className="rounded-xl border border-border bg-card p-2 space-y-2">
         <div className="flex flex-wrap items-center gap-1.5">
-          {toolBtn("move", MousePointer2, "Move")}
-          <span className="mx-0.5 h-6 w-px bg-border" />
-          {toolBtn("run", ArrowUpRight, "Run")}
-          {toolBtn("pass", Minus, "Pass")}
-          {toolBtn("dribble", Waves, "Dribble")}
-          {toolBtn("free", Pencil, "Draw")}
-          {toolBtn("zone", RectangleHorizontal, "Zone")}
-          {toolBtn("text", Type, "Label")}
-          <span className="mx-0.5 h-6 w-px bg-border" />
-          {toolBtn("spotlight", Target, "Spotlight")}
-          {toolBtn("measure", Ruler, "Measure")}
-          {toolBtn("erase", Eraser, "Erase")}
+          <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
+            {toolGroup("Select", toolBtn("move", MousePointer2, "Move"))}
+            {toolGroup("Movement", <>
+              {toolBtn("run", RunIcon, "Run")}
+              {toolBtn("pass", PassIcon, "Pass")}
+              {toolBtn("dribble", DribbleIcon, "Dribble")}
+              {toolBtn("shot", ShotIcon, "Shot")}
+              {toolBtn("press", PressIcon, "Press")}
+            </>)}
+            {toolGroup("Areas", <>
+              {toolBtn("zone", zoneShape === "ellipse" ? ZoneEllipseIcon : zoneShape === "lasso" ? LassoIcon : ZoneRectIcon, "Zone")}
+              {toolBtn("free", Pencil, "Draw")}
+            </>)}
+            {toolGroup("Annotate", <>
+              {toolBtn("text", Type, "Label")}
+              {toolBtn("spotlight", Target, "Spotlight")}
+              {toolBtn("measure", Ruler, "Measure")}
+              {toolBtn("erase", Eraser, "Erase")}
+            </>)}
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Line colour">
+        {/* Style for the next thing drawn — only the controls that apply to
+            the current tool, so the bar doesn't fill with dead options. */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-2">
+          {ARROW_MODES.has(mode) && segmented("Path", <>
+            {styleOpt(bend === 0, () => setBend(0), StraightIcon, "Straight")}
+            {styleOpt(bend > 0, () => setBend(BEND), CurveIcon, "Bend left")}
+            {styleOpt(bend < 0, () => setBend(-BEND), CurveRightIcon, "Bend right")}
+          </>)}
+          {mode === "zone" && segmented("Shape", <>
+            {styleOpt(zoneShape === "rect", () => setZoneShape("rect"), ZoneRectIcon, "Box")}
+            {styleOpt(zoneShape === "ellipse", () => setZoneShape("ellipse"), ZoneEllipseIcon, "Oval")}
+            {styleOpt(zoneShape === "lasso", () => setZoneShape("lasso"), LassoIcon, "Lasso")}
+          </>)}
+          {mode === "zone" && segmented("Fill", <>
+            {styleOpt(zoneFill === "solid", () => setZoneFill("solid"), SolidFillIcon, "Solid")}
+            {styleOpt(zoneFill === "hatch", () => setZoneFill("hatch"), HatchIcon, "Hatched")}
+          </>)}
+          {DRAG_DRAW_MODES.has(mode) && segmented("Weight", <>
+            {LINE_WEIGHTS.map((lw) =>
+              styleOpt(lineWeight === lw.id, () => setLineWeight(lw.id), WEIGHT_ICONS[lw.id], lw.label, true)
+            )}
+          </>)}
+          <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Line colour">
           <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Colour</span>
           <button
             type="button"
@@ -1561,6 +1683,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               style={{ background: c.value }}
             />
           ))}
+          </div>
         </div>
       </div>
 
@@ -1596,6 +1719,23 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
         <button type="button" onClick={() => setShowNames((v) => !v)} title="Toggle names" className={`inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border px-2.5 text-xs ${showNames ? "bg-muted border-border" : "bg-background border-border"} hover:bg-muted`}>
           <Tag className="size-3.5" aria-hidden="true" /> Names
         </button>
+        <button type="button" onClick={mirrorBoard} title="Flip the board left-to-right" className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
+          <FlipHorizontal2 className="size-3.5" aria-hidden="true" /> Mirror
+        </button>
+        <span className="mx-1 h-6 w-px bg-border" />
+        <button type="button" onClick={clearDrawings} className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">Clear lines</button>
+        <button type="button" onClick={clearAll} className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
+          <RotateCcw className="size-3.5" aria-hidden="true" /> Reset
+        </button>
+        <button type="button" onClick={exportPng} className="inline-flex h-10 sm:h-9 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-semibold hover:bg-muted">
+          <Download className="size-3.5 text-primary" aria-hidden="true" /> PNG
+        </button>
+      </div>
+
+      {/* Analyse: read the shapes on the pitch — everything here is a view
+          over the board, never an edit to it. */}
+      <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-card p-2">
+        <span className="mr-1 px-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Analyse</span>
         <span className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background pl-2 pr-1 text-xs">
           <Grid3x3 className="size-3.5 text-muted-foreground" aria-hidden="true" />
           <select
@@ -1619,17 +1759,34 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
         >
           <Hexagon className="size-3.5" aria-hidden="true" /> Team shape
         </button>
-        <button type="button" onClick={mirrorBoard} title="Flip the board left-to-right" className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
-          <FlipHorizontal2 className="size-3.5" aria-hidden="true" /> Mirror
+        <button
+          type="button"
+          onClick={() => setShowExploits(!showExploits)}
+          aria-pressed={showExploits}
+          disabled={!pitch.supportsFormations}
+          title="Read the opponent's shape and highlight where the space is"
+          className={`inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border px-2.5 text-xs disabled:opacity-40 ${showExploits ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border hover:bg-muted"}`}
+        >
+          <Crosshair className="size-3.5" aria-hidden="true" /> Find space
         </button>
-        <span className="mx-1 h-6 w-px bg-border" />
-        <button type="button" onClick={clearDrawings} className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">Clear lines</button>
-        <button type="button" onClick={clearAll} className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
-          <RotateCcw className="size-3.5" aria-hidden="true" /> Reset
-        </button>
-        <button type="button" onClick={exportPng} className="inline-flex h-10 sm:h-9 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-semibold hover:bg-muted">
-          <Download className="size-3.5 text-primary" aria-hidden="true" /> PNG
-        </button>
+        {([
+          ["lanes", Share2, "Passing lanes", "Every pass open to the player on the ball — green open, amber risky, red cut out"],
+          ["space", MapIcon, "Space control", "Who owns which grass: each patch goes to the nearest player"],
+          ["lines", AlignVerticalSpaceAround, "Offside & lines", "Their offside line, anyone beyond it, and the gaps between each side's lines"],
+          ["numbers", Hash, "Numbers", "Us v them in every zone"],
+        ] as [AnalysisLayer, typeof Share2, string, string][]).map(([key, Icon, label, title]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => toggleLayer(key)}
+            aria-pressed={layers[key]}
+            disabled={!pitch.supportsFormations}
+            title={title}
+            className={`inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border px-2.5 text-xs disabled:opacity-40 ${layers[key] ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border hover:bg-muted"}`}
+          >
+            <Icon className="size-3.5" aria-hidden="true" /> {label}
+          </button>
+        ))}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_16rem]">
@@ -1710,14 +1867,23 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               onPointerUp={onSvgUp}
               onPointerLeave={onSvgUp}
             >
-              <ArrowMarkers prefix="tb-arrow" />
+              <ShapeDefs prefix="tb" />
               <TokenDefs prefix="tb-tok" />
 
               <PitchLayer pitch={pitch} stripeId="tb-stripe" />
 
+              {control !== undefined && <SpaceControlLayer control={control} h={pitch.h} />}
+
               {pitch.supportsFormations && <OverlayLayer overlay={overlay} />}
 
               {showShape && <TeamShapeLayer tokens={view.tokens} pitch={pitch} />}
+
+              {showExploits && pitch.supportsFormations && (
+                <ExploitLayer exploits={{ engine: reading.exploits, ai: aiExploits }} lines={reading.lines} focusedId={focusedExploitId} />
+              )}
+              {counts && <ZoneCountLayer counts={counts} />}
+              {lanes && <PassingLaneLayer lanes={lanes.lanes} h={pitch.h} />}
+              {lineReading && <LinesLayer lines={lineReading} tokens={view.tokens} w={pitch.w} h={pitch.h} />}
 
               {/* Shapes */}
               {view.shapes.map((sh) => renderShape(sh))}
@@ -1780,16 +1946,33 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
             {mode === "pass" && "Drag to draw a pass (dashed arrow)."}
             {mode === "dribble" && "Drag to draw a dribble (wavy line)."}
             {mode === "free" && "Draw freehand to sketch a zone or shape."}
-            {mode === "zone" && "Drag a box to shade an area — a pressing trap, a target zone, a space to exploit."}
+            {mode === "zone" && (zoneShape === "lasso"
+              ? "Draw round an area to shade it — any shape you like."
+              : `Drag ${zoneShape === "ellipse" ? "an oval" : "a box"} to shade an area — a pressing trap, a target zone, a space to exploit.`)}
+            {mode === "shot" && "Drag to draw a shot at goal — Play sends the ball along it."}
+            {mode === "press" && "Drag from a player toward who they press — the bar marks where they close down."}
             {mode === "text" && "Tap the pitch and type a label. Enter to place it, Esc to cancel."}
             {mode === "measure" && "Drag between two points to measure the distance in metres."}
             {mode === "spotlight" && "Tap a player to highlight them — it follows them through every frame. Tap again to remove."}
             {mode === "erase" && "Tap a player, a line, a zone or a label to remove it."}
             <span className="hidden lg:inline text-muted-foreground/70">
-              {" "}· Keys: V move, R run, P pass, D dribble, F freehand, Z zone, T label,
+              {" "}· Keys: V move, R run, P pass, D dribble, K shot, X press, F freehand, Z zone, T label,
               S spotlight, M measure, E erase · Del removes the selected player · Space plays · Ctrl/Cmd+Z undoes
             </span>
           </p>
+
+          {showExploits && pitch.supportsFormations && (
+            <ExploitLegend
+              engine={reading.exploits}
+              ai={aiExploits}
+              counter={aiCounter}
+              hasOpponent={view.tokens.some((t) => t.kind === "opponent")}
+              focusedId={focusedExploitId}
+              onFocus={(id) => setFocusedExploitId(focusedExploitId === id ? null : id)}
+              onApply={() => aiCounter && applyCounter(aiCounter)}
+              onClearAi={() => setAiCounter(null)}
+            />
+          )}
         </div>
 
         {/* Bench + legend */}
@@ -1981,10 +2164,22 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                 </div>
               ))}
               <div className="pt-1 space-y-1.5">
-                <div className="flex items-center gap-2"><span className="inline-block h-0.5 w-5" style={{ background: "#fde047" }} /> Run</div>
-                <div className="flex items-center gap-2"><span className="inline-block h-0.5 w-5" style={{ backgroundImage: "repeating-linear-gradient(to right,#fde047 0 3px,transparent 3px 6px)" }} /> Pass</div>
-                <div className="flex items-center gap-2"><span className="inline-block h-0.5 w-5" style={{ background: "#38bdf8" }} /> Dribble</div>
-                <div className="flex items-center gap-2"><span className="inline-block h-3 w-5 rounded-sm border border-dashed" style={{ background: "rgba(250,204,21,0.2)", borderColor: "#facc15" }} /> Zone</div>
+                {([
+                  [RunIcon, SHAPE_STROKE.run, "Run"],
+                  [PassIcon, SHAPE_STROKE.pass, "Pass"],
+                  [DribbleIcon, SHAPE_STROKE.dribble, "Dribble"],
+                  [ShotIcon, SHAPE_STROKE.shot, "Shot"],
+                  [PressIcon, SHAPE_STROKE.press, "Press"],
+                  [ZoneRectIcon, SHAPE_STROKE.zone, "Zone"],
+                  [HatchIcon, SHAPE_STROKE.zone, "Hatched zone — no-go / press here"],
+                ] as [ToolIcon, string, string][]).map(([Icon, color, label]) => (
+                  <div key={label} className="flex items-center gap-2">
+                    <span className="inline-flex size-5 items-center justify-center rounded bg-emerald-800" style={{ color }}>
+                      <Icon className="size-4" aria-hidden="true" />
+                    </span>
+                    {label}
+                  </div>
+                ))}
               </div>
             </div>
           </div>

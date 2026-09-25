@@ -6,6 +6,7 @@ import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { isTrustedEmbedUrl } from "@/lib/video-embed";
 import { friendlyError } from "@/lib/friendly-error";
 import { formatDayMonth } from "@/lib/time";
+import { tallyOpponentFormations, type FormationTally } from "@/lib/opponent-counter";
 
 export interface SavedPlaySummary {
   id: string;
@@ -165,6 +166,75 @@ export async function listLinkTargets(teamId: string): Promise<{ sessions: LinkT
     fixtures: (fixtures ?? []).map((f: { id: string; opponent: string; fixture_date: string }) => ({
       id: f.id, label: `vs ${f.opponent}`, when: fmt(f.fixture_date),
     })),
+  };
+}
+
+export interface OpponentScouting {
+  opponent: string;
+  /** Shapes we've set this opponent up in on the board before, most used first. */
+  formations: FormationTally[];
+  /** Completed meetings, most recent first. */
+  results: { when: string; score: string; notes: string | null }[];
+}
+
+/**
+ * What we already know about the opponent in a fixture: the shapes this
+ * team's coaches have set them up in on the board (plays linked to any
+ * fixture against the same opponent name) and the logged results against
+ * them. Feeds the board's "usually plays…" chip and the AI counter's
+ * prompt. Opponent names are matched case-insensitively, the same
+ * normalisation squad-context.ts's opponent memory uses.
+ */
+export async function getOpponentScouting(teamId: string, fixtureId: string): Promise<{ scouting?: OpponentScouting; error?: string }> {
+  const { supabase, team } = await requireCoachTeam(teamId);
+  if (!team) return { error: "You don't coach this team." };
+
+  const { data: fixture } = await supabase
+    .from("fixtures")
+    .select("opponent")
+    .eq("id", fixtureId)
+    .eq("team_id", teamId)
+    .single();
+  if (!fixture) return { error: "Fixture not found." };
+  const opponent = (fixture.opponent as string).trim();
+
+  // ilike with the LIKE wildcards escaped = a case-insensitive exact match.
+  const pattern = opponent.replace(/[\\%_]/g, (c) => `\\${c}`);
+  const { data: meetings } = await supabase
+    .from("fixtures")
+    .select("id, fixture_date, status, match_results ( team_score, opponent_score, match_notes )")
+    .eq("team_id", teamId)
+    .ilike("opponent", pattern)
+    .order("fixture_date", { ascending: false })
+    .limit(20);
+  const rows = (meetings ?? []) as {
+    id: string; fixture_date: string; status: string;
+    match_results: { team_score: number; opponent_score: number; match_notes: string | null }[] | { team_score: number; opponent_score: number; match_notes: string | null } | null;
+  }[];
+
+  // Only the two keys the tally needs, not whole play blobs.
+  const { data: plays } = await supabase
+    .from("tactic_plays")
+    .select("awayFormationId:data->awayFormationId, tokens:data->tokens")
+    .eq("team_id", teamId)
+    .eq("surface", "pitch")
+    .in("fixture_id", [...new Set([fixtureId, ...rows.map((r) => r.id)])]);
+
+  const results = rows
+    .filter((r) => r.status === "completed")
+    .slice(0, 5)
+    .flatMap((r) => {
+      const mr = Array.isArray(r.match_results) ? r.match_results[0] : r.match_results;
+      if (!mr) return [];
+      return [{ when: formatDayMonth(r.fixture_date), score: `${mr.team_score}-${mr.opponent_score}`, notes: mr.match_notes?.slice(0, 200) ?? null }];
+    });
+
+  return {
+    scouting: {
+      opponent,
+      formations: tallyOpponentFormations((plays ?? []) as { awayFormationId?: unknown; tokens?: unknown }[]),
+      results,
+    },
   };
 }
 

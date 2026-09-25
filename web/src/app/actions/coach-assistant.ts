@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { buildSquadContext } from "./squad-context";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
 import { getAssistantContext, type AssistantContext } from "@/lib/assistant-context";
+import { parseJsonObject } from "@/lib/ai-json";
 
 /**
  * Lazily fetches the same teams/roster/fixtures brief the dedicated
@@ -32,29 +33,6 @@ const COACH_SYSTEM =
 export interface CoachMessage {
   role: "user" | "model";
   text: string;
-}
-
-/**
- * Parse a JSON-mode Gemini response into an object, the same way
- * player-import.ts's extractPlayersFromPdf does: try a straight JSON.parse
- * first, then fall back to the first `{...}` object in the text for when the
- * model wraps its JSON in prose despite the schema. Returns null rather than
- * throwing so callers can fall back to a plain error message.
- */
-function parseJsonObject(raw: string): Record<string, unknown> | null {
-  const text = raw.trim();
-  if (!text) return null;
-  try {
-    return JSON.parse(text) as Record<string, unknown>;
-  } catch {
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    try {
-      return JSON.parse(match[0]) as Record<string, unknown>;
-    } catch {
-      return null;
-    }
-  }
 }
 
 export interface LineupPick {

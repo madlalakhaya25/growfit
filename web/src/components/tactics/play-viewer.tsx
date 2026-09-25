@@ -3,13 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Play, Square, RotateCcw, MessageSquare } from "lucide-react";
 import {
-  dribblePath, polyPath, shapeColor, shapeWidth, interpolateFrames, totalDurationMs, getPitch, resolveSpotlightCenter,
+  interpolateFrames, totalDurationMs, getPitch,
   type Shape as ModelShape, type Frame as ModelFrame, type Token as ModelToken,
   type BoardObject, type PlayerNote,
 } from "@/lib/board-model";
 import { PitchLayer } from "@/components/tactics/pitch-layer";
 import { TokenDefs, TokenGlyph } from "@/components/tactics/token-glyph";
-import { ArrowMarkers, arrowMarkerUrl } from "@/components/tactics/arrow-markers";
+import { ShapeDefs, ShapeGlyph } from "@/components/tactics/shape-glyph";
 import { EquipmentLayer } from "@/components/tactics/equipment-layer";
 import { framesFromShapes } from "@/lib/play-motion";
 
@@ -100,44 +100,12 @@ export function PlayViewer({ data }: { data: PlayData }) {
             also throws off coordinates, not just the visual frame. */}
         <div className="w-full overflow-hidden rounded-xl border border-border" style={{ aspectRatio: `${pitch.w} / ${pitch.h}` }}>
           <svg viewBox={`0 0 ${pitch.w} ${pitch.h}`} className="h-full w-full select-none">
-            <ArrowMarkers prefix="pv-arrow" />
+            <ShapeDefs prefix="pv" />
 
             <PitchLayer pitch={pitch} stripeId="pv-stripe" />
             <TokenDefs prefix="pv-tok" />
 
-            {shapes.map((sh) => {
-              const a = sh.pts[0], b = sh.pts[sh.pts.length - 1];
-              if (!a) return null;
-              const stroke = shapeColor(sh);
-              const common = { stroke, strokeWidth: shapeWidth(sh), fill: "none", strokeLinecap: "round" as const };
-              if (sh.kind === "text") {
-                return (
-                  <text key={sh.id} x={a.x} y={a.y} fontSize={3.4} fill={stroke} textAnchor="middle"
-                    style={{ paintOrder: "stroke", stroke: "rgba(0,0,0,0.6)", strokeWidth: 0.6 }}>
-                    {sh.text}
-                  </text>
-                );
-              }
-              if (sh.kind === "spotlight") {
-                const c = resolveSpotlightCenter(sh, tokens) ?? a;
-                return <circle key={sh.id} cx={c.x} cy={c.y} r={sh.radius ?? 8} strokeDasharray="1.5 1.2" {...common} />;
-              }
-              if (!b) return null;
-              if (sh.kind === "free") {
-                return <path key={sh.id} d={polyPath(sh.pts)} {...common} />;
-              }
-              if (sh.kind === "zone") {
-                return <path key={sh.id} d={polyPath(sh.pts) + " Z"} {...common} fill={stroke} fillOpacity={0.18} />;
-              }
-              if (sh.kind === "dribble") {
-                return <path key={sh.id} d={dribblePath(a.x, a.y, b.x, b.y)} markerEnd={arrowMarkerUrl("pv-arrow", stroke)} {...common} />;
-              }
-              return (
-                <line key={sh.id} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-                  strokeDasharray={sh.kind === "pass" ? "3 2" : undefined}
-                  markerEnd={arrowMarkerUrl("pv-arrow", stroke)} {...common} />
-              );
-            })}
+            {shapes.map((sh) => <ShapeGlyph key={sh.id} sh={sh} prefix="pv" tokens={tokens} />)}
 
             <EquipmentLayer objects={objects} />
 

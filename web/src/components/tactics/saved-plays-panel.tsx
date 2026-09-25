@@ -6,6 +6,7 @@ import { useBoardStore } from "@/store/boardStore";
 import { useBoardSetupStore } from "@/store/boardSetupStore";
 import { useBoardPlaybackStore } from "@/store/boardPlaybackStore";
 import { useSavedPlaysStore } from "@/store/savedPlaysStore";
+import { useBoardInsightsStore } from "@/store/boardInsightsStore";
 import { savePlay, listPlays, loadPlay, deletePlay, sharePlayToSquad, listLinkTargets } from "@/app/actions/tactic-plays";
 import { describePlay, analyseOpponent } from "@/app/actions/tactics";
 import { SpeakButton } from "@/components/tactics/speak-button";
@@ -15,7 +16,8 @@ import { PLAY_TEMPLATES, expandTemplate } from "@/lib/play-templates";
 import { FORMATIONS } from "@/lib/formations";
 import { AiProse } from "@/components/ai/ai-prose";
 import type { BoardState } from "@/store/boardStore";
-import type { Frame } from "@/lib/board-model";
+import { getPitch, type Frame } from "@/lib/board-model";
+import { readOpponent, describeReading } from "@/lib/board-analysis";
 
 /**
  * The board's "Plays" card: start-from-template, name/tag/link a play,
@@ -68,6 +70,9 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
   const [description, setDescription] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [voiceUrl, setVoiceUrl] = useState<string | null>(null);
+  // The structured counter itself lives in the insights store, because the
+  // board draws it; this panel only keeps the read-aloud prose above.
+  const setAiCounter = useBoardInsightsStore((s) => s.setAiCounter);
 
   async function refreshPlays(id = teamId) {
     if (!id) return;
@@ -124,6 +129,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
     setFixtureId(meta?.fixture_id ?? "");
     setDescription(null);
     setAnalysis(null);
+    setAiCounter(null);
     setVoiceUrl(meta?.voice_url ?? null);
     clearDraft();
     setNotice(`Loaded "${res.name}".`);
@@ -143,6 +149,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
     setPlayName(tpl.label);
     setDescription(null);
     setAnalysis(null);
+    setAiCounter(null);
     setVoiceUrl(null);
     setNotice("Template loaded — press Play under the pitch to watch it, then drag it about and save it as your own.");
   }
@@ -179,7 +186,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
       lines.push("Lines drawn:");
       lineShapes.forEach((sh) => {
         const a = sh.pts[0], b = sh.pts[sh.pts.length - 1];
-        const kind = sh.kind === "run" ? "a run" : sh.kind === "pass" ? "a pass" : sh.kind === "dribble" ? "a dribble" : "a freehand mark";
+        const kind = { run: "a run", pass: "a pass", dribble: "a dribble", shot: "a shot", press: "a pressing run", zone: "a shaded zone" }[sh.kind as string] ?? "a freehand mark";
         lines.push(`- ${kind} from the ${side(a.x)} ${zone(a.y)} to the ${side(b.x)} ${zone(b.y)}`);
       });
     } else {
@@ -222,16 +229,21 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
     }
     setBusy("analyse");
     setAnalysis(null);
+    setAiCounter(null);
     const res = await analyseOpponent({
       ageGroup,
+      teamId,
+      fixtureId: fixtureId || undefined,
       opponentFormation: FORMATIONS.find((f) => f.id === awayFormationId)?.label ?? "unknown",
-      ourFormation: FORMATIONS.find((f) => f.id === homeFormationId)?.label ?? "custom",
+      ourFormationId: homeFormationId,
       summary: summariseBoard(),
-      availableFormations: FORMATIONS.map((f) => `${f.label} (${f.format})`),
+      reading: describeReading(readOpponent(state.tokens, getPitch(pitchId))),
     });
     setBusy(null);
     if (res.error) { setNotice(res.error); return; }
     setAnalysis(res.analysis ?? null);
+    setAiCounter(res.counter ?? null);
+    if (res.counter) setNotice("Counter drawn on the pitch in violet — see \"Where the space is\" under the board to apply it.");
   }
 
   async function handleDelete(id: string) {
@@ -353,7 +365,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
           <Send className="size-3" aria-hidden="true" /> Share to squad
         </button>
         {currentPlayId && (
-          <button type="button" onClick={() => { setCurrentPlayId(null); setPlayName(""); setVoiceUrl(null); setAnalysis(null); setDescription(null); }} className="inline-flex h-10 sm:h-8 items-center rounded-md border border-border bg-background px-2 text-xs hover:bg-muted">
+          <button type="button" onClick={() => { setCurrentPlayId(null); setPlayName(""); setVoiceUrl(null); setAnalysis(null); setAiCounter(null); setDescription(null); }} className="inline-flex h-10 sm:h-8 items-center rounded-md border border-border bg-background px-2 text-xs hover:bg-muted">
             New
           </button>
         )}

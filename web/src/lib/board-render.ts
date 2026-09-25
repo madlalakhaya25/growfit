@@ -9,7 +9,9 @@
 // board-model.ts, the one place those are defined now — see that file's
 // header for why.
 
-import { BOARD_W, BOARD_H, GROUP_COLOR, shapeColor, getPitch, type ShapeKind } from "@/lib/board-model";
+import {
+  BOARD_W, BOARD_H, GROUP_COLOR, shapeColor, shapeWidth, getPitch, arrowSpine, wavyPoints, pressMarks, type ShapeKind,
+} from "@/lib/board-model";
 
 export { BOARD_W, BOARD_H };
 export const BOARD_GROUP_COLOR = GROUP_COLOR;
@@ -35,6 +37,8 @@ export interface RenderShape {
   kind: RenderShapeKind;
   pts: { x: number; y: number }[];
   color?: string;
+  width?: number;
+  curve?: number;
 }
 
 /** Same rule as token-glyph.tsx's tokenBadge: slot numbers stay numbers,
@@ -259,39 +263,43 @@ export function drawBoard(
   // Shapes
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
+  // Same spine/wave/press geometry as the SVG renderer (shape-glyph.tsx),
+  // so a recording shows the curves and styles the coach drew.
+  const trace = (pts: { x: number; y: number }[]) => {
+    ctx.beginPath();
+    pts.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x * s, p.y * s) : ctx.lineTo(p.x * s, p.y * s)));
+  };
   for (const sh of shapes) {
     if (sh.pts.length < 2) continue;
     const color = shapeColor(sh);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.2 * s;
-    ctx.setLineDash(sh.kind === "pass" ? [3 * s, 2 * s] : []);
+    const w = shapeWidth(sh) * (sh.kind === "shot" ? 1.7 : 1);
     const a = sh.pts[0];
     const b = sh.pts[sh.pts.length - 1];
+    const spine = sh.kind === "free" ? sh.pts : arrowSpine(a, b, sh.curve);
+    const path = sh.kind === "dribble" ? wavyPoints(spine) : spine;
 
-    ctx.beginPath();
-    if (sh.kind === "free") {
-      sh.pts.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x * s, p.y * s) : ctx.lineTo(p.x * s, p.y * s)));
-    } else if (sh.kind === "dribble") {
-      const dx = b.x - a.x, dy = b.y - a.y;
-      const len = Math.hypot(dx, dy) || 1;
-      const px = -dy / len, py = dx / len;
-      const n = Math.max(2, Math.round(len / 3.2));
-      ctx.moveTo(a.x * s, a.y * s);
-      for (let i = 1; i < n; i++) {
-        const t = i / n;
-        const off = (i % 2 === 0 ? 1 : -1) * 1.5;
-        ctx.lineTo((a.x + dx * t + px * off) * s, (a.y + dy * t + py * off) * s);
-      }
-      ctx.lineTo(b.x * s, b.y * s);
-    } else {
-      ctx.moveTo(a.x * s, a.y * s);
-      ctx.lineTo(b.x * s, b.y * s);
-    }
+    // Dark halo first, for contrast on the grass — as on the board.
+    ctx.setLineDash(sh.kind === "pass" ? [2.4 * s, 1.6 * s] : []);
+    ctx.strokeStyle = "rgba(15,23,42,0.55)";
+    ctx.lineWidth = (w + 0.9) * s;
+    trace(path);
+    ctx.stroke();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = w * s;
+    trace(path);
     ctx.stroke();
     ctx.setLineDash([]);
-    if (sh.kind !== "free") {
-      const prev = sh.pts.length > 2 ? sh.pts[sh.pts.length - 2] : a;
-      arrowHead(ctx, prev.x * s, prev.y * s, b.x * s, b.y * s, color, s);
+
+    if (sh.kind === "press") {
+      const { ticks, bar } = pressMarks(spine, shapeWidth(sh));
+      ctx.lineWidth = shapeWidth(sh) * 0.9 * s;
+      for (const [p, q] of [...ticks, bar]) {
+        trace([p, q]);
+        ctx.stroke();
+      }
+    } else if (sh.kind !== "free") {
+      const prev = path[path.length - 2] ?? a;
+      arrowHead(ctx, prev.x * s, prev.y * s, b.x * s, b.y * s, color, s * Math.max(1, w / 1.2));
     }
   }
 
