@@ -153,6 +153,48 @@ export async function cancelFixture(fixtureId: string, reason: string) {
   return { success: true };
 }
 
+/**
+ * Permanently remove a fixture — for a data-entry mistake (wrong opponent,
+ * duplicate entry, wrong team), not for a real match that's off. Cancel is
+ * the right tool for that: it keeps a record and tells parents/players why.
+ * Delete has no such record, so a completed fixture (real logged results,
+ * ratings, attendance) is never eligible — same boundary updateFixture
+ * already draws, for the same reason.
+ */
+export async function deleteFixture(fixtureId: string) {
+  const { supabase, user } = await requireUser();
+
+  const teamIds = await getCoachTeamIds(supabase, user.id);
+  if (!teamIds.length) return { error: "No team found." };
+
+  const { data: existing } = await supabase
+    .from("fixtures")
+    .select("status")
+    .eq("id", fixtureId)
+    .in("team_id", teamIds)
+    .single();
+
+  if (!existing) return { error: "Fixture not found." };
+  if (existing.status === "completed") {
+    return { error: "This match already has a result logged, so it can't be deleted." };
+  }
+
+  const { data, error } = await supabase
+    .from("fixtures")
+    .delete()
+    .eq("id", fixtureId)
+    .in("team_id", teamIds)
+    .select("id");
+
+  if (error) return { error: friendlyError(error) };
+  if (!data?.length) return { error: "Fixture not found." };
+
+  revalidatePath("/dashboard/coach/fixtures", "page");
+  revalidatePath("/dashboard/parent/fixtures", "page");
+  revalidatePath("/dashboard/player/fixtures", "page");
+  return { success: true };
+}
+
 const logMatchSchema = z.object({
   fixture_id: z.string().uuid(),
   team_score: z.coerce.number().int().min(0).max(30),
