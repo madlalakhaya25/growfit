@@ -6,9 +6,11 @@ import {
   ArrowUpRight, Minus, Waves, Pencil, Download, Tag, Grid3x3,
   Play, Square, Plus, Trash2,
   Target, MessageSquare, RectangleHorizontal, Type, Ruler,
-  FlipHorizontal2, Maximize2, Minimize2, Hexagon,
+  FlipHorizontal2, Maximize2, Minimize2, Hexagon, Crosshair,
 } from "lucide-react";
-import { FORMATIONS, FORMATION_SIZES } from "@/lib/formations";
+import { FORMATIONS, FORMATION_SIZES, type Formation } from "@/lib/formations";
+import { readOpponent } from "@/lib/board-analysis";
+import { counterExploits, counterRunShapes, type OpponentCounter } from "@/lib/opponent-counter";
 import { drawBoard, pickRecorderMime } from "@/lib/board-render";
 import { framesFromShapes } from "@/lib/play-motion";
 import {
@@ -26,10 +28,13 @@ import { EquipmentLayer } from "@/components/tactics/equipment-layer";
 import { SavedPlaysPanel } from "@/components/tactics/saved-plays-panel";
 import { AnimationPanel } from "@/components/tactics/animation-panel";
 import { DraftRecoveryBanner } from "@/components/tactics/draft-recovery-banner";
+import { ExploitLayer, ExploitLegend } from "@/components/tactics/exploit-layer";
+import { getOpponentScouting, type OpponentScouting } from "@/app/actions/tactic-plays";
 import { useBoardStore, type BoardState } from "@/store/boardStore";
 import { useBoardSetupStore } from "@/store/boardSetupStore";
 import { useSavedPlaysStore } from "@/store/savedPlaysStore";
 import { useBoardPlaybackStore } from "@/store/boardPlaybackStore";
+import { useBoardInsightsStore } from "@/store/boardInsightsStore";
 
 // ── Types ────────────────────────────────────────────────────────
 // Token, Shape, ShapeKind and the Frame shape all come from board-model.ts
@@ -277,7 +282,11 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   // (draft autosave, video export filename, and the team-switch handler
   // below) — everything else the saved-plays panel needs, it now reads
   // from this same shared store itself; see saved-plays-panel.tsx.
-  const { playName, setPlayName, setCurrentPlayId, resetPanel: resetSavedPlaysPanel } = useSavedPlaysStore();
+  const { playName, setPlayName, setCurrentPlayId, fixtureId, resetPanel: resetSavedPlaysPanel } = useSavedPlaysStore();
+  const {
+    showExploits, setShowExploits, focusedExploitId, setFocusedExploitId,
+    aiCounter, setAiCounter, reset: resetInsights,
+  } = useBoardInsightsStore();
   // scrubMs/scrubbing/recording's own values are read by animation-panel.tsx
   // now (via the same store hook); only the setters are still called
   // directly here, by recordAnimation/scrubTo/endScrub.
@@ -292,7 +301,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   // tokens/team/formation/open-play/playback selection into a
   // freshly-mounted board.
   /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  useEffect(() => { resetBoardState(); resetForTeam(teams[0]?.id ?? ""); resetSavedPlaysPanel(); resetPlayback(); }, []);
+  useEffect(() => { resetBoardState(); resetForTeam(teams[0]?.id ?? ""); resetSavedPlaysPanel(); resetPlayback(); resetInsights(); }, []);
 
   const rafRef = useRef<number | null>(null);
 
@@ -344,6 +353,27 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const view = anim ? { ...state, tokens: anim.tokens, shapes: anim.shapes } : state;
 
   const pitch = getPitch(pitchId);
+
+  /** The opponent's lines and the spaces they leave, read live off whatever
+   *  is showing — so it follows drags and playback. See board-analysis.ts. */
+  const reading = useMemo(() => readOpponent(view.tokens, pitch), [view.tokens, pitch]);
+  const aiExploits = useMemo(() => (aiCounter ? counterExploits(aiCounter) : []), [aiCounter]);
+
+  /** What we know about the linked fixture's opponent — drives the
+   *  "usually plays…" shortcut in the Opponent card. */
+  const scoutingKey = teamId && fixtureId ? `${teamId}:${fixtureId}` : "";
+  const [scouted, setScouted] = useState<{ key: string; data: OpponentScouting | null }>({ key: "", data: null });
+  useEffect(() => {
+    if (!scoutingKey) return;
+    let live = true;
+    void getOpponentScouting(teamId, fixtureId).then((res) => {
+      if (live) setScouted({ key: scoutingKey, data: res.scouting ?? null });
+    });
+    return () => { live = false; };
+  }, [scoutingKey, teamId, fixtureId]);
+  // Keyed so switching fixture (or unlinking it) hides the old opponent at
+  // once, rather than showing it until the next fetch lands.
+  const scouting = scouted.key === scoutingKey ? scouted.data : null;
 
   // ── History ────────────────────────────────────────────────────
   // An undo step is the board state, the pitch id and the captured-steps
@@ -873,37 +903,36 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   }
 
   // ── Setup actions ──────────────────────────────────────────────
-  function setUpHome() {
-    const f = FORMATIONS.find((x) => x.id === homeFormationId)!;
+  /** Our XI in formation `f`, real players assigned to the slots that match
+   *  how they play. Squeezed into our own half when the opponent is up too,
+   *  so the two shapes face each other instead of interleaving. */
+  function homeTokens(f: Formation, vsOpponent: boolean): Token[] {
     const assigned = assignToSlots(f, roster);
-    snapshot();
-    setState((st) => {
-      // Only use the full pitch when we're the only team on the board.
-      const vsOpponent = st.tokens.some((t) => t.kind === "opponent");
+    return f.slots.map((slot, i) => {
+      const p = assigned[i];
+      const pos = vsOpponent ? compress(slot, "home") : slot;
       return {
-        ...st,
-        tokens: [
-          ...st.tokens.filter((t) => t.kind !== "player"),
-          ...f.slots.map((slot, i) => {
-            const p = assigned[i];
-            const pos = vsOpponent ? compress(slot, "home") : slot;
-            return {
-              id: uid("h"),
-              label: p ? shortLabel(p.full_name) : String(i + 1),
-              x: pos.x, y: pos.y,
-              kind: "player" as const,
-              group: p ? groupOf(p.position) : groupOf(slot.role),
-              playerId: p?.id,
-            };
-          }),
-        ],
+        id: uid("h"),
+        label: p ? shortLabel(p.full_name) : String(i + 1),
+        x: pos.x, y: pos.y,
+        kind: "player" as const,
+        group: p ? groupOf(p.position) : groupOf(slot.role),
+        playerId: p?.id,
       };
     });
   }
-  function setUpAway() {
-    const f = FORMATIONS.find((x) => x.id === awayFormationId)!;
+  function setUpHome() {
+    const f = FORMATIONS.find((x) => x.id === homeFormationId)!;
+    snapshot();
+    setState((st) => ({
+      ...st,
+      // Only use the full pitch when we're the only team on the board.
+      tokens: [...st.tokens.filter((t) => t.kind !== "player"), ...homeTokens(f, st.tokens.some((t) => t.kind === "opponent"))],
+    }));
+  }
+  function setUpAway(formationId: string = awayFormationId) {
+    const f = FORMATIONS.find((x) => x.id === formationId)!;
     const home = FORMATIONS.find((x) => x.id === homeFormationId)!;
-    const assigned = assignToSlots(home, roster);
     snapshot();
     setState((st) => {
       const hadHome = st.tokens.some((t) => t.kind === "player");
@@ -913,20 +942,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           ...st.tokens.filter((t) => t.kind !== "opponent" && t.kind !== "player"),
           // With both teams up, each side is compressed into its own half so
           // the shapes face each other instead of interleaving through midfield.
-          ...(hadHome
-            ? home.slots.map((slot, i) => {
-                const p = assigned[i];
-                const c = compress(slot, "home");
-                return {
-                  id: uid("h"),
-                  label: p ? shortLabel(p.full_name) : String(i + 1),
-                  x: c.x, y: c.y,
-                  kind: "player" as const,
-                  group: p ? groupOf(p.position) : groupOf(slot.role),
-                  playerId: p?.id,
-                };
-              })
-            : []),
+          ...(hadHome ? homeTokens(home, true) : []),
           ...f.slots.map((slot, i) => {
             const c = compress(slot, "away");
             return {
@@ -966,6 +982,28 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     }));
     setSelectedTokenId(null);
     setNotice(`${shortLabel(incoming.full_name)} on for ${outgoing.label}.`);
+  }
+
+  /**
+   * The AI counter, made real: switch our side to the suggested shape (same
+   * roster assignment as "Set up my XI") and draw its suggested runs as
+   * ordinary arrows — editable, saveable, and animated by Play because each
+   * run starts on the player it belongs to. One undo step for the lot.
+   */
+  function applyCounter(counter: OpponentCounter) {
+    const f = counter.counterFormationId ? FORMATIONS.find((x) => x.id === counter.counterFormationId) : undefined;
+    const current = stateRef.current;
+    const reshape = !!f && pitch.supportsFormations;
+    const tokens = reshape
+      ? [...current.tokens.filter((t) => t.kind !== "player"), ...homeTokens(f!, current.tokens.some((t) => t.kind === "opponent"))]
+      : current.tokens;
+    const runs = counterRunShapes(counter.counterRuns, tokens);
+    snapshot();
+    setState({ ...current, tokens, shapes: [...current.shapes, ...runs] });
+    if (reshape) setHomeFormationId(f!.id);
+    setNotice(
+      `${reshape ? `Switched to ${f!.label}` : "Kept your shape"} and drew ${runs.length} suggested move${runs.length === 1 ? "" : "s"} — press Play to watch, or drag them to adjust. Undo reverts it.`
+    );
   }
 
   function placePlayer(p: BoardPlayer) {
@@ -1481,7 +1519,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           {formationSelect(awayFormationId, setAwayFormationId, "tb-away-formation")}
           <button
             type="button"
-            onClick={setUpAway}
+            onClick={() => setUpAway()}
             disabled={!pitch.supportsFormations}
             title={pitch.supportsFormations ? undefined : "Formations need the full pitch — switch pitch below"}
             className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm font-semibold hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
@@ -1489,6 +1527,21 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
             <Circle className="size-3.5" aria-hidden="true" />
             Set up opponent XI
           </button>
+          {scouting && scouting.formations.length > 0 && pitch.supportsFormations && (
+            <button
+              type="button"
+              onClick={() => { setAwayFormationId(scouting.formations[0].formationId); setUpAway(scouting.formations[0].formationId); }}
+              title="Set them up in the shape you've used for them before"
+              className="w-full rounded-md border border-dashed border-primary/50 bg-primary/5 px-2 py-1.5 text-left text-xs hover:bg-primary/10"
+            >
+              <span className="font-semibold">{scouting.opponent}</span> usually set up as{" "}
+              <span className="font-semibold">{scouting.formations[0].label}</span>
+              <span className="text-muted-foreground"> ({scouting.formations[0].count} play{scouting.formations[0].count === 1 ? "" : "s"}) — use it</span>
+            </button>
+          )}
+          {scouting && scouting.formations.length === 0 && (
+            <p className="text-[11px] text-muted-foreground">No saved shape for {scouting.opponent} yet — set them up and save a play to remember it.</p>
+          )}
         </div>
       </div>
 
@@ -1619,6 +1672,16 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
         >
           <Hexagon className="size-3.5" aria-hidden="true" /> Team shape
         </button>
+        <button
+          type="button"
+          onClick={() => setShowExploits(!showExploits)}
+          aria-pressed={showExploits}
+          disabled={!pitch.supportsFormations}
+          title="Read the opponent's shape and highlight where the space is"
+          className={`inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border px-2.5 text-xs disabled:opacity-40 ${showExploits ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border hover:bg-muted"}`}
+        >
+          <Crosshair className="size-3.5" aria-hidden="true" /> Find space
+        </button>
         <button type="button" onClick={mirrorBoard} title="Flip the board left-to-right" className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
           <FlipHorizontal2 className="size-3.5" aria-hidden="true" /> Mirror
         </button>
@@ -1719,6 +1782,10 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
 
               {showShape && <TeamShapeLayer tokens={view.tokens} pitch={pitch} />}
 
+              {showExploits && pitch.supportsFormations && (
+                <ExploitLayer exploits={{ engine: reading.exploits, ai: aiExploits }} lines={reading.lines} focusedId={focusedExploitId} />
+              )}
+
               {/* Shapes */}
               {view.shapes.map((sh) => renderShape(sh))}
               {draft && renderShape(draft, true)}
@@ -1790,6 +1857,19 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               S spotlight, M measure, E erase · Del removes the selected player · Space plays · Ctrl/Cmd+Z undoes
             </span>
           </p>
+
+          {showExploits && pitch.supportsFormations && (
+            <ExploitLegend
+              engine={reading.exploits}
+              ai={aiExploits}
+              counter={aiCounter}
+              hasOpponent={view.tokens.some((t) => t.kind === "opponent")}
+              focusedId={focusedExploitId}
+              onFocus={(id) => setFocusedExploitId(focusedExploitId === id ? null : id)}
+              onApply={() => aiCounter && applyCounter(aiCounter)}
+              onClearAi={() => setAiCounter(null)}
+            />
+          )}
         </div>
 
         {/* Bench + legend */}

@@ -1,11 +1,16 @@
 "use server";
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { AI_MODEL, AI_MODEL_LITE } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
 import { getConcept } from "@/lib/tactics";
 import { buildSquadContext } from "./squad-context";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
+import { parseJsonObject } from "@/lib/ai-json";
+import { FORMATIONS } from "@/lib/formations";
+import { ZONE_IDS, zoneLabel } from "@/lib/board-analysis";
+import { validateCounter, renderCounterProse, type OpponentCounter } from "@/lib/opponent-counter";
+import { getOpponentScouting } from "./tactic-plays";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -220,17 +225,25 @@ PROGRESSION: [1 sentence on how to make it harder once they master it]`;
 }
 
 /**
- * Analyse the opponent's shape on the board and advise how to counter it.
- * Works from a text summary of what the coach actually placed, and is given the
- * formations available in the app so its suggestion is one they can load.
+ * Analyse the opponent's shape on the board and advise how to counter it —
+ * as data the board can draw, not just prose. The model is given the
+ * geometric reading from board-analysis.ts (so it builds on the gaps that
+ * are actually on the pitch rather than on a formation name), the zone grid
+ * to anchor every suggestion to, the formations of our size it may suggest,
+ * and — when the play is linked to a fixture — what we know about this
+ * opponent from past meetings. Everything it returns is validated by
+ * lib/opponent-counter.ts before the board sees it.
  */
 export async function analyseOpponent(params: {
   ageGroup: string;
+  teamId: string;
+  fixtureId?: string;
   opponentFormation: string;
-  ourFormation: string;
+  ourFormationId: string;
   summary: string;
-  availableFormations: string[];
-}): Promise<{ analysis?: string; error?: string }> {
+  /** board-analysis.ts describeReading() of the current board. */
+  reading: string;
+}): Promise<{ analysis?: string; counter?: OpponentCounter; error?: string }> {
   try {
     const { user } = await requireUser();
     // One AI call against this user's hourly budget. Counts attempts, not
@@ -238,50 +251,105 @@ export async function analyseOpponent(params: {
     const overBudget = await checkAiBudget(user.id);
     if (overBudget) return { error: overBudget };
 
-
     const ageGroup = params.ageGroup.trim() || "U15";
     const ltpdPhase = getLTPDPhase(ageGroup);
+    const ours = FORMATIONS.find((f) => f.id === params.ourFormationId);
+    const options = FORMATIONS.filter((f) => !ours || f.size === ours.size);
 
-    const prompt = `A youth football coach has set up an opponent's shape on a tactical board. Analyse it and advise how to counter it.
+    let history = "";
+    if (params.fixtureId && params.teamId) {
+      const { scouting } = await getOpponentScouting(params.teamId, params.fixtureId);
+      if (scouting) {
+        const lines = [`OPPONENT: ${scouting.opponent}`];
+        if (scouting.formations.length) {
+          lines.push(`Shapes our coaches have set them up in before: ${scouting.formations.map((f) => `${f.label} (${f.count}x)`).join(", ")}.`);
+        }
+        if (scouting.results.length) {
+          lines.push("Previous results against them (ours first):");
+          scouting.results.forEach((r) => lines.push(`- ${r.when}: ${r.score}${r.notes ? ` — notes: ${r.notes}` : ""}`));
+        } else {
+          lines.push("No logged result against them yet.");
+        }
+        history = `\n\nWHAT WE KNOW ABOUT THIS OPPONENT (use it; never invent results that are not listed):\n${lines.join("\n")}`;
+      }
+    }
 
-OUR SHAPE: ${params.ourFormation}
+    const prompt = `A youth football coach has set up an opponent's shape on a tactical board. Read it and give a counter the board can draw.
+
+OUR SHAPE: ${ours?.label ?? "custom"}
 OPPONENT SHAPE: ${params.opponentFormation}
 AGE GROUP: ${ageGroup} | LTPD Phase: ${ltpdPhase}
 
 BOARD DESCRIPTION (generated from what the coach placed):
 ${params.summary}
 
-FORMATIONS AVAILABLE IN THIS APP (recommend only from this list):
-${params.availableFormations.join(", ")}
+GAPS MEASURED ON THE BOARD (most promising first, zone id in brackets):
+${params.reading}${history}
 
-Give practical advice for countering this opponent, pitched at the LTPD phase above. Work only from the board description — do not invent opponent players or movements that are not listed. Keep it realistic for South African grassroots football with mixed-ability squads. At this age the priority is the players' development, so never advise anti-football or time-wasting.
+PITCH ZONES — we attack upward toward their goal; left/right are OUR left and right. Refer to places only by these ids:
+${ZONE_IDS.map((z) => `${z} = ${zoneLabel(z)}`).join("\n")}
 
-Return plain text (no markdown, no asterisks) in exactly this structure:
+FORMATIONS YOU MAY SUGGEST (use the id exactly):
+${options.map((f) => `${f.id} = ${f.label} (${f.format})`).join("\n")}
 
-WHAT THEY ARE DOING: [2-3 sentences reading their shape]
-WHERE THE SPACE IS: [2 numbered areas their shape leaves open and why]
-HOW TO COUNTER: [3 numbered practical instructions]
-SUGGESTED SHAPE: [one formation from the list above, and one sentence on why]
-WATCH OUT FOR: [2 threats their shape creates against us]
-TRAIN THIS WEEK: [1 sentence on what to rehearse in training]`;
+Build on the measured gaps above — do not invent opponent players or movements that are not on the board. Pitch the advice at the LTPD phase above and at South African grassroots football with mixed-ability squads. At this age the priority is the players' development, so never advise anti-football or time-wasting.
+
+Return: reading (2-3 sentences on what their shape is doing); exploits (2-3 zones to attack, each with why the space is there and how to use it, in words a young player understands); counterFormationId (one id from the list) and counterFormationWhy (one sentence); counterRuns (2-3 movements that attack those zones — each from a zone to a zone, kind run, pass or dribble, and a short note naming the role, e.g. "Left winger runs in behind"); watchOut (2 threats their shape poses to us); trainThisWeek (one sentence on what to rehearse).`;
 
     const response = await ai.models.generateContent({
       model: AI_MODEL,
       contents: prompt,
       config: {
-        maxOutputTokens: 1000,
+        maxOutputTokens: 1400,
         // Disable thinking: this is a direct-answer task, and unbudgeted
         // thinking tokens were silently eating the whole visible-output budget,
         // truncating the answer before the reader ever saw it end.
         thinkingConfig: { thinkingBudget: 0 },
         systemInstruction:
-          "You are a UEFA Pro Licence and SAFA Level 4 Coaching Badge qualified youth development specialist and opposition analyst. Your advice is grounded in FIFA's Long-Term Player Development (LTPD) framework, the 4-Corner Player Development Model, SAFA's National Development Programme curriculum, and CAF youth development principles. You understand South African grassroots football. Player development always outranks winning a single match. Plain text only — no asterisks, no Markdown formatting.",
+          "You are a UEFA Pro Licence and SAFA Level 4 Coaching Badge qualified youth development specialist and opposition analyst. Your advice is grounded in FIFA's Long-Term Player Development (LTPD) framework, the 4-Corner Player Development Model, SAFA's National Development Programme curriculum, and CAF youth development principles. You understand South African grassroots football. Player development always outranks winning a single match. Plain text inside every field — no asterisks, no Markdown formatting.",
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            reading: { type: Type.STRING },
+            exploits: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  zoneId: { type: Type.STRING, format: "enum", enum: ZONE_IDS },
+                  why: { type: Type.STRING },
+                  howTo: { type: Type.STRING },
+                },
+                required: ["zoneId", "why", "howTo"],
+              },
+            },
+            counterFormationId: { type: Type.STRING, format: "enum", enum: options.map((f) => f.id) },
+            counterFormationWhy: { type: Type.STRING },
+            counterRuns: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  fromZoneId: { type: Type.STRING, format: "enum", enum: ZONE_IDS },
+                  toZoneId: { type: Type.STRING, format: "enum", enum: ZONE_IDS },
+                  kind: { type: Type.STRING, format: "enum", enum: ["run", "pass", "dribble"] },
+                  note: { type: Type.STRING },
+                },
+                required: ["fromZoneId", "toZoneId", "kind", "note"],
+              },
+            },
+            watchOut: { type: Type.ARRAY, items: { type: Type.STRING } },
+            trainThisWeek: { type: Type.STRING },
+          },
+          required: ["reading", "exploits", "counterFormationId", "counterFormationWhy", "counterRuns", "watchOut", "trainThisWeek"],
+        },
       },
     });
 
-    let text = response.text ?? "";
-    text = text.replace(/\*/g, "");
-    return { analysis: text };
+    const counter = validateCounter(parseJsonObject(response.text ?? ""), ours?.size);
+    if (!counter) return { error: "Could not read the AI's counter. Try again." };
+    return { analysis: renderCounterProse(counter), counter };
   } catch (err) {
     return { error: aiError(err) };
   }

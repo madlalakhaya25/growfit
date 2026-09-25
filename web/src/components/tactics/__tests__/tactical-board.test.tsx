@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 
 // next/cache's revalidatePath (used by tactic-plays.ts, imported by
 // TacticalBoard) loads Next's server-runtime request/response machinery at
@@ -22,6 +22,8 @@ jest.mock("@/app/actions/tactics", () => ({
 }));
 
 import { TacticalBoard } from "@/components/tactics/tactical-board";
+import { useBoardInsightsStore } from "@/store/boardInsightsStore";
+import { useBoardStore } from "@/store/boardStore";
 
 /**
  * The board's own state now lives in store/boardStore.ts (a zustand
@@ -49,5 +51,45 @@ describe("TacticalBoard", () => {
     expect(screen.getByText("Set up my XI")).toBeInTheDocument();
     expect(screen.getByText("Your team")).toBeInTheDocument();
     expect(screen.getAllByText("Opponent").length).toBeGreaterThan(0);
+  });
+
+  it("reads the opponent's shape and shades where the space is", async () => {
+    render(<TacticalBoard teams={[]} />);
+    await act(async () => { await Promise.resolve(); });
+
+    // Default opponent shape is a 4-4-2 — set it up, then ask where the space is.
+    fireEvent.click(screen.getByText("Set up opponent XI"));
+    fireEvent.click(screen.getByRole("button", { name: /Find space/ }));
+
+    expect(screen.getByTestId("exploit-layer")).toBeInTheDocument();
+    const legend = screen.getByTestId("exploit-legend");
+    expect(legend).toHaveTextContent("Where the space is");
+    expect(legend).toHaveTextContent(/Pocket between their defence and midfield/);
+  });
+
+  it("applies an AI counter: switches our shape and draws its moves", async () => {
+    render(<TacticalBoard teams={[]} />);
+    await act(async () => { await Promise.resolve(); });
+    fireEvent.click(screen.getByText("Set up opponent XI"));
+
+    act(() => {
+      useBoardInsightsStore.getState().setAiCounter({
+        reading: "Flat 4-4-2.",
+        exploits: [{ zoneId: "A-C", why: "Gap between the lines.", howTo: "Drop into it." }],
+        counterFormationId: "11-4-2-3-1",
+        counterFormationWhy: "",
+        counterRuns: [{ fromZoneId: "M-C", toZoneId: "A-C", kind: "run", note: "10 into the pocket" }],
+        watchOut: [],
+        trainThisWeek: "",
+      });
+    });
+    expect(screen.getByTestId("exploit-legend")).toHaveTextContent("Attacking third, centre");
+
+    fireEvent.click(screen.getByRole("button", { name: /Apply counter — 4-2-3-1 \+ 1 move/ }));
+    const { tokens, shapes } = useBoardStore.getState().state;
+    expect(tokens.filter((t) => t.kind === "player")).toHaveLength(11);
+    expect(shapes).toHaveLength(1);
+    expect(shapes[0].kind).toBe("run");
+    expect(screen.getByText(/Switched to 4-2-3-1 and drew 1 suggested move/)).toBeInTheDocument();
   });
 });

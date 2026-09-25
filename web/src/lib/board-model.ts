@@ -464,6 +464,22 @@ export interface TeamShape {
 }
 
 /**
+ * One side's outfield tokens, keeper left out. Our keeper is the
+ * Goalkeeper group; opponents carry no position, so for a full-sized
+ * opponent side (8+) the deepest one, nearest the top goal they defend, is
+ * taken to be the keeper. Shared by teamShape() and board-analysis.ts so
+ * both read "their outfield" the same way.
+ */
+export function outfieldOf<T extends Pick<Token, "kind" | "group" | "y">>(tokens: T[], side: "player" | "opponent"): T[] {
+  const outfield = tokens.filter((t) => t.kind === side && t.group !== "Goalkeeper");
+  if (side === "opponent" && outfield.length >= 8) {
+    const deepest = outfield.reduce((m, t) => (t.y < m.y ? t : m), outfield[0]);
+    return outfield.filter((t) => t !== deepest);
+  }
+  return outfield;
+}
+
+/**
  * The outfield shape of one side — what a coach means by "we were too
  * stretched" or "stay compact". The keeper is left out because a GK
  * standing on the line would otherwise dominate every depth reading: for
@@ -476,11 +492,7 @@ export function teamShape(
   side: "player" | "opponent",
   pitch: Pick<Pitch, "metresPerUnit">
 ): TeamShape | null {
-  let outfield = tokens.filter((t) => t.kind === side && t.group !== "Goalkeeper");
-  if (side === "opponent" && outfield.length >= 8) {
-    const deepest = outfield.reduce((m, t) => (t.y < m.y ? t : m), outfield[0]);
-    outfield = outfield.filter((t) => t !== deepest);
-  }
+  const outfield = outfieldOf(tokens, side);
   if (outfield.length < 2) return null;
   const xs = outfield.map((t) => t.x), ys = outfield.map((t) => t.y);
   const units =

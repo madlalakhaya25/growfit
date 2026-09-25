@@ -176,6 +176,34 @@ App, Final Third), plus a video-telestration surface neither of them has.
   implementations of the same shapes and math; consolidated into one
   (`lib/board-model.ts`) so a new shape or pitch is defined once
 
+### Tactics board: "See the space" (Phase 1 of the board roadmap below)
+The AI opponent counter used to return prose only, so its advice never
+reached the pitch. The board can now read the opponent's shape itself.
+- **Find space overlay** (`lib/board-analysis.ts`,
+  `components/tactics/exploit-layer.tsx`). This is pure geometry with no AI.
+  It splits the opponent into lines, then shades and numbers five kinds of
+  finding:
+  - the pocket between their lines
+  - space behind a high line
+  - holes inside a stretched back line or midfield
+  - uncovered flanks or a back three that doesn't reach the wing
+  - zones where we outnumber them, or they outnumber us
+
+  Each finding comes with the movement that attacks it. It is live: drag
+  an opponent and it updates.
+- **AI counter drawn on the board.** `analyseOpponent` now returns JSON
+  anchored to a 15-zone grid (3 thirds × wing/half-space/centre). It is
+  given the measured gaps, and past results and shapes against a linked
+  fixture's opponent. Output is validated in `lib/opponent-counter.ts`:
+  invented zones and formations of the wrong size are dropped. "Apply
+  counter" switches us to the suggested shape and draws its moves as
+  ordinary arrows, with the runs starting on the right players so Play
+  animates them. It is one undo step.
+- **"Usually plays…"** When a play is linked to a fixture, the Opponent card
+  offers the shape that opponent has been set up in before
+  (`getOpponentScouting`), counting only plays where the opponent was
+  actually on the board.
+
 ### Access-code flow fix (this cycle)
 A coach entering their team's join/coach code at registration could
 previously end up in an unrecoverable state — wrong role assigned, no
@@ -337,6 +365,36 @@ Every "Near term" item from the previous pass is now done.
 - **Show training attendance on the squad-selection screen.** The data
   exists (it feeds the AI assistant's advice already) but isn't visible to
   the coach actually picking a squad.
+
+### Tactics board roadmap (Phases 2–5)
+
+Phase 1 ("See the space") has shipped, see above. Planned next, in order:
+
+- **Phase 2: Analysis overlays.**
+  - Passing lanes from the ball carrier, each open or blocked by an opponent.
+  - A space-control (Voronoi) map of who owns which grass.
+  - The defensive/offside line, with a line-to-line compactness readout.
+- **Phase 3: AI coaching intelligence.**
+  - "Critique my play": the AI reviews a drawn sequence and pins comments
+    to specific frames and players.
+  - Pressing-trigger suggestions read from the opponent's build-up shape.
+  - A set-piece organiser (corner and free-kick templates plus an AI
+    marking plan).
+  - All of it stays inside the LTPD age guardrails.
+- **Phase 4: Match-day workflow.**
+  - Phase-of-play tabs per play (in possession, out of possession,
+    transitions, set pieces).
+  - Open the board from a fixture with the selected squad and the saved
+    match plan (`fixture_match_plans` is write-only today), and save the
+    game plan back to it.
+  - A substitution planner that balances minutes played. Live touchline
+    mode stays out of scope (see `docs/BACKLOG.md`).
+- **Phase 5: Player-facing learning.**
+  - An auto-generated "your role in this play" per player.
+  - A "where should you move?" quiz: the player drags their own token and
+    is scored against the coach's next frame.
+  - Read receipts on shared plays.
+  - A printable match-day pack.
 
 ### Long term
 
