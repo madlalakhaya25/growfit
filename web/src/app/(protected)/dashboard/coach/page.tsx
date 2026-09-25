@@ -14,6 +14,8 @@ import { CopyButton } from "@/components/copy-button";
 import { daysFromNow } from "@/lib/utils";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { getWelfareAlerts } from "@/app/actions/welfare";
+import { reportError } from "@/lib/report-error";
+import { RetryButton } from "@/components/ui/retry-button";
 
 function greeting() {
   const hour = new Date().getHours();
@@ -27,11 +29,15 @@ export default async function CoachDashboardPage() {
   const profile = await getProfile();
   const firstName = profile?.full_name?.trim().split(/\s+/)[0] ?? "Coach";
 
-  const { data: teamRows } = await supabase
+  const { data: teamRows, error: teamsError } = await supabase
     .from("teams")
     .select("id, name, age_group, invite_code")
     .in("id", await getCoachedTeamIds(supabase, user.id))
     .eq("active", true);
+
+  if (teamsError) {
+    reportError(teamsError, { scope: "coach today page", extra: { query: "teams" } });
+  }
 
   const rawTeams = teamRows ?? [];
   const teamIds = rawTeams.map((t) => t.id);
@@ -39,26 +45,35 @@ export default async function CoachDashboardPage() {
   const weekAgo = new Date(new Date(now).getTime() - 7 * 24 * 3600 * 1000).toISOString();
 
   // Batch queries instead of O(2n) per-team round-trips
-  const [{ data: memberRows }, { data: upcomingRows }] = await Promise.all([
+  const [{ data: memberRows, error: memberRowsError }, { data: upcomingRows, error: upcomingRowsError }] = await Promise.all([
     teamIds.length
       ? supabase.from("team_members").select("team_id").in("team_id", teamIds).eq("active", true)
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [], error: null }),
     teamIds.length
       // A fixture whose kickoff has passed isn't "upcoming" for this badge,
       // even if the coach hasn't logged its result yet.
       ? supabase.from("fixtures").select("team_id").in("team_id", teamIds).eq("status", "upcoming").gte("fixture_date", now)
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [], error: null }),
   ]);
+
+  if (memberRowsError) {
+    reportError(memberRowsError, { scope: "coach today page", extra: { query: "team_members counts" } });
+  }
+  if (upcomingRowsError) {
+    reportError(upcomingRowsError, { scope: "coach today page", extra: { query: "upcoming fixture counts" } });
+  }
 
   const squadCountMap = new Map<string, number>();
   const upcomingCountMap = new Map<string, number>();
   for (const r of memberRows ?? []) squadCountMap.set(r.team_id, (squadCountMap.get(r.team_id) ?? 0) + 1);
   for (const r of upcomingRows ?? []) upcomingCountMap.set(r.team_id, (upcomingCountMap.get(r.team_id) ?? 0) + 1);
 
+  // `null` (rather than 0) marks "couldn't load" so the team row can say so
+  // instead of showing a phantom "0 players" that reads as a real count.
   const allTeams = rawTeams.map((team) => ({
     ...team,
-    squadCount: squadCountMap.get(team.id) ?? 0,
-    upcomingCount: upcomingCountMap.get(team.id) ?? 0,
+    squadCount: memberRowsError ? null : squadCountMap.get(team.id) ?? 0,
+    upcomingCount: upcomingRowsError ? null : upcomingCountMap.get(team.id) ?? 0,
   }));
 
   const weekAhead = new Date(new Date(now).getTime() + 7 * 24 * 3600 * 1000).toISOString();
@@ -68,7 +83,7 @@ export default async function CoachDashboardPage() {
     teams: { name: string } | { name: string }[] | null;
   };
 
-  const [{ data: upcomingFixtureRows }, { data: nextSessions }] = await Promise.all([
+  const [{ data: upcomingFixtureRows, error: nextFixturesError }, { data: nextSessions, error: nextSessionsError }] = await Promise.all([
     teamIds.length
       // Every team's own earliest fixture, not just one across the whole
       // coach account — a coach running U11/U13/U15 has a Sunday for each.
@@ -80,7 +95,7 @@ export default async function CoachDashboardPage() {
           .gte("fixture_date", now)
           .lte("fixture_date", weekAhead)
           .order("fixture_date")
-      : Promise.resolve({ data: [] as UpcomingFixtureRow[] }),
+      : Promise.resolve({ data: [] as UpcomingFixtureRow[], error: null }),
     teamIds.length
       ? supabase
           .from("training_sessions")
@@ -89,11 +104,21 @@ export default async function CoachDashboardPage() {
           .gte("session_date", now)
           .order("session_date")
           .limit(1)
-      : Promise.resolve({ data: null }),
+      : Promise.resolve({ data: null, error: null }),
   ]);
 
-  // Earliest fixture per team, in team order lost — re-sorted by kickoff
-  // below so the soonest match leads regardless of which team it belongs to.
+  if (nextFixturesError) {
+    reportError(nextFixturesError, { scope: "coach today page", extra: { query: "next fixture" } });
+  }
+  if (nextSessionsError) {
+    reportError(nextSessionsError, { scope: "coach today page", extra: { query: "next session" } });
+  }
+  // Either query failing means "What's Next" can't be trusted — showing
+  // partial data anyway could hide a real fixture/session behind an error.
+  const nextUpError = Boolean(nextFixturesError || nextSessionsError);
+
+  // Earliest fixture per team, re-sorted by kickoff so the soonest match
+  // leads regardless of which team it belongs to.
   const nextFixtureByTeam = new Map<string, UpcomingFixtureRow>();
   for (const f of (upcomingFixtureRows ?? []) as UpcomingFixtureRow[]) {
     if (!nextFixtureByTeam.has(f.team_id)) nextFixtureByTeam.set(f.team_id, f);
@@ -112,30 +137,50 @@ export default async function CoachDashboardPage() {
   // unlogged past fixture is worth flagging regardless of age; registers:
   // trailing 7 days, since a register from a month ago is history, not a
   // to-do) keep both queries cheap and the counts meaningful.
-  const [{ data: unloggedFixtures }, { data: recentSessions }, welfareResult] = await Promise.all([
+  const [
+    { data: unloggedFixtures, error: unloggedFixturesError },
+    { data: recentSessions, error: recentSessionsError },
+    welfareResult,
+  ] = await Promise.all([
     teamIds.length
       ? supabase.from("fixtures").select("id").in("team_id", teamIds).eq("status", "upcoming").lt("fixture_date", now)
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [], error: null }),
     teamIds.length
       ? supabase.from("training_sessions").select("id").in("team_id", teamIds).gte("session_date", weekAgo).lt("session_date", now)
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [], error: null }),
     teamIds.length ? getWelfareAlerts() : Promise.resolve({ alerts: [] }),
   ]);
 
+  if (unloggedFixturesError) {
+    reportError(unloggedFixturesError, { scope: "coach today page", extra: { query: "unlogged fixtures" } });
+  }
+  if (recentSessionsError) {
+    reportError(recentSessionsError, { scope: "coach today page", extra: { query: "recent sessions" } });
+  }
+
   const recentSessionIds = (recentSessions ?? []).map((s: { id: string }) => s.id);
   let registersNotTaken = 0;
+  let takenRowsError: unknown = null;
   if (recentSessionIds.length) {
-    const { data: takenRows } = await supabase
+    const { data: takenRows, error } = await supabase
       .from("training_attendance")
       .select("session_id")
       .in("session_id", recentSessionIds);
+    takenRowsError = error;
+    if (takenRowsError) {
+      reportError(takenRowsError, { scope: "coach today page", extra: { query: "training attendance taken" } });
+    }
     const takenSet = new Set((takenRows ?? []).map((r: { session_id: string }) => r.session_id));
     registersNotTaken = recentSessionIds.filter((id) => !takenSet.has(id)).length;
   }
 
   const resultsNotLogged = unloggedFixtures?.length ?? 0;
+  const welfareError = "error" in welfareResult;
   const welfareAlerts = "alerts" in welfareResult ? welfareResult.alerts.length : 0;
   const hasTodos = resultsNotLogged > 0 || registersNotTaken > 0 || welfareAlerts > 0;
+  // Any of these failing means "All caught up" would be a lie — a failed
+  // query and a genuinely empty to-do list must not look identical.
+  const todoError = Boolean(unloggedFixturesError || recentSessionsError || takenRowsError || welfareError);
 
   return (
     <div className="space-y-6">
@@ -153,7 +198,21 @@ export default async function CoachDashboardPage() {
         }
       />
 
-      {allTeams.length === 0 ? (
+      {teamsError ? (
+        <Card className="border-destructive/50">
+          <CardHeader>
+            <CardTitle>Couldn&apos;t load your teams</CardTitle>
+            <CardDescription>
+              Something went wrong loading your dashboard — this isn&apos;t
+              necessarily an empty account. Try reloading; if it keeps
+              happening, tell your admin.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RetryButton />
+          </CardContent>
+        </Card>
+      ) : allTeams.length === 0 ? (
         <div className="space-y-4">
           <Card>
             <CardHeader>
@@ -181,7 +240,22 @@ export default async function CoachDashboardPage() {
       ) : (
         <div className="space-y-6">
           {/* ── What's Next ───────────────────────────────────────── */}
-          {upcomingTeamFixtures.length === 0 && !nextSession && (
+          {nextUpError && (
+            <Card className="border-destructive/50">
+              <CardHeader>
+                <CardTitle>Couldn&apos;t load what&apos;s next</CardTitle>
+                <CardDescription>
+                  Something went wrong checking for upcoming fixtures and
+                  training — this doesn&apos;t mean there&apos;s nothing
+                  scheduled. Try reloading.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <RetryButton />
+              </CardContent>
+            </Card>
+          )}
+          {!nextUpError && upcomingTeamFixtures.length === 0 && !nextSession && (
             <div className="rounded-xl border border-dashed border-border bg-card/50 px-5 py-6 space-y-3">
               <p className="text-sm text-muted-foreground">No upcoming fixtures or training sessions yet.</p>
               <div className="flex flex-wrap gap-2">
@@ -200,7 +274,7 @@ export default async function CoachDashboardPage() {
               </div>
             </div>
           )}
-          {upcomingTeamFixtures.map((fixture) => {
+          {!nextUpError && upcomingTeamFixtures.map((fixture) => {
             const date = new Date(fixture.fixture_date);
             const teamName = multiTeam
               ? (Array.isArray(fixture.teams) ? fixture.teams[0]?.name : (fixture.teams as { name: string } | null)?.name)
@@ -222,7 +296,7 @@ export default async function CoachDashboardPage() {
           {/* Training always shows alongside fixtures now, not only when no
               team has one — a coach with Sunday's match already ticketed
               above still needs to see Wednesday's session. */}
-          {nextSession && (() => {
+          {!nextUpError && nextSession && (() => {
             const days = daysFromNow(nextSession.session_date);
             const date = new Date(nextSession.session_date);
             const teamName = multiTeam
@@ -254,7 +328,20 @@ export default async function CoachDashboardPage() {
           })()}
 
           {/* ── To-do ─────────────────────────────────────────────── */}
-          {hasTodos ? (
+          {todoError ? (
+            <Card className="border-destructive/50">
+              <CardHeader>
+                <CardTitle>Couldn&apos;t check what needs you</CardTitle>
+                <CardDescription>
+                  Something went wrong loading your to-dos — this isn&apos;t
+                  the same as being all caught up. Try reloading.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <RetryButton />
+              </CardContent>
+            </Card>
+          ) : hasTodos ? (
             <Card>
               <ListRowGroup className="px-4">
                 {resultsNotLogged > 0 && (
@@ -298,7 +385,11 @@ export default async function CoachDashboardPage() {
                   key={team.id}
                   leading={<Users className="size-5 text-primary" aria-hidden="true" />}
                   title={team.name}
-                  subtitle={`${team.squadCount} players · ${team.upcomingCount} upcoming`}
+                  subtitle={
+                    team.squadCount === null || team.upcomingCount === null
+                      ? "Counts unavailable — try reloading"
+                      : `${team.squadCount} players · ${team.upcomingCount} upcoming`
+                  }
                   trailing={
                     team.age_group ? <Badge variant="brand" className="text-xs">{team.age_group}</Badge> : undefined
                   }

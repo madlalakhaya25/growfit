@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StatTile } from "@/components/ui/stat-tile";
 import { ListRow, ListRowGroup } from "@/components/ui/list-row";
 import { Users, Shield, Calendar, Star, UserPlus, Settings, BarChart2 } from "lucide-react";
+import { reportError } from "@/lib/report-error";
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient();
@@ -29,11 +30,24 @@ export default async function AdminDashboardPage() {
     supabase.from("player_ratings").select("id", { count: "exact" }),
   ]);
 
+  // A failed count and a genuine zero must not render the same way — "0
+  // active players" reads as a real, alarming fact, not as "couldn't load".
+  for (const [query, result] of [
+    ["players", players],
+    ["teams", teams],
+    ["fixtures", fixtures],
+    ["ratings", ratings],
+  ] as const) {
+    if (result.error) {
+      reportError(result.error, { scope: "admin overview", extra: { query } });
+    }
+  }
+
   const stats = [
-    { label: "Active players",    value: players.count  ?? 0, Icon: Users,    href: "/dashboard/admin/players" },
-    { label: "Teams",             value: teams.count    ?? 0, Icon: Shield,   href: "/dashboard/admin/teams" },
-    { label: "Upcoming fixtures", value: fixtures.count ?? 0, Icon: Calendar, href: null },
-    { label: "Ratings logged",    value: ratings.count  ?? 0, Icon: Star,     href: "/dashboard/admin/reports" },
+    { label: "Active players",    value: players.error  ? "—" : players.count  ?? 0, Icon: Users,    href: "/dashboard/admin/players" },
+    { label: "Teams",             value: teams.error    ? "—" : teams.count    ?? 0, Icon: Shield,   href: "/dashboard/admin/teams" },
+    { label: "Upcoming fixtures", value: fixtures.error ? "—" : fixtures.count ?? 0, Icon: Calendar, href: null },
+    { label: "Ratings logged",    value: ratings.error  ? "—" : ratings.count  ?? 0, Icon: Star,     href: "/dashboard/admin/reports" },
   ];
 
   const quickActions = [

@@ -187,12 +187,4 @@
       );
   }
 
-  /* Shield clip-path for crests and player avatars — a rounded shield,
-     not a circle or a square, so a headshot or initials reads as "this
-     club's player" rather than a generic avatar. */
-  .shield-clip {
-    clip-path: polygon(
-      50% 0%, 100% 0%, 100% 55%, 50% 100%, 0% 55%, 0% 0%
-    );
-  }
 }
