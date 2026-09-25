@@ -27,6 +27,7 @@ interface SheetProps {
  */
 export function Sheet({ open, onClose, title, children, className }: SheetProps) {
   const panelRef = React.useRef<HTMLDivElement>(null);
+  const overlayRef = React.useRef<HTMLDivElement>(null);
   const previouslyFocused = React.useRef<HTMLElement | null>(null);
 
   // Every caller today opens with `useState(false)`, so this doesn't
@@ -69,8 +70,13 @@ export function Sheet({ open, onClose, title, children, className }: SheetProps)
         return;
       }
       if (e.key !== "Tab" || !panelRef.current) return;
+      // `:not([disabled])` on button/input/select/textarea -- a disabled
+      // button matched the old selector, so Tab could land on it and then
+      // walk straight out of the trap on its next press (a disabled
+      // element is never actually focusable, so the wrap-around logic
+      // below saw an "active element" that could never equal `first`/`last`).
       const focusable = panelRef.current.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
       );
       if (focusable.length === 0) return;
       const first = focusable[0];
@@ -88,17 +94,37 @@ export function Sheet({ open, onClose, title, children, className }: SheetProps)
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
+    // Hide the rest of the page from assistive tech and keyboard focus
+    // while the sheet is open -- without this, a screen reader's virtual
+    // cursor (which doesn't go through the Tab-key trap above at all)
+    // could still reach content behind the sheet.
+    const overlay = overlayRef.current;
+    const siblings = overlay
+      ? (Array.from(document.body.children).filter((el) => el !== overlay) as HTMLElement[])
+      : [];
+    siblings.forEach((el) => el.setAttribute("inert", ""));
+
     return () => {
       document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = originalOverflow;
+      siblings.forEach((el) => el.removeAttribute("inert"));
       previouslyFocused.current?.focus();
     };
-  }, [open]);
+    // `mounted` is a dependency, not just `open`: on the very first open,
+    // this effect's initial run happens before `mounted` flips true (the
+    // portal doesn't exist yet, so `overlayRef.current` is still null) --
+    // without it, the inert-siblings step above would silently no-op on
+    // first open, and only wake up on subsequent opens once the portal was
+    // already there from before.
+  }, [open, mounted]);
 
   if (!open || !mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-stretch sm:justify-end">
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-stretch sm:justify-end"
+    >
       <div
         className="absolute inset-0 bg-ink/60"
         onClick={onClose}
@@ -111,7 +137,7 @@ export function Sheet({ open, onClose, title, children, className }: SheetProps)
         aria-label={typeof title === "string" ? title : undefined}
         tabIndex={-1}
         className={cn(
-          "relative flex max-h-[85vh] w-full flex-col rounded-t-xl bg-card shadow-lg outline-none",
+          "relative flex max-h-[85dvh] w-full flex-col rounded-t-xl bg-card shadow-lg outline-none",
           "sm:h-full sm:max-h-full sm:w-full sm:max-w-sm sm:rounded-t-none",
           className
         )}

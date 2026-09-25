@@ -17,25 +17,32 @@ export default async function ProtectedLayout({
   if (!profile.academy_id && profile.role !== "player") redirect("/auth/role");
 
   const supabase = await createClient();
-  const features = await getAcademyFeatures(supabase, profile.academy_id);
 
-  // The team switcher (coach only, see dashboard-shell.tsx) needs the list
-  // of teams a coach can flip between -- id/name/age_group only, never the
-  // roster or fixtures, which the "Ask Growfit" sheet fetches lazily
-  // instead so this doesn't run on every page load for every role.
-  let teams: { id: string; name: string; age_group: string | null }[] = [];
-  if (profile.role === "coach") {
-    const { data } = await supabase
-      .from("teams")
-      .select("id, name, age_group")
-      .in("id", await getCoachedTeamIds(supabase, profile.id))
-      .eq("active", true)
-      // Same default order the squad/fixtures/training pages already use —
-      // see lib/current-team.ts. Everywhere a "current team" gets guessed
-      // in the absence of a param or cookie now agrees on which team that is.
-      .order("created_at");
-    teams = data ?? [];
-  }
+  // Features and the coach's own teams don't depend on each other -- only
+  // the teams query depends on getCoachedTeamIds -- so they run as two
+  // concurrent tracks instead of three queries end to end.
+  const [features, teamsResult] = await Promise.all([
+    getAcademyFeatures(supabase, profile.academy_id),
+    // The team switcher (coach only, see dashboard-shell.tsx) needs the list
+    // of teams a coach can flip between -- id/name/age_group only, never the
+    // roster or fixtures, which the "Ask Growfit" sheet fetches lazily
+    // instead so this doesn't run on every page load for every role.
+    profile.role === "coach"
+      ? getCoachedTeamIds(supabase, profile.id).then((teamIds) =>
+          supabase
+            .from("teams")
+            .select("id, name, age_group")
+            .in("id", teamIds)
+            .eq("active", true)
+            // Same default order the squad/fixtures/training pages already
+            // use — see lib/current-team.ts. Everywhere a "current team" gets
+            // guessed in the absence of a param or cookie now agrees on
+            // which team that is.
+            .order("created_at")
+        )
+      : Promise.resolve({ data: [] as { id: string; name: string; age_group: string | null }[] }),
+  ]);
+  const teams = teamsResult.data ?? [];
 
   return (
     <DashboardShell profile={profile} teams={teams} features={features}>
