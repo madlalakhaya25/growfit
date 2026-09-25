@@ -14,10 +14,13 @@ export function parseJsonObject(raw: string): Record<string, unknown> | null {
   try {
     return JSON.parse(text) as Record<string, unknown>;
   } catch {
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) return null;
+    // The outermost {...}: first "{" to last "}". Plain index lookups
+    // rather than a /\{[\s\S]*\}/ regex, which backtracks badly on long
+    // replies with no closing brace.
+    const start = text.indexOf("{"), end = text.lastIndexOf("}");
+    if (start === -1 || end <= start) return null;
     try {
-      return JSON.parse(match[0]) as Record<string, unknown>;
+      return JSON.parse(text.slice(start, end + 1)) as Record<string, unknown>;
     } catch {
       return null;
     }

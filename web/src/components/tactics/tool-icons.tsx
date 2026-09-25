@@ -60,7 +60,8 @@ export const HatchIcon = (p: IconProps) => (
 export const SolidFillIcon = (p: IconProps) => (
   <Svg {...p}><rect x={3.5} y={3.5} width={17} height={17} rx={1.5} fill="currentColor" fillOpacity={0.35} /></Svg>
 );
-/** Line-weight icon: `weight` is the stroke width drawn. */
-export const WeightIcon = ({ weight, ...p }: IconProps & { weight: number }) => (
-  <Svg {...p}><path d="M4 12 L20 12" strokeWidth={weight} /></Svg>
-);
+/** Line-weight icons — one fixed component per weight, so the toolbar
+ * never builds a new component type during render. */
+export const ThinLineIcon = (p: IconProps) => <Svg {...p}><path d="M4 12 L20 12" strokeWidth={1.6} /></Svg>;
+export const NormalLineIcon = (p: IconProps) => <Svg {...p}><path d="M4 12 L20 12" strokeWidth={2.4} /></Svg>;
+export const BoldLineIcon = (p: IconProps) => <Svg {...p}><path d="M4 12 L20 12" strokeWidth={3.6} /></Svg>;

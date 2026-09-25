@@ -27,7 +27,7 @@ import { TokenDefs, TokenGlyph } from "@/components/tactics/token-glyph";
 import { ShapeDefs, ShapeGlyph } from "@/components/tactics/shape-glyph";
 import {
   RunIcon, PassIcon, DribbleIcon, ShotIcon, PressIcon, StraightIcon, CurveIcon, CurveRightIcon,
-  ZoneRectIcon, ZoneEllipseIcon, LassoIcon, SolidFillIcon, HatchIcon, WeightIcon,
+  ZoneRectIcon, ZoneEllipseIcon, LassoIcon, SolidFillIcon, HatchIcon, ThinLineIcon, NormalLineIcon, BoldLineIcon,
 } from "@/components/tactics/tool-icons";
 import { EquipmentLayer } from "@/components/tactics/equipment-layer";
 import { SavedPlaysPanel } from "@/components/tactics/saved-plays-panel";
@@ -76,6 +76,7 @@ const LINE_WEIGHTS = [
   { id: "bold", value: 1.8, label: "Bold" },
 ] as const;
 type LineWeightId = (typeof LINE_WEIGHTS)[number]["id"];
+const WEIGHT_ICONS: Record<LineWeightId, ToolIcon> = { thin: ThinLineIcon, normal: NormalLineIcon, bold: BoldLineIcon };
 /** How far a bent arrow bows, as a fraction of its length. */
 const BEND = 0.22;
 
@@ -400,11 +401,12 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const scoutingKey = teamId && fixtureId ? `${teamId}:${fixtureId}` : "";
   const [scouted, setScouted] = useState<{ key: string; data: OpponentScouting | null }>({ key: "", data: null });
   useEffect(() => {
-    if (!scoutingKey) return;
     let live = true;
-    void getOpponentScouting(teamId, fixtureId).then((res) => {
-      if (live) setScouted({ key: scoutingKey, data: res.scouting ?? null });
-    });
+    if (scoutingKey) {
+      void getOpponentScouting(teamId, fixtureId).then((res) => {
+        if (live) setScouted({ key: scoutingKey, data: res.scouting ?? null });
+      });
+    }
     return () => { live = false; };
   }, [scoutingKey, teamId, fixtureId]);
   // Keyed so switching fixture (or unlinking it) hides the old opponent at
@@ -1649,7 +1651,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           </>)}
           {DRAG_DRAW_MODES.has(mode) && segmented("Weight", <>
             {LINE_WEIGHTS.map((lw) =>
-              styleOpt(lineWeight === lw.id, () => setLineWeight(lw.id), (p) => <WeightIcon weight={(lw.value ?? 1.2) * 2} {...p} />, lw.label, true)
+              styleOpt(lineWeight === lw.id, () => setLineWeight(lw.id), WEIGHT_ICONS[lw.id], lw.label, true)
             )}
           </>)}
           <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Line colour">
