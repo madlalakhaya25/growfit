@@ -56,7 +56,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
   const { state, setState } = useBoardStore();
   const {
     teamId, homeFormationId, setHomeFormationId, awayFormationId, setAwayFormationId,
-    pitchId, setPitchId,
+    pitchId, setPitchId, pitchThemeId, setPitchThemeId,
   } = useBoardSetupStore();
   const { frames, setFrames } = useBoardPlaybackStore();
   const {
@@ -96,7 +96,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
       playId: currentPlayId ?? undefined,
       teamId,
       name,
-      data: { tokens: state.tokens, shapes: state.shapes, objects: state.objects, playerNotes: state.playerNotes, pitchId, frames, homeFormationId, awayFormationId },
+      data: { tokens: state.tokens, shapes: state.shapes, objects: state.objects, playerNotes: state.playerNotes, pitchId, pitchThemeId, frames, homeFormationId, awayFormationId },
       conceptIds,
       sessionId: sessionId || null,
       fixtureId: fixtureId || null,
@@ -114,10 +114,11 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
     const res = await loadPlay(id);
     setBusy(null);
     if (res.error || !res.data) { setNotice(res.error ?? "Could not load play."); return; }
-    const d = res.data as Partial<BoardState & { frames: Frame[]; homeFormationId: string; awayFormationId: string; pitchId: string }>;
+    const d = res.data as Partial<BoardState & { frames: Frame[]; homeFormationId: string; awayFormationId: string; pitchId: string; pitchThemeId: string }>;
     snapshot();
     setState({ tokens: d.tokens ?? [], shapes: d.shapes ?? [], objects: d.objects ?? [], playerNotes: d.playerNotes ?? [] });
     setPitchId(d.pitchId ?? "full");
+    setPitchThemeId(d.pitchThemeId ?? "classic");
     setFrames(d.frames ?? []);
     if (d.homeFormationId) setHomeFormationId(d.homeFormationId);
     if (d.awayFormationId) setAwayFormationId(d.awayFormationId);

@@ -21,6 +21,10 @@ interface BoardSetupState {
   awayFormationId: string;
   pitchId: string;
   equipmentKind: EquipmentKind;
+  /** How the pitch is painted (lib/pitch-themes.ts) — saved with a play
+   * so the shared view looks like the board the coach drew on. */
+  pitchThemeId: string;
+  setPitchThemeId: (id: string) => void;
   setTeamId: (id: string) => void;
   setHomeFormationId: (id: string) => void;
   setAwayFormationId: (id: string) => void;
@@ -43,6 +47,8 @@ export const useBoardSetupStore = create<BoardSetupState>()((set) => ({
   awayFormationId: DEFAULT_AWAY_FORMATION_ID,
   pitchId: DEFAULT_PITCH_ID,
   equipmentKind: DEFAULT_EQUIPMENT_KIND,
+  pitchThemeId: "classic",
+  setPitchThemeId: (pitchThemeId) => set({ pitchThemeId }),
   setTeamId: (teamId) => set({ teamId }),
   setHomeFormationId: (homeFormationId) => set({ homeFormationId }),
   setAwayFormationId: (awayFormationId) => set({ awayFormationId }),
@@ -55,5 +61,6 @@ export const useBoardSetupStore = create<BoardSetupState>()((set) => ({
       awayFormationId: DEFAULT_AWAY_FORMATION_ID,
       pitchId: DEFAULT_PITCH_ID,
       equipmentKind: DEFAULT_EQUIPMENT_KIND,
+      pitchThemeId: "classic",
     }),
 }));

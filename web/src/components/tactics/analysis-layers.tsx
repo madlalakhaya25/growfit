@@ -1,6 +1,7 @@
 import type { Point, Token } from "@/lib/board-model";
 import { zoneRect, ZONE_IDS } from "@/lib/board-analysis";
 import type { LaneStatus, LinesReading, PassingLane, SpaceControl, ZoneCount } from "@/lib/board-overlays";
+import type { ReachTime } from "@/lib/board-coaching";
 
 // The Phase 2 analysis overlays (lib/board-overlays.ts) drawn on the pitch.
 // All pointer-transparent like TeamShapeLayer/ExploitLayer, so they never
@@ -149,6 +150,31 @@ export function ZoneCountLayer({ counts }: { counts: ZoneCount[] }) {
           <g key={z} transform={`translate(${r.x + r.w / 2} ${r.y + 4})`}>
             <rect x={-4} y={-2.2} width={8} height={3.8} rx={1.9} fill={color} stroke="#ffffff" strokeOpacity={0.6} strokeWidth={0.25} />
             <text y={0.6} textAnchor="middle" fontSize={2.5} fontWeight={700} fill="#ffffff">{text}</text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+const VERDICT: Record<ReachTime["verdict"], { color: string; word: (r: ReachTime) => string }> = {
+  first: { color: "#16a34a", word: (r) => (r.rival ? `first by ${(r.rival.seconds - r.seconds).toFixed(1)}s` : "unopposed") },
+  contest: { color: "#d97706", word: () => "50-50" },
+  late: { color: "#dc2626", word: (r) => `${r.rival?.label || "they"} first` },
+};
+
+/** A time chip halfway along every run: "3.4s · first by 0.9s". */
+export function ReachTimeLayer({ times }: { times: ReachTime[] }) {
+  return (
+    <g pointerEvents="none" data-testid="times-layer">
+      {times.map((t) => {
+        const v = VERDICT[t.verdict];
+        const text = `${t.seconds.toFixed(1)}s · ${v.word(t)}`;
+        const w = text.length * 1.2 + 3;
+        return (
+          <g key={t.shapeId} transform={`translate(${t.mid.x} ${t.mid.y})`}>
+            <rect x={-w / 2} y={-2} width={w} height={3.8} rx={1.9} fill="rgba(15,23,42,0.88)" stroke={v.color} strokeWidth={0.35} />
+            <text y={0.75} textAnchor="middle" fontSize={2.3} fontWeight={700} fill="#ffffff">{text}</text>
           </g>
         );
       })}

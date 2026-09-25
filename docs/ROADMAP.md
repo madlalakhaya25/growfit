@@ -239,6 +239,28 @@ export:
   options that apply to the current tool. Analysis toggles sit on their own
   "Analyse" row, and the legend covers every line kind.
 
+### Tactics board: matchday pitch and coaching tools (Phase 3)
+- **Pitch looks** (`lib/pitch-themes.ts`, `pitch-layer.tsx`): Matchday, Floodlit,
+  Chalkboard and Print. They add real mowing bands about 5m wide, a fine
+  grass-blade texture (noise inside a small pattern tile, rasterised once,
+  so dragging players costs nothing extra), worn goalmouths and centre
+  circle, chalk-soft lines, goal posts with nets, and corner flags. The
+  theme is saved with the play, so a shared play looks like the coach's
+  board.
+- **Broadcast view:** a tilted camera-angle view of the pitch for team
+  talks. It is view-only, because pointer maths assumes a flat board.
+- **Coach tools** (`lib/board-coaching.ts`):
+  - **Auto-shift:** drag the ball and the chosen side slides and narrows as
+    a zonal unit. The nearest player presses and the keeper shades across.
+  - **Build press:** puts a presser on the opponent with the ball, cuts the
+    two nearest passes and marks nearby players goal-side. Only players
+    close enough take part, and the plan is drawn as ordinary, editable
+    arrows.
+  - **Run times:** age-adjusted time for every run, and whether the nearest
+    opponent gets there first.
+  - **Player jobs:** each player's movements as plain instructions. They
+    also appear on the shared play, so players read their own job.
+
 ### Access-code flow fix (this cycle)
 A coach entering their team's join/coach code at registration could
 previously end up in an unrecoverable state — wrong role assigned, no
@@ -401,7 +423,15 @@ Every "Near term" item from the previous pass is now done.
   exists (it feeds the AI assistant's advice already) but isn't visible to
   the coach actually picking a squad.
 
-### Tactics board roadmap (Phases 2–5)
+### Tactics board roadmap (Phases 4–5, plus remaining Phase 3 items)
+
+Still to do from the Phase 3 research: ghost trails and bendable arrow
+handles while editing, playback that follows curves, box-select with
+line shifts, occupancy heatmaps from plays, physics-based pitch control
+(Spearman-style time-to-intercept) to replace the nearest-player map, and
+canvas rendering plus a worker for the heavy layers. The Phase 3 list below
+is the original plan, kept for reference.
+
 
 Phases 1 ("See the space") and 2 (analysis overlays) have shipped, see above. Planned next, in order:
 
