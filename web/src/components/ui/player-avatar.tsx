@@ -35,11 +35,8 @@ function initials(name: string) {
 }
 
 /**
- * A player's headshot (or their initials, when no photo is on file) inside
- * the shield motif, with an optional jersey-number badge. Replaces plain
- * circular avatars — see docs/AI_FEATURES_AND_IA.md Part 4's "Matchday"
- * visual direction: the app already stores real headshots and barely used
- * them.
+ * A player's headshot (or their initials, when no photo is on file) in a
+ * circular frame, with an optional jersey-number badge.
  */
 export function PlayerAvatar({ name, photoUrl, jerseyNumber, size = "md", className }: PlayerAvatarProps) {
   const named = typeof size === "number" ? null : SIZES[size];
@@ -59,7 +56,7 @@ export function PlayerAvatar({ name, photoUrl, jerseyNumber, size = "md", classN
     <div className={cn("relative shrink-0", boxClass, className)} style={boxStyle}>
       <div
         className={cn(
-          "shield-clip flex size-full items-center justify-center overflow-hidden bg-secondary text-secondary-foreground",
+          "rounded-full flex size-full items-center justify-center overflow-hidden bg-secondary text-secondary-foreground",
           textClass
         )}
         style={textStyle}
