@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
+import { CURRENT_TEAM_COOKIE, resolveCurrentTeam } from "@/lib/current-team";
 
 export default async function CoachFixturesPage({
   searchParams,
@@ -28,7 +30,8 @@ export default async function CoachFixturesPage({
 
   if (!allTeams?.length) redirect("/dashboard/coach");
 
-  const team = allTeams.find((t) => t.id === teamParam) ?? allTeams[0];
+  const cookieTeamId = (await cookies()).get(CURRENT_TEAM_COOKIE)?.value ?? null;
+  const team = resolveCurrentTeam(allTeams, teamParam, cookieTeamId) ?? allTeams[0];
 
   const { data: fixtures } = await supabase
     .from("fixtures")

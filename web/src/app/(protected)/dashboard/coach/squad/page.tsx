@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { Upload, Plus, ShieldAlert } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { CURRENT_TEAM_COOKIE, resolveCurrentTeam } from "@/lib/current-team";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,7 +53,8 @@ export default async function SquadPage({
 
   if (!allTeams?.length) redirect("/dashboard/coach");
 
-  const team = allTeams.find((t: { id: string; name: string; age_group: string | null; invite_code: string }) => t.id === teamParam) ?? allTeams[0];
+  const cookieTeamId = (await cookies()).get(CURRENT_TEAM_COOKIE)?.value ?? null;
+  const team = resolveCurrentTeam(allTeams, teamParam, cookieTeamId) ?? allTeams[0];
 
   // Capture and check the error rather than only destructuring data — a
   // failed query and a genuinely empty squad both leave `members` null/[],
