@@ -3,6 +3,7 @@ import { useState, useTransition } from "react";
 import { Star, Pencil, Trash2, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { updateRating, deleteRating } from "@/app/actions/ratings";
+import { formatDayMonthYear } from "@/lib/time";
 
 interface Props {
   ratingId: string;
@@ -81,9 +82,7 @@ export function RatingEditRow({
             <p className="mt-0.5 text-sm text-muted-foreground">&ldquo;{initialNote}&rdquo;</p>
           )}
           <p className="mt-1 text-xs text-muted-foreground">
-            {new Date(date).toLocaleDateString("en-ZA", {
-              day: "numeric", month: "short", year: "numeric",
-            })}
+            {formatDayMonthYear(date)}
           </p>
         </div>
         <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">

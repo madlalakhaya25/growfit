@@ -10,6 +10,7 @@ import { PlayerPhotoUpload } from "@/components/player-photo-upload";
 import { PlayerAvailabilityControl } from "@/components/records/player-availability-control";
 import { POSITIONS, FEET } from "@/lib/types";
 import { calculateAge } from "@/lib/player";
+import { formatDayMonthYear } from "@/lib/time";
 import { ExtendedInfoForm } from "@/components/records/extended-info-form";
 import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
@@ -176,7 +177,7 @@ export default async function AdminPlayerDetailPage({
                         {fixture && <p className="font-medium text-sm">vs {fixture.opponent}</p>}
                         {r.note && <p className="text-sm text-muted-foreground mt-0.5">&ldquo;{r.note}&rdquo;</p>}
                         <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(r.created_at).toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" })}
+                          {formatDayMonthYear(r.created_at)}
                         </p>
                       </div>
                     </div>

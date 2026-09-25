@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
 import { resolveCurrentTeamFromCookies } from "@/lib/current-team-server";
+import { formatInTimezone } from "@/lib/time";
 
 export default async function CoachFixturesPage({
   searchParams,
@@ -52,7 +53,7 @@ export default async function CoachFixturesPage({
             {f.is_home ? "vs" : "@"} {f.opponent}
           </p>
           <p className="text-xs text-muted-foreground">
-            {date.toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+            {formatInTimezone(date, { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
             {f.venue && ` · ${f.venue}`}
           </p>
         </div>

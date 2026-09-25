@@ -16,9 +16,10 @@ import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { getWelfareAlerts } from "@/app/actions/welfare";
 import { reportError } from "@/lib/report-error";
 import { RetryButton } from "@/components/ui/retry-button";
+import { currentHourInTimezone, formatInTimezone, formatTime, formatWeekdayDayMonth } from "@/lib/time";
 
 function greeting() {
-  const hour = new Date().getHours();
+  const hour = currentHourInTimezone();
   if (hour < 12) return "Morning";
   if (hour < 17) return "Afternoon";
   return "Evening";
@@ -283,10 +284,10 @@ export default async function CoachDashboardPage() {
               <FixtureTicket
                 key={fixture.id}
                 href={`/dashboard/coach/fixtures/${fixture.id}`}
-                weekday={date.toLocaleDateString("en-ZA", { weekday: "short" })}
-                day={date.toLocaleDateString("en-ZA", { day: "numeric" })}
-                month={date.toLocaleDateString("en-ZA", { month: "short" })}
-                time={date.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}
+                weekday={formatInTimezone(date, { weekday: "short" })}
+                day={formatInTimezone(date, { day: "numeric" })}
+                month={formatInTimezone(date, { month: "short" })}
+                time={formatTime(date)}
                 opponent={fixture.opponent}
                 isHome={fixture.is_home}
                 teamName={teamName}
@@ -315,9 +316,9 @@ export default async function CoachDashboardPage() {
                     </p>
                     <p className="mt-1 font-semibold leading-snug">{nextSession.title}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {date.toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short" })}
+                      {formatWeekdayDayMonth(date)}
                       {" · "}
-                      {date.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}
+                      {formatTime(date)}
                       {nextSession.location && ` · ${nextSession.location}`}
                       {teamName && ` · ${teamName}`}
                     </p>

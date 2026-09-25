@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { getInitials } from "@/lib/player";
 import { cn } from "@/lib/utils";
+import { formatInTimezone } from "@/lib/time";
 
 /**
  * Squad, emergency contacts and next fixture on one screen — the offline
@@ -80,7 +81,7 @@ export default async function EmergencyContactsPage({
 
   const NOTABLE = (v: string | null | undefined) => v && v.trim().toUpperCase() !== "NONE";
 
-  const loadedAt = new Date().toLocaleString("en-ZA", {
+  const loadedAt = formatInTimezone(new Date(), {
     weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
   });
 
@@ -128,7 +129,7 @@ export default async function EmergencyContactsPage({
             {nextFixture.is_home ? "vs" : "@"} {nextFixture.opponent}
           </p>
           <p className="text-sm text-muted-foreground">
-            {new Date(nextFixture.fixture_date).toLocaleDateString("en-ZA", {
+            {formatInTimezone(nextFixture.fixture_date, {
               weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
             })}
             {nextFixture.venue && ` · ${nextFixture.venue}`}

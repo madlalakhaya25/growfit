@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { isTrustedEmbedUrl } from "@/lib/video-embed";
 import { friendlyError } from "@/lib/friendly-error";
+import { formatDayMonth } from "@/lib/time";
 
 export interface SavedPlaySummary {
   id: string;
@@ -155,8 +156,7 @@ export async function listLinkTargets(teamId: string): Promise<{ sessions: LinkT
       .limit(25),
   ]);
 
-  const fmt = (d: string) =>
-    new Date(d).toLocaleDateString("en-ZA", { day: "numeric", month: "short" });
+  const fmt = (d: string) => formatDayMonth(d);
 
   return {
     sessions: (sessions ?? []).map((s: { id: string; title: string; session_date: string }) => ({

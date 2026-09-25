@@ -3,6 +3,7 @@ import type { AssistantTeam, AssistantFixture } from "@/components/ai/coach-assi
 import type { BoardPlayer } from "@/lib/board-model";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { reportError } from "@/lib/report-error";
+import { formatDayMonth } from "@/lib/time";
 
 export interface AssistantContext {
   teams: AssistantTeam[];
@@ -85,7 +86,7 @@ export async function getAssistantContext(
       (fixtures[f.team_id] ??= []).push({
         id: f.id,
         label: f.is_home ? `vs ${f.opponent}` : `away to ${f.opponent}`,
-        when: new Date(f.fixture_date).toLocaleDateString("en-ZA", { day: "numeric", month: "short" }),
+        when: formatDayMonth(f.fixture_date),
       });
     }
   }

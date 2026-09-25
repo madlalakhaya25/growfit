@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { formatDayMonth } from "@/lib/time";
 
 /** Merge conditional class names and de-duplicate conflicting Tailwind utilities. */
 export function cn(...inputs: ClassValue[]) {
@@ -23,7 +24,7 @@ export function formatRelativeTime(dateStr: string): string {
   if (hours < 24) return `${hours}h ago`;
   if (days === 1) return "Yesterday";
   if (days < 7) return `${days} days ago`;
-  return new Date(dateStr).toLocaleDateString("en-ZA", { day: "numeric", month: "short" });
+  return formatDayMonth(dateStr);
 }
 
 /** Days from now (positive = future, negative = past). */

@@ -16,6 +16,7 @@ import {
   type AttrKey,
 } from "@/lib/attributes";
 import { calculateAge, matchRatingAverage } from "@/lib/player";
+import { formatDayMonth } from "@/lib/time";
 import QRCode from "qrcode";
 
 export const revalidate = 60;
@@ -295,9 +296,7 @@ export default async function PublicPassportPage({
                           }
                           title={r.opponent ? `vs ${r.opponent}` : "Standalone assessment"}
                           subtitle={r.note ? `“${r.note}”` : undefined}
-                          trailing={new Date(r.created_at).toLocaleDateString("en-ZA", {
-                            day: "numeric", month: "short",
-                          })}
+                          trailing={formatDayMonth(r.created_at)}
                         />
                       ))}
                   </ListRowGroup>

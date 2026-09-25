@@ -10,6 +10,7 @@ import {
 } from "pdf-lib";
 import QRCode from "qrcode";
 import { getInitials } from "@/lib/player";
+import { formatInTimezone } from "@/lib/time";
 
 /**
  * Generates a printable player registration card that mirrors the layout of
@@ -103,7 +104,7 @@ export async function generatePlayerCardPdf(
     page.drawText(data.ageGroup, { x: tx, y: ty, size: 14, font: bold, color: WHITE });
     ty -= 17;
   }
-  const issueDate = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD, matching MySAFA's own export format
+  const issueDate = formatInTimezone(new Date(), {}, "en-CA"); // YYYY-MM-DD, matching MySAFA's own export format
   page.drawText(issueDate, { x: tx, y: ty, size: 9, font: regular, color: rgb(0.92, 0.93, 0.97) });
   ty -= 13;
   page.drawText("SAFA Ethekwini ( KZN )", { x: tx, y: ty, size: 9, font: regular, color: rgb(0.92, 0.93, 0.97) });
@@ -118,7 +119,7 @@ export async function generatePlayerCardPdf(
   page.drawText(data.mysafaNumber ?? "—", { x: tx + 46, y: ty, size: 9, font: bold, color: WHITE });
   ty -= 14;
   const dobLabel = data.dateOfBirth
-    ? new Date(data.dateOfBirth).toLocaleDateString("en-ZA", { day: "2-digit", month: "2-digit", year: "numeric" })
+    ? formatInTimezone(data.dateOfBirth, { day: "2-digit", month: "2-digit", year: "numeric" })
     : "—";
   page.drawText(`dob: ${dobLabel}`, { x: tx, y: ty, size: 9, font: regular, color: rgb(0.92, 0.93, 0.97) });
 

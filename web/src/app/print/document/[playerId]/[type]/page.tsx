@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DOCUMENTS } from "@/lib/document-definitions";
 import { PrintTrigger, PrintButton } from "./print-trigger";
+import { formatInTimezone } from "@/lib/time";
 
 export default async function DocumentPrintPage({
   params,
@@ -38,13 +39,13 @@ export default async function DocumentPrintPage({
     .maybeSingle();
 
   const signedAt = doc?.signed_at
-    ? new Date(doc.signed_at).toLocaleDateString("en-ZA", {
+    ? formatInTimezone(doc.signed_at, {
         day: "numeric", month: "long", year: "numeric",
         hour: "2-digit", minute: "2-digit",
       })
     : null;
 
-  const generatedAt = new Date().toLocaleDateString("en-ZA", {
+  const generatedAt = formatInTimezone(new Date(), {
     day: "numeric", month: "long", year: "numeric",
     hour: "2-digit", minute: "2-digit",
   });
@@ -104,7 +105,7 @@ export default async function DocumentPrintPage({
             <div>
               <div className="meta-label">Date of Birth</div>
               <div className="meta-value">
-                {new Date(player.date_of_birth).toLocaleDateString("en-ZA", {
+                {formatInTimezone(player.date_of_birth, {
                   day: "numeric", month: "long", year: "numeric",
                 })}
               </div>
@@ -135,7 +136,7 @@ export default async function DocumentPrintPage({
         ) : doc?.status === "uploaded" ? (
           <div className="sig-box">
             <div className="sig-label">Document status</div>
-            <div className="sig-meta">Physical document uploaded on {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString("en-ZA") : "—"}.</div>
+            <div className="sig-meta">Physical document uploaded on {doc.uploaded_at ? formatInTimezone(doc.uploaded_at) : "—"}.</div>
             {doc.upload_url && (
               <div className="sig-meta" style={{ marginTop: 4 }}>
                 File URL: {doc.upload_url}

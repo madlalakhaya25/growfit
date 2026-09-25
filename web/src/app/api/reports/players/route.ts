@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { htmlTable, htmlReport } from "../_html";
+import { formatInTimezone } from "@/lib/time";
 
 function csvEscape(val: unknown): string {
   const s = val == null ? "" : String(val);
@@ -68,7 +69,7 @@ export async function GET(request: Request) {
       con?.transport_consent ? "Yes" : "No",
       con?.risk_acknowledged ? "Yes" : "No",
       con?.signed_by,
-      con?.signed_at ? new Date(con.signed_at).toLocaleDateString("en-ZA") : "",
+      con?.signed_at ? formatInTimezone(con.signed_at) : "",
     ];
   });
 
