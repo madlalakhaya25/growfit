@@ -74,9 +74,9 @@ export function SpaceControlLayer({ control, h }: { control: SpaceControl | null
   const [att, mid] = control.thirdsPct;
   return (
     <g pointerEvents="none" data-testid="space-layer">
-      {control.runs.map((r, i) => (
+      {control.runs.map((r) => (
         <rect
-          key={i}
+          key={`${r.y.toFixed(2)}-${r.x1.toFixed(2)}`}
           x={r.x1} y={r.y} width={r.x2 - r.x1} height={control.cellH + 0.02}
           fill={r.side === "player" ? US : THEM}
           fillOpacity={0.22}

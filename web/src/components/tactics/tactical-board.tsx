@@ -67,12 +67,15 @@ const DRAG_DRAW_MODES = new Set<Mode>(["run", "pass", "dribble", "shot", "press"
 type ToolIcon = React.ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
 /** The movement tools — the ones the bend control applies to. */
 const ARROW_MODES = new Set<Mode>(["run", "pass", "dribble", "shot", "press"]);
-/** Line weights offered in the toolbar (board units). */
+/** Line weights offered in the toolbar (board units). Picked by id rather
+ *  than compared as floats; "normal" stores nothing, so a line drawn at the
+ *  default weight saves exactly as it did before weights existed. */
 const LINE_WEIGHTS = [
-  { value: 0.8, label: "Thin" },
-  { value: 1.2, label: "Normal" },
-  { value: 1.8, label: "Bold" },
+  { id: "thin", value: 0.8, label: "Thin" },
+  { id: "normal", value: undefined, label: "Normal" },
+  { id: "bold", value: 1.8, label: "Bold" },
 ] as const;
+type LineWeightId = (typeof LINE_WEIGHTS)[number]["id"];
 /** How far a bent arrow bows, as a fraction of its length. */
 const BEND = 0.22;
 
@@ -278,7 +281,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
    *  own default (yellow runs, sky dribbles, …). */
   const [drawColor, setDrawColor] = useState<string | null>(null);
   /** Line weight for the next drawn shape (board units). */
-  const [lineWidth, setLineWidth] = useState<number>(1.2);
+  const [lineWeight, setLineWeight] = useState<LineWeightId>("normal");
   /** Bend for the next movement arrow: 0 straight, ±BEND left/right. */
   const [bend, setBend] = useState<number>(0);
   /** What the zone tool draws, and how it's filled. */
@@ -1238,7 +1241,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       color: drawColor ?? undefined,
       // Only stored when it differs from the default, so an ordinary line
       // saves exactly as it did before these options existed.
-      width: lineWidth !== 1.2 ? lineWidth : undefined,
+      width: LINE_WEIGHTS.find((lw) => lw.id === lineWeight)?.value,
       curve: ARROW_MODES.has(mode) && bend ? bend : undefined,
       fill: mode === "zone" && zoneFill === "hatch" ? "hatch" : undefined,
     });
@@ -1646,7 +1649,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           </>)}
           {DRAG_DRAW_MODES.has(mode) && segmented("Weight", <>
             {LINE_WEIGHTS.map((lw) =>
-              styleOpt(lineWidth === lw.value, () => setLineWidth(lw.value), (p) => <WeightIcon weight={lw.value * 2} {...p} />, lw.label, true)
+              styleOpt(lineWeight === lw.id, () => setLineWeight(lw.id), (p) => <WeightIcon weight={(lw.value ?? 1.2) * 2} {...p} />, lw.label, true)
             )}
           </>)}
           <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Line colour">
