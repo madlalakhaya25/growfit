@@ -33,7 +33,7 @@ export function AskGrowfitSheet() {
     startTransition(async () => {
       try {
         const context = await getAssistantContextAction();
-        setState({ status: "ready", ...context });
+        setState(context.error ? { status: "error" } : { status: "ready", ...context });
       } catch {
         setState({ status: "error" });
       }
