@@ -222,6 +222,23 @@ export:
 - **Numbers.** Us v them in each of the 15 grid zones. Green where we lead
   by 2+, red where they do.
 
+### Tactics board: drawing toolkit refresh
+- **New movement kinds.** Shot (thick arrow; Play sends the ball) and Press
+  (a line ending in a bar; Play moves the presser). Every movement arrow can
+  be drawn straight or bent left/right, in thin, normal or bold weight.
+- **Restyled arrows.** A dark halo for contrast on the grass, swept
+  arrowheads, and a dribble wave that follows curves and points its head the
+  way the player is going. One shared renderer (`shape-glyph.tsx`) serves the
+  board and the player-facing shared view, and the video recorder uses the
+  same geometry, so all three look the same.
+- **Zones.** Box, oval or freehand lasso, each with a solid or hatched fill
+  (hatched reads as "no-go / press here"). All three are stored as plain
+  polygons, so older viewers still draw them.
+- **Toolbar.** Tools are grouped (Select, Movement, Areas, Annotate) with
+  custom icons that show what each draws. The style row only shows the
+  options that apply to the current tool. Analysis toggles sit on their own
+  "Analyse" row, and the legend covers every line kind.
+
 ### Access-code flow fix (this cycle)
 A coach entering their team's join/coach code at registration could
 previously end up in an unrecoverable state — wrong role assigned, no

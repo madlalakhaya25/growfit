@@ -16,13 +16,15 @@ export function ArrowMarkers({ prefix }: { prefix: string }) {
           key={c.value}
           id={markerId(prefix, c.value)}
           viewBox="0 0 10 10"
-          refX={8}
+          refX={7}
           refY={5}
           markerWidth={4.5}
           markerHeight={4.5}
           orient="auto-start-reverse"
         >
-          <path d="M0,0 L10,5 L0,10 z" fill={c.value} />
+          {/* Swept head: a notched back reads as an arrow at a glance
+              rather than a triangle stuck on the end of the line. */}
+          <path d="M0,0.5 L10,5 L0,9.5 L2.6,5 z" fill={c.value} stroke="rgba(15,23,42,0.55)" strokeWidth={0.6} strokeLinejoin="round" />
         </marker>
       ))}
     </defs>

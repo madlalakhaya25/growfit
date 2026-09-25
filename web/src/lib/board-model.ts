@@ -77,10 +77,15 @@ export function polyPath(pts: Point[]): string {
 // interactive board and the read-only viewers pick them up together, rather
 // than the interactive board gaining a tool the shared view can't render.
 
-export type ShapeKind = "run" | "pass" | "dribble" | "free" | "zone" | "spotlight" | "text";
+export type ShapeKind = "run" | "pass" | "dribble" | "shot" | "press" | "free" | "zone" | "spotlight" | "text";
+
+/** The kinds that are a movement from one point to another — drawn as an
+ * arrow (or, for "press", a line ending in a bar) and animated by Play. */
+export const ARROW_SHAPE_KINDS: ReadonlySet<ShapeKind> = new Set(["run", "pass", "dribble", "shot", "press"]);
 
 /** A drawn shape. `pts` means different things per kind:
- *  - run/pass/dribble: exactly [start, end] — a 2-point arrow
+ *  - run/pass/dribble/shot/press: exactly [start, end] — a 2-point arrow,
+ *    bent into a curve when `curve` is set
  *  - free/zone: an arbitrary polyline/polygon
  *  - spotlight: [centre] — radius comes from `radius`
  *  - text: [anchor] — the label comes from `text`
@@ -101,6 +106,14 @@ export interface Shape {
    * looked up again after the token is removed or replaced — a spotlight
    * outlives a substitution, a note stays attached to the right player. */
   playerId?: string;
+  /** Arrows only: how far the line bows away from straight, as a fraction
+   * of its length — positive bends to the left of the direction of travel,
+   * negative to the right. Unset (every play saved before curves existed)
+   * draws straight. */
+  curve?: number;
+  /** Zones only: "hatch" draws diagonal stripes instead of a flat tint —
+   * reads as "no-go"/"press here" rather than "space". Unset = solid. */
+  fill?: "solid" | "hatch";
 }
 
 export const DEFAULT_SHAPE_WIDTH = 1.2;
@@ -111,6 +124,8 @@ export const SHAPE_STROKE: Record<ShapeKind, string> = {
   run: "#fde047",
   pass: "#fde047",
   dribble: "#38bdf8",
+  shot: "#fb923c",
+  press: "#f87171",
   free: "#f472b6",
   zone: "#facc15",
   spotlight: "#f8fafc",
@@ -143,7 +158,119 @@ export function shapeWidth(sh: Pick<Shape, "width">): number {
  * feeding it a full Shape[] should filter to this set first; passing a
  * zone/spotlight/text through unfiltered doesn't error, it silently draws
  * as a stray line/arrow between the shape's first and last point. */
-export const RECORDABLE_SHAPE_KINDS: ReadonlySet<ShapeKind> = new Set(["run", "pass", "dribble", "free"]);
+export const RECORDABLE_SHAPE_KINDS: ReadonlySet<ShapeKind> = new Set(["run", "pass", "dribble", "shot", "press", "free"]);
+
+// ── Arrow geometry ───────────────────────────────────────────────
+//
+// Every renderer (the interactive board, the shared viewer, the canvas
+// recorder) draws an arrow from the same spine, so a curved run bends the
+// same way everywhere and a dribble's wave follows the bend.
+
+/** Control point of a curved arrow's quadratic Bézier, or null if straight. */
+export function arrowControl(a: Point, b: Point, curve = 0): Point | null {
+  if (!curve) return null;
+  const dx = b.x - a.x, dy = b.y - a.y;
+  // Left of travel on screen (y grows downward): rotate (dx, dy) by -90°.
+  return { x: (a.x + b.x) / 2 + dy * curve * 2, y: (a.y + b.y) / 2 - dx * curve * 2 };
+}
+
+/** The arrow's centre line as a polyline — [a, b] when straight, sampled
+ * along the curve when bent. */
+export function arrowSpine(a: Point, b: Point, curve = 0, steps = 24): Point[] {
+  const c = arrowControl(a, b, curve);
+  if (!c) return [a, b];
+  return Array.from({ length: steps + 1 }, (_, i) => {
+    const t = i / steps, u = 1 - t;
+    return { x: u * u * a.x + 2 * u * t * c.x + t * t * b.x, y: u * u * a.y + 2 * u * t * c.y + t * t * b.y };
+  });
+}
+
+/** SVG path data for a run/pass/shot/press line: a straight segment or a
+ * single quadratic curve. */
+export function arrowPath(a: Point, b: Point, curve = 0): string {
+  const c = arrowControl(a, b, curve);
+  return c ? `M${a.x},${a.y} Q${c.x.toFixed(2)},${c.y.toFixed(2)} ${b.x},${b.y}` : `M${a.x},${a.y} L${b.x},${b.y}`;
+}
+
+/** Point and unit tangent at `dist` along a polyline. */
+function along(spine: Point[], dist: number): { p: Point; tx: number; ty: number } {
+  let left = dist;
+  for (let i = 1; i < spine.length; i++) {
+    const a = spine[i - 1], b = spine[i];
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    if (len === 0) continue;
+    if (left <= len || i === spine.length - 1) {
+      const t = Math.min(1, left / len);
+      return { p: { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }, tx: (b.x - a.x) / len, ty: (b.y - a.y) / len };
+    }
+    left -= len;
+  }
+  return { p: spine[spine.length - 1], tx: 1, ty: 0 };
+}
+
+function spineLength(spine: Point[]): number {
+  return spine.slice(1).reduce((s, p, i) => s + Math.hypot(p.x - spine[i].x, p.y - spine[i].y), 0);
+}
+
+/** A dribble's zig-zag, following any spine (straight or curved). */
+export function wavyPoints(spine: Point[], amplitude = 1.5): Point[] {
+  const len = spineLength(spine);
+  if (len < 1) return [spine[0]];
+  const n = Math.max(2, Math.round(len / 3.2));
+  const out: Point[] = [spine[0]];
+  for (let i = 1; i < n; i++) {
+    const { p, tx, ty } = along(spine, (len * i) / n);
+    // The last kink is pulled onto the line so the final segment runs along
+    // the direction of travel — otherwise the arrow head points along the
+    // zig-zag instead of where the dribble is going.
+    const off = i === n - 1 ? 0 : (i % 2 === 0 ? 1 : -1) * amplitude;
+    out.push({ x: p.x - ty * off, y: p.y + tx * off });
+  }
+  out.push(spine[spine.length - 1]);
+  return out;
+}
+
+/** A pressing line's markings: short cross-ticks along it, and a flat bar
+ * across the end — the "close them down" symbol, not an arrow. */
+export function pressMarks(spine: Point[], width = DEFAULT_SHAPE_WIDTH): { ticks: [Point, Point][]; bar: [Point, Point] } {
+  const len = spineLength(spine);
+  const half = 1.2 + width * 0.6;
+  const cross = (d: number, h: number): [Point, Point] => {
+    const { p, tx, ty } = along(spine, d);
+    return [{ x: p.x - ty * h, y: p.y + tx * h }, { x: p.x + ty * h, y: p.y - tx * h }];
+  };
+  const count = Math.max(1, Math.floor(len / 9));
+  const ticks = Array.from({ length: count }, (_, i) => cross((len * (i + 1)) / (count + 1), half * 0.6));
+  return { ticks, bar: cross(len, half * 1.4) };
+}
+
+// ── Zone geometry ────────────────────────────────────────────────
+
+export type ZoneShape = "rect" | "ellipse" | "lasso";
+
+/** The polygon a zone dragged from `a` to `b` becomes — a rectangle, or an
+ * ellipse inscribed in that box. Stored as plain points either way, so
+ * every renderer that already draws a zone polygon draws these unchanged. */
+export function zonePolygon(a: Point, b: Point, shape: Exclude<ZoneShape, "lasso">): Point[] {
+  if (shape === "rect") return [a, { x: b.x, y: a.y }, b, { x: a.x, y: b.y }];
+  const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2, rx = Math.abs(b.x - a.x) / 2, ry = Math.abs(b.y - a.y) / 2;
+  return Array.from({ length: 36 }, (_, i) => {
+    const t = (i / 36) * Math.PI * 2;
+    return { x: +(cx + rx * Math.cos(t)).toFixed(2), y: +(cy + ry * Math.sin(t)).toFixed(2) };
+  });
+}
+
+/** Thin a freehand lasso to points at least `minGap` apart, so a slow drag
+ * doesn't save hundreds of near-duplicate vertices. */
+export function simplifyPath(pts: Point[], minGap = 1.2): Point[] {
+  if (pts.length < 3) return pts;
+  const out = [pts[0]];
+  for (const p of pts.slice(1)) {
+    const last = out[out.length - 1];
+    if (Math.hypot(p.x - last.x, p.y - last.y) >= minGap) out.push(p);
+  }
+  return out;
+}
 
 /**
  * Where a spotlight actually draws: it follows the player it's bound to,

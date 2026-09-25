@@ -6,14 +6,16 @@
 // already describe:
 //
 //   run      — the nearest player to the arrow's start moves to its end
+//   press    — same: the presser closes the ground to the bar
 //   dribble  — same, and the ball travels with them
 //   pass     — the ball moves to the arrow's end
+//   shot     — same as a pass: the ball goes where the shot is aimed
 //   freehand — ignored; it marks a zone rather than a movement
 //
 // Arrows are applied in the order they were drawn, each becoming one step, so a
 // sequence a coach drew reads back as a sequence.
 
-import type { ShapeKind } from "@/lib/board-model";
+import { ARROW_SHAPE_KINDS, type ShapeKind } from "@/lib/board-model";
 
 export interface MotionToken {
   id: string;
@@ -41,7 +43,7 @@ const GRAB_RADIUS = 10;
 // excluding "free": a zone/spotlight/text shape has fewer than 2 points or
 // a meaning unrelated to movement, so treating "not free" as "is an arrow"
 // would have silently mistreated them as runs the moment they existed.
-const ARROW_KINDS: ReadonlySet<ShapeKind> = new Set(["run", "pass", "dribble"]);
+const ARROW_KINDS: ReadonlySet<ShapeKind> = ARROW_SHAPE_KINDS;
 
 let seq = 0;
 const fid = () => `auto-f-${++seq}`;
@@ -72,8 +74,8 @@ export function framesFromShapes(
     const to = arrow.pts[arrow.pts.length - 1];
     drawnSoFar.push(arrow);
 
-    if (arrow.kind === "pass") {
-      // A pass moves the ball, not a player.
+    if (arrow.kind === "pass" || arrow.kind === "shot") {
+      // A pass or shot moves the ball, not a player.
       if (ball) {
         pos.set(ball.id, { x: to.x, y: to.y });
         moved = true;

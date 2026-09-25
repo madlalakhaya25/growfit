@@ -186,7 +186,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
       lines.push("Lines drawn:");
       lineShapes.forEach((sh) => {
         const a = sh.pts[0], b = sh.pts[sh.pts.length - 1];
-        const kind = sh.kind === "run" ? "a run" : sh.kind === "pass" ? "a pass" : sh.kind === "dribble" ? "a dribble" : "a freehand mark";
+        const kind = { run: "a run", pass: "a pass", dribble: "a dribble", shot: "a shot", press: "a pressing run", zone: "a shaded zone" }[sh.kind as string] ?? "a freehand mark";
         lines.push(`- ${kind} from the ${side(a.x)} ${zone(a.y)} to the ${side(b.x)} ${zone(b.y)}`);
       });
     } else {

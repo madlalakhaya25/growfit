@@ -128,4 +128,21 @@ describe("TacticalBoard", () => {
     expect(screen.getByTestId("space-layer")).toHaveTextContent(/We own \d+%/);
     expect(screen.getByTestId("numbers-layer")).toHaveTextContent(/\dv\d/);
   });
+
+  it("shows only the style options that apply to the current tool", async () => {
+    render(<TacticalBoard teams={[]} />);
+    await act(async () => { await Promise.resolve(); });
+    expect(screen.queryByRole("button", { name: "Bend left" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Shot tool" }));
+    expect(screen.getByRole("button", { name: "Bend left" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Bold" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Lasso" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Zone tool" }));
+    fireEvent.click(screen.getByRole("button", { name: "Oval" }));
+    expect(screen.getByRole("button", { name: "Oval" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Hatched" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Bend left" })).toBeNull();
+  });
 });
