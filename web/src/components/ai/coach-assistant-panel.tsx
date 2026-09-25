@@ -14,13 +14,10 @@ import { SpeakButton } from "@/components/tactics/speak-button";
 import { AiProse } from "@/components/ai/ai-prose";
 import { FORMATIONS } from "@/lib/formations";
 import { mapNamedPositionsToSlots, groupOf, shortLabel, uid, type BoardPlayer, type Token } from "@/lib/board-model";
+import { useAskGrowfitStore } from "@/store/askGrowfitStore";
 
 export interface AssistantTeam { id: string; name: string; age_group: string | null }
 export interface AssistantFixture { id: string; label: string; when: string }
-
-type Output =
-  | { kind: "lineup"; text: string; structured?: LineupStructured }
-  | { kind: "plan"; text: string; structured?: MatchPlanStructured; fixtureId: string };
 
 const STARTERS = [
   "Who should start on Sunday?",
@@ -41,24 +38,45 @@ export function CoachAssistantPanel({
    * its own roster. */
   roster: Record<string, BoardPlayer[]>;
 }) {
-  const [teamId, setTeamId] = useState(teams[0]?.id ?? "");
-  const [messages, setMessages] = useState<CoachMessage[]>([]);
+  // Rehydrates the persisted conversation once mounted. Deferred to an
+  // effect rather than read during the initial render, so the server's
+  // render (no sessionStorage) and the client's first render agree before
+  // this fills in — see askGrowfitStore.ts.
+  useEffect(() => {
+    useAskGrowfitStore.persist.rehydrate();
+  }, []);
+
+  const teamId = useAskGrowfitStore((s) => s.teamId);
+  const setTeamId = useAskGrowfitStore((s) => s.setTeamId);
+  const messages = useAskGrowfitStore((s) => s.messages);
+  const setMessages = useAskGrowfitStore((s) => s.setMessages);
+  const fixtureId = useAskGrowfitStore((s) => s.fixtureId);
+  const setFixtureId = useAskGrowfitStore((s) => s.setFixtureId);
+  const formation = useAskGrowfitStore((s) => s.formation);
+  const setFormation = useAskGrowfitStore((s) => s.setFormation);
+  const output = useAskGrowfitStore((s) => s.output);
+  const setOutput = useAskGrowfitStore((s) => s.setOutput);
+  const applied = useAskGrowfitStore((s) => s.applied);
+  const setApplied = useAskGrowfitStore((s) => s.setApplied);
+  const clearConversation = useAskGrowfitStore((s) => s.clearConversation);
+
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, start] = useTransition();
 
-  const [fixtureId, setFixtureId] = useState("");
-  const [formation, setFormation] = useState("11-4-3-3");
-  const [output, setOutput] = useState<Output | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
-  const [applied, setApplied] = useState(false);
+
+  // A persisted teamId from a previous session, or none at all yet, might
+  // no longer be one of this coach's teams (removed, or a fresh store) --
+  // fall back to the first team the same way the un-persisted version did.
+  const resolvedTeamId = teams.some((t) => t.id === teamId) ? teamId : (teams[0]?.id ?? "");
 
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
-  const teamFixtures = fixtures[teamId] ?? [];
-  const teamRoster = roster[teamId] ?? [];
+  const teamFixtures = fixtures[resolvedTeamId] ?? [];
+  const teamRoster = roster[resolvedTeamId] ?? [];
 
   function send(question: string) {
     const q = question.trim();
@@ -69,7 +87,7 @@ export function CoachAssistantPanel({
     setMessages(next);
 
     start(async () => {
-      const res = await askCoachAssistant({ teamId, history: messages, question: q });
+      const res = await askCoachAssistant({ teamId: resolvedTeamId, history: messages, question: q });
       if (res.error) {
         setError(res.error);
         toast.error(res.error);
@@ -84,7 +102,7 @@ export function CoachAssistantPanel({
     setBusy("lineup");
     setOutput(null);
     setApplied(false);
-    const res = await suggestLineup({ teamId, fixtureId: fixtureId || undefined, formation });
+    const res = await suggestLineup({ teamId: resolvedTeamId, fixtureId: fixtureId || undefined, formation });
     setBusy(null);
     if (res.error) { setError(res.error); toast.error(res.error); return; }
     setOutput({ kind: "lineup", text: res.lineup ?? "", structured: res.structured });
@@ -139,7 +157,7 @@ export function CoachAssistantPanel({
 
     setApplying(true);
     const res = await savePlay({
-      teamId,
+      teamId: resolvedTeamId,
       name: `AI suggestion — ${new Date().toLocaleDateString()}`,
       data: { tokens, shapes: [], objects: [], playerNotes: [] },
     });
@@ -159,7 +177,7 @@ export function CoachAssistantPanel({
     setBusy("plan");
     setOutput(null);
     setApplied(false);
-    const res = await generateMatchPlan({ teamId, fixtureId });
+    const res = await generateMatchPlan({ teamId: resolvedTeamId, fixtureId });
     setBusy(null);
     if (res.error) { setError(res.error); toast.error(res.error); return; }
     setOutput({ kind: "plan", text: res.plan ?? "", structured: res.structured, fixtureId });
@@ -173,7 +191,7 @@ export function CoachAssistantPanel({
    */
   async function applyMatchPlan(structured: MatchPlanStructured, planFixtureId: string) {
     setApplying(true);
-    const res = await saveMatchPlan({ fixtureId: planFixtureId, teamId, data: structured });
+    const res = await saveMatchPlan({ fixtureId: planFixtureId, teamId: resolvedTeamId, data: structured });
     setApplying(false);
     if (res.error) { toast.error(res.error); return; }
     setApplied(true);
@@ -189,8 +207,8 @@ export function CoachAssistantPanel({
         </div>
         {teams.length > 1 && (
           <select
-            value={teamId}
-            onChange={(e) => { setTeamId(e.target.value); setMessages([]); setOutput(null); setApplied(false); setFixtureId(""); }}
+            value={resolvedTeamId}
+            onChange={(e) => { setTeamId(e.target.value); clearConversation(); setOutput(null); setApplied(false); setFixtureId(""); }}
             aria-label="Team"
             className="rounded-md border border-border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
           >
@@ -362,7 +380,7 @@ export function CoachAssistantPanel({
         </form>
 
         {messages.length > 0 && (
-          <button type="button" onClick={() => { setMessages([]); setError(null); }} className="text-[11px] text-muted-foreground underline">
+          <button type="button" onClick={() => { clearConversation(); setError(null); }} className="text-[11px] text-muted-foreground underline">
             Clear conversation
           </button>
         )}
