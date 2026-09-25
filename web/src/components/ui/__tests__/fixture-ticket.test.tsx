@@ -6,7 +6,7 @@ import { FixtureTicket } from "@/components/ui/fixture-ticket";
 // sync with the log-result panel in both light and dark mode.
 describe("FixtureTicket", () => {
   it("uses the standard panel styling without pitch lines", () => {
-    render(
+    const { container } = render(
       <FixtureTicket
         weekday="Sun"
         day="12"
@@ -16,7 +16,10 @@ describe("FixtureTicket", () => {
         isHome
       />
     );
-    const ticket = screen.getByText("vs Durban Rovers").closest("div");
+    // The card itself (the outermost element), not the nearest <div> to the
+    // text — that's the inner opponent column, which never carried the
+    // card styling.
+    const ticket = container.firstElementChild;
     expect(ticket).toHaveClass("bg-card");
     expect(ticket).toHaveClass("border");
     expect(ticket).not.toHaveClass("pitch-lines");
