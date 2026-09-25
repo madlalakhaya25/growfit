@@ -263,8 +263,10 @@ export function readOpponent(
       });
       continue;
     }
-    const edge = f.li === 0 ? back.players[0]?.x : back.players[back.players.length - 1]?.x;
-    if (back.players.length >= 3 && edge !== undefined && f.outside(edge)) {
+    // Only a back line of three or more has a meaningful "widest" player.
+    if (back.players.length < 3) continue;
+    const edge = f.li === 0 ? back.players[0].x : back.players[back.players.length - 1].x;
+    if (f.outside(edge)) {
       found.push({
         kind: "wide", label: `Space outside their back line on our ${f.side}`,
         detail: "Their back line doesn't cover the width. A wide runner here gets in behind their wide player and can cross or cut back.",
