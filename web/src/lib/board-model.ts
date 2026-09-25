@@ -117,6 +117,19 @@ export const SHAPE_STROKE: Record<ShapeKind, string> = {
   text: "#f8fafc",
 };
 
+/** The board's drawing palette — what the colour swatches offer. Arrow
+ * heads are pre-built per entry (see arrow-markers.tsx), so a colour
+ * outside this list still draws, just with the default yellow head. */
+export const DRAW_COLORS: { value: string; label: string }[] = [
+  { value: "#fde047", label: "Yellow" },
+  { value: "#38bdf8", label: "Sky" },
+  { value: "#f472b6", label: "Pink" },
+  { value: "#f87171", label: "Red" },
+  { value: "#fb923c", label: "Orange" },
+  { value: "#a3e635", label: "Lime" },
+  { value: "#f8fafc", label: "White" },
+];
+
 export function shapeColor(sh: Pick<Shape, "kind" | "color">): string {
   return sh.color ?? SHAPE_STROKE[sh.kind];
 }
@@ -270,7 +283,7 @@ export function totalDurationMs(frames: Frame[]): number {
 // where formations simply don't apply, because a drill doesn't use them.
 
 export interface PitchMarking {
-  kind: "rect" | "circle" | "line" | "dot" | "grid";
+  kind: "rect" | "circle" | "line" | "dot" | "grid" | "path" | "goal";
   // rect
   x?: number; y?: number; w?: number; h?: number;
   // circle / dot
@@ -279,6 +292,9 @@ export interface PitchMarking {
   x1?: number; y1?: number; x2?: number; y2?: number;
   // grid: square cells at this spacing across the whole pitch
   spacing?: number;
+  // path: raw SVG path data (penalty arcs, corner arcs)
+  d?: string;
+  // goal: uses x/y/w/h like rect — drawn as a netted frame behind the line
 }
 
 export interface Pitch {
@@ -296,8 +312,41 @@ export interface Pitch {
    * placement (placePlayer/addBall/addOpponent) still works everywhere,
    * centred on whichever pitch is current. */
   supportsFormations: boolean;
+  /** Real-world metres per board unit — what the measure tool and the
+   * team-shape width/depth readout convert through. Approximate on the
+   * full pitch (68×105m squeezed into 96×146 units isn't exactly
+   * isotropic), which is fine for "about 35m" coaching talk. */
+  metresPerUnit: number;
   markings: PitchMarking[];
 }
+
+/** Penalty arc ("the D") outside a box whose edge sits at `edgeY`, centred
+ * on a spot at `spotY` — the part of the r=11 circle round the spot that
+ * falls outside the box. */
+function penaltyArc(spotY: number, edgeY: number): PitchMarking {
+  const r = 11;
+  const dy = Math.abs(edgeY - spotY);
+  const dx = Math.sqrt(r * r - dy * dy);
+  const x1 = (BOARD_W / 2 - dx).toFixed(2), x2 = (BOARD_W / 2 + dx).toFixed(2);
+  // Top box bulges down (sweep 0), bottom box bulges up (sweep 1).
+  const sweep = edgeY > spotY ? 0 : 1;
+  return { kind: "path", d: `M${x1} ${edgeY} A${r} ${r} 0 0 ${sweep} ${x2} ${edgeY}` };
+}
+
+/** Quarter-circle corner arcs at each of the given corners. */
+function cornerArcs(w: number, h: number, corners: ("tl" | "tr" | "bl" | "br")[]): PitchMarking[] {
+  const r = 1.6, e = 2;
+  const d: Record<string, string> = {
+    tl: `M${e + r} ${e} A${r} ${r} 0 0 1 ${e} ${e + r}`,
+    tr: `M${w - e - r} ${e} A${r} ${r} 0 0 0 ${w - e} ${e + r}`,
+    bl: `M${e} ${h - e - r} A${r} ${r} 0 0 1 ${e + r} ${h - e}`,
+    br: `M${w - e} ${h - e - r} A${r} ${r} 0 0 0 ${w - e - r} ${h - e}`,
+  };
+  return corners.map((c) => ({ kind: "path" as const, d: d[c] }));
+}
+
+const TOP_GOAL: PitchMarking = { kind: "goal", x: 44, y: 0.3, w: 12, h: 1.7 };
+const BOTTOM_GOAL: PitchMarking = { kind: "goal", x: 44, y: BOARD_H - 2, w: 12, h: 1.7 };
 
 const FULL_MARKINGS: PitchMarking[] = [
   { kind: "rect", x: 2, y: 2, w: BOARD_W - 4, h: BOARD_H - 4 },
@@ -310,49 +359,149 @@ const FULL_MARKINGS: PitchMarking[] = [
   { kind: "rect", x: 38, y: BOARD_H - 10, w: 24, h: 8 },
   { kind: "dot", cx: BOARD_W / 2, cy: 16, r: 0.8 },
   { kind: "dot", cx: BOARD_W / 2, cy: BOARD_H - 16, r: 0.8 },
+  penaltyArc(16, 22),
+  penaltyArc(BOARD_H - 16, BOARD_H - 22),
+  ...cornerArcs(BOARD_W, BOARD_H, ["tl", "tr", "bl", "br"]),
+  TOP_GOAL,
+  BOTTOM_GOAL,
 ];
 
+/** ≈ 68m across 96 units / 105m down 146 units. */
+const MATCH_METRES_PER_UNIT = 0.71;
+
 export const PITCHES: Pitch[] = [
-  { id: "full", label: "Full pitch", w: BOARD_W, h: BOARD_H, supportsFormations: true, markings: FULL_MARKINGS },
+  { id: "full", label: "Full pitch", w: BOARD_W, h: BOARD_H, supportsFormations: true, metresPerUnit: MATCH_METRES_PER_UNIT, markings: FULL_MARKINGS },
   {
     id: "half",
     label: "Half pitch (attacking)",
-    w: BOARD_W, h: BOARD_H / 2, supportsFormations: false,
+    w: BOARD_W, h: BOARD_H / 2, supportsFormations: false, metresPerUnit: MATCH_METRES_PER_UNIT,
     markings: [
       { kind: "rect", x: 2, y: 2, w: BOARD_W - 4, h: BOARD_H / 2 - 4 },
       { kind: "rect", x: 26, y: 2, w: 48, h: 20 },
       { kind: "rect", x: 38, y: 2, w: 24, h: 8 },
       { kind: "dot", cx: BOARD_W / 2, cy: 16, r: 0.8 },
       { kind: "circle", cx: BOARD_W / 2, cy: BOARD_H / 2 - 2, r: 11 },
+      penaltyArc(16, 22),
+      ...cornerArcs(BOARD_W, BOARD_H / 2, ["tl", "tr"]),
+      TOP_GOAL,
     ],
   },
   {
     id: "third",
     label: "Attacking third",
-    w: BOARD_W, h: BOARD_H / 3, supportsFormations: false,
+    w: BOARD_W, h: BOARD_H / 3, supportsFormations: false, metresPerUnit: MATCH_METRES_PER_UNIT,
     markings: [
       { kind: "rect", x: 2, y: 2, w: BOARD_W - 4, h: BOARD_H / 3 - 4 },
       { kind: "rect", x: 26, y: 2, w: 48, h: 20 },
       { kind: "rect", x: 38, y: 2, w: 24, h: 8 },
       { kind: "dot", cx: BOARD_W / 2, cy: 16, r: 0.8 },
+      penaltyArc(16, 22),
+      ...cornerArcs(BOARD_W, BOARD_H / 3, ["tl", "tr"]),
+      TOP_GOAL,
     ],
   },
   {
     id: "grid-small",
     label: "Training grid (small, 20×20m)",
-    w: 60, h: 60, supportsFormations: false,
+    // 20m across 56 units.
+    w: 60, h: 60, supportsFormations: false, metresPerUnit: 20 / 56,
     markings: [{ kind: "rect", x: 2, y: 2, w: 56, h: 56 }, { kind: "grid", spacing: 10 }],
   },
   {
     id: "grid-large",
     label: "Training grid (large, 30×40m)",
-    w: 60, h: 80, supportsFormations: false,
+    // 30m across 56 units, 40m down 76 — close enough to call it 0.53.
+    w: 60, h: 80, supportsFormations: false, metresPerUnit: 0.53,
     markings: [{ kind: "rect", x: 2, y: 2, w: 56, h: 76 }, { kind: "grid", spacing: 10 }],
   },
 ];
 
 export function getPitch(id: string | undefined): Pitch {
   return PITCHES.find((p) => p.id === id) ?? PITCHES[0];
+}
+
+// ── Measuring & team shape ──────────────────────────────────────
+
+/** Distance between two board points, in metres on the given pitch. */
+export function distanceMetres(a: Point, b: Point, pitch: Pick<Pitch, "metresPerUnit">): number {
+  return Math.hypot(b.x - a.x, b.y - a.y) * pitch.metresPerUnit;
+}
+
+/** Convex hull (Andrew's monotone chain), counter-clockwise, no repeated
+ * endpoint. Fewer than three distinct points come back as-is. */
+export function convexHull(points: Point[]): Point[] {
+  const pts = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
+  if (pts.length < 3) return pts;
+  const cross = (o: Point, a: Point, b: Point) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const lower: Point[] = [];
+  for (const p of pts) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop();
+    lower.push(p);
+  }
+  const upper: Point[] = [];
+  for (let i = pts.length - 1; i >= 0; i--) {
+    const p = pts[i];
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
+    upper.push(p);
+  }
+  upper.pop();
+  lower.pop();
+  return [...lower, ...upper];
+}
+
+export interface TeamShape {
+  /** Outfield players the shape is drawn round. */
+  outfield: Point[];
+  hull: Point[];
+  /** Touchline-to-touchline spread of the outfield players, metres. */
+  widthM: number;
+  /** Deepest-to-highest spread of the outfield players, metres. */
+  depthM: number;
+  /** Lines linking each home unit (back line, midfield, front line),
+   * left to right. Empty for the opponent — their tokens carry no
+   * position group to split them by. */
+  units: Point[][];
+}
+
+/**
+ * The outfield shape of one side — what a coach means by "we were too
+ * stretched" or "stay compact". The keeper is left out because a GK
+ * standing on the line would otherwise dominate every depth reading: for
+ * our own side that's the Goalkeeper group; opponents carry no position,
+ * so for a full-sized opponent side (8+) the deepest one, nearest the top
+ * goal they defend, is taken to be the keeper.
+ */
+export function teamShape(
+  tokens: Pick<Token, "kind" | "group" | "x" | "y">[],
+  side: "player" | "opponent",
+  pitch: Pick<Pitch, "metresPerUnit">
+): TeamShape | null {
+  let outfield = tokens.filter((t) => t.kind === side && t.group !== "Goalkeeper");
+  if (side === "opponent" && outfield.length >= 8) {
+    const deepest = outfield.reduce((m, t) => (t.y < m.y ? t : m), outfield[0]);
+    outfield = outfield.filter((t) => t !== deepest);
+  }
+  if (outfield.length < 2) return null;
+  const xs = outfield.map((t) => t.x), ys = outfield.map((t) => t.y);
+  const units =
+    side === "player"
+      ? (["Defender", "Midfielder", "Forward"] as const)
+          .map((g) => outfield.filter((t) => t.group === g).sort((a, b) => a.x - b.x).map(({ x, y }) => ({ x, y })))
+          .filter((u) => u.length >= 2)
+      : [];
+  return {
+    outfield: outfield.map(({ x, y }) => ({ x, y })),
+    hull: convexHull(outfield.map(({ x, y }) => ({ x, y }))),
+    widthM: (Math.max(...xs) - Math.min(...xs)) * pitch.metresPerUnit,
+    depthM: (Math.max(...ys) - Math.min(...ys)) * pitch.metresPerUnit,
+    units,
+  };
+}
+
+/** Flip a point left-to-right across a pitch of width `w` — the board's
+ * "mirror" action, for turning a left-wing pattern into a right-wing one. */
+export function mirrorPoint<T extends Point>(p: T, w: number): T {
+  return { ...p, x: w - p.x };
 }
 
 // ── Equipment (training objects) ────────────────────────────────

@@ -9,7 +9,7 @@
 // board-model.ts, the one place those are defined now — see that file's
 // header for why.
 
-import { BOARD_W, BOARD_H, GROUP_COLOR, shapeColor, type ShapeKind } from "@/lib/board-model";
+import { BOARD_W, BOARD_H, GROUP_COLOR, shapeColor, getPitch, type ShapeKind } from "@/lib/board-model";
 
 export { BOARD_W, BOARD_H };
 export const BOARD_GROUP_COLOR = GROUP_COLOR;
@@ -34,6 +34,95 @@ export interface RenderToken {
 export interface RenderShape {
   kind: RenderShapeKind;
   pts: { x: number; y: number }[];
+  color?: string;
+}
+
+/** Same rule as token-glyph.tsx's tokenBadge: slot numbers stay numbers,
+ * a name shows its initial. */
+function badgeFor(label: string): string {
+  const t = label.trim();
+  if (!t) return "";
+  return /^\d{1,2}$/.test(t) ? t : t[0].toUpperCase();
+}
+
+/** Mirrors TokenGlyph (components/tactics/token-glyph.tsx) on canvas, so a
+ * recorded video looks like the board it was recorded from. */
+function drawToken(ctx: CanvasRenderingContext2D, tok: RenderToken, showNames: boolean, s: number) {
+  const cx = tok.x * s, cy = tok.y * s;
+  const R = (tok.kind === "ball" ? 2.4 : 4.2) * s;
+
+  // Contact shadow
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.28)";
+  ctx.beginPath();
+  ctx.ellipse(cx + 0.5 * s, cy + R * 0.78, R * 1.0, R * 0.42, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  const gloss = () => {
+    const g = ctx.createRadialGradient(cx - R * 0.3, cy - R * 0.45, 0, cx, cy, R * 1.4);
+    g.addColorStop(0, "rgba(255,255,255,0.55)");
+    g.addColorStop(0.45, "rgba(255,255,255,0.08)");
+    g.addColorStop(1, "rgba(0,0,0,0.28)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
+  if (tok.kind === "ball") {
+    ctx.fillStyle = "#f8fafc";
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#111827";
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const a = ((-90 + i * 72) * Math.PI) / 180;
+      const px = cx + Math.cos(a) * 0.95 * s, py = cy + Math.sin(a) * 0.95 * s;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+    gloss();
+    ctx.lineWidth = 0.3 * s;
+    ctx.strokeStyle = "#0f172a";
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.stroke();
+    return;
+  }
+
+  const isOpp = tok.kind === "opponent";
+  ctx.fillStyle = BOARD_GROUP_COLOR[tok.group] ?? "#22c55e";
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx.fill();
+  gloss();
+  ctx.lineWidth = (isOpp ? 0.7 : 0.5) * s;
+  ctx.strokeStyle = isOpp ? "#f43f5e" : "rgba(255,255,255,0.9)";
+  ctx.beginPath();
+  ctx.arc(cx, cy, R - 0.35 * s, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.textAlign = "center";
+  const badge = badgeFor(tok.label);
+  if (badge) {
+    ctx.fillStyle = "#fff";
+    ctx.font = `800 ${(badge.length > 1 ? 3.2 : 3.6) * s}px sans-serif`;
+    ctx.fillText(badge, cx, cy + 1.25 * s);
+  }
+  if (!isOpp && showNames && tok.label && !/^\d{1,2}$/.test(tok.label.trim())) {
+    const ny = cy + (4.2 + 3.3) * s;
+    ctx.font = `600 ${2.5 * s}px sans-serif`;
+    const w = ctx.measureText(tok.label).width + 2.6 * s;
+    ctx.fillStyle = "rgba(15,23,42,0.82)";
+    ctx.beginPath();
+    ctx.roundRect(cx - w / 2, ny - 2.1 * s, w, 3.3 * s, 1.65 * s);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.fillText(tok.label, cx, ny + 0.35 * s);
+  }
 }
 
 function arrowHead(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number, color: string, s: number) {
@@ -114,16 +203,24 @@ export function drawBoard(
   const { tokens, shapes, overlay, showNames, scale: s } = opts;
 
   // Pitch with mown stripes
-  ctx.fillStyle = "#15803d";
+  ctx.fillStyle = "#1f8a45";
   ctx.fillRect(0, 0, BOARD_W * s, BOARD_H * s);
-  ctx.fillStyle = "#166f36";
+  ctx.fillStyle = "#1a7a3c";
   for (let y = 0; y < BOARD_H; y += 12.5) {
     ctx.fillRect(0, y * s, BOARD_W * s, 6.25 * s);
   }
+  const vignette = ctx.createRadialGradient(
+    (BOARD_W / 2) * s, (BOARD_H / 2) * s, 0,
+    (BOARD_W / 2) * s, (BOARD_H / 2) * s, (BOARD_H / 2) * 1.1 * s
+  );
+  vignette.addColorStop(0.55, "rgba(0,0,0,0)");
+  vignette.addColorStop(1, "rgba(0,0,0,0.35)");
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, BOARD_W * s, BOARD_H * s);
 
   // Markings
-  ctx.strokeStyle = "rgba(255,255,255,0.55)";
-  ctx.lineWidth = 0.5 * s;
+  ctx.strokeStyle = "rgba(255,255,255,0.82)";
+  ctx.lineWidth = 0.45 * s;
   ctx.strokeRect(2 * s, 2 * s, (BOARD_W - 4) * s, (BOARD_H - 4) * s);
   ctx.beginPath();
   ctx.moveTo(2 * s, (BOARD_H / 2) * s);
@@ -136,6 +233,26 @@ export function drawBoard(
   ctx.strokeRect(38 * s, 2 * s, 24 * s, 8 * s);
   ctx.strokeRect(26 * s, (BOARD_H - 22) * s, 48 * s, 20 * s);
   ctx.strokeRect(38 * s, (BOARD_H - 10) * s, 24 * s, 8 * s);
+  // Penalty arcs, corner arcs and goals — the full pitch's own "path" and
+  // "goal" markings (board-model.ts), replayed through Path2D so the video
+  // and the SVG board share one description of them.
+  for (const m of getPitch("full").markings) {
+    if (m.kind === "path" && m.d) {
+      ctx.save();
+      ctx.scale(s, s);
+      ctx.lineWidth = 0.45;
+      ctx.stroke(new Path2D(m.d));
+      ctx.restore();
+    } else if (m.kind === "goal") {
+      ctx.save();
+      ctx.fillStyle = "rgba(15,23,42,0.35)";
+      ctx.fillRect(m.x! * s, m.y! * s, m.w! * s, m.h! * s);
+      ctx.strokeStyle = "#f8fafc";
+      ctx.lineWidth = 0.55 * s;
+      ctx.strokeRect(m.x! * s, m.y! * s, m.w! * s, m.h! * s);
+      ctx.restore();
+    }
+  }
 
   drawOverlay(ctx, overlay, s);
 
@@ -179,41 +296,7 @@ export function drawBoard(
   }
 
   // Tokens
-  for (const tok of tokens) {
-    const cx = tok.x * s, cy = tok.y * s;
-    if (tok.kind === "ball") {
-      ctx.beginPath();
-      ctx.arc(cx, cy, 2.4 * s, 0, Math.PI * 2);
-      ctx.fillStyle = "#f8fafc";
-      ctx.fill();
-      ctx.lineWidth = 0.4 * s;
-      ctx.strokeStyle = "#111";
-      ctx.stroke();
-      continue;
-    }
-
-    ctx.beginPath();
-    ctx.arc(cx, cy, 4.2 * s, 0, Math.PI * 2);
-    ctx.fillStyle = BOARD_GROUP_COLOR[tok.group] ?? "#22c55e";
-    ctx.fill();
-    ctx.lineWidth = 0.5 * s;
-    ctx.strokeStyle = tok.kind === "opponent" ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.35)";
-    ctx.stroke();
-
-    ctx.textAlign = "center";
-    if (tok.kind === "opponent" && tok.label) {
-      ctx.fillStyle = "#fff";
-      ctx.font = `bold ${3.4 * s}px sans-serif`;
-      ctx.fillText(tok.label, cx, cy + 1.2 * s);
-    } else if (tok.kind === "player" && showNames && tok.label) {
-      ctx.font = `${3 * s}px sans-serif`;
-      ctx.lineWidth = 0.5 * s;
-      ctx.strokeStyle = "rgba(0,0,0,0.6)";
-      ctx.strokeText(tok.label, cx, cy + 7.6 * s);
-      ctx.fillStyle = "#fff";
-      ctx.fillText(tok.label, cx, cy + 7.6 * s);
-    }
-  }
+  for (const tok of tokens) drawToken(ctx, tok, showNames, s);
 }
 
 /** Pick a WebM mime type this browser can actually record. */

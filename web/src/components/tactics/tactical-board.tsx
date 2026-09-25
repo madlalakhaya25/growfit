@@ -5,7 +5,8 @@ import {
   MousePointer2, Eraser, Undo2, Redo2, RotateCcw, Users, Circle,
   ArrowUpRight, Minus, Waves, Pencil, Download, Tag, Grid3x3,
   Play, Square, Plus, Trash2,
-  Target, MessageSquare,
+  Target, MessageSquare, RectangleHorizontal, Type, Ruler,
+  FlipHorizontal2, Maximize2, Minimize2, Hexagon,
 } from "lucide-react";
 import { FORMATIONS, FORMATION_SIZES } from "@/lib/formations";
 import { drawBoard, pickRecorderMime } from "@/lib/board-render";
@@ -14,10 +15,13 @@ import {
   BOARD_W, BOARD_H, dribblePath, polyPath, shapeColor, interpolateFrames, totalDurationMs,
   getPitch, PITCHES, toBoardSpace, EQUIPMENT_SPECS, resolveSpotlightCenter, RECORDABLE_SHAPE_KINDS,
   GROUP_COLOR, groupOf, shortLabel, uid, assignToSlots, compress,
-  type EquipmentKind, type BoardObject, type BoardPlayer, type BoardTeam,
+  DRAW_COLORS, distanceMetres, teamShape, mirrorPoint, type Pitch,
+  type EquipmentKind, type Point, type BoardObject, type BoardPlayer, type BoardTeam,
   type Token, type Shape, type Frame as ModelFrame,
 } from "@/lib/board-model";
 import { PitchLayer } from "@/components/tactics/pitch-layer";
+import { TokenDefs, TokenGlyph } from "@/components/tactics/token-glyph";
+import { ArrowMarkers, arrowMarkerUrl } from "@/components/tactics/arrow-markers";
 import { EquipmentLayer } from "@/components/tactics/equipment-layer";
 import { SavedPlaysPanel } from "@/components/tactics/saved-plays-panel";
 import { AnimationPanel } from "@/components/tactics/animation-panel";
@@ -43,7 +47,11 @@ export type { BoardPlayer, BoardTeam };
 // BoardState (tokens/shapes/objects/playerNotes) and the `state`/`draft`
 // pair now live in store/boardStore.ts — the first slice of this
 // component's state pulled into zustand, see docs/BACKLOG.md 3.3.
-type Mode = "move" | "run" | "pass" | "dribble" | "free" | "spotlight" | "erase";
+type Mode =
+  | "move" | "run" | "pass" | "dribble" | "free" | "zone" | "text"
+  | "spotlight" | "measure" | "erase";
+/** The tools that draw a Shape by dragging from one point to another. */
+const DRAG_DRAW_MODES = new Set<Mode>(["run", "pass", "dribble", "free", "zone"]);
 
 /** localStorage key prefix for the per-team unsaved-board draft. */
 const DRAFT_KEY_PREFIX = "growfit.tactics.draft.";
@@ -158,10 +166,107 @@ function OverlayLayer({ overlay }: { overlay: Overlay }) {
   );
 }
 
+/**
+ * Each side's outfield shape: a translucent hull round the outfield
+ * players, lines joining our back line / midfield / front line, and a
+ * width × depth chip. Drawn from whatever tokens are showing, so it
+ * stretches and squeezes live as the play animates.
+ */
+function TeamShapeLayer({ tokens, pitch }: { tokens: Token[]; pitch: Pitch }) {
+  const sides = [
+    { side: "player" as const, color: "#38bdf8", label: "Us" },
+    { side: "opponent" as const, color: "#f87171", label: "Them" },
+  ];
+  const shapes = sides
+    .map((s) => ({ ...s, shape: teamShape(tokens, s.side, pitch) }))
+    .filter((s): s is typeof s & { shape: NonNullable<typeof s.shape> } => s.shape !== null);
+  if (shapes.length === 0) return null;
+  return (
+    <g pointerEvents="none">
+      {shapes.map(({ side, color, shape }) => (
+        <g key={side}>
+          {shape.hull.length >= 3 && (
+            <path
+              d={`${polyPath(shape.hull)} Z`}
+              fill={color}
+              fillOpacity={0.12}
+              stroke={color}
+              strokeOpacity={0.7}
+              strokeWidth={0.5}
+              strokeDasharray="1.8 1.2"
+              strokeLinejoin="round"
+            />
+          )}
+          {shape.units.map((u, i) => (
+            <path key={i} d={polyPath(u)} fill="none" stroke="#ffffff" strokeOpacity={0.55} strokeWidth={0.45} />
+          ))}
+        </g>
+      ))}
+      {/* Readout chips, top-left, one per side. */}
+      {shapes.map(({ side, color, label, shape }, i) => {
+        const text = `${label} · ${Math.round(shape.widthM)}m wide · ${Math.round(shape.depthM)}m deep`;
+        const w = text.length * 1.28 + 4;
+        return (
+          <g key={`chip-${side}`} transform={`translate(3.5 ${4 + i * 5})`}>
+            <rect width={w} height={4} rx={2} fill="rgba(15,23,42,0.8)" />
+            <circle cx={2.2} cy={2} r={0.9} fill={color} />
+            <text x={3.8} y={2.95} fontSize={2.4} fontWeight={600} fill="#ffffff">{text}</text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/** The measure tool's ruler: a dashed line with end ticks and a distance
+ * label in metres at its midpoint. */
+function MeasureLayer({ a, b, pitch }: { a: Point; b: Point; pitch: Pitch }) {
+  const len = Math.hypot(b.x - a.x, b.y - a.y);
+  if (len < 0.5) return null;
+  const m = distanceMetres(a, b, pitch);
+  const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+  // Perpendicular unit vector for the end ticks.
+  const px = -(b.y - a.y) / len, py = (b.x - a.x) / len;
+  const tick = (p: Point) => (
+    <line x1={p.x - px * 1.4} y1={p.y - py * 1.4} x2={p.x + px * 1.4} y2={p.y + py * 1.4} />
+  );
+  const label = m < 10 ? `${m.toFixed(1)} m` : `${Math.round(m)} m`;
+  const w = label.length * 1.6 + 3;
+  return (
+    <g pointerEvents="none">
+      <g stroke="#ffffff" strokeWidth={0.5} strokeLinecap="round">
+        <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} strokeDasharray="1.4 1" />
+        {tick(a)}
+        {tick(b)}
+      </g>
+      <g transform={`translate(${mx} ${my - 3.5})`}>
+        <rect x={-w / 2} y={-2.4} width={w} height={3.8} rx={1.9} fill="#0f172a" stroke="#ffffff" strokeWidth={0.3} />
+        <text y={0.5} textAnchor="middle" fontSize={2.6} fontWeight={700} fill="#ffffff">{label}</text>
+      </g>
+    </g>
+  );
+}
+
 export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const [mode, setMode] = useState<Mode>("move");
   const [showNames, setShowNames] = useState(true);
   const [overlay, setOverlay] = useState<Overlay>("none");
+  /** Colour for the next drawn line/zone/label — null keeps each kind's
+   *  own default (yellow runs, sky dribbles, …). */
+  const [drawColor, setDrawColor] = useState<string | null>(null);
+  /** Team-shape overlay: each side's outfield hull, unit lines, and a
+   *  width/depth readout — follows the players through playback. */
+  const [showShape, setShowShape] = useState(false);
+  /** The measure tool's current ruler. Deliberately not part of the board
+   *  state: it's a question the coach is asking, not something to save. */
+  const [measure, setMeasure] = useState<{ a: Point; b: Point } | null>(null);
+  const measuring = useRef(false);
+  const textPending = useRef<Point | null>(null);
+  /** Where a new text label is being typed, in board units. */
+  const [textAt, setTextAt] = useState<Point | null>(null);
+  const [textValue, setTextValue] = useState("");
+  const boardWrapRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const { state, setState, draft, setDraft, reset: resetBoardState } = useBoardStore();
   const {
@@ -465,6 +570,17 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
 
   useEffect(() => () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); }, []);
 
+  /** Delete key: take the selected token off the pitch. Returns whether
+   *  anything was removed, so the key handler only swallows Backspace
+   *  when it actually did something. */
+  function removeSelected(): boolean {
+    if (!selectedTokenId) return false;
+    snapshot();
+    setState((st) => ({ ...st, tokens: st.tokens.filter((t) => t.id !== selectedTokenId) }));
+    setSelectedTokenId(null);
+    return true;
+  }
+
   // ── Keyboard shortcuts ─────────────────────────────────────────
   // There were none at all before this, on a drawing tool used at a desk.
   // The comment on setPitch() even described Undo as the "Ctrl/Cmd+Z
@@ -489,7 +605,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   useEffect(() => {
     const TOOL_KEYS: Record<string, Mode> = {
       v: "move", r: "run", p: "pass", d: "dribble",
-      f: "free", s: "spotlight", e: "erase",
+      f: "free", z: "zone", t: "text", s: "spotlight",
+      m: "measure", e: "erase",
     };
 
     function onKeyDown(ev: KeyboardEvent) {
@@ -528,6 +645,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       }
       if (ev.key === "Escape") {
         setSelectedTokenId(null);
+        setMeasure(null);
         h.setMode("move");
         return;
       }
@@ -625,6 +743,23 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     }
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
+
+  // Delete/Backspace takes the selected player off the pitch. Its own
+  // listener rather than a branch of the shortcuts effect above: that
+  // effect runs before dirtyRef exists, and removeSelected() reaches
+  // dirtyRef through snapshot().
+  const removeSelectedRef = useRef(removeSelected);
+  useEffect(() => { removeSelectedRef.current = removeSelected; });
+  useEffect(() => {
+    function onKeyDown(ev: KeyboardEvent) {
+      if (ev.key !== "Delete" && ev.key !== "Backspace") return;
+      const target = ev.target as HTMLElement | null;
+      if (target && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))) return;
+      if (removeSelectedRef.current()) ev.preventDefault();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
   function restoreDraft(draft: BoardDraft) {
@@ -871,7 +1006,53 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   function clearDrawings() {
     snapshot();
     setState((st) => ({ ...st, shapes: [] }));
+    setMeasure(null);
   }
+  /**
+   * Flip everything left-to-right — a move built down the left wing
+   * becomes the same move down the right. The captured steps flip too, so
+   * an animated play still plays, just on the other flank. One undo step.
+   */
+  function mirrorBoard() {
+    stopPlayback();
+    snapshot();
+    const w = pitch.w;
+    const flipShape = (sh: Shape): Shape => ({ ...sh, pts: sh.pts.map((p) => mirrorPoint(p, w)) });
+    setState((st) => ({
+      ...st,
+      tokens: st.tokens.map((t) => mirrorPoint(t, w)),
+      shapes: st.shapes.map(flipShape),
+      objects: st.objects.map((o) => ({ ...mirrorPoint(o, w), rotation: o.rotation ? -o.rotation : o.rotation })),
+    }));
+    setFrames((fs) => fs.map((f) => ({ ...f, tokens: f.tokens.map((t) => mirrorPoint(t, w)), shapes: f.shapes.map(flipShape) })));
+    setMeasure(null);
+    setNotice("Mirrored the board left-to-right.");
+  }
+  function commitText() {
+    const at = textAt;
+    const body = textValue.trim();
+    setTextAt(null);
+    setTextValue("");
+    if (!at || !body) return;
+    snapshot();
+    setState((st) => ({
+      ...st,
+      shapes: [...st.shapes, { id: uid("s"), kind: "text", pts: [at], text: body, color: drawColor ?? undefined }],
+    }));
+  }
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await boardWrapRef.current?.requestFullscreen();
+    } catch {
+      setNotice("Full screen isn't available in this browser.");
+    }
+  }
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(document.fullscreenElement === boardWrapRef.current && !!boardWrapRef.current);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
   function addEquipment(kind: EquipmentKind) {
     snapshot();
     setState((st) => ({
@@ -962,8 +1143,29 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     // creating an unbound ring with no playerId to follow.
     if (mode === "move" || mode === "erase" || mode === "spotlight") return;
     const { x, y } = toBoard(e.clientX, e.clientY);
+    if (mode === "text") {
+      // A tap elsewhere while typing just finishes the label in progress.
+      if (textAt) { commitText(); return; }
+      // Opened on pointer-up, not here: the browser moves focus on the
+      // mousedown that follows this event, which would blur (and so close)
+      // an input autofocused this early.
+      textPending.current = { x, y };
+      return;
+    }
+    if (mode === "measure") {
+      measuring.current = true;
+      setMeasure({ a: { x, y }, b: { x, y } });
+      svgRef.current?.setPointerCapture?.(e.pointerId);
+      return;
+    }
+    if (!DRAG_DRAW_MODES.has(mode)) return;
     drawing.current = true;
-    setDraft({ id: "draft", kind: mode, pts: [{ x, y }, { x, y }] });
+    setDraft({
+      id: "draft",
+      kind: mode as Shape["kind"],
+      pts: [{ x, y }, { x, y }],
+      color: drawColor ?? undefined,
+    });
     svgRef.current?.setPointerCapture?.(e.pointerId);
   }
   function onSvgMove(e: React.PointerEvent) {
@@ -1000,6 +1202,9 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
             : o
         ),
       }));
+    } else if (measuring.current) {
+      const { x, y } = toBoard(e.clientX, e.clientY);
+      setMeasure((m) => (m ? { ...m, b: { x, y } } : m));
     } else if (drawing.current) {
       const { x, y } = toBoard(e.clientX, e.clientY);
       setDraft((d) => {
@@ -1019,6 +1224,11 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     }
     drag.current = null;
     dragObj.current = null;
+    measuring.current = false;
+    if (textPending.current) {
+      setTextAt(textPending.current);
+      textPending.current = null;
+    }
     if (drawing.current && draft) {
       const a = draft.pts[0], b = draft.pts[draft.pts.length - 1];
       const dist = Math.hypot(b.x - a.x, b.y - a.y);
@@ -1038,6 +1248,14 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               : [...st.shapes, shape],
           };
         });
+      } else if (draft.kind === "zone") {
+        // Stored as a 4-corner polygon, the shape every zone renderer
+        // (this board, play-viewer.tsx, the film board) already reads.
+        if (Math.abs(b.x - a.x) > 2 && Math.abs(b.y - a.y) > 2) {
+          snapshot();
+          const pts = [a, { x: b.x, y: a.y }, b, { x: a.x, y: b.y }];
+          setState((st) => ({ ...st, shapes: [...st.shapes, { ...draft, id: uid("s"), pts }] }));
+        }
       } else if (dist > 3) {
         snapshot();
         const shape = { ...draft, id: uid("s") };
@@ -1111,7 +1329,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
    *  shown in the tooltip, since an unadvertised shortcut helps nobody. */
   const TOOL_SHORTCUT: Record<Mode, string> = {
     move: "V", run: "R", pass: "P", dribble: "D",
-    free: "F", spotlight: "S", erase: "E",
+    free: "F", zone: "Z", text: "T", spotlight: "S",
+    measure: "M", erase: "E",
   };
   const toolBtn = (m: Mode, Icon: typeof MousePointer2, label: string) => (
     <button
@@ -1154,15 +1373,35 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       strokeLinecap: "round" as const, strokeLinejoin: "round" as const,
       opacity: isDraft ? 0.75 : 1,
       style: { cursor: mode === "erase" ? "pointer" : "default" },
-      // onShapeDown calls snapshot(), which reads stateRef/pitchIdRef/framesRef
-      // — but only once this handler actually fires from a real pointer
-      // event, never during the render that creates this closure. The
-      // react-hooks/refs rule can't distinguish "creates a callback that
-      // reads a ref later" from "reads a ref now"; this is the former.
-      // eslint-disable-next-line react-hooks/refs
       onPointerDown: isDraft ? undefined : (e: React.PointerEvent) => onShapeDown(e, sh.id),
     };
     const a = sh.pts[0], b = sh.pts[sh.pts.length - 1];
+    if (!a) return null;
+    const arrow = arrowMarkerUrl("tb-arrow", stroke);
+    if (sh.kind === "text") {
+      return (
+        <text
+          key={sh.id}
+          x={a.x} y={a.y}
+          fontSize={3.6}
+          fontWeight={700}
+          fill={stroke}
+          textAnchor="middle"
+          onPointerDown={common.onPointerDown}
+          style={{ ...common.style, paintOrder: "stroke", stroke: "rgba(0,0,0,0.7)", strokeWidth: 0.4 }}
+        >
+          {sh.text}
+        </text>
+      );
+    }
+    if (sh.kind === "zone") {
+      // A draft zone is still just [start, current] — drawn as the rect
+      // it will become on release.
+      const d = isDraft
+        ? polyPath([a, { x: b.x, y: a.y }, b, { x: a.x, y: b.y }])
+        : polyPath(sh.pts);
+      return <path key={sh.id} d={`${d} Z`} {...common} fill={stroke} fillOpacity={0.2} strokeDasharray="2 1.2" />;
+    }
     if (sh.kind === "spotlight") {
       // Centre comes from the live/animated token bound by playerId, not
       // from the shape's own stored point — see resolveSpotlightCenter().
@@ -1172,13 +1411,13 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     }
     if (sh.kind === "free") return <path key={sh.id} d={polyPath(sh.pts)} {...common} />;
     if (sh.kind === "dribble")
-      return <path key={sh.id} d={dribblePath(a.x, a.y, b.x, b.y)} markerEnd="url(#tb-arrow)" {...common} />;
+      return <path key={sh.id} d={dribblePath(a.x, a.y, b.x, b.y)} markerEnd={arrow} {...common} />;
     return (
       <line
         key={sh.id}
         x1={a.x} y1={a.y} x2={b.x} y2={b.y}
         strokeDasharray={sh.kind === "pass" ? "3 2" : undefined}
-        markerEnd="url(#tb-arrow)"
+        markerEnd={arrow}
         {...common}
       />
     );
@@ -1278,15 +1517,54 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       </div>
 
       {/* Tools */}
+      <div className="rounded-xl border border-border bg-card p-2 space-y-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {toolBtn("move", MousePointer2, "Move")}
+          <span className="mx-0.5 h-6 w-px bg-border" />
+          {toolBtn("run", ArrowUpRight, "Run")}
+          {toolBtn("pass", Minus, "Pass")}
+          {toolBtn("dribble", Waves, "Dribble")}
+          {toolBtn("free", Pencil, "Draw")}
+          {toolBtn("zone", RectangleHorizontal, "Zone")}
+          {toolBtn("text", Type, "Label")}
+          <span className="mx-0.5 h-6 w-px bg-border" />
+          {toolBtn("spotlight", Target, "Spotlight")}
+          {toolBtn("measure", Ruler, "Measure")}
+          {toolBtn("erase", Eraser, "Erase")}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Line colour">
+          <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Colour</span>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={drawColor === null}
+            onClick={() => setDrawColor(null)}
+            title="Default colours (yellow runs & passes, blue dribbles)"
+            className={`h-7 rounded-full border px-2 text-[11px] font-medium ${
+              drawColor === null ? "border-primary bg-primary/10 text-primary" : "border-border bg-background hover:bg-muted"
+            }`}
+          >
+            Auto
+          </button>
+          {DRAW_COLORS.map((c) => (
+            <button
+              key={c.value}
+              type="button"
+              role="radio"
+              aria-checked={drawColor === c.value}
+              aria-label={c.label}
+              title={c.label}
+              onClick={() => setDrawColor(c.value)}
+              className={`size-7 rounded-full border-2 transition-transform ${
+                drawColor === c.value ? "scale-110 border-foreground ring-2 ring-primary/40" : "border-border hover:scale-105"
+              }`}
+              style={{ background: c.value }}
+            />
+          ))}
+        </div>
+      </div>
+
       <div className="flex flex-wrap items-center gap-1.5">
-        {toolBtn("move", MousePointer2, "Move")}
-        {toolBtn("run", ArrowUpRight, "Run")}
-        {toolBtn("pass", Minus, "Pass")}
-        {toolBtn("dribble", Waves, "Dribble")}
-        {toolBtn("free", Pencil, "Draw")}
-        {toolBtn("spotlight", Target, "Spotlight")}
-        {toolBtn("erase", Eraser, "Erase")}
-        <span className="mx-1 h-6 w-px bg-border" />
         <button type="button" onClick={addBall} title="Add ball" className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">⚽ Ball</button>
         <button type="button" onClick={addOpponent} title="Add one opponent" className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
           <Circle className="size-3.5" aria-hidden="true" /> +1
@@ -1332,6 +1610,18 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
             <option value="zone14">Zone 14 &amp; cut-backs</option>
           </select>
         </span>
+        <button
+          type="button"
+          onClick={() => setShowShape((v) => !v)}
+          aria-pressed={showShape}
+          title="Show each side's shape, unit lines, width and depth"
+          className={`inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border px-2.5 text-xs ${showShape ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border hover:bg-muted"}`}
+        >
+          <Hexagon className="size-3.5" aria-hidden="true" /> Team shape
+        </button>
+        <button type="button" onClick={mirrorBoard} title="Flip the board left-to-right" className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
+          <FlipHorizontal2 className="size-3.5" aria-hidden="true" /> Mirror
+        </button>
         <span className="mx-1 h-6 w-px bg-border" />
         <button type="button" onClick={clearDrawings} className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">Clear lines</button>
         <button type="button" onClick={clearAll} className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
@@ -1360,7 +1650,12 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
             square, aspect >= 1) it means the board finally uses the width
             the desktop layout already had spare. */}
         <div
-          className="mx-auto w-full max-w-md lg:max-w-(--pitch-max-w)"
+          ref={boardWrapRef}
+          className={
+            isFullscreen
+              ? "flex h-full w-full flex-col items-center justify-center gap-3 bg-slate-950 p-4"
+              : "mx-auto w-full max-w-md lg:max-w-(--pitch-max-w)"
+          }
           style={{
             "--pitch-max-w": `max(28rem, calc((100dvh - 14rem) * ${pitch.w / pitch.h}))`,
           } as React.CSSProperties}
@@ -1371,7 +1666,41 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               A mismatch here isn't just cosmetic letterboxing: toBoard()
               assumes the viewBox fills this box exactly, so a wrong ratio
               also means every click lands at the wrong coordinate. */}
-          <div className="w-full overflow-hidden rounded-xl border border-border" style={{ aspectRatio: `${pitch.w} / ${pitch.h}` }}>
+          <div
+            className="relative w-full overflow-hidden rounded-xl border border-border shadow-lg shadow-black/20 ring-1 ring-black/5"
+            style={{
+              aspectRatio: `${pitch.w} / ${pitch.h}`,
+              // Full screen: as big as the screen allows at this pitch's ratio,
+              // leaving room for the playback bar underneath.
+              ...(isFullscreen ? { width: `min(100%, calc((100dvh - 7rem) * ${pitch.w / pitch.h}))` } : {}),
+            }}
+          >
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              title={isFullscreen ? "Exit full screen" : "Full screen — for the team talk"}
+              aria-label={isFullscreen ? "Exit full screen" : "Full screen"}
+              className="absolute right-2 top-2 z-10 inline-flex size-8 items-center justify-center rounded-md bg-black/45 text-white backdrop-blur-sm hover:bg-black/65"
+            >
+              {isFullscreen ? <Minimize2 className="size-4" aria-hidden="true" /> : <Maximize2 className="size-4" aria-hidden="true" />}
+            </button>
+            {textAt && (
+              <input
+                autoFocus
+                value={textValue}
+                maxLength={40}
+                onChange={(e) => setTextValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitText();
+                  if (e.key === "Escape") { setTextAt(null); setTextValue(""); }
+                }}
+                onBlur={commitText}
+                placeholder="Type a label…"
+                aria-label="Label text"
+                className="absolute z-10 w-36 -translate-x-1/2 -translate-y-1/2 rounded-md border border-white/60 bg-slate-900/85 px-2 py-1 text-xs text-white shadow-lg placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-primary"
+                style={{ left: `${(textAt.x / pitch.w) * 100}%`, top: `${(textAt.y / pitch.h) * 100}%` }}
+              />
+            )}
             <svg
               ref={svgRef}
               viewBox={`0 0 ${pitch.w} ${pitch.h}`}
@@ -1381,15 +1710,14 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               onPointerUp={onSvgUp}
               onPointerLeave={onSvgUp}
             >
-              <defs>
-                <marker id="tb-arrow" viewBox="0 0 10 10" refX={8} refY={5} markerWidth={4.5} markerHeight={4.5} orient="auto-start-reverse">
-                  <path d="M0,0 L10,5 L0,10 z" fill="#fde047" />
-                </marker>
-              </defs>
+              <ArrowMarkers prefix="tb-arrow" />
+              <TokenDefs prefix="tb-tok" />
 
               <PitchLayer pitch={pitch} stripeId="tb-stripe" />
 
               {pitch.supportsFormations && <OverlayLayer overlay={overlay} />}
+
+              {showShape && <TeamShapeLayer tokens={view.tokens} pitch={pitch} />}
 
               {/* Shapes */}
               {view.shapes.map((sh) => renderShape(sh))}
@@ -1406,37 +1734,16 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                   onPointerDown={(e) => onTokenDown(e, tok)}
                   style={{ cursor: mode === "move" ? "grab" : mode === "erase" ? "pointer" : "default" }}
                 >
-                  {tok.kind === "ball" ? (
-                    <circle r={2.4} fill="#f8fafc" stroke="#111" strokeWidth={0.4} />
-                  ) : (
-                    <>
-                      {tok.id === selectedTokenId && (
-                        <circle r={6} fill="none" stroke="#fff" strokeWidth={0.9} strokeDasharray="1.5 1.2" />
-                      )}
-                      <circle
-                        r={4.2}
-                        fill={GROUP_COLOR[tok.group]}
-                        stroke={tok.kind === "opponent" ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.35)"}
-                        strokeWidth={0.5}
-                      />
-                      {tok.kind === "opponent" && tok.label && (
-                        <text y={1.2} textAnchor="middle" fontSize={3.4} fill="#fff" fontWeight="bold">{tok.label}</text>
-                      )}
-                      {tok.kind === "player" && showNames && tok.label && (
-                        <text
-                          y={7.6}
-                          textAnchor="middle"
-                          fontSize={3}
-                          fill="#fff"
-                          style={{ paintOrder: "stroke", stroke: "rgba(0,0,0,0.6)", strokeWidth: 0.5 }}
-                        >
-                          {tok.label}
-                        </text>
-                      )}
-                    </>
-                  )}
+                  <TokenGlyph
+                    tok={tok}
+                    prefix="tb-tok"
+                    showName={showNames}
+                    selected={tok.id === selectedTokenId}
+                  />
                 </g>
               ))}
+
+              {mode === "measure" && measure && <MeasureLayer a={measure.a} b={measure.b} pitch={pitch} />}
             </svg>
           </div>
           {/* Playback sits with the pitch — it is the first thing wanted after
@@ -1473,11 +1780,14 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
             {mode === "pass" && "Drag to draw a pass (dashed arrow)."}
             {mode === "dribble" && "Drag to draw a dribble (wavy line)."}
             {mode === "free" && "Draw freehand to sketch a zone or shape."}
+            {mode === "zone" && "Drag a box to shade an area — a pressing trap, a target zone, a space to exploit."}
+            {mode === "text" && "Tap the pitch and type a label. Enter to place it, Esc to cancel."}
+            {mode === "measure" && "Drag between two points to measure the distance in metres."}
             {mode === "spotlight" && "Tap a player to highlight them — it follows them through every frame. Tap again to remove."}
-            {mode === "erase" && "Tap a player or a line to remove it."}
+            {mode === "erase" && "Tap a player, a line, a zone or a label to remove it."}
             <span className="hidden lg:inline text-muted-foreground/70">
-              {" "}· Keys: V move, R run, P pass, D dribble, F freehand, S spotlight,
-              E erase · Space plays · Ctrl/Cmd+Z undoes
+              {" "}· Keys: V move, R run, P pass, D dribble, F freehand, Z zone, T label,
+              S spotlight, M measure, E erase · Del removes the selected player · Space plays · Ctrl/Cmd+Z undoes
             </span>
           </p>
         </div>
@@ -1674,6 +1984,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                 <div className="flex items-center gap-2"><span className="inline-block h-0.5 w-5" style={{ background: "#fde047" }} /> Run</div>
                 <div className="flex items-center gap-2"><span className="inline-block h-0.5 w-5" style={{ backgroundImage: "repeating-linear-gradient(to right,#fde047 0 3px,transparent 3px 6px)" }} /> Pass</div>
                 <div className="flex items-center gap-2"><span className="inline-block h-0.5 w-5" style={{ background: "#38bdf8" }} /> Dribble</div>
+                <div className="flex items-center gap-2"><span className="inline-block h-3 w-5 rounded-sm border border-dashed" style={{ background: "rgba(250,204,21,0.2)", borderColor: "#facc15" }} /> Zone</div>
               </div>
             </div>
           </div>
