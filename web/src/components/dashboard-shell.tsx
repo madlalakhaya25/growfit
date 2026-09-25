@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 import {
   LayoutDashboard,
@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/store/authStore";
 import { isActiveHref } from "@/lib/nav";
+import { readCurrentTeamCookie, resolveCurrentTeamId } from "@/lib/current-team";
 import type { UserRole } from "@/lib/types";
 import type { FeatureKey } from "@/lib/features";
 
@@ -156,6 +157,7 @@ interface Props {
 export function DashboardShell({ profile, teams = [], features, children }: Props) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const clearAuth = useAuthStore((s) => s.clear);
   const supabase = createClient();
 
@@ -168,6 +170,13 @@ export function DashboardShell({ profile, teams = [], features, children }: Prop
   const activeSection = sections.find((s) =>
     s.tabs.some((t) => isActiveHref(pathname, t.href, roleRoot))
   );
+
+  // Reading the cookie here (rather than deferring to an effect) is safe:
+  // this value only ever reaches the DOM through QuickActionsSheet's own
+  // children, which don't render at all until the sheet is opened by a
+  // click -- well after hydration, so there's nothing for the server and
+  // client's first render to disagree about.
+  const currentTeamId = resolveCurrentTeamId(teams, searchParams.get("team"), readCurrentTeamCookie());
 
   function handleSignOut() {
     startSignOut(async () => {
@@ -245,7 +254,7 @@ export function DashboardShell({ profile, teams = [], features, children }: Prop
           <div className="flex items-center gap-1">
             {role === "coach" && teams.length > 1 && <TeamSwitcher teams={teams} />}
             {role === "coach" && (features?.assistant !== false) && <AskGrowfitSheet />}
-            {role === "coach" && <QuickActionsSheet defaultTeamId={teams[0]?.id} />}
+            {role === "coach" && <QuickActionsSheet defaultTeamId={currentTeamId ?? undefined} />}
             <ThemeToggle />
             <Link
               href={`${roleRoot}/settings`}

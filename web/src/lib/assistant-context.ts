@@ -44,7 +44,11 @@ export async function getAssistantContext(
     .select("id, name, age_group, team_members(active, players(id, full_name, position))")
     .in("id", await getCoachedTeamIds(supabase, userId))
     .eq("active", true)
-    .order("name");
+    // Same default order every other "current team" fetch in the app uses —
+    // see lib/current-team.ts. Was `.order("name")`, which meant the
+    // assistant's own default team could silently disagree with the one the
+    // coach was actually looking at elsewhere.
+    .order("created_at");
 
   if (teamsError) {
     reportError(teamsError, { scope: "getAssistantContext", extra: { query: "teams" } });

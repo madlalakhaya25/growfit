@@ -14,6 +14,7 @@ import { SpeakButton } from "@/components/tactics/speak-button";
 import { AiProse } from "@/components/ai/ai-prose";
 import { FORMATIONS } from "@/lib/formations";
 import { mapNamedPositionsToSlots, groupOf, shortLabel, uid, type BoardPlayer, type Token } from "@/lib/board-model";
+import { readCurrentTeamCookie, resolveCurrentTeamId, writeCurrentTeamCookie } from "@/lib/current-team";
 
 export interface AssistantTeam { id: string; name: string; age_group: string | null }
 export interface AssistantFixture { id: string; label: string; when: string }
@@ -41,7 +42,19 @@ export function CoachAssistantPanel({
    * its own roster. */
   roster: Record<string, BoardPlayer[]>;
 }) {
-  const [teamId, setTeamId] = useState(teams[0]?.id ?? "");
+  // Same resolver every other "current team" surface reads. Starts on the
+  // default-order team (matching what the server rendered, since a cookie
+  // isn't knowable at that point) and picks up the coach's last explicit
+  // choice elsewhere just after mount, once `document` actually exists.
+  const [teamId, setTeamId] = useState(() => resolveCurrentTeamId(teams, null, null) ?? "");
+  useEffect(() => {
+    const fromCookie = resolveCurrentTeamId(teams, null, readCurrentTeamCookie());
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (fromCookie) setTeamId(fromCookie);
+    // Deliberately once-on-mount only, matching the "read the cookie once
+    // after mount" pattern used elsewhere — not every `teams` prop change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [messages, setMessages] = useState<CoachMessage[]>([]);
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -190,7 +203,7 @@ export function CoachAssistantPanel({
         {teams.length > 1 && (
           <select
             value={teamId}
-            onChange={(e) => { setTeamId(e.target.value); setMessages([]); setOutput(null); setApplied(false); setFixtureId(""); }}
+            onChange={(e) => { setTeamId(e.target.value); writeCurrentTeamCookie(e.target.value); setMessages([]); setOutput(null); setApplied(false); setFixtureId(""); }}
             aria-label="Team"
             className="rounded-md border border-border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
           >
