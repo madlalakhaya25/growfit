@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { PlayerAvatar } from "@/components/ui/player-avatar";
 
 describe("PlayerAvatar", () => {
@@ -41,5 +41,26 @@ describe("PlayerAvatar", () => {
     const img = screen.getByAltText("Sipho Ndlovu");
     expect(img).toHaveAttribute("width", String(px));
     expect(img).toHaveAttribute("height", String(px));
+  });
+
+  // Regression: a removed/broken photo used to render the browser's own
+  // broken-image icon forever, not initials -- there was no error handler
+  // at all.
+  it("falls back to initials once the photo fails to load", () => {
+    render(<PlayerAvatar name="Sipho Ndlovu" photoUrl="/missing.jpg" />);
+    const img = screen.getByAltText("Sipho Ndlovu");
+    fireEvent.error(img);
+    expect(screen.queryByAltText("Sipho Ndlovu")).not.toBeInTheDocument();
+    expect(screen.getByText("SN")).toBeInTheDocument();
+  });
+
+  it("gives a new photoUrl a fresh attempt after an earlier one failed", () => {
+    const { rerender } = render(<PlayerAvatar name="Sipho Ndlovu" photoUrl="/missing.jpg" />);
+    fireEvent.error(screen.getByAltText("Sipho Ndlovu"));
+    expect(screen.getByText("SN")).toBeInTheDocument();
+
+    rerender(<PlayerAvatar name="Sipho Ndlovu" photoUrl="/new-photo.jpg" />);
+    expect(screen.getByAltText("Sipho Ndlovu")).toBeInTheDocument();
+    expect(screen.queryByText("SN")).not.toBeInTheDocument();
   });
 });

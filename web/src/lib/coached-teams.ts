@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
@@ -12,8 +13,17 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * working if the code is deployed before migration 019 is applied. Without that
  * fallback a missing table silently returns no teams, which reads as "you have
  * no teams" rather than "the database is behind".
+ *
+ * Cached per request (React `cache()`) -- this ran 3x on Coach Today alone
+ * (the protected layout's team switcher, the page's own team list, and
+ * getWelfareAlerts, each a separate round trip for the exact same coach's
+ * exact same teams). `cache()` keys on argument identity, not just `userId`,
+ * so this only actually collapses those calls because `lib/supabase/server`'s
+ * `createClient()` is itself cached per request now -- every caller's
+ * `supabase` is the same object within one request, not a fresh client each
+ * time.
  */
-export async function getCoachedTeamIds(
+export const getCoachedTeamIds = cache(async function getCoachedTeamIds(
   // The Supabase client is generated without database types in this project.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient<any, any, any>,
@@ -36,4 +46,4 @@ export async function getCoachedTeamIds(
     .eq("active", true);
 
   return ((legacy ?? []) as { id: string }[]).map((r) => r.id);
-}
+});

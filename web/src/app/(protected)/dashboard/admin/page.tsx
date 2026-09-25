@@ -44,10 +44,10 @@ export default async function AdminDashboardPage() {
   }
 
   const stats = [
-    { label: "Active players",    value: players.error  ? "—" : players.count  ?? 0, Icon: Users,    href: "/dashboard/admin/players" },
-    { label: "Teams",             value: teams.error    ? "—" : teams.count    ?? 0, Icon: Shield,   href: "/dashboard/admin/teams" },
-    { label: "Upcoming fixtures", value: fixtures.error ? "—" : fixtures.count ?? 0, Icon: Calendar, href: null },
-    { label: "Ratings logged",    value: ratings.error  ? "—" : ratings.count  ?? 0, Icon: Star,     href: "/dashboard/admin/reports" },
+    { label: "Active players",    value: players.error  ? null : players.count  ?? 0, Icon: Users,    href: "/dashboard/admin/players" },
+    { label: "Teams",             value: teams.error    ? null : teams.count    ?? 0, Icon: Shield,   href: "/dashboard/admin/teams" },
+    { label: "Upcoming fixtures", value: fixtures.error ? null : fixtures.count ?? 0, Icon: Calendar, href: null },
+    { label: "Ratings logged",    value: ratings.error  ? null : ratings.count  ?? 0, Icon: Star,     href: "/dashboard/admin/reports" },
   ];
 
   const quickActions = [

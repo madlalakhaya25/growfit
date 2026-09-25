@@ -3,7 +3,13 @@ import { cn } from "@/lib/utils";
 
 interface StatTileProps {
   label: string;
-  value: React.ReactNode;
+  /**
+   * `null` means the count behind this tile failed to load -- shown as
+   * "—", never as a real-looking "0". Pass `null` itself (not a
+   * pre-formatted "—" string) so this is enforced here once rather than
+   * left to every caller to remember its own version of the same ternary.
+   */
+  value: React.ReactNode | null;
   icon?: React.ComponentType<{ className?: string }>;
   className?: string;
 }
@@ -20,7 +26,7 @@ export function StatTile({ label, value, icon: Icon, className }: StatTileProps)
         {Icon && <Icon className="size-3.5" aria-hidden="true" />}
         <span>{label}</span>
       </div>
-      <p className="font-display text-2xl leading-tight tabular-nums">{value}</p>
+      <p className="font-display text-2xl leading-tight tabular-nums">{value ?? "—"}</p>
     </div>
   );
 }

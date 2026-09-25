@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
@@ -39,6 +41,12 @@ function initials(name: string) {
  * circular frame, with an optional jersey-number badge.
  */
 export function PlayerAvatar({ name, photoUrl, jerseyNumber, size = "md", className }: PlayerAvatarProps) {
+  // Tracks the specific URL that failed, not just a boolean -- a later
+  // render with a *different* photoUrl (a fresh signed URL after a re-fetch,
+  // say) should get a fresh attempt rather than staying stuck on initials.
+  const [failedUrl, setFailedUrl] = React.useState<string | null>(null);
+  const showPhoto = Boolean(photoUrl) && photoUrl !== failedUrl;
+
   const named = typeof size === "number" ? null : SIZES[size];
   const px = named?.px ?? (size as number);
   const boxClass = named?.box;
@@ -61,13 +69,14 @@ export function PlayerAvatar({ name, photoUrl, jerseyNumber, size = "md", classN
         )}
         style={textStyle}
       >
-        {photoUrl ? (
+        {showPhoto ? (
           <Image
-            src={photoUrl}
+            src={photoUrl!}
             alt={name}
             width={px}
             height={px}
             className="size-full object-cover"
+            onError={() => setFailedUrl(photoUrl!)}
           />
         ) : (
           <span className="font-semibold">{initials(name)}</span>
