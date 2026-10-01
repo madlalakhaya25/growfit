@@ -69,3 +69,14 @@ export function currentHourInTimezone(date: Date = new Date()): number {
   const hour = parts.find((p) => p.type === "hour")?.value;
   return hour ? parseInt(hour, 10) : date.getHours();
 }
+
+/**
+ * ISO instant for 00:00 on the first of the current month in the academy's
+ * timezone. South Africa has no daylight saving, so a fixed +02:00 offset is
+ * exact; a host-local `new Date(y, m, 1)` would be wrong on any non-SAST server
+ * (docs/BACKLOG.md 4.7).
+ */
+export function monthStartIso(now: Date = new Date()): string {
+  const ym = formatInTimezone(now, { year: "numeric", month: "2-digit" }, "en-CA"); // "2026-10"
+  return new Date(`${ym}-01T00:00:00+02:00`).toISOString();
+}

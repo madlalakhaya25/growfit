@@ -4,11 +4,21 @@ import { GoogleGenAI } from "@google/genai";
 import { AI_MODEL } from "@/lib/ai-models";
 import { requireStaff } from "@/lib/auth";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
+import { generateOrServeText } from "@/lib/ai-cached";
+import type { AiFeedback } from "@/lib/ai-artefacts";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
-export async function generateAcademyHealthReport(): Promise<{
+export async function generateAcademyHealthReport(
+  options: { force?: boolean } = {}
+): Promise<{
   report?: string;
+  artefactId?: string;
+  /** True when the stored report was returned and no model call was made. */
+  cached?: boolean;
+  persisted?: boolean;
+  generatedAt?: string;
+  feedback?: AiFeedback | null;
   error?: string;
 }> {
   try {
@@ -16,21 +26,9 @@ export async function generateAcademyHealthReport(): Promise<{
     // Staff only, and before the budget check. The report aggregates the whole
     // academy's players, so there is no per-player scoping to apply here.
     if (!staff) return { error: "This is available to coaches and admins only." };
-    // One AI call against this user's hourly budget. Counts attempts, not
-    // successes: a failed call still costs a request to the provider.
-    const overBudget = await checkAiBudget(user.id);
-    if (overBudget) return { error: overBudget };
-
-
-    // Fetch academy_id from profiles
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("academy_id")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile?.academy_id) return { error: "Academy not found." };
-    const academyId = profile.academy_id;
+    // The academy id comes from the staff profile requireStaff() already read.
+    if (!staff.academy_id) return { error: "Academy not found." };
+    const academyId = staff.academy_id;
 
     const currentYear = new Date().getFullYear().toString();
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -134,7 +132,8 @@ export async function generateAcademyHealthReport(): Promise<{
         name,
         avg: ratings.reduce((a, b) => a + b, 0) / ratings.length,
       }))
-      .sort((a, b) => b.avg - a.avg)
+      // Name breaks an average tie, so equal ratings can't reorder between runs.
+      .sort((a, b) => b.avg - a.avg || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
       .slice(0, 3);
 
     // Players with no recent rating in last 30 days
@@ -146,8 +145,11 @@ export async function generateAcademyHealthReport(): Promise<{
     ).length;
 
     // Build position summary string
+    // Sorted by position: object key order follows row arrival order, which
+    // would change the brief (and the cache key) with no change in the data.
     const positionSummary =
       Object.entries(positionCounts)
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
         .map(([pos, count]) => `${pos}: ${count}`)
         .join(", ") || "No data";
 
@@ -185,24 +187,44 @@ Output format (plain text, no markdown, no asterisks):
 5. DIRECTOR'S NOTE: (one forward-looking sentence on the academy's development trajectory)
 6. SAFA PATHWAY ALIGNMENT: (one sentence on how current performance aligns with SAFA's National Development Programme and pathway from grassroots to semi-professional football)`;
 
-    const response = await ai.models.generateContent({
-      model: AI_MODEL,
-      contents: prompt,
-      config: {
-        maxOutputTokens: 800,
-        // Disable thinking: this is a direct-answer task, and unbudgeted
-        // thinking tokens were silently eating the whole visible-output budget,
-        // truncating the answer before the reader ever saw it end.
-        thinkingConfig: { thinkingBudget: 0 },
-        systemInstruction:
-          "You are a SAFA-accredited academy director with FIFA Quality Programme and CAF Club Licensing expertise. Your monthly health reports benchmark against SAFA's National Development Programme standards, FIFA grassroots best practices, and South African youth football development criteria. Be specific, data-driven, and practical. Plain text only — no asterisks, no Markdown.",
+    const result = await generateOrServeText(supabase, {
+      kind: "academy_health",
+      subjectType: "academy",
+      subjectId: academyId,
+      academyId,
+      userId: user.id,
+      brief: prompt,
+      modelId: AI_MODEL,
+      force: options.force,
+      // After the free cache check (see ai-insights.ts).
+      beforeGenerate: () => checkAiBudget(user.id),
+      generate: async () => {
+        const response = await ai.models.generateContent({
+          model: AI_MODEL,
+          contents: prompt,
+          config: {
+            maxOutputTokens: 800,
+            // Disable thinking: this is a direct-answer task, and unbudgeted
+            // thinking tokens were silently eating the whole visible-output budget,
+            // truncating the answer before the reader ever saw it end.
+            thinkingConfig: { thinkingBudget: 0 },
+            systemInstruction:
+              "You are a SAFA-accredited academy director with FIFA Quality Programme and CAF Club Licensing expertise. Your monthly health reports benchmark against SAFA's National Development Programme standards, FIFA grassroots best practices, and South African youth football development criteria. Be specific, data-driven, and practical. Plain text only — no asterisks, no Markdown.",
+          },
+        });
+        if (!response.text) throw new Error("No response from Gemini");
+        return { text: response.text.replace(/\*/g, ""), response };
       },
     });
-
-    let text = response.text ?? "";
-    text = text.replace(/\*/g, "");
-
-    return { report: text };
+    if (result.error) return { error: result.error };
+    return {
+      report: result.text,
+      artefactId: result.artefactId,
+      cached: result.cached,
+      persisted: result.persisted,
+      generatedAt: result.generatedAt,
+      feedback: result.feedback,
+    };
   } catch (err) {
     return {
       error: aiError(err),

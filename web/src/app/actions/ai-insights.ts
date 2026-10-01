@@ -13,14 +13,25 @@ import {
   type AttrKey,
 } from "@/lib/attributes";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
+import { generateOrServeText } from "@/lib/ai-cached";
+import type { AiFeedback } from "@/lib/ai-artefacts";
 import { ltpdPhaseForAge } from "@/lib/ai-safeguards";
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY!,
 });
 
-export async function getPlayerInsights(playerId: string): Promise<{
+export async function getPlayerInsights(
+  playerId: string,
+  options: { force?: boolean } = {}
+): Promise<{
   insights?: string;
+  artefactId?: string;
+  /** True when the stored answer was returned and no model call was made. */
+  cached?: boolean;
+  persisted?: boolean;
+  generatedAt?: string;
+  feedback?: AiFeedback | null;
   error?: string;
 }> {
   try {
@@ -33,11 +44,7 @@ export async function getPlayerInsights(playerId: string): Promise<{
     if (!(await coachesPlayer(supabase, { userId: user.id, role: staff.role, playerId }))) {
       return { error: "You don't coach this player." };
     }
-    // One AI call against this user's hourly budget. Counts attempts, not
-    // successes: a failed call still costs a request to the provider.
-    const overBudget = await checkAiBudget(user.id);
-    if (overBudget) return { error: overBudget };
-
+    if (!staff.academy_id) return { error: "Academy not found." };
 
     const [
       playerResult,
@@ -55,7 +62,10 @@ export async function getPlayerInsights(playerId: string): Promise<{
         .from("player_ratings")
         .select("rating, note, created_at, fixtures(opponent, fixture_date)")
         .eq("player_id", playerId)
+        // `id` breaks a created_at tie so the brief -- and the cache key
+        // derived from it -- is the same every time for the same data.
         .order("created_at", { ascending: false })
+        .order("id", { ascending: true })
         .limit(10),
 
       supabase
@@ -70,6 +80,7 @@ export async function getPlayerInsights(playerId: string): Promise<{
         )
         .eq("player_id", playerId)
         .order("completed_at", { ascending: false })
+        .order("id", { ascending: true })
         .limit(20),
     ]);
 
@@ -179,29 +190,49 @@ Output using these exact plain text headers:
 4. PATHWAY READINESS: (One sentence on readiness for the next LTPD phase or development pathway step)
 5. MOTIVATIONAL NOTE: (One encouraging sentence for the coaching staff)`;
 
-    const response = await ai.models.generateContent({
-      model: AI_MODEL,
-      contents: prompt,
-      config: {
-        maxOutputTokens: 600,
-        // Disable thinking: this is a direct-answer task, and unbudgeted
-        // thinking tokens were silently eating the whole visible-output budget,
-        // truncating the answer before the reader ever saw it end.
-        thinkingConfig: { thinkingBudget: 0 },
-        systemInstruction: "You are a SAFA Level 4 and FIFA-certified technical director providing data-driven player evaluations. Your assessments apply the Long-Term Player Development (LTPD) framework, SAFA's position-specific competency standards, the 4-Corner development model (Technical, Tactical, Physical, Social/Psychological), and the South African football pathway from grassroots to PSL level. Plain text only — no asterisks, no Markdown.",
-      }
+    const result = await generateOrServeText(supabase, {
+      kind: "player_insights",
+      subjectType: "player",
+      subjectId: playerId,
+      academyId: staff.academy_id,
+      userId: user.id,
+      // The prompt IS the brief: what the model is shown is exactly what is
+      // fingerprinted, so a changed rating, attribute or milestone changes the
+      // key and nothing else does.
+      brief: prompt,
+      modelId: AI_MODEL,
+      force: options.force,
+      // After the free cache check: a hit makes no model call so it costs no
+      // budget, while an attempt that does call the model counts whether or not
+      // it succeeds.
+      beforeGenerate: () => checkAiBudget(user.id),
+      generate: async () => {
+        const response = await ai.models.generateContent({
+          model: AI_MODEL,
+          contents: prompt,
+          config: {
+            maxOutputTokens: 600,
+            // Disable thinking: this is a direct-answer task, and unbudgeted
+            // thinking tokens were silently eating the whole visible-output budget,
+            // truncating the answer before the reader ever saw it end.
+            thinkingConfig: { thinkingBudget: 0 },
+            systemInstruction: "You are a SAFA Level 4 and FIFA-certified technical director providing data-driven player evaluations. Your assessments apply the Long-Term Player Development (LTPD) framework, SAFA's position-specific competency standards, the 4-Corner development model (Technical, Tactical, Physical, Social/Psychological), and the South African football pathway from grassroots to PSL level. Plain text only — no asterisks, no Markdown.",
+          },
+        });
+        if (!response.text) throw new Error("No response from Gemini");
+        // Failsafe: strip out any asterisks the AI accidentally includes.
+        return { text: response.text.replace(/\*/g, ""), response };
+      },
     });
-
-    let text = response.text;
-
-    if (!text) {
-      throw new Error("No response from Gemini");
-    }
-
-    // Failsafe: Strip out any asterisks the AI accidentally includes
-    text = text.replace(/\*/g, ""); 
-
-    return { insights: text };
+    if (result.error) return { error: result.error };
+    return {
+      insights: result.text,
+      artefactId: result.artefactId,
+      cached: result.cached,
+      persisted: result.persisted,
+      generatedAt: result.generatedAt,
+      feedback: result.feedback,
+    };
   } catch (err) {
     return {
       error: aiError(err),

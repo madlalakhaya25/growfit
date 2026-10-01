@@ -1,25 +1,19 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import { Sparkles } from "lucide-react";
-import { toast } from "sonner";
 import { getPlayerInsights } from "@/app/actions/ai-insights";
 import { AiPanel } from "@/components/ai/ai-panel";
+import { StoredAiNotices } from "@/components/ai/stored-ai-notices";
+import { useStoredAi, type InitialAiResult } from "@/components/ai/use-stored-ai";
 
-export function AiInsightsPanel({ playerId }: { playerId: string }) {
-  const [insights, setInsights] = useState<string | null>(null);
-  const [generatedAt, setGeneratedAt] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  function handleGenerate() {
-    setError(null);
-    startTransition(async () => {
-      const result = await getPlayerInsights(playerId);
-      if (result.error) { setError(result.error); toast.error(result.error); }
-      else { setInsights(result.insights ?? null); setGeneratedAt(new Date().toISOString()); }
-    });
-  }
+export function AiInsightsPanel({
+  playerId,
+  initial,
+}: {
+  playerId: string;
+  initial?: InitialAiResult | null;
+}) {
+  const ai = useStoredAi((force) => getPlayerInsights(playerId, { force }), (r) => r.insights, initial);
 
   return (
     <AiPanel
@@ -28,11 +22,15 @@ export function AiInsightsPanel({ playerId }: { playerId: string }) {
       idleMessage="Get coaching recommendations from this player's ratings, attributes and milestones."
       pendingMessage="Analysing player data…"
       generateLabel="Generate insights"
-      content={insights}
-      generatedAt={generatedAt}
-      pending={isPending}
-      error={error}
-      onGenerate={handleGenerate}
+      content={ai.text}
+      generatedAt={ai.generatedAt}
+      pending={ai.pending}
+      error={ai.error}
+      onGenerate={() => ai.generate(false)}
+      feedback={ai.artefactId ? { value: ai.feedback, onChange: ai.rate } : undefined}
+      footer={
+        <StoredAiNotices unchanged={ai.unchanged} unsaved={ai.unsaved} pending={ai.pending} onRegenerate={() => ai.generate(true)} />
+      }
     />
   );
 }

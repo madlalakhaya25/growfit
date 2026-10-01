@@ -1,63 +1,30 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import { Activity } from "lucide-react";
-import { toast } from "sonner";
 import { generateAcademyHealthReport } from "@/app/actions/academy-health";
-import { AiProse } from "@/components/ai/ai-prose";
+import { AiPanel } from "@/components/ai/ai-panel";
+import { StoredAiNotices } from "@/components/ai/stored-ai-notices";
+import { useStoredAi, type InitialAiResult } from "@/components/ai/use-stored-ai";
 
-export function AcademyHealthPanel() {
-  const [report, setReport] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  function handleGenerate() {
-    setError(null);
-    startTransition(async () => {
-      const result = await generateAcademyHealthReport();
-      if (result.error) { setError(result.error); toast.error(result.error); }
-      else setReport(result.report ?? null);
-    });
-  }
+export function AcademyHealthPanel({ initial }: { initial?: InitialAiResult | null }) {
+  const ai = useStoredAi((force) => generateAcademyHealthReport({ force }), (r) => r.report, initial);
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
-      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border">
-        <div className="flex items-center gap-2">
-          <Activity className="size-4 text-primary shrink-0" aria-hidden="true" />
-          <p className="font-semibold text-sm">Academy Health Report</p>
-        </div>
-        <button
-          type="button"
-          onClick={handleGenerate}
-          disabled={isPending}
-          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-        >
-          <Activity className="size-3" aria-hidden="true" />
-          {isPending ? "Generating…" : report ? "Refresh Report" : "Generate Report"}
-        </button>
-      </div>
-
-      {!report && !error && !isPending && (
-        <p className="px-4 py-3 text-sm text-muted-foreground">
-          Generate a monthly AI analysis of your academy — player development, compliance, training load, and strategic priorities.
-        </p>
-      )}
-
-      {isPending && (
-        <div className="px-4 py-6 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-          <span className="animate-spin inline-block size-4 border-2 border-primary border-t-transparent rounded-full" />
-          Analysing academy data…
-        </div>
-      )}
-
-      {error && (
-        <p className="px-4 py-3 text-sm text-destructive">{error}</p>
-      )}
-
-      {report && (
-        <AiProse text={report} className="px-4 py-4" />
-      )}
-    </div>
+    <AiPanel
+      icon={Activity}
+      title="Academy Health Report"
+      idleMessage="Get a monthly analysis of your academy — player development, compliance, training load and priorities."
+      pendingMessage="Analysing academy data…"
+      generateLabel="Generate report"
+      content={ai.text}
+      generatedAt={ai.generatedAt}
+      pending={ai.pending}
+      error={ai.error}
+      onGenerate={() => ai.generate(false)}
+      feedback={ai.artefactId ? { value: ai.feedback, onChange: ai.rate } : undefined}
+      footer={
+        <StoredAiNotices unchanged={ai.unchanged} unsaved={ai.unsaved} pending={ai.pending} onRegenerate={() => ai.generate(true)} />
+      }
+    />
   );
 }

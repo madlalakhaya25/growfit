@@ -27,39 +27,11 @@ jest.mock("@/lib/ai-guard", () => ({
   checkAiBudget: (...a: unknown[]) => mockBudget(...a),
 }));
 
+import { fakeSupabase, type FakeOp, type FakeReply } from "@/test-utils/fake-supabase";
 import { approveDevelopmentPlan, generateDevelopmentPlan, setDevelopmentPlanFeedback } from "../development-plan";
 
-type Op = { table: string; action: "select" | "insert" | "update" | "delete"; payload?: Record<string, unknown>; one: boolean };
-type Reply = { data?: unknown; error?: { code?: string; message?: string } | null };
-
-/** A chainable, thenable stand-in for the Supabase query builder. */
-function fakeSupabase(handler: (op: Op) => Reply) {
-  const calls: Op[] = [];
-  return {
-    calls,
-    client: {
-      from(table: string) {
-        const op: Op = { table, action: "select", one: false };
-        const chain: Record<string, unknown> = new Proxy({}, {
-          get(_t, prop: string) {
-            if (prop === "then") {
-              return (resolve: (v: unknown) => void) => {
-                calls.push({ ...op });
-                const r = handler(op);
-                resolve({ data: r.data ?? null, error: r.error ?? null });
-              };
-            }
-            if (prop === "insert" || prop === "update") return (p: Record<string, unknown>) => { op.action = prop; op.payload = p; return chain; };
-            if (prop === "delete") return () => { op.action = "delete"; return chain; };
-            if (prop === "single" || prop === "maybeSingle") return () => { op.one = true; return chain; };
-            return () => chain; // select, eq, in, is, gte, order, limit, or, ...
-          },
-        });
-        return chain;
-      },
-    },
-  };
-}
+type Op = FakeOp;
+type Reply = FakeReply;
 
 const PLAYER_ID = "p1";
 const OPEN_TEMPLATE = { id: "t-open", title: "Strike a 15m pass", description: null, category: "technical", position: null, age_group: null, sort_order: 1 };

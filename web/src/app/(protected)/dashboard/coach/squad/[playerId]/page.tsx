@@ -213,7 +213,7 @@ export default async function PlayerDetailPage({
   const quickAssessKeys = getQuickAssessKeys(player?.position);
   const squadMedians = computeSquadMedians(squadAttrPlayers, quickAssessKeys);
 
-  const [{ data: medical }, developmentSnapshot, savedPlan, { data: clips }, { data: recentFixtures }, { data: docs }] = await Promise.all([
+  const [{ data: medical }, developmentSnapshot, savedPlan, savedInsights, { data: clips }, { data: recentFixtures }, { data: docs }] = await Promise.all([
     supabase
       .from("player_medical")
       .select("*")
@@ -231,6 +231,11 @@ export default async function PlayerDetailPage({
     // "no plan yet" if migration 045 hasn't been applied (available: false).
     getLatestAiArtefact<DevelopmentPlanStructured>(supabase, {
       kind: "development_plan",
+      subjectType: "player",
+      subjectId: playerId,
+    }),
+    getLatestAiArtefact<{ text?: string }>(supabase, {
+      kind: "player_insights",
       subjectType: "player",
       subjectId: playerId,
     }),
@@ -532,7 +537,19 @@ export default async function PlayerDetailPage({
                               />
                             </section>
                             <section className="max-w-2xl space-y-3">
-                              <AiInsightsPanel playerId={player.id} />
+                              <AiInsightsPanel
+                                playerId={player.id}
+                                initial={
+                                  savedInsights.artefact
+                                    ? {
+                                        artefactId: savedInsights.artefact.id,
+                                        text: savedInsights.artefact.prose ?? savedInsights.artefact.data?.text ?? "",
+                                        generatedAt: savedInsights.artefact.createdAt,
+                                        feedback: savedInsights.artefact.feedback,
+                                      }
+                                    : null
+                                }
+                              />
                             </section>
                           </>
                         ),
