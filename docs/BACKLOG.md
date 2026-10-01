@@ -22,7 +22,7 @@ commit.
 
 | # | Item | What it needs | Source |
 |---|---|---|---|
-| 0.1 | **Apply migrations 030–037** | Someone with Supabase SQL-editor or CLI access | IP Step 0 — **verified, see `MIGRATION_RUNBOOK.md`** |
+| 0.1 | **Apply migrations 030–045** (`045` added 2026-10-01; 038–044 shipped since this row was written) | Someone with Supabase SQL-editor or CLI access | IP Step 0 — **verified, see `MIGRATION_RUNBOOK.md`** |
 | 0.2 | Error reporting (Sentry or equivalent) | An account and a DSN | IP-6 — **seam built, see below** |
 | 0.3 | Seed a test Supabase project + Playwright auth states | A real test project and credentials | RM — **`supabase/seed.sql` written and verified, see below** |
 | 0.4 | Move rate limiting off in-memory | A shared store (Upstash Redis) and credentials | RM — **seam built, see below** |
@@ -831,6 +831,8 @@ now `046` and its welfare/load migration `047` (see 5.0 and 5.4).
 `development_plan`; a parent only their linked child's; deleting a player leaves
 zero artefacts; and whether a parent's `profiles.academy_id` is actually
 populated in real data.
+
+**Next, in order:** (1) unblock 1.7 with a human reading real output; (2) apply `030`–`045` to the live project and run the 045 live checks; (3) write the Phase 2 spec (the agent) before building it -- see `AI_AND_UX_PLAN_2026.md`, "What is next"; (4) Phase 5 below is independent and approved.
 
 **Outstanding, needs a Gemini key:** whether the model honours each
 `responseSchema`; whether 1400 output tokens suffices for a full plan (truncation

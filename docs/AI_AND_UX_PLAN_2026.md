@@ -282,7 +282,7 @@ attendance, weaknesses. `DevelopmentPlanPanel` is already mounted on
 action is wired into a player's browser today. This is a POPIA and
 safeguarding exposure.
 
-### Step 0.1 — Gate the three actions
+### Step 0.1 — Gate the three actions — **Done**
 
 **Files**
 
@@ -353,8 +353,8 @@ here.**
 
 | Phase | What | Why here |
 |---|---|---|
-| **0** | The authorization fix | Live safeguarding defect. Ships alone, first |
-| **1** | Development Engine: `ai_artefacts`, the Develop rebuild, persistent plans with memory, parents included | Everything later needs persistence, provenance and a coach-approval gate. Build it once |
+| **0** | The authorization fix | Live safeguarding defect. Ships alone, first. **Done** |
+| **1** | Development Engine: `ai_artefacts`, the Develop rebuild, persistent plans with memory, parents included | Everything later needs persistence, provenance and a coach-approval gate. Build it once. **Done except 1.7 (held)** |
 | **2** | The Growfit Agent: tools, streaming, context caching, opponent scouting, drill search | Replaces scattered panels rather than adding to them; the tool registry is what P3–P5 call |
 | **3** | Board → session, board from a sentence, my job in this play, constraint-aware sessions with diagrams, session loop, voice capture, home challenge, age-appropriate rewrite | The training/tactics loop closes. All reuse P2's tools |
 | **4** | Reactive opponent, set pieces, narrated walkthrough, term periodisation, readiness, match story, performance curves, family layer, compliance chase, self-assessment, coach CPD | The depth that makes the winning sections win |
@@ -370,7 +370,7 @@ home for free.
 
 ## Part 6 — Phase 1 implementation spec
 
-### Step 1.1 — Migration 045 and the artefact store
+### Step 1.1 — Migration 045 and the artefact store — **Done**
 
 **Migration numbering.** `044_fixture_delete.sql` is the current highest, so the
 new file is `045_ai_artefacts.sql`. Note `BACKLOG.md` 5.0 and 5.4 still reserve
@@ -563,6 +563,12 @@ condition 3 fails. A model change fails 4. Time fails 5. An explicit Regenerate
 fails 6 and additionally stamps `superseded_at = now()` on the previous live
 row so history stays linear.
 
+> **CORRECTION (2026-10-01): the key is over the world-state brief only, not
+> the full brief.** The paragraph below assumed fingerprinting the whole brief;
+> since the brief includes the previous plan, that key changes every time a plan
+> is generated and the cache can never hit. Implemented as `worldBrief` in
+> `lib/development-brief.ts`.
+>
 > **The load-bearing consequence: `buildDevelopmentBrief` must be
 > deterministic.** Any unstable ordering — an unsorted `.select()` result, a
 > `Map` iteration, a timestamp in the text — makes the fingerprint thrash, the
@@ -711,7 +717,7 @@ live Gemini call, so the UI loses persistence, not function.
 - Erasing a player removes their artefacts (code path reviewed; the live check
   is in Part 9).
 
-### Step 1.2 — One category module and five tokens
+### Step 1.2 — One category module and five tokens — **Done**
 
 The five category maps are duplicated in **four** places, and they disagree:
 
@@ -807,7 +813,7 @@ background *and* border to `currentColor` while the tick is also
 stability, `summariseByCategory` at zero/partial/full, and the unknown-key
 fallback; both themes visually checked on `admin/ui`.
 
-### Step 1.3 — Shared AI panel primitive
+### Step 1.3 — Shared AI panel primitive — **Done**
 
 `development-plan-panel.tsx` and `ai-insights-panel.tsx` are identical apart
 from the action name and the copy — confirmed by diff. Both collapse into thin
@@ -839,7 +845,7 @@ unreviewable. They follow as a separate behaviour-preserving pass.
 **Acceptance**: render tests for idle / pending / error / content / read-only;
 every existing `StatBar` call site renders unchanged.
 
-### Step 1.4 — Rebuild the Develop surfaces
+### Step 1.4 — Rebuild the Develop surfaces — **Done**
 
 **Files**: `web/src/lib/development-data.ts` (new),
 `web/src/components/development/development-overview.tsx` (new),
@@ -901,7 +907,7 @@ Primitives per screen — reuse, do not invent:
 `web/src/components/development/` or the four duplicate sites; a failed query
 renders an error with a retry, never an empty state; both themes checked.
 
-### Step 1.5 — Season timeline (no migration needed)
+### Step 1.5 — Season timeline (no migration needed) — **Done**
 
 `player_milestone_completions` (migration `012`) has stored
 `completed_at timestamptz DEFAULT now()`, `completed_by` and `season` since the
@@ -919,7 +925,7 @@ Pre-existing; fix it as its own item and **don't copy the pattern**.
 `milestone-timeline.tsx` (new), `season-progress.tsx` (new), and a pure
 grouping/sorting unit test.
 
-### Step 1.6 — Development plans that remember
+### Step 1.6 — Development plans that remember — **Done** (cache key deviates from this spec — see the status note at the top)
 
 **Files**: `web/src/lib/development-brief.ts` (new, pure),
 `web/src/lib/development-plan-view.ts` (new, pure),
@@ -1029,7 +1035,7 @@ contains **no** `coachNote` and **no** `previous`; determinism test building the
 same brief twice from shuffled arrays and asserting one fingerprint; both
 `generateDevelopmentPlan` call sites updated.
 
-### Step 1.7 — Player and parent read-only views
+### Step 1.7 — Player and parent read-only views — **HELD** — needs a human to read real model output first; see the gate below
 
 **Files**: `player/development/page.tsx`,
 `web/src/components/development/development-plan-readonly.tsx` (new),
@@ -1047,7 +1053,7 @@ Both views take `PlayerSafeDevelopmentPlan`, never the full structure.
 > non-negative under adversarial input. Ship 1.6's coach-only approval flow
 > first.
 
-### Step 1.8 — Adopt the store at two more call sites
+### Step 1.8 — Adopt the store at two more call sites — **Done**
 
 **Files**: `ai-insights.ts` (persist + cache as `player_insights`),
 `academy-health.ts` (persist + cache as `academy_health`,
@@ -1055,7 +1061,7 @@ Both views take `PlayerSafeDevelopmentPlan`, never the full structure.
 calls this month, tokens, helpful/not-helpful — `StatTile` ×3, `null` where a
 count failed), `academy-health-panel.tsx` (provenance + feedback).
 
-### Step 1.9 — Cleanup and docs
+### Step 1.9 — Cleanup and docs — **Done**
 
 Remove `@anthropic-ai/sdk` from `web/package.json` (zero imports, verified) and
 `@google/generative-ai` from the root `package.json` (superseded by
@@ -1068,6 +1074,24 @@ site outside the convention `web/CLAUDE.md` mandates. Update `BACKLOG.md`,
 > (`coach/training/[id]/page.tsx:21-23`) are `technical | tactical | fitness` —
 > three values, and `fitness ≠ physical`. **Do not merge them** into the
 > development module; they are unrelated enums that happen to share two words.
+
+---
+
+## What is next (added 2026-10-01)
+
+1. **Step 1.7** — unblock by having a person read real model output (a Gemini
+   key and a fixture child with falling ratings and ~40% attendance), check that
+   `playerNote`, the focus areas' `why` and the actions stay non-negative, then
+   build the read-only player and parent views. Nothing else needs to change.
+2. **Apply migrations `030`–`045`** to the live Supabase project, then do the
+   live checks listed in `MIGRATION_RUNBOOK.md` under 045.
+3. **Phase 2 needs a spec before it is built.** Parts 1–3 are still a proposal
+   awaiting a product decision (the three `DECIDE` items, the consent gate), and
+   Phases 2–5 have no implementation spec. Write Phase 2's (the agent: tool
+   registry, streaming, context caching) in the same shape as Part 6.
+4. **Phase 5 of `BACKLOG.md`** (fair game-time, voice log, parent recap, load
+   watch) is approved and independent of this plan; its migrations are now
+   `046` / `047`.
 
 ---
 
