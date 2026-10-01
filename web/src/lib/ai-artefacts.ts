@@ -43,9 +43,11 @@ export type AiArtefactKind =
   // Migration 048 widens ai_artefacts_kind_check for this one.
   | "scouting_report"
   // Migration 049 widens it again, and adds the 'play' subject type.
-  | "play_roles";
+  | "play_roles"
+  // Migration 050: widens it again, and adds the 'text' subject type.
+  | "age_rewrite";
 
-export type AiSubjectType = "player" | "fixture" | "team" | "academy" | "play";
+export type AiSubjectType = "player" | "fixture" | "team" | "academy" | "play" | "text";
 export type AiArtefactStatus = "draft" | "approved";
 export type AiFeedback = "helpful" | "not_helpful";
 
@@ -130,6 +132,7 @@ export const AI_ARTEFACT_TTL: Record<AiArtefactKind, number> = {
   match_report: 7 * DAY,
   scouting_report: 24 * HOUR, // a week out it is stale; a day out it is not
   play_roles: 28 * DAY, // changes only when the play does, which the fingerprint sees
+  age_rewrite: 28 * DAY, // a pure function of the text and the age, so only the model can age it
 };
 
 /** Pure: the documented cache rule (conditions 2-5; 1 is the query, 6 the caller). */

@@ -1,4 +1,4 @@
-# Migration Runbook — 030 → 049
+# Migration Runbook — 030 → 050
 
 *Written 2026-09-21. Backlog item 0.1. Extended the same day to cover 038-039
 (Phase 1, backlog items 1.2/1.5), again on 2026-09-22 to cover 040 (more of
@@ -292,6 +292,22 @@ card.
 SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint
  WHERE conname IN ('ai_artefacts_kind_check','ai_artefacts_subject_type_check');
 SELECT policyname FROM pg_policies WHERE tablename = 'ai_artefacts';
+```
+
+### 050 — ai_artefacts_age_rewrite
+
+Phase 3 step 3.8. Widens both fixed CHECK lists again: `ai_artefacts_kind_check`
+gains `'age_rewrite'` and `ai_artefacts_subject_type_check` gains `'text'`. Both
+lists in 050 are the full lists including 048's and 049's additions, so 050 is
+correct whichever of those have run. No policy is added: these rows are
+staff-only and `ai_artefacts_staff_all` already covers them.
+
+Until it runs the rewrite still works but is returned as not saved, so
+rewriting the same note twice calls the model twice.
+
+```sql
+SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint
+ WHERE conname IN ('ai_artefacts_kind_check','ai_artefacts_subject_type_check');
 ```
 
 ### Idempotency

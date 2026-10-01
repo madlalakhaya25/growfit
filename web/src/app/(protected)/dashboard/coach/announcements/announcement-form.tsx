@@ -1,15 +1,19 @@
 "use client";
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { createAnnouncement } from "@/app/actions/announcements";
 import { Button } from "@/components/ui/button";
+import { SimplifyForAge } from "@/components/ai/simplify-for-age";
 
 interface Team {
   id: string;
   name: string;
+  age_group?: string | null;
 }
 
 export function AnnouncementForm({ teams }: { teams: Team[] }) {
   const formRef = useRef<HTMLFormElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const [teamId, setTeamId] = useState(teams[0].id);
 
   const [state, formAction, pending] = useActionState(
     async (_prev: { error?: string; success?: boolean } | null, formData: FormData) =>
@@ -31,6 +35,8 @@ export function AnnouncementForm({ teams }: { teams: Team[] }) {
             id="team_id"
             name="team_id"
             required
+            value={teamId}
+            onChange={(e) => setTeamId(e.target.value)}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {teams.map((t) => (
@@ -58,6 +64,7 @@ export function AnnouncementForm({ teams }: { teams: Team[] }) {
       <div className="space-y-1.5">
         <label htmlFor="ann-body" className="text-sm font-medium">Message *</label>
         <textarea
+          ref={bodyRef}
           id="ann-body"
           name="body"
           required
@@ -67,6 +74,12 @@ export function AnnouncementForm({ teams }: { teams: Team[] }) {
           className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
         />
       </div>
+
+      <SimplifyForAge
+        ageGroup={teams.find((t) => t.id === teamId)?.age_group ?? null}
+        getText={() => bodyRef.current?.value ?? ""}
+        onUse={(text) => { if (bodyRef.current) bodyRef.current.value = text; }}
+      />
 
       {state?.error && (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
