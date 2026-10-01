@@ -116,6 +116,7 @@ export function NewSessionForm({
         focusArea,
         durationMinutes: duration,
         squadSize,
+        teamId: selectedTeamId,
         ...(space ? { space } : {}),
         ...(kit ? { kit } : {}),
       });

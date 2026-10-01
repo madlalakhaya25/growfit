@@ -18,10 +18,11 @@ interface Props {
   suggestedSquadSize?: number | null;
 }
 
-export function SessionGeneratorPanel({ sessionId, teamId: _teamId, suggestedSquadSize = null }: Props) {
+export function SessionGeneratorPanel({ sessionId, teamId, suggestedSquadSize = null }: Props) {
   const router = useRouter();
   const [plan, setPlan] = useState<string | null>(null);
   const [structured, setStructured] = useState<SessionPlanStructured | null>(null);
+  const [builtOn, setBuiltOn] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [applying, setApplying] = useState(false);
@@ -45,11 +46,12 @@ export function SessionGeneratorPanel({ sessionId, teamId: _teamId, suggestedSqu
         durationMinutes,
         squadSize,
         sessionId,
+        teamId,
         ...(space ? { space } : {}),
         ...(kit ? { kit } : {}),
       });
       if (result.error) { setError(result.error); toast.error(result.error); }
-      else { setPlan(result.plan ?? null); setStructured(result.structured ?? null); }
+      else { setPlan(result.plan ?? null); setStructured(result.structured ?? null); setBuiltOn(result.builtOn ?? 0); }
     });
   }
 
@@ -203,6 +205,11 @@ export function SessionGeneratorPanel({ sessionId, teamId: _teamId, suggestedSqu
       {/* Results state */}
       {plan && (
         <div className="px-4 py-4 space-y-4">
+          {builtOn > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Builds on your last {builtOn === 1 ? "session" : `${builtOn} sessions`} with this team.
+            </p>
+          )}
           {parseDrills(plan).map((drill, i) => {
             const lines = drill.trim().split("\n");
             const header = lines[0];
