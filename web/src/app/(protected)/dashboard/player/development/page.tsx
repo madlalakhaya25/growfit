@@ -3,6 +3,7 @@ import { ArrowLeft, Target } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DevelopmentOverview } from "@/components/development/development-overview";
+import { MilestoneTimeline } from "@/components/development/milestone-timeline";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { loadDevelopmentSnapshot } from "@/lib/development-data";
@@ -56,6 +57,11 @@ export default async function PlayerDevelopmentPage() {
       />
 
       <DevelopmentOverview snapshot={snapshot} audience="player" />
+
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold">My journey</h2>
+        <MilestoneTimeline snapshot={snapshot} audience="player" />
+      </section>
 
       {/* The AI plan generator used to be mounted here, callable by the player.
           It's a coach-grade critique, so it is coach-only now (Phase 0 of

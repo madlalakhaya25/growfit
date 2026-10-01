@@ -25,6 +25,7 @@ import { RatingChart } from "@/components/rating-chart";
 import { AiInsightsPanel } from "@/components/development/ai-insights-panel";
 import { DevelopmentPlanPanel } from "@/components/development/development-plan-panel";
 import { DevelopmentOverview } from "@/components/development/development-overview";
+import { MilestoneTimeline } from "@/components/development/milestone-timeline";
 import { loadDevelopmentSnapshot } from "@/lib/development-data";
 import { currentSeason as seasonKey } from "@/lib/development-categories";
 import { ClipsSection } from "./clips-section";
@@ -512,6 +513,11 @@ export default async function PlayerDetailPage({
                             </section>
                           </>
                         ),
+                      },
+                      {
+                        id: "history",
+                        label: "History",
+                        content: <MilestoneTimeline snapshot={developmentSnapshot} audience="coach" />,
                       },
                     ]}
                   />
