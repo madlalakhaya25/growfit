@@ -3,29 +3,33 @@ import { useState, useTransition } from "react";
 import { Plus, Pencil, Trash2, X, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { saveMilestoneTemplate, deleteMilestoneTemplate } from "@/app/actions/development";
-import type { MilestoneCategory, MilestoneTemplateData } from "@/app/actions/development";
+import type { MilestoneTemplateData } from "@/app/actions/development";
+import {
+  MILESTONE_CATEGORIES,
+  MILESTONE_CATEGORY_META,
+  type MilestoneCategory,
+} from "@/lib/development-categories";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { POSITIONS, AGE_GROUPS } from "@/lib/types";
 import type { Position } from "@/lib/types";
 
-const CATEGORIES: MilestoneCategory[] = ["technical", "tactical", "physical", "mental", "leadership"];
+const CATEGORIES = MILESTONE_CATEGORIES;
+const CATEGORY_LABELS: Record<MilestoneCategory, string> = Object.fromEntries(
+  MILESTONE_CATEGORIES.map((k) => [k, MILESTONE_CATEGORY_META[k].label])
+) as Record<MilestoneCategory, string>;
 
-const CATEGORY_LABELS: Record<MilestoneCategory, string> = {
-  technical: "Technical",
-  tactical: "Tactical",
-  physical: "Physical",
-  mental: "Mental",
-  leadership: "Leadership",
-};
-
-const CATEGORY_STYLES: Record<MilestoneCategory, string> = {
-  technical: "bg-blue-500/15 text-blue-700 border-transparent",
-  tactical: "bg-violet-500/15 text-violet-700 border-transparent",
-  physical: "bg-orange-500/15 text-orange-700 border-transparent",
-  mental: "bg-teal-500/15 text-teal-700 border-transparent",
-  leadership: "bg-amber-500/15 text-amber-700 border-transparent",
-};
+/** The category chip: tinted token colours plus an icon, so identity is never colour alone. */
+function CategoryChip({ category, children }: { category: MilestoneCategory; children?: React.ReactNode }) {
+  const meta = MILESTONE_CATEGORY_META[category];
+  return (
+    <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.chip}`}>
+      <meta.Icon className="size-3" aria-hidden="true" />
+      {children ?? meta.label}
+    </span>
+  );
+}
 
 function inputCls() {
   return "flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -124,9 +128,7 @@ function MilestoneRow({ template, academyId }: { template: TemplateRow; academyI
       <div className="flex-1 min-w-0 space-y-1">
         <div className="flex items-start justify-between gap-2">
           <p className="font-medium text-sm">{template.title}</p>
-          <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium shrink-0 ${CATEGORY_STYLES[template.category]}`}>
-            {CATEGORY_LABELS[template.category]}
-          </span>
+          <CategoryChip category={template.category} />
         </div>
         {template.description && <p className="text-xs text-muted-foreground">{template.description}</p>}
         <div className="flex gap-2 text-xs text-muted-foreground">
@@ -265,9 +267,7 @@ export function MilestoneManager({
               <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                 {CATEGORY_LABELS[cat]}
               </h2>
-              <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${CATEGORY_STYLES[cat]}`}>
-                {items.length}
-              </span>
+              <CategoryChip category={cat}>{items.length}</CategoryChip>
             </div>
             <div className="space-y-2">
               {items.map((t) => (
@@ -279,7 +279,7 @@ export function MilestoneManager({
       })}
 
       {templates.length === 0 && (
-        <p className="text-sm text-muted-foreground">No milestones yet. Add one above to get started.</p>
+        <EmptyState message="No milestones yet. Add one above to get started." />
       )}
     </div>
   );

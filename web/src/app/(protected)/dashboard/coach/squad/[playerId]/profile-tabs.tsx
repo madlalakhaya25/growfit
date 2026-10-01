@@ -30,14 +30,24 @@ export interface ProfileTab {
   content: React.ReactNode;
 }
 
-export function ProfileTabs({ tabs }: { tabs: ProfileTab[] }) {
+export function ProfileTabs({
+  tabs,
+  ariaLabel = "Player sections",
+  idPrefix = "",
+}: {
+  tabs: ProfileTab[];
+  /** Name of the tab list, for assistive tech. */
+  ariaLabel?: string;
+  /** Namespaces the tab/panel ids so a second, nested set can't collide with the outer one. */
+  idPrefix?: string;
+}) {
   const [active, setActive] = useState(tabs[0]?.id ?? "");
 
   return (
     <div className="space-y-4">
       <div
         role="tablist"
-        aria-label="Player sections"
+        aria-label={ariaLabel}
         className="flex gap-1 overflow-x-auto border-b border-border"
       >
         {tabs.map((tab) => {
@@ -47,9 +57,9 @@ export function ProfileTabs({ tabs }: { tabs: ProfileTab[] }) {
               key={tab.id}
               type="button"
               role="tab"
-              id={`tab-${tab.id}`}
+              id={`${idPrefix}tab-${tab.id}`}
               aria-selected={isActive}
-              aria-controls={`panel-${tab.id}`}
+              aria-controls={`${idPrefix}panel-${tab.id}`}
               onClick={() => setActive(tab.id)}
               className={cn(
                 "-mb-px shrink-0 border-b-2 px-3 py-2 text-sm font-medium transition-colors",
@@ -71,8 +81,8 @@ export function ProfileTabs({ tabs }: { tabs: ProfileTab[] }) {
         <div
           key={tab.id}
           role="tabpanel"
-          id={`panel-${tab.id}`}
-          aria-labelledby={`tab-${tab.id}`}
+          id={`${idPrefix}panel-${tab.id}`}
+          aria-labelledby={`${idPrefix}tab-${tab.id}`}
           hidden={tab.id !== active}
           className={cn("space-y-6", tab.id !== active && "hidden")}
         >

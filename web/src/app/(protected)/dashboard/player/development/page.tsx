@@ -2,9 +2,10 @@ import Link from "next/link";
 import { ArrowLeft, Target } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { DevelopmentOverview } from "@/components/development/development-overview";
 import { EmptyState } from "@/components/ui/empty-state";
-import { MilestoneProgress } from "@/components/development/milestone-progress";
-import type { MilestoneCategory } from "@/app/actions/development";
+import { PageHeader } from "@/components/ui/page-header";
+import { loadDevelopmentSnapshot } from "@/lib/development-data";
 
 /**
  * Milestones and the development plan, split out of the passport page.
@@ -25,16 +26,11 @@ export default async function PlayerDevelopmentPage() {
   if (!player) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold">My Development</h1>
-        <p className="text-sm text-muted-foreground">
-          Your profile isn&apos;t linked yet. Once your coach adds you, your milestones
-          appear here.
-        </p>
+        <PageHeader title="My Development" />
+        <EmptyState message="Your profile isn't linked yet. Once your coach adds you, your milestones appear here." />
       </div>
     );
   }
-
-  const currentSeason = new Date().getFullYear().toString();
 
   const { data: playerProfile } = await supabase
     .from("profiles")
@@ -42,56 +38,24 @@ export default async function PlayerDevelopmentPage() {
     .eq("id", user.id)
     .single();
 
-  const [{ data: milestoneTemplates }, { data: myCompletions }] = await Promise.all([
-    playerProfile?.academy_id
-      ? supabase
-          .from("development_milestone_templates")
-          .select("id, title, description, category, position, age_group, sort_order")
-          .eq("academy_id", playerProfile.academy_id)
-          .or(`position.is.null,position.eq.${player.position ?? ""}`)
-          .order("sort_order", { ascending: true })
-      : Promise.resolve({ data: [] }),
-    supabase
-      .from("player_milestone_completions")
-      .select("template_id, note")
-      .eq("player_id", player.id)
-      .eq("season", currentSeason),
-  ]);
-
-  type Template = {
-    id: string; title: string; description: string | null;
-    category: MilestoneCategory; position: string | null;
-    age_group: string | null; sort_order: number;
-  };
-  const templates = (milestoneTemplates ?? []) as Template[];
-  const completed = new Set(
-    ((myCompletions ?? []) as { template_id: string }[]).map((c) => c.template_id)
-  );
+  const snapshot = await loadDevelopmentSnapshot(supabase, {
+    playerId: player.id,
+    academyId: playerProfile?.academy_id ?? null,
+    position: player.position ?? null,
+  });
 
   return (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <Link href="/dashboard/player" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-4" aria-hidden="true" />
-          Back to my passport
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold">My Development</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            What you&apos;re working on this {currentSeason} season, across the five
-            development categories.
-          </p>
-        </div>
-      </div>
+      <Link href="/dashboard/player" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="size-4" aria-hidden="true" />
+        Back to my passport
+      </Link>
+      <PageHeader
+        title="My Development"
+        description={`What you're working on this ${snapshot.currentSeason} season, across the five development categories.`}
+      />
 
-      {templates.length > 0 ? (
-        <MilestoneProgress templates={templates} completed={completed} />
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          No milestones set for your age group yet. Your coach adds these at the start
-          of the season.
-        </p>
-      )}
+      <DevelopmentOverview snapshot={snapshot} audience="player" />
 
       {/* The AI plan generator used to be mounted here, callable by the player.
           It's a coach-grade critique, so it is coach-only now (Phase 0 of

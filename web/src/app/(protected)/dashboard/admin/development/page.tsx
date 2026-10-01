@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { MilestoneCategory, MilestoneTemplateData } from "@/app/actions/development";
+import type { MilestoneTemplateData } from "@/app/actions/development";
+import type { MilestoneCategory } from "@/lib/development-categories";
+import { PageHeader } from "@/components/ui/page-header";
 import { MilestoneManager } from "./milestone-form";
 
 type TemplateRow = MilestoneTemplateData & { id: string };
@@ -45,12 +47,10 @@ export default async function AdminDevelopmentPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Development Pathways</h1>
-        <p className="text-sm text-muted-foreground">
-          Manage milestone templates that coaches use to track player development.
-        </p>
-      </div>
+      <PageHeader
+        title="Development Pathways"
+        description="Manage milestone templates that coaches use to track player development."
+      />
       <MilestoneManager academyId={profile.academy_id} templates={templates} />
     </div>
   );
