@@ -5,7 +5,8 @@ import type { CoachMessage, LineupStructured, MatchPlanStructured } from "@/app/
 
 export type AskGrowfitOutput =
   | { kind: "lineup"; text: string; structured?: LineupStructured }
-  | { kind: "plan"; text: string; structured?: MatchPlanStructured; fixtureId: string };
+  | { kind: "plan"; text: string; structured?: MatchPlanStructured; fixtureId: string }
+  | { kind: "scouting"; text: string; fixtureId: string; cached?: boolean };
 
 interface AskGrowfitState {
   teamId: string;

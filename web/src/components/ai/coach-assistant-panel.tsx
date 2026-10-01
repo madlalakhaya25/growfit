@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { MessageSquare, Send, ListChecks, ClipboardList, Loader2, Save } from "lucide-react";
+import { MessageSquare, Send, ListChecks, ClipboardList, Loader2, Save, Search } from "lucide-react";
 import { toast } from "sonner";
 import {
   askCoachAssistant, suggestLineup, generateMatchPlan,
   type CoachMessage, type LineupStructured, type MatchPlanStructured,
 } from "@/app/actions/coach-assistant";
 import { savePlay } from "@/app/actions/tactic-plays";
+import { generateScoutingReport } from "@/app/actions/scouting";
 import { saveMatchPlan } from "@/app/actions/match-plans";
 import { SpeakButton } from "@/components/tactics/speak-button";
 import { AiProse } from "@/components/ai/ai-prose";
@@ -120,6 +121,17 @@ export function CoachAssistantPanel({
     setBusy(null);
     if (res.error) { setError(res.error); toast.error(res.error); return; }
     setOutput({ kind: "lineup", text: res.lineup ?? "", structured: res.structured });
+  }
+
+  async function runScout() {
+    if (!fixtureId) { setError("Pick a fixture to scout the opponent."); return; }
+    setBusy("scout");
+    setOutput(null);
+    setApplied(false);
+    const res = await generateScoutingReport({ teamId: resolvedTeamId, fixtureId });
+    setBusy(null);
+    if (res.error) { setError(res.error); toast.error(res.error); return; }
+    setOutput({ kind: "scouting", text: res.text ?? "", fixtureId, cached: res.cached });
   }
 
   /**
@@ -268,6 +280,10 @@ export function CoachAssistantPanel({
               {busy === "lineup" ? <Loader2 className="size-3 animate-spin" aria-hidden="true" /> : <ListChecks className="size-3" aria-hidden="true" />}
               Suggest XI
             </button>
+            <button type="button" onClick={runScout} disabled={busy !== null} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted disabled:opacity-50">
+              {busy === "scout" ? <Loader2 className="size-3 animate-spin" aria-hidden="true" /> : <Search className="size-3 text-primary" aria-hidden="true" />}
+              Scout opponent
+            </button>
             <button type="button" onClick={runPlan} disabled={busy !== null} className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted disabled:opacity-50">
               {busy === "plan" ? <Loader2 className="size-3 animate-spin" aria-hidden="true" /> : <ClipboardList className="size-3 text-primary" aria-hidden="true" />}
               Match plan
@@ -279,11 +295,16 @@ export function CoachAssistantPanel({
           <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                {output.kind === "lineup" ? "Suggested XI" : "Match plan"}
+                {output.kind === "lineup" ? "Suggested XI" : output.kind === "scouting" ? "Scouting report" : "Match plan"}
               </p>
               <SpeakButton text={output.text} />
             </div>
             <AiProse text={output.text} />
+            {output.kind === "scouting" && (
+              <p className="text-xs text-muted-foreground">
+                Generate the match plan next — it will take this report into account.
+              </p>
+            )}
             {output.kind === "lineup" && output.structured && (
               <div className="pt-1">
                 {applied ? (

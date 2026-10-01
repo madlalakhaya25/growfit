@@ -1,4 +1,4 @@
-# Migration Runbook — 030 → 045
+# Migration Runbook — 030 → 048
 
 *Written 2026-09-21. Backlog item 0.1. Extended the same day to cover 038-039
 (Phase 1, backlog items 1.2/1.5), again on 2026-09-22 to cover 040 (more of
@@ -253,6 +253,25 @@ proceed if that fails.
 ```sql
 SELECT policyname, cmd FROM pg_policies WHERE tablename = 'ai_artefacts';
 -- expect 3: staff_all (ALL), player_read (SELECT), parent_read (SELECT)
+```
+
+### 048 — ai_artefacts_scouting_kind
+
+Widens `ai_artefacts_kind_check` to add `'scouting_report'` (Phase 2 step 2.5).
+The constraint name was confirmed against the live project (`045` creates it
+inline, so it takes Postgres's default `ai_artefacts_kind_check`).
+
+`ai_artefacts.kind` is a fixed list, so a new kind is **not** a code-only
+change. Deploying the code before this runs is safe but silently useless:
+`saveAiArtefact`'s insert fails the CHECK, is reported as a warning and
+swallowed, and `generateScoutingReport` returns `persisted: false` — every
+request then regenerates and bills the Gemini key again. 046 and 047 are
+reserved by `BACKLOG.md` Phase 5.
+
+```sql
+SELECT pg_get_constraintdef(oid) FROM pg_constraint
+ WHERE conname = 'ai_artefacts_kind_check';
+-- expect the original eight kinds plus 'scouting_report'
 ```
 
 ### Idempotency

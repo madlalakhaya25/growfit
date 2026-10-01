@@ -11,6 +11,7 @@ import { COACH_SYSTEM } from "@/lib/ai-safeguards";
 import { createContextCacheManager, isStaleCacheError } from "@/lib/ai-context-cache";
 import { assistantContents, stablePrefixContents } from "@/lib/assistant-request";
 import { stableBriefKey } from "@/lib/squad-brief";
+import { AI_ARTEFACT_TTL, getLatestAiArtefact } from "@/lib/ai-artefacts";
 
 /**
  * Lazily fetches the same teams/roster/fixtures brief the dedicated
@@ -281,7 +282,7 @@ export async function generateMatchPlan(params: {
   fixtureId: string;
 }): Promise<{ plan?: string; structured?: MatchPlanStructured; error?: string }> {
   try {
-    const { user } = await requireUser();
+    const { supabase, user } = await requireUser();
     // One AI call against this user's hourly budget. Counts attempts, not
     // successes: a failed call still costs a request to the provider.
     const overBudget = await checkAiBudget(user.id);
@@ -290,9 +291,22 @@ export async function generateMatchPlan(params: {
     const { context, error } = await buildSquadContext(params.teamId, { fixtureId: params.fixtureId });
     if (error || !context) return { error: error ?? "Could not load the squad." };
 
+    // A scouting report the coach already generated for this fixture (and is
+    // still fresh) goes into the plan. Reading one costs nothing; generating
+    // one is the coach's own button, so this never spends a second AI call.
+    const { artefact: scouting } = await getLatestAiArtefact<{ text?: string }>(supabase, {
+      kind: "scouting_report",
+      subjectType: "fixture",
+      subjectId: params.fixtureId,
+    });
+    const scoutingText =
+      scouting && !scouting.supersededAt && Date.now() - new Date(scouting.createdAt).getTime() <= AI_ARTEFACT_TTL.scouting_report
+        ? (scouting.prose ?? scouting.data?.text ?? "")
+        : "";
+
     const prompt = `Write the match plan for this team's next fixture.
 
-${context.brief}
+${context.brief}${scoutingText ? `\n\nSCOUTING REPORT ON THE OPPONENT (written earlier from our own logged data):\n${scoutingText}` : ""}
 
 Use the squad's real names and numbers. Never build the plan or key players around a player flagged INJURED, UNAVAILABLE or listed under UNAVAILABLE in the brief. If we have played this opponent before, use what happened last time and say what to change. If we have never played them, say the plan is based on our own strengths and what to check in the warm-up.
 
