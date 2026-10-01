@@ -6,12 +6,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * Never put anything safeguarding- or compliance-related in this list --
  * those stay always on regardless of what an academy toggles.
  */
-export type FeatureKey = "tactics" | "film" | "assistant";
+export type FeatureKey = "tactics" | "film" | "assistant" | "agent";
 
 const ALL_ON: Record<FeatureKey, boolean> = {
   tactics: true,
   film: true,
   assistant: true,
+  agent: true,
 };
 
 /**

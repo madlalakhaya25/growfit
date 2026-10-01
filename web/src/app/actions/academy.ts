@@ -45,6 +45,7 @@ export async function updateAcademyFeatures(prevState: unknown, formData: FormDa
     tactics: formData.get("tactics") === "on",
     film: formData.get("film") === "on",
     assistant: formData.get("assistant") === "on",
+    agent: formData.get("agent") === "on",
   };
 
   const { error } = await supabase

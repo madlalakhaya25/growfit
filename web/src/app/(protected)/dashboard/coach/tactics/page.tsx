@@ -1,9 +1,15 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { LayoutGrid, ChevronRight, Sparkles, Film } from "lucide-react";
-import { TacticalConceptPanel } from "@/components/ai/tactical-concept-panel";
-import { PositionalRolePanel } from "@/components/ai/positional-role-panel";
+import { AgentStream } from "@/components/ai/agent-stream";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
+
+const TACTICS_STARTERS = [
+  "Explain pressing triggers for my age group.",
+  "What does a number 6 do in a 4-3-3?",
+  "How do we build out from the back against a high press?",
+  "Give me a training idea for transitions.",
+];
 
 export default async function CoachTacticsPage() {
   // Pass the coach's team so concept advice can cite their real squad numbers.
@@ -79,8 +85,19 @@ export default async function CoachTacticsPage() {
         <ChevronRight className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
       </Link>
 
-      <TacticalConceptPanel teamId={team?.id} />
-      <PositionalRolePanel />
+      {/* Tactical concepts and positional roles are asked of the Growfit Agent
+          now (it knows which team and which page the question came from),
+          instead of two single-purpose panels with their own dropdowns. The
+          player-facing "my position" explainer is separate and unchanged. */}
+      <section className="rounded-xl border border-border bg-card p-4 space-y-3">
+        <div>
+          <h2 className="font-semibold text-sm">Ask about tactics</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Explain a tactical concept or what a position does, pitched at the age group you coach.
+          </p>
+        </div>
+        <AgentStream teamId={team?.id} page="tactics" starters={TACTICS_STARTERS} />
+      </section>
     </div>
   );
 }

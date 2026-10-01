@@ -7,7 +7,7 @@ type ActionResult = { error?: string; success?: boolean } | null;
 
 type Props = {
   action: (prevState: ActionResult, formData: FormData) => Promise<ActionResult>;
-  initial: { tactics: boolean; film: boolean; assistant: boolean };
+  initial: { tactics: boolean; film: boolean; assistant: boolean; agent: boolean };
 };
 
 export function AcademyFeaturesForm({ action, initial }: Props) {
@@ -32,6 +32,12 @@ export function AcademyFeaturesForm({ action, initial }: Props) {
         defaultChecked={initial.assistant}
         label="Ask Growfit assistant"
         description="The AI assistant available to coaches."
+      />
+      <Switch
+        name="agent"
+        defaultChecked={initial.agent}
+        label="Growfit Agent"
+        description="The AI agent that looks things up across the squad, for coaches and admins."
       />
 
       {state?.error && <p className="text-sm text-destructive">{state.error}</p>}

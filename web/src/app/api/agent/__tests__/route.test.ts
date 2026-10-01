@@ -9,6 +9,8 @@ const mockRequireUser = jest.fn();
 jest.mock("@/lib/auth", () => ({ requireUser: (...a: unknown[]) => mockRequireUser(...a) }));
 const mockBuildCtx = jest.fn();
 jest.mock("@/lib/ai-tools/context", () => ({ buildAgentContext: (...a: unknown[]) => mockBuildCtx(...a) }));
+const mockFeatures = jest.fn();
+jest.mock("@/lib/features", () => ({ getAcademyFeatures: (...a: unknown[]) => mockFeatures(...a) }));
 const mockBudget = jest.fn();
 jest.mock("@/lib/ai-guard", () => ({
   checkAiBudget: (...a: unknown[]) => mockBudget(...a),
@@ -40,6 +42,15 @@ describe("/api/agent", () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "u1" } } });
     mockBuildCtx.mockResolvedValue({ userId: "u1", role: "coach", academyId: "a", teamIds: [], teams: [] });
     mockBudget.mockResolvedValue(null);
+    mockFeatures.mockResolvedValue({ tactics: true, film: true, assistant: true, agent: true });
+  });
+
+  it("answers 403 when the academy has switched the agent off, before spending budget", async () => {
+    mockFeatures.mockResolvedValue({ tactics: true, film: true, assistant: true, agent: false });
+    const res = await POST(req({ question: "hi" }));
+    expect(res.status).toBe(403);
+    expect(mockBudget).not.toHaveBeenCalled();
+    expect(mockStream).not.toHaveBeenCalled();
   });
 
   it("GET redirects an unauthenticated caller (requireUser) and is otherwise 405", async () => {
