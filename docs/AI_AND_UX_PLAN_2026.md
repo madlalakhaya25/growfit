@@ -15,7 +15,14 @@ ships regardless of whether the rest is agreed.
 > include the previous plan (it could never hit), and the attendance bucketing as
 > written was off by a day-of-month and, for Feb-May, 89 days. See
 > `BACKLOG.md` Phase 6 for the table, deviations and what is still outstanding.
-> Phases 2-5 have no implementation spec yet.
+>
+> **Update (same day): Phases 2-5 now have implementation specs** — Parts 6B
+> (agent), 6C (training/tactics loop), 6D (depth) and 6E (video). They are
+> written against the code as it stands after Phase 1 and reuse its plumbing
+> (`generateOrServeText`, `ai-artefacts`, `ai-safeguards`, `auth-guards`,
+> `AiPanel`, `fakeSupabase`). Parts 1-3 remain a proposal: the three `DECIDE`
+> items and the consent gate still need a product decision, and **Part 6E cannot
+> start until step 5.0 is done by a person.**
 
 ---
 
@@ -355,10 +362,10 @@ here.**
 |---|---|---|
 | **0** | The authorization fix | Live safeguarding defect. Ships alone, first. **Done** |
 | **1** | Development Engine: `ai_artefacts`, the Develop rebuild, persistent plans with memory, parents included | Everything later needs persistence, provenance and a coach-approval gate. Build it once. **Done except 1.7 (held)** |
-| **2** | The Growfit Agent: tools, streaming, context caching, opponent scouting, drill search | Replaces scattered panels rather than adding to them; the tool registry is what P3–P5 call |
-| **3** | Board → session, board from a sentence, my job in this play, constraint-aware sessions with diagrams, session loop, voice capture, home challenge, age-appropriate rewrite | The training/tactics loop closes. All reuse P2's tools |
-| **4** | Reactive opponent, set pieces, narrated walkthrough, term periodisation, readiness, match story, performance curves, family layer, compliance chase, self-assessment, coach CPD | The depth that makes the winning sections win |
-| **5** | **Consent gate first**, then match auto-tag, queryable match, Clip Coach, My Moments | Highest commercial value, hardest prerequisite |
+| **2** | The Growfit Agent: tools, streaming, context caching, opponent scouting, drill search | Replaces scattered panels rather than adding to them; the tool registry is what P3–P5 call. **Spec: Part 6B** |
+| **3** | Board → session, board from a sentence, my job in this play, constraint-aware sessions with diagrams, session loop, voice capture, home challenge, age-appropriate rewrite | The training/tactics loop closes. All reuse P2's tools. **Spec: Part 6C** |
+| **4** | Reactive opponent, set pieces, narrated walkthrough, term periodisation, readiness, match story, performance curves, family layer, compliance chase, self-assessment, coach CPD | The depth that makes the winning sections win. **Spec: Part 6D** |
+| **5** | **Consent gate first**, then match auto-tag, queryable match, Clip Coach, My Moments | Highest commercial value, hardest prerequisite. **Spec: Part 6E** |
 | Ongoing | Quality bar (Part 7) + UX workstream (Part 8) | Lands with whichever phase touches the surface |
 
 Already approved and separately scheduled, **not re-planned here**: fair
@@ -1077,21 +1084,576 @@ site outside the convention `web/CLAUDE.md` mandates. Update `BACKLOG.md`,
 
 ---
 
+## Part 6B — Phase 2 implementation spec: The Growfit Agent
+
+*Added 2026-10-01. Written against the code as it stands after Phase 1.*
+
+Today `askCoachAssistant` (`actions/coach-assistant.ts:100`) re-sends a fixed
+text brief every turn. It can only answer what `buildSquadContext()`
+anticipated, and it pays for the whole brief each time. Phase 2 replaces the
+fixed brief with **read-only tools**, so the assistant can answer questions
+nobody pre-wrote a panel for, and adds streaming because tool rounds make the
+wait longer.
+
+### Reuse from Phase 1 — do not rebuild any of this
+
+| Need | Use | Where |
+|---|---|---|
+| Cache + persist a prose answer | `generateOrServeText()` | `lib/ai-cached.ts` |
+| Artefact read/write/feedback | `lib/ai-artefacts.ts` | — |
+| System prompts, LTPD phase | `COACH_SYSTEM`, `specialistSystem()`, `getLTPDPhase()`, `ltpdPhaseForAge()` | `lib/ai-safeguards.ts` |
+| Role / per-player authorisation | `isStaffRole()`, `canActOnPlayer()` | `lib/auth-guards.ts` |
+| Staff context in an action | `requireStaff()`, `coachesPlayer()` | `lib/auth.ts`, `lib/coached-teams.ts` |
+| Panel shell, feedback, provenance | `AiPanel`, `AiFeedback`, `StoredAiNotices`, `useStoredAi` | `components/ai/` |
+| Supabase query-shape tests | `fakeSupabase()` | `src/test-utils/fake-supabase.ts` |
+
+> **Adding any new artefact kind needs a migration.** `ai_artefacts.kind` is a
+> fixed `CHECK (kind IN (...))` list (migration `045`). A new kind is not a
+> code-only change:
+>
+> ```sql
+> ALTER TABLE ai_artefacts DROP CONSTRAINT ai_artefacts_kind_check;
+> ALTER TABLE ai_artefacts ADD  CONSTRAINT ai_artefacts_kind_check
+>   CHECK (kind IN (/* the existing eight */, 'scouting_report', 'match_tags', ...));
+> ```
+>
+> Also extend `AiArtefactKind` and `AI_ARTEFACT_TTL` in `lib/ai-artefacts.ts` —
+> `AI_ARTEFACT_TTL` is a `Record<AiArtefactKind, number>`, so `tsc` will catch a
+> missing TTL but **not** a missing SQL constraint. The insert fails at runtime
+> with a check-constraint violation, which `saveAiArtefact` reports as a warning
+> and swallows — so the feature appears to work and silently never persists.
+
+> **Migration numbering.** `045` is the highest in the repo. `BACKLOG.md` Phase 5
+> reserves **046** (fair game time / voice log schema) and **047** (welfare and
+> load). Phase 2's constraint widening is therefore **048**. Re-check
+> `ls supabase/migrations/ | tail -1` before writing any file — these numbers
+> move.
+
+### Step 2.1 — The tool registry
+
+**Files**: `web/src/lib/ai-tools/types.ts`, `web/src/lib/ai-tools/index.ts`,
+one file per tool under `web/src/lib/ai-tools/`, and
+`web/src/lib/ai-tools/__tests__/` (one test per tool).
+
+```ts
+// web/src/lib/ai-tools/types.ts
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { UserRole } from "@/lib/types";
+
+export interface AgentLink { label: string; href: string }
+
+export interface AgentToolContext {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any, any, any>;
+  userId: string;
+  role: UserRole;
+  academyId: string | null;
+  /** Teams this caller coaches. EVERY team-scoped tool must filter by this. */
+  teamIds: string[];
+}
+
+export interface AgentTool<I = unknown, O = unknown> {
+  name: string;
+  /** Shown to the model. One sentence, says what it returns, not how. */
+  description: string;
+  /** Gemini FunctionDeclaration parameter schema. */
+  parameters: Record<string, unknown>;
+  /** Validate raw model args. Return null to reject — never throw. */
+  parseInput(raw: unknown): I | null;
+  /** Runs the same query the UI uses, under the caller's own session. */
+  run(ctx: AgentToolContext, input: I): Promise<O>;
+  /** Rows this result can cite, so the answer can deep-link. */
+  links?(output: O): AgentLink[];
+  /** Hard cap on rows returned, so one call can't fill the context. */
+  maxRows: number;
+}
+```
+
+Tools: `getSquad` · `getPlayer` · `getAttendance` · `getFixtures` ·
+`getMilestones` · `getDocumentStatus` · `getWelfareAlerts` · `searchDrills`.
+
+Each wraps a query the app already makes — reuse `loadDevelopmentSnapshot`
+(`lib/development-data.ts`) for `getMilestones`, `summariseAttendance`
+(`lib/attendance.ts`) for `getAttendance`, and `getWelfareAlerts`
+(`actions/welfare.ts:33`) directly.
+
+**Non-negotiable rules.**
+
+1. **RLS is not the authorisation boundary.** This is the Phase 0 lesson:
+   `player_academy_read` (`001_schema.sql:240`) is academy-wide with no role
+   restriction. Every player-scoped tool calls `canActOnPlayer()`; every
+   team-scoped tool filters by `ctx.teamIds`. Do not rely on RLS alone.
+2. **No sensitive fields, ever.** A tool must not return medical details, ID
+   numbers, SAFA numbers or contact information. `COACH_SYSTEM` tells the model
+   not to repeat them; the tool should not hand them over in the first place.
+   **Emergency contacts stay out of the registry entirely** — that surface has
+   its own page and its own reasons.
+3. **Tools return data, never prose.** The model does the writing.
+4. **Validate every model-supplied argument.** `parseInput` returning `null`
+   produces a tool *error result* the model can recover from, not a thrown
+   exception that kills the turn. Follow `validateCounter()`'s discipline
+   (`lib/opponent-counter.ts:55`): drop unknown IDs, cap array lengths, reject
+   impossible values.
+5. **Cap every result at `maxRows`** (50 is a sane default).
+
+**Acceptance**: one unit test per tool with `fakeSupabase()` asserting the query
+shape and that the team filter is applied; a test proving a player-scoped tool
+refuses a `playerId` outside `ctx.teamIds`; a test that malformed model args
+return a rejection rather than throwing.
+
+### Step 2.2 — The agent loop and streaming
+
+> **This step breaks the all-Server-Actions pattern, deliberately, and it is the
+> one architectural decision in Phase 2.** A Server Action returns **once** — it
+> cannot stream successive tokens. Token streaming needs a Route Handler
+> returning a `ReadableStream`.
+
+**Files**: `web/src/app/api/agent/route.ts` (new),
+`web/src/lib/ai-tools/run-loop.ts` (new, the pure-ish loop),
+`web/src/components/ai/agent-stream.tsx` (new client consumer),
+`web/src/proxy.ts` (confirm `/api/agent` is **guarded**, i.e. **not** added to
+`PUBLIC_PATHS`), `web/CLAUDE.md` (document the deviation).
+
+The loop:
+
+1. `requireStaff()`; build `AgentToolContext` (`getCoachedTeamIds` for
+   `teamIds`).
+2. `checkAiBudget(userId)` **once per user turn, not per tool round** — a tool
+   round is not a new user request, and charging per round would make a
+   three-tool answer cost three times a one-tool answer against the same 60/hr
+   ceiling.
+3. Up to **5 tool rounds**, then force a final answer. The cap bounds cost and
+   prevents a loop.
+4. Stream SSE events: `text` (token delta), `tool` (name + a human label such as
+   "checking attendance…"), `links`, `done`, `error`.
+5. Map any provider error through `aiError()` — never leak provider text.
+
+> **`thinkingBudget: 0` is relaxed here, and only here.** Every other call in the
+> app is a direct-answer task; this is the one genuinely multi-step one. Give it
+> a modest budget and watch for truncation, which presents as the answer stopping
+> mid-sentence with no error anywhere. Record the exception in `web/CLAUDE.md`
+> next to the existing thinking-budget note.
+
+Verify the `tools` / `functionDeclarations` request shape against the installed
+`@google/genai` types before writing — per `AGENTS.md`, do not trust training
+data on SDK surface.
+
+**Acceptance**: a unit test of `run-loop.ts` with a stubbed model that requests
+two tools then answers, asserting the tool results are fed back and the round cap
+holds; an unauthenticated `GET /api/agent` redirects; budget is consumed once for
+a multi-round turn.
+
+### Step 2.3 — Context caching
+
+`buildSquadContext()` rebuilds the brief per request, and `askCoachAssistant`
+re-sends it every turn. Split it:
+
+- **`stableBrief`** — roster, shirt numbers, positions, age group, policy
+  thresholds. Changes only on a squad write.
+- **`volatileBrief`** — form, attendance, availability, injuries.
+
+Cache the stable part with Gemini context caching, keyed on `academy_id` +
+`teamId` + a roster version (cheapest correct version is
+`max(updated_at)` across `players` and `team_members` for the team). Verify the
+`cachedContent` API shape against the installed SDK types.
+
+> **Two different caches — do not conflate them.** `ai_artefacts` /
+> `generateOrServeText` caches **answers**. Context caching caches a **prompt
+> prefix**. They have different keys, different lifetimes and different failure
+> modes. Say which one you mean in every comment.
+
+### Step 2.4 — Deep links
+
+Each tool's `links()` returns `{ label, href }` for the rows it cited;
+`agent-stream.tsx` renders them as chips under the answer. This is the
+Apply-button principle (`BACKLOG.md` 3.1) extended to chat: an answer about a
+real row should be one tap from that row.
+
+### Step 2.5 — Opponent memory and scouting report
+
+Covers Part 3.3a and finishes `BACKLOG.md` 5.5 (which approves "the cheap
+third").
+
+`buildSquadContext()` gains past results against the same opponent, matched on
+**normalised `fixtures.opponent` text — case and whitespace only, never
+fuzzy.** A miss is safe; a wrong match is not. `tallyOpponentFormations()`
+(`lib/opponent-counter.ts:153`) already exists for the saved-plays half.
+
+New artefact kind `scouting_report` (TTL 24h) via `generateOrServeText`, feeding
+the existing match-plan Apply flow. Needs the `048` constraint widening above.
+
+### Step 2.6 — Drill search as a tool
+
+`searchDrills` over `drill_library`.
+
+> **There are now THREE drill/category taxonomies and they must not be merged.**
+> `drill_library.category` is `warm_up | technical | tactical | physical |
+> small_sided | cool_down` (six values, `012_development_features.sql:134`);
+> `training_drills` uses `technical | tactical | fitness` (three, and
+> `fitness ≠ physical`); development corners are the five in
+> `lib/development-categories.ts`. Map explicitly at each boundary and comment
+> why; do not add a shared enum.
+
+### Step 2.7 — Retire the explainer panels into the agent
+
+Fold `tactical-concept-panel.tsx`, `positional-role-panel.tsx` and
+`tactics/my-position-panel.tsx` into the agent with the current page's context
+pre-attached — `AI_FEATURES_AND_IA.md` Part 4's "one AI entry point, not AI
+scattered everywhere". Keep their routes working (thin wrappers or redirects) so
+no existing link breaks, and keep the player-facing position explainer, which is
+the one of the three a child actually uses.
+
+Add `"agent"` to `FeatureKey` (`lib/features.ts:9`, currently
+`"tactics" | "film" | "assistant"`) so an academy can switch it off, and add the
+nav entry — `NAV_BY_ROLE` in `components/dashboard-shell.tsx` is the single
+source of truth, and a page not listed there is orphaned.
+
+---
+
+## Part 6C — Phase 3 implementation spec: the training and tactics loop
+
+The board and the session generator exist and never speak to each other. Phase 3
+connects them, which is the half TacticalPad's animated session plans gesture at
+and nothing in grassroots does.
+
+### Step 3.1 — Board → session
+
+Draw a play, get a three-drill progression that teaches it (unopposed →
+opposed → small-sided game), applied through the existing `addDrills()` batch
+action.
+
+**Files**: `web/src/app/actions/board-to-session.ts` (new),
+`web/src/components/tactics/saved-plays-panel.tsx` (the new button lives with
+the existing Describe / Counter them pair), a prose renderer, unit tests.
+
+Reuse `SessionDrill` and `SessionPlanStructured`
+(`actions/session-generator.ts:21-33`) **unchanged**, so the Apply path,
+`packDrillDescription()` and `renderSessionPlanProse` all work as-is.
+
+> `packDrillDescription()` (`lib/drill-description.ts`) truncates into
+> `training_drills.description`'s 500-character cap, `instructions` first. That
+> is a **documented, deliberate lossy-by-design tradeoff** (`BACKLOG.md` 3.1) —
+> the fix is truncation, not widening the column. Do not "improve" it.
+
+### Step 3.2 — Board from a sentence
+
+"1-4-3-3, press high, left back overlapping" → real tokens and shapes.
+
+Structured output into the `board-model.ts` types, validated with the same
+discipline as `validateCounter()`:
+
+- clamp every coordinate to `BOARD_W` (100) × `BOARD_H` (150)
+  (`lib/board-model.ts:30-31`);
+- reject any `kind` not in `ShapeKind` (`board-model.ts:80`);
+- cap token and shape counts;
+- reject a formation whose squad size doesn't match the team's — the exact check
+  `validateCounter(raw, squadSize)` already makes, and the reason it exists.
+
+Reuse `mapNamedPositionsToSlots()` and `assignToSlots()`' exact → group →
+leftover cascade. **Always insert as a new play, never overwrite the open
+board** — the confirmed, non-negotiable rule from `BACKLOG.md` 3.1's Suggest-XI
+Apply.
+
+### Step 3.3 — "My job in this play"
+
+Plays already share to players by token (`player/tactics/[token]`). Add a
+per-player role explanation for *that* play, generated from the board data and
+the player's age, at their reading age.
+
+Reuse `ltpdPhaseForAge()` and `PLAYER_FACING_RULE` (`lib/ai-safeguards.ts`) —
+this is player-facing text, so it names nothing negative. Cache as an artefact
+kind keyed on the play id + player id.
+
+### Step 3.4 — Constraint-aware sessions, with a diagram go/no-go
+
+`BACKLOG.md` 5.6, approved. Real constraints into `SessionParams` — player
+count, space, kit, minutes — prefilled from the most recent register via
+`summariseAttendance`.
+
+> **Diagrams are a separate, explicit go/no-go step.** Generate ~20 drill
+> layouts against the existing `board-model.ts` types, render them with
+> `board-render.ts`, and **look at them** before building anything permanent —
+> `web/CLAUDE.md`'s render-to-verify rule, which exists because code that looked
+> obviously correct produced real visible bugs. **Ship the constraints
+> regardless of the diagram outcome.**
+
+### Step 3.5 — Session → next session loop
+
+The register, the RPE (if `BACKLOG.md` 5.4's `047` has shipped) and what was
+actually coached feed the next generation, so sessions build on each other
+instead of each starting from nothing. Same memory pattern as the development
+plan: previous session artefact + what happened since, pre-computed.
+
+### Step 3.6 — `useVoiceCapture()`
+
+**Files**: `web/src/components/tactics/use-voice-capture.ts` (new),
+`voice-note-recorder.tsx` (refactored onto it).
+
+The recording logic in `voice-note-recorder.tsx` is welded to
+`uploadPlayVoiceNote` / `deletePlayVoiceNote` (`actions/tactic-plays.ts`,
+imported at line 6 and called at 86). Extract the capture half.
+
+> **Match and session narration must NOT store the audio.** It goes inline to
+> Gemini and is never written to Supabase Storage. `BACKLOG.md` 5.2 specifies
+> this and shares the extraction with this step — coordinate rather than doing it
+> twice.
+
+### Step 3.7 — Home challenge
+
+One drill a week drawn from the player's own **approved** development plan.
+Text-only — no video, so no consent gate, so it ships now. Reuse
+`PlayerSafeDevelopmentPlan` (`lib/development-plan-view.ts`) as the only input,
+and gate on `approved_at` exactly as 1.7 does. **Blocked on 1.7**, which is held
+on the human check.
+
+### Step 3.8 — Age-appropriate rewrite
+
+A lite-tier (`AI_MODEL_LITE`) rewrite of coach language for an 11-year-old,
+reusing `PLAYER_FACING_RULE`. Cache it — the same coach note rewritten twice
+should cost once.
+
+---
+
+## Part 6D — Phase 4 implementation spec: depth in the winning sections
+
+Each step is independent; do them in whatever order the product owner ranks.
+**Re-check the highest migration number first** — `046`/`047` are reserved by
+`BACKLOG.md` Phase 5 and `048` by Phase 2 above.
+
+### Step 4.1 — Reactive opponent shape
+
+Press play and the opposition moves *in response* to your play, showing where it
+breaks. FM26's learning opponent at academy scale.
+
+Reuse `framesFromShapes()` (`lib/play-motion.ts:51`) and its
+`MotionToken`/`MotionShape`/`MotionFrame` types. The model returns opponent
+positions **per frame**; validate each frame exactly as 3.2 validates a board —
+clamped coordinates, capped counts, squad size checked. `play-motion.test.ts`
+already covers the movement derivation this builds on.
+
+### Step 4.2 — Set-piece routines
+
+Corners and free kicks generated against the opponent's observed weakness, as
+board shapes. Set pieces decide grassroots matches. Reuse 3.2's validated
+board-generation path and 2.5's opponent memory.
+
+### Step 4.3 — Narrated walkthrough
+
+A voice-over timed to the animation frames, so a coach can play a play *to* an
+U11 group on a phone. `describePlay` and `speak-button.tsx` already exist; this
+times them to frames and adds per-frame text. Respect
+`prefers-reduced-motion` — already honoured globally.
+
+### Step 4.4 — Term periodisation
+
+Wed/Fri/Sun is a fixed microcycle. Plan the **term** across it — load, the five
+corners, the fixture list — not one session at a time. Model:
+[Serie A youth microcycle research](https://www.researchgate.net/publication/383304430_Training_loads_and_microcycle_periodisation_in_Italian_Serie_A_youth_soccer_players).
+Structured output, stored as an artefact, with each planned session applicable
+into a draft `training_session`.
+
+### Step 4.5 — Readiness score
+
+**Coordinate with `BACKLOG.md` 5.4, which already reserves migration `047` for
+`training_attendance.rpe`.** If 5.4 has shipped, reuse that column; if not, this
+step needs it and should take it from 5.4 rather than adding a second one.
+
+sRPE = RPE × session minutes (Borg CR-10). ACWR = 7-day acute ÷ 28-day chronic
+load, flagged at ≥ 1.5. Plus attendance trend and rating trend, as one readiness
+figure on the squad screen.
+
+**A pure, unit-tested function** (`lib/readiness.ts`) computes it, with a
+documented constant for match load from `minutes_played`. Reuse
+`ATTENDANCE_WINDOW_DAYS` (90) and `WELFARE_ATTENDANCE_THRESHOLD` (0.75) from
+`lib/attendance.ts` rather than new numbers, and extend `getWelfareAlerts()`
+(`actions/welfare.ts:33`) rather than adding a parallel alert path.
+
+> **The AI only explains the threshold; it never decides a number.** Each flag is
+> a computed threshold with a plain-language template. This is the same rule
+> `BACKLOG.md` 5.1 states for the rotation planner, and for the same reason: a
+> model must not be the thing that decides a child's training load.
+>
+> **Height and growth tracking stays out.** The product owner put it on hold
+> pending confirmation that the medical consent form covers routine growth
+> measurement. Do not build the table or the UI.
+
+### Step 4.6 — Match story
+
+The match as a timeline with a narrative, shared to players and parents. Built
+from `match_results` / `match_appearances` and the ratings already logged by
+`logMatch` (`actions/fixtures.ts:211`). Player- and parent-facing, so
+`PLAYER_FACING_RULE` applies and a coach approves first.
+
+### Step 4.7 — Performance curves with a narrative
+
+Trend charts over ratings, attendance and milestone completions with an AI
+reading underneath. `rating-chart.tsx` covers most of the chart half.
+
+> **Fix the chart theming first — it is broken in two ways, not one.** There are
+> **11 occurrences** of `hsl(var(--border))` / `hsl(var(--primary))` /
+> `hsl(var(--muted-foreground))` across `rating-chart.tsx` (6) and
+> `analytics/rating-trend-chart.tsx` (5). Both faults apply to every one of them:
+>
+> 1. **The variables don't exist.** `globals.css` declares
+>    `--color-border`, `--color-primary`, `--color-muted-foreground` — there is no
+>    bare `--border`. So `var(--border)` resolves to nothing.
+> 2. **Even if it resolved, the wrapper is wrong.** The tokens are hex
+>    (`--color-border: #e7e0d4`), so `hsl(#e7e0d4)` is not valid CSS.
+>
+> Every affected line silently falls back to a recharts default, including the
+> charts' primary line colour — so these charts have never been themed, in either
+> mode. The fix is `var(--color-border)` etc. with no `hsl()` wrapper.
+> `analytics/position-pie-chart.tsx` is clean (0 occurrences). Read the `dataviz`
+> skill before touching any of them, and render to verify.
+
+### Step 4.8 — The family layer
+
+**Weekly digest**: one batch generation per team per week (overnight, lite
+tier), warm, first names only, nothing negative, with the child's approved plan
+progress and one thing to try at home. In-app plus copy-for-WhatsApp — the
+academy runs on WhatsApp and will continue to. Build **after** `BACKLOG.md`
+5.3's parent recap so the content rules are written once.
+
+**Parent Q&A**: the Phase 2 agent with a **hard-allowlisted** tool set scoped to
+their own child only — next fixture, outstanding documents, what my child is
+working on. The allowlist is what makes this safe to expose; it is a separate
+registry, not a flag on the coach one.
+
+### Step 4.9 — Compliance chase
+
+Documents, eligibility, duplicate IDs and consent checked weekly into a
+prioritised list with a pre-written WhatsApp message per parent. The funnel
+(`BACKLOG.md` 2.2) and the eligibility checks (2.4) already exist — the AI's job
+is composing and prioritising, nothing more. Unregistered players are a
+Sunday-morning forfeit, which is why this earns a place.
+
+### Step 4.10 — Player self-assessment
+
+Needs a migration: `player_self_assessments` (player, season, category, rating,
+`created_at`), RLS modelled on `045`'s player-read policy. The player rates
+themself per corner; the app shows the gap to the coach's rating as a
+**conversation starter, never a score**, and the gap feeds the next development
+plan. **No AI call** — schema plus UI, and it improves every plan.
+
+### Step 4.11 — Coach CPD log — needs a decision first
+
+A 30-second reflection after a session → AI feedback against the 4-corner model,
+accumulating into a coaching development record. Needs a `coach_reflections`
+table. **Marked DECIDE in Part 3.4e** — do not build it until the product owner
+rules on it.
+
+---
+
+## Part 6E — Phase 5 implementation spec: video
+
+> **Step 5.0 is a hard blocker and it is not a coding task.** Nothing else in
+> Phase 5 may start until it is done.
+
+### Step 5.0 — The consent gate
+
+`BACKLOG.md` is explicit that this is compliance infrastructure, not a feature
+session, and that it **starts with a person reading the academy's current
+consent form** to confirm what it actually permits. A model cannot do this step.
+
+What exists: `player_consents` (`007_records.sql:59`) has
+`photo_consent BOOLEAN DEFAULT FALSE` with `UNIQUE (player_id, season)`. The
+gate is a server-side check that **every player shown in a clip** has
+`photo_consent = true` for the current season, blocking the upload otherwise —
+and it must be in the action, not the UI.
+
+Precedent to follow: `get_public_passport()` (migration `023`) enforces photo
+consent **inside** a SECURITY DEFINER function rather than at a call site,
+precisely so a future caller cannot bypass it.
+
+### Rules for every step below, from `AI_FEATURES_AND_IA.md` Part 3
+
+- **Consent first** — checked server-side, per player, per season.
+- **No storage.** The clip goes to Gemini's Files API and is deleted in a
+  `finally`, never written to Supabase Storage. Growfit stays a conduit and never
+  becomes a video host, which keeps the standing non-goal intact.
+- **No biometric identification.** Players are tagged by the coach or by shirt
+  number, never by face.
+- **A coach approves** before any player or parent sees anything.
+
+> **A design decision to make before 5.4.** `player_clips`
+> (`012_development_features.sql:81`) already exists with a **`url NOT NULL`**
+> column. Storing a Growfit-hosted URL there would make Growfit a video host,
+> against the non-goal. Two options: store only an external link the coach
+> already has (YouTube/Drive), or store **timestamp + title + description and no
+> media at all**. I recommend the latter for My Moments — the moment is the
+> value, and the coach already has the footage. Either way `url`'s `NOT NULL`
+> needs addressing in a migration.
+
+> **Cost: this is by far the most expensive call in the app.** A 70-minute match
+> at low media resolution is orders of magnitude more tokens than any current
+> feature. Therefore: never auto-run; gate behind an explicit coach action; cap
+> at one analysis per fixture; always store the result as an artefact so it is
+> never re-billed; and give it its own budget line, separate from the 60/hr
+> text ceiling, because one video call should not consume a coach's whole hour.
+
+### Step 5.1 — Match auto-tag
+
+Phone on a tripod → a timestamped event list (goals, shots, turnovers, set
+pieces, cards) that **prefills the Log Result form** and creates clip bookmarks.
+This is Hudl Assist — which is human analysts — done by model, and the highest
+commercial value in this document.
+
+Structured output: `{ events: { atSeconds, kind, team, playerName|null, note }[] }`.
+Match player names **only against that fixture's actual squad, never a guess** —
+the rule `BACKLOG.md` 5.2 already sets for the voice log. Feed the result into
+the existing `logMatch` path (`actions/fixtures.ts:211`, zod-validated by
+`logMatchSchema`) as a **draft the coach confirms**.
+
+Gemini takes video up to 3 hours at low media resolution (1 hour at high); a U13
+match fits. Verify the file-upload and video-part request shape against the
+installed `@google/genai` types. Stream it, and set `maxOutputTokens` high — an
+event list for a full match is long, and the truncation failure is silent.
+
+### Step 5.2 — Queryable match
+
+"Show me every time we lost the ball in midfield" → timestamps that deep-link
+into the player. This is what agentic video mode is for: the model navigates the
+timeline rather than the app pre-tagging everything. Reuse 5.1's stored artefact
+as the index where possible rather than re-reading the video.
+
+### Step 5.3 — Clip Coach
+
+A short clip → timestamped moments plus three coaching points. Already scoped as
+`AI_FEATURES_AND_IA.md` Part 2 #9. Coach-facing first; anything player-facing
+goes through the approval gate and `PLAYER_FACING_RULE`.
+
+### Step 5.4 — My Moments
+
+Coach-approved individual moments on the player's passport — Veo's Player
+Spotlight, coach-tagged instead of auto-tracked. Needs the `player_clips`
+decision above. Consent-gated per player, and approval-gated per moment.
+
+---
+
 ## What is next (added 2026-10-01)
 
 1. **Step 1.7** — unblock by having a person read real model output (a Gemini
    key and a fixture child with falling ratings and ~40% attendance), check that
    `playerNote`, the focus areas' `why` and the actions stay non-negative, then
    build the read-only player and parent views. Nothing else needs to change.
+   **Step 3.7 (home challenge) is blocked behind this**, since it reads the same
+   approved plan.
 2. **Apply migrations `030`–`045`** to the live Supabase project, then do the
    live checks listed in `MIGRATION_RUNBOOK.md` under 045.
-3. **Phase 2 needs a spec before it is built.** Parts 1–3 are still a proposal
-   awaiting a product decision (the three `DECIDE` items, the consent gate), and
-   Phases 2–5 have no implementation spec. Write Phase 2's (the agent: tool
-   registry, streaming, context caching) in the same shape as Part 6.
+3. ~~**Phase 2 needs a spec before it is built.**~~ **Done** — Parts 6B–6E now
+   spec Phases 2–5. Parts 1–3 are still a proposal awaiting a product decision
+   on the three `DECIDE` items (video → board 3.2e, coach CPD 3.4e, and whether
+   the two `NO for now` items move).
 4. **Phase 5 of `BACKLOG.md`** (fair game-time, voice log, parent recap, load
    watch) is approved and independent of this plan; its migrations are now
-   `046` / `047`.
+   `046` / `047`. Two places this plan deliberately shares work with it rather
+   than duplicating: the `useVoiceCapture()` extraction (6C step 3.6 ↔ 5.2) and
+   `training_attendance.rpe` (6D step 4.5 ↔ 5.4). Coordinate; do not add a
+   second column or a second hook.
+5. **Build order from here**, if nothing is re-ranked: unblock 1.7 (needs a
+   person), then **Phase 2** — the tool registry is what Phases 3–5 call, so it
+   goes first regardless of how the `DECIDE` items land. Phase 5 stays last and
+   cannot start until step 5.0 is done by a person.
 
 ---
 

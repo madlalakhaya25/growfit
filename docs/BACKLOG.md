@@ -790,10 +790,11 @@ policy change — flag this clearly to whoever picks up the session.
 
 ## Phase 6 — AI depth, from `docs/AI_AND_UX_PLAN_2026.md` (Phase 0 and Phase 1)
 
-*Added 2026-10-01.* That plan's Parts 4–6 are the implementation spec; Parts 1–3
-are a proposal still awaiting a product decision, and its Phases 2–5 have no
-spec yet. Everything below is on `claude/gracious-brown-lz6zo7`, one commit per
-numbered step.
+*Added 2026-10-01.* That plan's Parts 4–6 are the implementation spec for
+Phase 0 and Phase 1; **Parts 6B–6E now spec its Phases 2–5** (agent,
+training/tactics loop, depth, video). Parts 1–3 remain a proposal awaiting a
+product decision on three `DECIDE` items and the consent gate. Everything below
+is on `claude/gracious-brown-lz6zo7`, one commit per numbered step.
 
 | Step | What | Status |
 |---|---|---|
