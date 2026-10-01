@@ -263,3 +263,18 @@ Three things that are easy to get wrong:
   rebuilding the part from `{ name, args }` drops it.
 
 Budget (`checkAiBudget`) is consumed once per user turn, not per tool round.
+
+## Two different caches: answers vs prompt prefixes
+
+`ai_artefacts` / `generateOrServeText` cache **answers** (keyed on a fingerprint
+of the inputs, with a TTL per kind). `lib/ai-context-cache.ts` caches a prompt
+**prefix** with Gemini context caching (keyed on a hash of the stable brief,
+one hour). They have different keys, lifetimes and failure modes, so say which
+one you mean in every comment.
+
+A context cache is an optimisation and never an error: explicit caches have a
+model-specific minimum size and a small squad's stable brief can fall under it,
+so `get()` resolves to `null` and the prefix is sent inline. `cachedContent`
+and `systemInstruction` are mutually exclusive in one request — the system
+prompt lives inside the cache. The roster version is a hash of the stable
+brief's own text, because `players` and `team_members` have no `updated_at`.

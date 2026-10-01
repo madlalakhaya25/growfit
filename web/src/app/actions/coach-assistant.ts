@@ -8,6 +8,9 @@ import { aiError, checkAiBudget } from "@/lib/ai-guard";
 import { getAssistantContext, type AssistantContext } from "@/lib/assistant-context";
 import { parseJsonObject } from "@/lib/ai-json";
 import { COACH_SYSTEM } from "@/lib/ai-safeguards";
+import { createContextCacheManager, isStaleCacheError } from "@/lib/ai-context-cache";
+import { assistantContents, stablePrefixContents } from "@/lib/assistant-request";
+import { stableBriefKey } from "@/lib/squad-brief";
 
 /**
  * Lazily fetches the same teams/roster/fixtures brief the dedicated
@@ -21,6 +24,13 @@ export async function getAssistantContextAction(): Promise<AssistantContext> {
 }
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+
+// Context cache (a stored prompt PREFIX) for the assistant's stable squad
+// brief. Per-instance and in memory: a cold instance just creates it again.
+// Not the answer cache -- see lib/ai-context-cache.ts.
+const contextCache = createContextCacheManager({
+  caches: { create: (p) => ai.caches.create(p as never) },
+});
 
 export interface CoachMessage {
   role: "user" | "model";
@@ -131,26 +141,52 @@ export async function askCoachAssistant(params: {
       history.pop();
     }
 
-    const contents = [
-      {
-        role: "user" as const,
-        parts: [{ text: `Here is the current squad brief. Use it for every answer.\n\n${context.brief}` }],
-      },
-      {
-        role: "model" as const,
-        parts: [{ text: `Understood. I have the ${context.teamName} squad in front of me and will use their real data.` }],
-      },
-      ...history.map((m) => ({ role: m.role, parts: [{ text: m.text }] })),
-      { role: "user" as const, parts: [{ text: question }] },
-    ];
-
-    // thinkingBudget: 0 — a direct-answer task; unbudgeted thinking tokens
-    // were silently eating the visible-output budget, truncating replies.
-    const response = await ai.models.generateContent({
+    // The stable half of the brief (roster, positions, policy) is referenced
+    // from a context cache when one can be had, so only the volatile half and
+    // the conversation are sent each turn. `get` resolves to null whenever
+    // caching isn't possible (a small squad can fall under the model's minimum
+    // size), and everything then goes inline exactly as before.
+    const cacheKey = stableBriefKey(context.academyId, context.teamId, context.stableBrief);
+    const cacheName = await contextCache.get({
+      key: cacheKey,
       model: AI_MODEL,
-      contents,
-      config: { maxOutputTokens: 900, thinkingConfig: { thinkingBudget: 0 }, systemInstruction: COACH_SYSTEM },
+      systemInstruction: COACH_SYSTEM,
+      contents: stablePrefixContents(context.stableBrief, context.teamName),
     });
+
+    const generate = (cached: boolean) =>
+      ai.models.generateContent({
+        model: AI_MODEL,
+        contents: assistantContents({
+          stableBrief: context.stableBrief,
+          volatileBrief: context.volatileBrief,
+          teamName: context.teamName,
+          history,
+          question,
+          cached,
+        }),
+        // thinkingBudget: 0 — a direct-answer task; unbudgeted thinking tokens
+        // were silently eating the visible-output budget, truncating replies.
+        // `systemInstruction` and `cachedContent` are mutually exclusive: the
+        // system prompt lives inside the cache when one is used.
+        config: {
+          maxOutputTokens: 900,
+          thinkingConfig: { thinkingBudget: 0 },
+          ...(cached && cacheName ? { cachedContent: cacheName } : { systemInstruction: COACH_SYSTEM }),
+        },
+      });
+
+    let response;
+    try {
+      response = await generate(Boolean(cacheName));
+    } catch (err) {
+      // The server dropped the cache before our local expiry. Forget it and
+      // answer inline once -- but only for a cache error, never to retry a
+      // quota or safety failure (that would just bill a second doomed call).
+      if (!cacheName || !isStaleCacheError(err)) throw err;
+      contextCache.invalidate(cacheKey, AI_MODEL);
+      response = await generate(false);
+    }
 
     const text = (response.text ?? "").replace(/\*/g, "");
     return { answer: text || "I couldn't produce an answer — try rephrasing." };
