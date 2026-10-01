@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FolderOpen, ListChecks, Save, Send, Sparkles, Swords, Trash2 } from "lucide-react";
+import { FolderOpen, ListChecks, Save, Send, Sparkles, Swords, Trash2, Wand2 } from "lucide-react";
 import { useBoardStore } from "@/store/boardStore";
 import { useBoardSetupStore } from "@/store/boardSetupStore";
 import { useBoardPlaybackStore } from "@/store/boardPlaybackStore";
@@ -10,6 +10,7 @@ import { useBoardInsightsStore } from "@/store/boardInsightsStore";
 import { savePlay, listPlays, loadPlay, deletePlay, sharePlayToSquad, listLinkTargets } from "@/app/actions/tactic-plays";
 import { describePlay, analyseOpponent } from "@/app/actions/tactics";
 import { generateSessionFromBoard } from "@/app/actions/board-to-session";
+import { generateBoardFromSentence } from "@/app/actions/board-from-text";
 import { SessionProgression } from "@/components/tactics/session-progression";
 import type { SessionPlanStructured } from "@/app/actions/session-generator";
 import { SpeakButton } from "@/components/tactics/speak-button";
@@ -75,6 +76,9 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
   const [voiceUrl, setVoiceUrl] = useState<string | null>(null);
   // The three-drill progression made from the board, awaiting "Add to session".
   const [progression, setProgression] = useState<SessionPlanStructured | null>(null);
+  // "4-3-3, press high, left back overlapping": drawn as a NEW play, never
+  // over the open board.
+  const [sentence, setSentence] = useState("");
   // The structured counter itself lives in the insights store, because the
   // board draws it; this panel only keeps the read-aloud prose above.
   const setAiCounter = useBoardInsightsStore((s) => s.setAiCounter);
@@ -254,6 +258,20 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
     if (res.counter) setNotice("Counter drawn on the pitch in violet — see \"Where the space is\" under the board to apply it.");
   }
 
+  async function handleDrawFromSentence() {
+    const text = sentence.trim();
+    if (!text) { setNotice("Describe the play first, like \"4-3-3, press high, left back overlapping\"."); return; }
+    const squadSize = FORMATIONS.find((f) => f.id === homeFormationId)?.size ?? 11;
+    setBusy("draw");
+    const res = await generateBoardFromSentence({ teamId, sentence: text, squadSize });
+    setBusy(null);
+    if (res.error) { setNotice(res.error); return; }
+    setSentence("");
+    const skipped = res.dropped ? ` ${res.dropped} part${res.dropped === 1 ? "" : "s"} of the description couldn't be drawn.` : "";
+    setNotice(`Drew "${res.name}" as a new play. Open it from the list below; your current board is untouched.${skipped}`);
+    void refreshPlays();
+  }
+
   async function handleMakeSession() {
     if (!state.tokens.some((t) => t.kind === "player")) {
       setNotice("Put some players on the board first so there's a play to teach.");
@@ -318,6 +336,30 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
         maxLength={80}
         className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
       />
+      {/* A whole board from one sentence */}
+      <form
+        className="flex gap-1.5"
+        onSubmit={(e) => { e.preventDefault(); void handleDrawFromSentence(); }}
+      >
+        <input
+          type="text"
+          value={sentence}
+          onChange={(e) => setSentence(e.target.value)}
+          placeholder="Or describe it: 4-3-3, press high, left back overlapping"
+          aria-label="Describe a play to draw"
+          maxLength={300}
+          className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+        <button
+          type="submit"
+          disabled={busy !== null || !teamId}
+          title="Draw this as a new play"
+          className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50"
+        >
+          <Wand2 className="size-3 text-primary" aria-hidden="true" />
+          {busy === "draw" ? "Drawing…" : "Draw"}
+        </button>
+      </form>
       {/* Tag by tactical concept */}
       <details className="rounded-md border border-border bg-background">
         <summary className="cursor-pointer px-2 py-1.5 text-xs text-muted-foreground">
