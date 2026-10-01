@@ -4,7 +4,11 @@ import { requireUser } from "@/lib/auth";
 import type { Position } from "@/lib/types";
 import { friendlyError } from "@/lib/friendly-error";
 
-export type MilestoneCategory = "technical" | "tactical" | "physical" | "mental" | "leadership";
+import type { MilestoneCategory } from "@/lib/development-categories";
+
+// Re-exported (the board-model.ts precedent) so existing imports of the type
+// from this file keep working; the definition lives in lib/development-categories.
+export type { MilestoneCategory };
 
 export type MilestoneTemplateData = {
   title: string;

@@ -15,6 +15,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MILESTONE_CATEGORIES, MILESTONE_CATEGORY_META } from "@/lib/development-categories";
 
 /**
  * Internal-only style guide for the "Matchday" design system — not linked
@@ -126,6 +127,51 @@ export default function UiGuidePage() {
               href="#"
             />
           </ListRowGroup>
+        </Card>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-display text-xl">Development categories</h2>
+        <Card>
+          <CardContent className="space-y-4 pt-4">
+            <div className="flex flex-wrap gap-2">
+              {MILESTONE_CATEGORIES.map((key) => {
+                const { label, Icon, chip } = MILESTONE_CATEGORY_META[key];
+                return (
+                  <span key={key} className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${chip}`}>
+                    <Icon className="size-3.5" aria-hidden="true" />
+                    {label}
+                  </span>
+                );
+              })}
+            </div>
+            <div className="grid grid-cols-5 gap-2">
+              {MILESTONE_CATEGORIES.map((key) => {
+                const { short, fill } = MILESTONE_CATEGORY_META[key];
+                return (
+                  <div key={key} className="space-y-1">
+                    <div className="h-2 overflow-hidden rounded-full bg-muted">
+                      <div className={`h-full w-3/5 rounded-full ${fill}`} />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">{short}</p>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex gap-2">
+              {MILESTONE_CATEGORIES.map((key) => (
+                <span
+                  key={key}
+                  className={`grid size-5 place-items-center rounded-full ${MILESTONE_CATEGORY_META[key].fill}`}
+                  aria-hidden="true"
+                >
+                  <svg viewBox="0 0 12 12" className="size-3 text-background" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M2.5 6.5l2.2 2.2L9.5 3.5" />
+                  </svg>
+                </span>
+              ))}
+            </div>
+          </CardContent>
         </Card>
       </section>
 
