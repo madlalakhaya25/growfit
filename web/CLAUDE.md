@@ -239,3 +239,27 @@ entirely: it was advisory only and had become more failure than signal
 ("Failed to review PR" on most recent runs). Branch protection isn't turned
 on yet, so none of this blocks a merge as of this note — that's a
 deliberate separate step, not an oversight.
+
+## The Growfit Agent streams from a Route Handler, not a Server Action
+
+`app/api/agent/route.ts` is the one place the app departs from "everything is
+a Server Action": a Server Action returns once and cannot stream tokens, and
+the agent's tool rounds make the wait long enough that streaming matters. The
+loop itself (`lib/ai-tools/run-loop.ts`) has no Next, Supabase or SDK imports —
+the route injects them — so it is unit-tested with a stubbed model.
+
+Three things that are easy to get wrong:
+
+- **`proxy.ts` does not guard `/api`.** Its `isPublic` check treats the whole
+  `/api` prefix as public, so a new route there is unauthenticated unless it
+  checks for itself. `/api/agent` does (`401` on POST, `requireUser()` redirect
+  on GET); do the same for any new route.
+- **`thinkingBudget: 0` is relaxed here, and only here** (512). Every other call
+  is a direct-answer task; this one is genuinely multi-step. Thinking tokens
+  still come out of `maxOutputTokens`, so the ceiling (1800) sits well above
+  the budget. A truncated answer has no error — it just stops mid-sentence.
+- **Replay the model's own `Part`s** when feeding tool results back. Gemini 3
+  expects the `thoughtSignature` on a function-call part to come back with it;
+  rebuilding the part from `{ name, args }` drops it.
+
+Budget (`checkAiBudget`) is consumed once per user turn, not per tool round.
