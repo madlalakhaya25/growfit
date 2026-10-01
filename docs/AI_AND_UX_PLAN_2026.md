@@ -375,6 +375,106 @@ home for free.
 
 ---
 
+## Part 5B — Value vs effort (added 2026-10-01)
+
+Part 5 orders work by **dependency**. This orders the same work by **payoff**,
+because the two are not the same: the highest-value feature in the document
+(match auto-tag) is deliberately near the bottom of what to do *next*, since it
+is blocked on a person and is the most expensive call in the app.
+
+**Value is split in two columns, because they disagree.** *Academy* value is
+what it saves Buhle, Sphe and Khaya, or what it protects a child from.
+*Commercial* value is what makes another club pay. Compliance chasing scores
+high on the first and low on the second; a reactive opponent shape is the
+reverse.
+
+**Effort** is in PRs at the size Part 6's steps are cut to: **XS** ≤1 PR and
+hours · **S** 1 PR · **M** 1–2 PRs · **L** 3–4 PRs · **XL** 5+ PRs or new infra.
+Estimates assume the Phase 1 plumbing is reused, which is the whole reason it
+was built first.
+
+### Tier 0 — do these first; they are nearly free and everything waits on them
+
+| # | Feature | Academy | Commercial | Effort | Note |
+|---|---|---|---|---|---|
+| 1 | **Apply migrations `030`–`045`** | Critical | Critical | XS | **Needs a person with Supabase access, not a session.** `BACKLOG.md` 0.1. Until this runs, Phase 1 is code that cannot work in production — the artefact store silently never persists |
+| 2 | **Unblock step 1.7** | High | High | XS | Needs one human review of real model output. Code is written. First time parents see development at all |
+| 3 | **Chart theming fix** | Low | Med | XS | 11 occurrences, broken two ways; these charts have never been themed in either mode |
+
+### Tier 1 — quick wins: real value, one or two PRs each
+
+| # | Feature | Academy | Commercial | Effort | Why cheap |
+|---|---|---|---|---|---|
+| 4 | **Compliance chase** (3.6c) | **High** | Med | M | The funnel (2.2) and eligibility checks (2.4) already exist; the AI only composes and prioritises. Prevents a Sunday forfeit |
+| 5 | **Opponent scouting** (3.3a) | High | High | M | Finishes `BACKLOG.md` 5.5. `tallyOpponentFormations()` already exists; data is all there |
+| 6 | **Player self-assessment** (3.5a) | High | High | M | **No AI call at all** — schema plus UI. IDP best practice, and it improves every plan afterwards |
+| 7 | **My job in this play** (3.1f) | Med | **High** | S | Player-token route exists; it's a prompt. Demos beautifully |
+| 8 | **Match story** (3.3b) | Med | High | M | Built from data `logMatch` already writes |
+| 9 | **Weekly family digest** (3.6e) | High | High | M | Batch, lite tier. Build after `BACKLOG.md` 5.3 so content rules are written once |
+| 10 | **Age-appropriate rewrite** (3.5c) | Med | Med | S | Lite tier, cached |
+| 11 | **`EmptyState` + `AiPanel` rollout** | Med | Med | M | Part 8. Lifts every screen at once |
+
+### Tier 2 — the multiplier
+
+| # | Feature | Academy | Commercial | Effort | Why it earns XL |
+|---|---|---|---|---|---|
+| 12 | **The Growfit Agent** (3.6a) | High | **Critical** | XL | The category differentiator, and a **prerequisite**: parent Q&A, drill search and much of Phases 3–4 call its tool registry. Its cost is amortised across everything after it, which is why it goes before the cheaper items below |
+
+### Tier 3 — high value, honest effort
+
+| # | Feature | Academy | Commercial | Effort | Note |
+|---|---|---|---|---|---|
+| 13 | **Constraint-aware sessions** — constraints only (3.4a) | **High** | High | M | Used twice a week across three squads. **Split the diagrams out** (row 26) |
+| 14 | **Board → session** (3.1a) | High | **High** | M | Connects two things that already exist and nothing in grassroots connects |
+| 15 | **Talk to Growfit** (3.6b) | **Critical** | High | L–XL | The biggest time-saver for a coach outdoors in winter. Shares the `useVoiceCapture()` extraction with `BACKLOG.md` 5.2 |
+| 16 | **Readiness score** (3.3d) | **High** | Med | L | Safeguarding argument, research-backed. Needs `047`'s RPE column — coordinate, don't duplicate |
+| 17 | **Set-piece routines** (3.1e) | High | High | M–L | Set pieces decide grassroots matches. Reuses row 20's validated board generation |
+| 18 | **Parent Q&A** (3.6d) | High | High | M | After row 12. The hard allowlist is what makes it safe |
+| 19 | **Drill search** (3.4d) | Med | Med | S | Trivial *as an agent tool*; don't build it standalone |
+| 20 | **Board from a sentence** (3.1c) | Med | High | M–L | Validation is the work, not the prompt |
+| 21 | **Coach CPD log** (3.4e) | High | Med | M | **DECIDE.** No competitor does it; the only feature aimed at the three volunteers themselves |
+
+### Tier 4 — the commercial bet, gated on a person
+
+| # | Feature | Academy | Commercial | Effort | Note |
+|---|---|---|---|---|---|
+| 22 | **Consent gate** (5.0) | Critical | — | S + **human** | Pure enabler. A person must read the consent form first. Nothing in Tier 4 starts without it |
+| 23 | **Match auto-tag** (3.2a) | Med | **Critical** | XL | Highest commercial value in the document — Hudl Assist done by model. Also **by far the most expensive call**: cap it, never auto-run, give it its own budget line |
+| 24 | **My Moments** (3.2d) | Med | **High** | M | Parent delight, player pride. Needs the `player_clips.url` decision in Part 6E |
+| 25 | **Queryable match** (3.2b) | Med | High | M | Cheap once row 23 exists |
+
+### Tier 5 — later, or a worse ratio than it looks
+
+| # | Feature | Academy | Commercial | Effort | Why not sooner |
+|---|---|---|---|---|---|
+| 26 | **Session diagrams** (3.4a, second half) | Med | High | L | Explicit go/no-go: render ~20 and look before committing |
+| 27 | **Clip Coach** (3.2c) | Med | Med | M | Overlaps rows 23–25; do it after, not before |
+| 28 | **Golden-set eval** (Part 7) | Med | Low | M | Ongoing quality, not a feature. Worth it once prompts start changing often |
+| 29 | **Performance curves + narrative** (3.3c) | Med | Med | M | Needs row 3 first |
+| 30 | **Session → next session loop** (3.4c) | Med | Low | M | Quiet value; hard to demo |
+| 31 | **Narrated walkthrough** (3.1d) | Med | Med | M–L | Lovely for U11s, but frame timing is fiddly |
+| 32 | **Term periodisation** (3.4b) | Med | High | L–XL | Genuinely novel, genuinely expensive |
+| 33 | **Reactive opponent shape** (3.1b) | Low | **High** | XL | The best demo in the document and the worst value-per-PR. Build it when the board is the thing closing sales, not before |
+| 34 | **Video → board** (3.2e) | Low | High | XL | **DECIDE**, and only after row 23 is proven |
+
+### If you only do five things next
+
+1. **Apply the migrations** (row 1) — nothing else is real until this happens.
+2. **Unblock 1.7** (row 2) — one human review, and parents finally see development.
+3. **Compliance chase** (row 4) — the one that stops a child being ineligible on a Sunday.
+4. **Player self-assessment** (row 6) — high value, no AI call, makes every later plan better.
+5. **The agent** (row 12) — start it, because rows 18, 19 and much of Phases 3–4 are waiting on it.
+
+### If the next goal is a sales demo rather than the academy's own time
+
+A different five: **the agent** (12), **board → session** (14), **my job in this
+play** (7), **set pieces** (17), and **match auto-tag** (23) once the gate is
+open. That is the "winning section" pitch — tactics board, training and video —
+and it is roughly twice the effort of the list above. Worth saying out loud so
+the choice is deliberate.
+
+---
+
 ## Part 6 — Phase 1 implementation spec
 
 ### Step 1.1 — Migration 045 and the artefact store — **Done**
