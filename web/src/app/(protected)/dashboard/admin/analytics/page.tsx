@@ -5,7 +5,9 @@ import { PositionPieChart } from "@/components/analytics/position-pie-chart";
 import { RatingTrendChart } from "@/components/analytics/rating-trend-chart";
 import { ComplianceBar } from "@/components/analytics/compliance-bar";
 import { AcademyHealthPanel } from "@/components/ai/academy-health-panel";
-import { formatInTimezone } from "@/lib/time";
+import { AiUsageCard } from "@/components/ai/ai-usage-card";
+import { getLatestAiArtefact, summariseAiUsage } from "@/lib/ai-artefacts";
+import { formatInTimezone, monthStartIso } from "@/lib/time";
 
 const DOC_TYPES = [
   "registration_agreement",
@@ -30,6 +32,17 @@ export default async function AnalyticsPage() {
   if (!profile?.academy_id) redirect("/auth/role");
   const academyId = profile.academy_id;
   const currentSeason = new Date().getFullYear().toString();
+
+  // AI results stored by migration 045. Both read as "nothing yet" (not an
+  // error) when that migration hasn't been applied.
+  const [savedHealth, aiUsage] = await Promise.all([
+    getLatestAiArtefact<{ text?: string }>(supabase, {
+      kind: "academy_health",
+      subjectType: "academy",
+      subjectId: academyId,
+    }),
+    summariseAiUsage(supabase, { academyId, since: monthStartIso() }),
+  ]);
 
   const { data: activePlayerIds } = await supabase
     .from("players")
@@ -288,7 +301,19 @@ export default async function AnalyticsPage() {
       </div>
 
       <section className="space-y-3">
-        <AcademyHealthPanel />
+        <AcademyHealthPanel
+          initial={
+            savedHealth.artefact
+              ? {
+                  artefactId: savedHealth.artefact.id,
+                  text: savedHealth.artefact.prose ?? savedHealth.artefact.data?.text ?? "",
+                  generatedAt: savedHealth.artefact.createdAt,
+                  feedback: savedHealth.artefact.feedback,
+                }
+              : null
+          }
+        />
+        <AiUsageCard summary={aiUsage.summary} available={aiUsage.available} />
       </section>
     </div>
   );

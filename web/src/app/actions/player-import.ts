@@ -150,6 +150,10 @@ export async function extractPlayersFromPdf(
           },
         ],
         config: {
+          // Direct-answer extraction: unbudgeted thinking tokens would be
+          // deducted from the output budget and could truncate the JSON
+          // mid-array (web/CLAUDE.md). The one call site that was missing this.
+          thinkingConfig: { thinkingBudget: 0 },
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.ARRAY,

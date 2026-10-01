@@ -53,6 +53,11 @@ const CODE_MESSAGES: Record<string, string> = {
   // form for any table.
   "42703": "This feature isn't fully set up yet. Please contact your administrator.",
   PGRST204: "This feature isn't fully set up yet. Please contact your administrator.",
+  // undefined_table, and PostgREST's schema-cache equivalent -- a migration
+  // that creates a whole TABLE hasn't been applied yet (the 42703/PGRST204
+  // pair above are the *column* codes; they don't fire for a missing table).
+  "42P01": "This feature isn't fully set up yet. Please contact your administrator.",
+  PGRST205: "This feature isn't fully set up yet. Please contact your administrator.",
   // PostgREST couldn't find the function at all — a newer migration adding
   // an RPC hasn't been applied.
   PGRST202: "This feature isn't available yet. Please contact your administrator.",

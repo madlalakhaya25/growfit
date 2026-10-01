@@ -6,6 +6,37 @@ releases yet. Newest first.
 
 ---
 
+## 2026-10-01 — A safeguarding fix, and AI results that are kept
+
+**Fixed**
+- **Any signed-in player or parent could request an AI critique of any child in
+  the academy.** The development plan, player insights and academy health actions
+  checked only that someone was signed in, and player records are readable
+  academy-wide. They now require a coach or admin, and a coach must coach that
+  player. A player's own Development page no longer offers the generator; their
+  coach shares the plan with them once it is ready.
+
+**Added**
+- AI development plans are now **kept**: a plan made on Tuesday is there on
+  Wednesday, asking again when nothing has changed is free, and regenerating
+  carries the previous plan and what happened since, so it can say whether the
+  last plan worked. A coach approves a plan before anyone else can see any of it.
+- Coaching Insights and the Academy Health report are also kept, with a thumbs
+  up/down, and the admin analytics page shows this month's AI use.
+- Development: milestones are grouped under five colour-coded categories that now
+  work in dark mode, and each player has a season-by-season history of what was
+  signed off, when, and by whom.
+
+**Needs doing before it works in production**
+- Apply migration `045` (and `030`-`044`) -- see `MIGRATION_RUNBOOK.md`. Until
+  then everything above still works; plans just aren't saved.
+
+**Not done yet**
+- Players and parents seeing an approved plan. It waits on a person reading real
+  AI output for tone first; see `BACKLOG.md` item 1.7.
+
+---
+
 ## 2026-09-16 — Tactics studio parity, Match Film, and a coach-lockout fix
 
 **Fixed**

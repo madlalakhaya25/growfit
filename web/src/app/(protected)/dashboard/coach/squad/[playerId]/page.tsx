@@ -24,8 +24,12 @@ import { PlayerAttributesForm } from "./player-attributes-form";
 import { RatingChart } from "@/components/rating-chart";
 import { AiInsightsPanel } from "@/components/development/ai-insights-panel";
 import { DevelopmentPlanPanel } from "@/components/development/development-plan-panel";
-import { MilestoneCard } from "@/components/development/milestone-card";
-import type { MilestoneCategory } from "@/app/actions/development";
+import { DevelopmentOverview } from "@/components/development/development-overview";
+import { MilestoneTimeline } from "@/components/development/milestone-timeline";
+import { loadDevelopmentSnapshot } from "@/lib/development-data";
+import { getLatestAiArtefact } from "@/lib/ai-artefacts";
+import type { DevelopmentPlanStructured } from "@/lib/development-plan-schema";
+import { currentSeason as seasonKey } from "@/lib/development-categories";
 import { ClipsSection } from "./clips-section";
 import { AttributeSummary } from "@/components/player/attribute-summary";
 import { ParentAccessCard, type LinkedAdult } from "@/components/records/parent-access-card";
@@ -164,15 +168,13 @@ export default async function PlayerDetailPage({
     };
   });
 
-  const currentSeasonForRecords = new Date().getFullYear().toString();
+  const currentSeasonForRecords = seasonKey();
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("academy_id")
     .eq("id", user.id)
     .single();
-
-  const currentSeason = new Date().getFullYear().toString();
 
   const coachTeamIds = (coachTeams ?? []).map((t: { id: string }) => t.id);
   const playerTeamIds = (memberships ?? []).map((m: { team_id: string }) => m.team_id);
@@ -211,25 +213,32 @@ export default async function PlayerDetailPage({
   const quickAssessKeys = getQuickAssessKeys(player?.position);
   const squadMedians = computeSquadMedians(squadAttrPlayers, quickAssessKeys);
 
-  const [{ data: medical }, { data: milestoneTemplates }, { data: completions }, { data: clips }, { data: recentFixtures }, { data: docs }] = await Promise.all([
+  const [{ data: medical }, developmentSnapshot, savedPlan, savedInsights, { data: clips }, { data: recentFixtures }, { data: docs }] = await Promise.all([
     supabase
       .from("player_medical")
       .select("*")
       .eq("player_id", playerId)
       .maybeSingle(),
-    profile?.academy_id
-      ? supabase
-          .from("development_milestone_templates")
-          .select("id, title, description, category, position, age_group, sort_order")
-          .eq("academy_id", profile.academy_id)
-          .or(`position.is.null,position.eq.${player.position ?? ""}`)
-          .order("sort_order", { ascending: true })
-      : Promise.resolve({ data: [] }),
-    supabase
-      .from("player_milestone_completions")
-      .select("template_id, note")
-      .eq("player_id", playerId)
-      .eq("season", currentSeason),
+    // One read path for the pathway, shared with the player and parent
+    // views. A failed query comes back as `loadError`, not as an empty list.
+    loadDevelopmentSnapshot(supabase, {
+      playerId,
+      academyId: profile?.academy_id ?? null,
+      position: player.position ?? null,
+      resolveCompletedBy: true,
+    }),
+    // The stored plan, so Tuesday's plan is still here on Wednesday. Reads as
+    // "no plan yet" if migration 045 hasn't been applied (available: false).
+    getLatestAiArtefact<DevelopmentPlanStructured>(supabase, {
+      kind: "development_plan",
+      subjectType: "player",
+      subjectId: playerId,
+    }),
+    getLatestAiArtefact<{ text?: string }>(supabase, {
+      kind: "player_insights",
+      subjectType: "player",
+      subjectId: playerId,
+    }),
     supabase
       .from("player_clips")
       .select("id, title, url, timestamp_seconds, description, fixture_id, created_at")
@@ -494,93 +503,64 @@ export default async function PlayerDetailPage({
                 id: "development",
                 label: "Development",
                 content: (
-                  <>
-                  {(milestoneTemplates ?? []).length > 0 && (() => {
-                    type MilestoneTemplate = {
-                      id: string;
-                      title: string;
-                      description: string | null;
-                      category: MilestoneCategory;
-                      position: string | null;
-                      age_group: string | null;
-                      sort_order: number;
-                    };
-                    type Completion = { template_id: string; note: string | null };
-
-                    const templates = milestoneTemplates as MilestoneTemplate[];
-                    const completionSet = new Map(
-                      (completions as Completion[] ?? []).map((c) => [c.template_id, c.note])
-                    );
-
-                    const CATEGORIES: MilestoneCategory[] = ["technical", "tactical", "physical", "mental", "leadership"];
-                    const CATEGORY_LABELS: Record<MilestoneCategory, string> = {
-                      technical: "Technical", tactical: "Tactical", physical: "Physical",
-                      mental: "Mental", leadership: "Leadership",
-                    };
-                    const CATEGORY_STYLES: Record<MilestoneCategory, string> = {
-                      technical: "bg-blue-500/15 text-blue-700 border-transparent",
-                      tactical: "bg-violet-500/15 text-violet-700 border-transparent",
-                      physical: "bg-orange-500/15 text-orange-700 border-transparent",
-                      mental: "bg-teal-500/15 text-teal-700 border-transparent",
-                      leadership: "bg-amber-500/15 text-amber-700 border-transparent",
-                    };
-
-                    const totalCount = templates.length;
-                    const doneCount = templates.filter((t) => completionSet.has(t.id)).length;
-
-                    return (
-                      <section className="space-y-4">
-                        <div className="flex items-center justify-between gap-2">
-                          <h2 className="text-base font-semibold">Development</h2>
-                          <span className="text-sm text-muted-foreground">
-                            {doneCount} of {totalCount} milestone{totalCount !== 1 ? "s" : ""} complete
-                          </span>
-                        </div>
-
-                        {CATEGORIES.map((cat) => {
-                          const items = templates.filter((t) => t.category === cat);
-                          if (items.length === 0) return null;
-                          return (
-                            <div key={cat} className="space-y-2">
-                              <div className="flex items-center gap-2">
-                                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                                  {CATEGORY_LABELS[cat]}
-                                </p>
-                                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${CATEGORY_STYLES[cat]}`}>
-                                  {items.filter((t) => completionSet.has(t.id)).length}/{items.length}
-                                </span>
-                              </div>
-                              <div className="space-y-2">
-                                {items.map((t) => (
-                                  <MilestoneCard
-                                    key={t.id}
-                                    templateId={t.id}
-                                    playerId={player.id}
-                                    season={currentSeason}
-                                    title={t.title}
-                                    description={t.description ?? ""}
-                                    category={t.category}
-                                    initialCompleted={completionSet.has(t.id)}
-                                    initialNote={completionSet.get(t.id) ?? null}
-                                  />
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </section>
-                    );
-                  })()}
-
-                  <section className="space-y-3 max-w-2xl">
-                    <AiInsightsPanel playerId={player.id} />
-                  </section>
-
-                  <section className="space-y-3 max-w-2xl">
-                    <DevelopmentPlanPanel playerId={player.id} />
-                  </section>
-
-                  </>
+                  <ProfileTabs
+                    ariaLabel="Development sections"
+                    idPrefix="dev-"
+                    tabs={[
+                      {
+                        id: "milestones",
+                        label: "Milestones",
+                        content: (
+                          <DevelopmentOverview snapshot={developmentSnapshot} audience="coach" playerId={player.id} />
+                        ),
+                      },
+                      {
+                        id: "plan",
+                        label: "Plan",
+                        content: (
+                          <>
+                            <section className="max-w-2xl space-y-3">
+                              <DevelopmentPlanPanel
+                                playerId={player.id}
+                                initial={
+                                  savedPlan.artefact
+                                    ? {
+                                        artefactId: savedPlan.artefact.id,
+                                        plan: savedPlan.artefact.prose ?? "",
+                                        generatedAt: savedPlan.artefact.createdAt,
+                                        status: savedPlan.artefact.status,
+                                        approvedByName: savedPlan.artefact.approvedByName,
+                                        feedback: savedPlan.artefact.feedback,
+                                      }
+                                    : null
+                                }
+                              />
+                            </section>
+                            <section className="max-w-2xl space-y-3">
+                              <AiInsightsPanel
+                                playerId={player.id}
+                                initial={
+                                  savedInsights.artefact
+                                    ? {
+                                        artefactId: savedInsights.artefact.id,
+                                        text: savedInsights.artefact.prose ?? savedInsights.artefact.data?.text ?? "",
+                                        generatedAt: savedInsights.artefact.createdAt,
+                                        feedback: savedInsights.artefact.feedback,
+                                      }
+                                    : null
+                                }
+                              />
+                            </section>
+                          </>
+                        ),
+                      },
+                      {
+                        id: "history",
+                        label: "History",
+                        content: <MilestoneTimeline snapshot={developmentSnapshot} audience="coach" />,
+                      },
+                    ]}
+                  />
                 ),
               },
               {

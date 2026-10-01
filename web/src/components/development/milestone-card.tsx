@@ -1,17 +1,8 @@
 "use client";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { toggleMilestoneCompletion } from "@/app/actions/development";
-import type { MilestoneCategory } from "@/app/actions/development";
-
-const CATEGORY_STYLES: Record<MilestoneCategory, { badge: string; check: string }> = {
-  technical:  { badge: "bg-blue-500/15 text-blue-600 border-transparent",   check: "text-blue-500" },
-  tactical:   { badge: "bg-violet-500/15 text-violet-600 border-transparent", check: "text-violet-500" },
-  physical:   { badge: "bg-orange-500/15 text-orange-600 border-transparent", check: "text-orange-500" },
-  mental:     { badge: "bg-teal-500/15 text-teal-600 border-transparent",    check: "text-teal-500" },
-  leadership: { badge: "bg-amber-500/15 text-amber-600 border-transparent",  check: "text-amber-500" },
-};
+import { MILESTONE_CATEGORY_META, type MilestoneCategory } from "@/lib/development-categories";
 
 type Props = {
   templateId: string;
@@ -40,7 +31,7 @@ export function MilestoneCard({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const styles = CATEGORY_STYLES[category];
+  const meta = MILESTONE_CATEGORY_META[category];
 
   function handleToggle() {
     const next = !completed;
@@ -74,16 +65,22 @@ export function MilestoneCard({
 
   return (
     <div className="flex gap-3 rounded-xl border border-border bg-card p-4">
+      {/* A completed box takes the category's solid fill and a background-coloured
+          tick. The old version set background AND border to currentColor while
+          the tick was also currentColor-derived, so the tick vanished into it.
+          One bg-* class at a time -- never two on the same element. */}
       <button
         type="button"
         aria-label={completed ? "Mark incomplete" : "Mark complete"}
+        aria-pressed={completed}
         disabled={isPending}
         onClick={handleToggle}
-        className="mt-0.5 flex-shrink-0 size-5 rounded border-2 border-border disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        style={completed ? { backgroundColor: "currentColor", borderColor: "currentColor" } : undefined}
+        className={`mt-0.5 grid size-5 flex-shrink-0 place-items-center rounded border-2 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+          completed ? `${meta.fill} border-transparent` : "border-border"
+        }`}
       >
         {completed && (
-          <svg viewBox="0 0 12 12" className={`size-full ${styles.check}`} fill="none" stroke="currentColor" strokeWidth={2.5}>
+          <svg viewBox="0 0 12 12" className="size-3.5 text-background" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
             <path d="M2 6l3 3 5-5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         )}
@@ -94,7 +91,6 @@ export function MilestoneCard({
           <p className={`text-sm font-medium leading-snug ${completed ? "line-through text-muted-foreground" : ""}`}>
             {title}
           </p>
-          <Badge className={styles.badge}>{category}</Badge>
         </div>
         <p className="text-xs text-muted-foreground leading-snug">{description}</p>
 

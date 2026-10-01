@@ -96,6 +96,19 @@
   --color-rating-mid:           #d97706;
   --color-rating-low:           #dc2626;
 
+  /* Development categories — the app's first categorical palette. Each value
+     is used as BOTH chip text (on a 10% tint of itself) and a solid bar fill,
+     so it has to clear 4.5:1 as text on the page and on a card, as well as
+     the data-viz gates. Validated, not eyeballed: scripts/validate_palette.js
+     --mode light --surface #faf7f2 (all pass; worst adjacent CVD ΔE 10.5,
+     normal-vision 19.6), text contrast >= 4.58:1 on page and card tints.
+     Never reuse these for status: red/green/amber mean something else here. */
+  --color-dev-technical:        #1f5fbf;
+  --color-dev-tactical:         #ae4813;
+  --color-dev-physical:         #5b3cc4;
+  --color-dev-mental:           #b02a6b;
+  --color-dev-leadership:       #8a6000;
+
   /* Radius — tighter than the original 0.5–1.125rem scale; a matchday
      ticket or a scoreline reads more confident with a crisper corner. */
   --radius-sm: 0.375rem;
@@ -164,6 +177,16 @@
   --color-rating-high:          #4ade80;
   --color-rating-mid:           #fbbf24;
   --color-rating-low:           #f87171;
+
+  /* Same five hues stepped for the dark surface (#14110e) — selected, not
+     auto-flipped. Validated with --mode dark: lightness band, chroma,
+     CVD (worst adjacent ΔE 13.0 deutan), normal-vision 17.4; chip text
+     >= 4.6:1 on the dark page and card tints. */
+  --color-dev-technical:        #478fe7;
+  --color-dev-tactical:         #de6d40;
+  --color-dev-physical:         #9085e9;
+  --color-dev-mental:           #da6891;
+  --color-dev-leadership:       #c98500;
 }
 
 @layer base {

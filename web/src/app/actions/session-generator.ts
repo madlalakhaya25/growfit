@@ -5,6 +5,7 @@ import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
 import { parseJsonObject } from "@/lib/ai-json";
+import { getLTPDPhase, specialistSystem } from "@/lib/ai-safeguards";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -53,17 +54,6 @@ function renderSessionPlanProse(s: SessionPlanStructured): string {
   return lines.join("\n");
 }
 
-function getLTDPPhase(ageGroup: string): string {
-  const match = ageGroup.match(/\d+/);
-  if (!match) return "Training to Train (U13-U15)";
-  const age = parseInt(match[0], 10);
-  if (age <= 9)  return "FUNdamentals (U6-U9) — ABCs of movement, fun-first, no tactical demands";
-  if (age <= 12) return "Learning to Train (U10-U12) — first technical window, high ball contacts, 1v1 mastery";
-  if (age <= 15) return "Training to Train (U13-U15) — positional play, decision-making, tactical introduction";
-  if (age <= 18) return "Training to Compete (U16-U18) — game model implementation, high-intensity transitions, set pieces";
-  return "Training to Win (U19+) — elite competition preparation, full tactical complexity";
-}
-
 export async function generateSessionPlan(
   params: SessionParams
 ): Promise<{ plan?: string; structured?: SessionPlanStructured; error?: string }> {
@@ -76,7 +66,7 @@ export async function generateSessionPlan(
 
 
     const { ageGroup, sessionType, focusArea, durationMinutes, squadSize } = params;
-    const ltpdPhase = getLTDPPhase(ageGroup);
+    const ltpdPhase = getLTPDPhase(ageGroup);
 
     const prompt = `Generate a complete, structured training session plan for a SAFA-registered youth football academy.
 
@@ -110,8 +100,7 @@ Generate exactly 5 drills, the 5th a small-sided game of max 7v7. For each: a na
         // thinking tokens were silently eating the whole visible-output budget,
         // truncating the answer before the reader ever saw it end.
         thinkingConfig: { thinkingBudget: 0 },
-        systemInstruction:
-          "You are a UEFA Pro Licence and SAFA Level 4 Coaching Badge qualified youth development specialist. Your training sessions are grounded in FIFA's Long-Term Player Development (LTPD) framework, the 4-Corner Player Development Model (Technical, Tactical, Physical, Social/Psychological), SAFA's National Development Programme curriculum, and CAF youth development principles. You understand the South African grassroots football landscape and design sessions that are practical, player-centred, and aligned to international best practice. Plain text only — no asterisks, no Markdown formatting.",
+        systemInstruction: specialistSystem({ focus: "training sessions" }),
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,

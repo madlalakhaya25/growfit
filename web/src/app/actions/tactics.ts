@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { getConcept } from "@/lib/tactics";
 import { buildSquadContext } from "./squad-context";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
+import { getLTPDPhase, specialistSystem } from "@/lib/ai-safeguards";
 import { parseJsonObject } from "@/lib/ai-json";
 import { FORMATIONS } from "@/lib/formations";
 import { ZONE_IDS, zoneLabel } from "@/lib/board-analysis";
@@ -13,19 +14,6 @@ import { validateCounter, renderCounterProse, type OpponentCounter } from "@/lib
 import { getOpponentScouting } from "./tactic-plays";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-
-// Mirrors the LTPD phase mapping used by the session generator so tactical
-// explanations are pitched at the right developmental stage for the age group.
-function getLTPDPhase(ageGroup: string): string {
-  const match = ageGroup.match(/\d+/);
-  if (!match) return "Training to Train (U13-U15)";
-  const age = parseInt(match[0], 10);
-  if (age <= 9) return "FUNdamentals (U6-U9) — ABCs of movement, fun-first, no tactical demands";
-  if (age <= 12) return "Learning to Train (U10-U12) — first technical window, high ball contacts, 1v1 mastery";
-  if (age <= 15) return "Training to Train (U13-U15) — positional play, decision-making, tactical introduction";
-  if (age <= 18) return "Training to Compete (U16-U18) — game model implementation, high-intensity transitions, set pieces";
-  return "Training to Win (U19+) — elite competition preparation, full tactical complexity";
-}
 
 export async function explainPositionalRole(params: {
   positionLabel: string;
@@ -72,8 +60,7 @@ COACHING CUES: [3 short phrases the coach can shout to this player during play]`
         // thinking tokens were silently eating the whole visible-output budget,
         // truncating the answer before the reader ever saw it end.
         thinkingConfig: { thinkingBudget: 0 },
-        systemInstruction:
-          "You are a UEFA Pro Licence and SAFA Level 4 Coaching Badge qualified youth development specialist. Your positional guidance is grounded in FIFA's Long-Term Player Development (LTPD) framework, the 4-Corner Player Development Model (Technical, Tactical, Physical, Social/Psychological), SAFA's National Development Programme curriculum, and CAF youth development principles. You understand South African grassroots football and always keep guidance age-appropriate and player-centred. Plain text only — no asterisks, no Markdown formatting.",
+        systemInstruction: specialistSystem({ focus: "positions and positional play" }),
       },
     });
 
@@ -143,8 +130,7 @@ COACHING CUES: [3 short phrases the coach can shout during play]${squadNote}`;
         // thinking tokens were silently eating the whole visible-output budget,
         // truncating the answer before the reader ever saw it end.
         thinkingConfig: { thinkingBudget: 0 },
-        systemInstruction:
-          "You are a UEFA Pro Licence and SAFA Level 4 Coaching Badge qualified youth development specialist. Your tactical explanations are grounded in FIFA's Long-Term Player Development (LTPD) framework, the 4-Corner Player Development Model (Technical, Tactical, Physical, Social/Psychological), SAFA's National Development Programme curriculum, and CAF youth development principles. You understand South African grassroots football and always keep guidance age-appropriate and player-centred. Plain text only — no asterisks, no Markdown formatting.",
+        systemInstruction: specialistSystem({ focus: "tactical concepts" }),
       },
     });
 
@@ -211,8 +197,7 @@ PROGRESSION: [1 sentence on how to make it harder once they master it]`;
         // thinking tokens were silently eating the whole visible-output budget,
         // truncating the answer before the reader ever saw it end.
         thinkingConfig: { thinkingBudget: 0 },
-        systemInstruction:
-          "You are a UEFA Pro Licence and SAFA Level 4 Coaching Badge qualified youth development specialist. Your guidance is grounded in FIFA's Long-Term Player Development (LTPD) framework, the 4-Corner Player Development Model, SAFA's National Development Programme curriculum, and CAF youth development principles. You understand South African grassroots football and keep everything age-appropriate and player-centred. Plain text only — no asterisks, no Markdown formatting.",
+        systemInstruction: specialistSystem({ focus: "the tactics and the play being reviewed" }),
       },
     });
 
@@ -305,8 +290,7 @@ Return: reading (2-3 sentences on what their shape is doing); exploits (2-3 zone
         // thinking tokens were silently eating the whole visible-output budget,
         // truncating the answer before the reader ever saw it end.
         thinkingConfig: { thinkingBudget: 0 },
-        systemInstruction:
-          "You are a UEFA Pro Licence and SAFA Level 4 Coaching Badge qualified youth development specialist and opposition analyst. Your advice is grounded in FIFA's Long-Term Player Development (LTPD) framework, the 4-Corner Player Development Model, SAFA's National Development Programme curriculum, and CAF youth development principles. You understand South African grassroots football. Player development always outranks winning a single match. Plain text inside every field — no asterisks, no Markdown formatting.",
+        systemInstruction: specialistSystem({ focus: "the opponent and how to play against them", alsoA: "opposition analyst", plainText: "in every field" }),
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,

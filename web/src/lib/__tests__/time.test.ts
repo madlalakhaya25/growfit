@@ -1,4 +1,5 @@
 import {
+  monthStartIso,
   formatInTimezone,
   formatDayMonth,
   formatTime,
@@ -47,5 +48,20 @@ describe("lib/time", () => {
   it("currentHourInTimezone handles a mid-day instant with no boundary crossing", () => {
     // 2026-09-25T09:00:00Z -> 11:00 SAST.
     expect(currentHourInTimezone(new Date("2026-09-25T09:00:00.000Z"))).toBe(11);
+  });
+});
+
+describe("monthStartIso", () => {
+  it("is midnight on the 1st in South Africa (+02:00), i.e. 22:00 UTC the evening before", () => {
+    expect(monthStartIso(new Date("2026-10-15T10:00:00Z"))).toBe("2026-09-30T22:00:00.000Z");
+  });
+
+  it("uses the SOUTH AFRICAN month, not the host's: 23:30 UTC on 31 Oct is already 1 Nov in Durban", () => {
+    expect(monthStartIso(new Date("2026-10-31T23:30:00Z"))).toBe("2026-10-31T22:00:00.000Z");
+    expect(monthStartIso(new Date("2026-10-31T21:30:00Z"))).toBe("2026-09-30T22:00:00.000Z");
+  });
+
+  it("handles the year boundary", () => {
+    expect(monthStartIso(new Date("2026-12-31T23:30:00Z"))).toBe("2026-12-31T22:00:00.000Z");
   });
 });

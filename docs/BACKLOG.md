@@ -22,7 +22,7 @@ commit.
 
 | # | Item | What it needs | Source |
 |---|---|---|---|
-| 0.1 | **Apply migrations 030–037** | Someone with Supabase SQL-editor or CLI access | IP Step 0 — **verified, see `MIGRATION_RUNBOOK.md`** |
+| 0.1 | **Apply migrations 030–045** (`045` added 2026-10-01; 038–044 shipped since this row was written) | Someone with Supabase SQL-editor or CLI access | IP Step 0 — **verified, see `MIGRATION_RUNBOOK.md`** |
 | 0.2 | Error reporting (Sentry or equivalent) | An account and a DSN | IP-6 — **seam built, see below** |
 | 0.3 | Seed a test Supabase project + Playwright auth states | A real test project and credentials | RM — **`supabase/seed.sql` written and verified, see below** |
 | 0.4 | Move rate limiting off in-memory | A shared store (Upstash Redis) and credentials | RM — **seam built, see below** |
@@ -788,6 +788,59 @@ policy change — flag this clearly to whoever picks up the session.
 
 ---
 
+## Phase 6 — AI depth, from `docs/AI_AND_UX_PLAN_2026.md` (Phase 0 and Phase 1)
+
+*Added 2026-10-01.* That plan's Parts 4–6 are the implementation spec; Parts 1–3
+are a proposal still awaiting a product decision, and its Phases 2–5 have no
+spec yet. Everything below is on `claude/gracious-brown-lz6zo7`, one commit per
+numbered step.
+
+| Step | What | Status |
+|---|---|---|
+| 0.1 | Gate `generateDevelopmentPlan`, `getPlayerInsights`, `generateAcademyHealthReport` behind staff + "do you coach this player". Any signed-in player or parent could previously get a coach-grade critique of **any** child in the academy. | **Done** — a live safeguarding defect, shipped alone first |
+| 1.1 | Migration `045_ai_artefacts` + `lib/ai-artefacts.ts`; erasure deletes artefacts | **Done** — RLS proven on local PostgreSQL 16; live-project checks outstanding (runbook) |
+| 1.2 | One category module + five contrast-validated `--color-dev-*` tokens | **Done** |
+| 1.3 | `AiPanel`, `Spinner`, `StatBar` colour prop | **Done** |
+| 1.4 | Develop surfaces on one data path (`loadDevelopmentSnapshot`) and one component | **Done** |
+| 1.5 | Season timeline from `completed_at` / `completed_by` / `season` | **Done** |
+| 1.6 | Development plans that remember: structured, stored, approval-gated, with the previous plan's outcome fed back | **Done** |
+| **1.7** | **Player and parent read-only views of an approved plan** | **Held — needs a human.** The plan gates it on someone reading real model output for a child with falling ratings and 40% attendance, to confirm `playerNote` stays non-negative under adversarial input. No Gemini key exists in a session. Everything it needs is in place: the `'development_plan_shared'` row, RLS (proven), `PlayerSafeDevelopmentPlan`, `renderPlayerPlanProse`, and `AiPanel readOnly`. |
+| 1.8 | Store adopted at player insights and academy health; "AI use this month" card | **Done** |
+| 1.9 | Removed unused `@anthropic-ai/sdk` and root `@google/generative-ai`; `thinkingBudget: 0` on the PDF import; docs | **Done** |
+
+**Deviations from the written plan, on purpose.**
+
+- *The fingerprint is over the world-state brief only, not the whole brief.* The
+  spec fingerprints the full brief, which includes the previous plan -- so
+  generating a plan changes the next call's key and the cache can never hit.
+  Tests assert generating a plan leaves the key unchanged.
+- *The attendance window is bucketed to a month boundary* (the spec said to
+  bucket it; the first implementation moved on a different day each month and,
+  for Feb-May, was 89 days against a 90-day policy -- both caught by a
+  year-long sweep test).
+- *`reviewDate` is set by the server*, not asked of the model, which invents dates.
+- *`completedAt` is `string | null`*: the column is nullable in migration 012.
+- Admin Development Pathways keeps its inline add form rather than moving to a
+  `Sheet` (the plan listed it as optional polish; not worth the risk).
+
+**Migration numbering.** `045` is `ai_artefacts`. Phase 5's schema migration is
+now `046` and its welfare/load migration `047` (see 5.0 and 5.4).
+
+**Outstanding, needs a live Supabase project** (also in `MIGRATION_RUNBOOK.md`,
+045): a player reads only their own `development_plan_shared` row and never a
+`development_plan`; a parent only their linked child's; deleting a player leaves
+zero artefacts; and whether a parent's `profiles.academy_id` is actually
+populated in real data.
+
+**Next, in order:** (1) unblock 1.7 with a human reading real output; (2) apply `030`–`045` to the live project and run the 045 live checks; (3) write the Phase 2 spec (the agent) before building it -- see `AI_AND_UX_PLAN_2026.md`, "What is next"; (4) Phase 5 below is independent and approved.
+
+**Outstanding, needs a Gemini key:** whether the model honours each
+`responseSchema`; whether 1400 output tokens suffices for a full plan (truncation
+is silent); whether `previous` is grounded in the real completions; and
+`playerNote` tone under adversarial input (the 1.7 gate).
+
+---
+
 ## Phase 5 — New AI features, on the current UI — `docs/AI_FEATURES_AND_IA.md` Part 2
 
 The "Now" and "Next" tier features from that document's market scan,
@@ -799,7 +852,12 @@ document's own stated architecture. **Each numbered item is sized to be its
 own session/PR.** Do 5.0 first — everything else in this phase depends on
 it.
 
-### 5.0 Migration `043` — schema for fair game time and the voice log
+### 5.0 Migration `046` — schema for fair game time and the voice log
+*(Renumbered 2026-10-01: this was `043`, but 043 is `private_player_photos`,
+044 is `fixture_delete` and 045 is `ai_artefacts` — see
+`AI_AND_UX_PLAN_2026.md` Step 1.1. Any `log_match_result()` rewrite must be
+copied from the latest version — 040 — not reconstructed, and verified on the
+local harness; see 040's header for why.)*
 Additive, nullable/safely-defaulted, checked in and run by hand against the
 live Supabase project per this repo's convention (see `MIGRATION_RUNBOOK.md`):
 `team_members.shirt_number`, `academies.short_code`,
@@ -845,7 +903,7 @@ Copy-for-WhatsApp, and an optional isiZulu toggle — shipped switched off
 until a staff member who reads isiZulu approves sample output.
 
 ### 5.4 Welfare and load watch — Part 2 #7
-Needs migration `044` (`training_attendance.rpe`, plus `player_growth` —
+Needs migration `047` (was `044`, now taken; `training_attendance.rpe`, plus `player_growth` —
 see below): an optional 1–10 effort entry after the register ("everyone: 6,
 then adjust the exceptions"), and three new reasons in the existing
 `getWelfareAlerts()` — falling attendance trend, falling ratings, and a

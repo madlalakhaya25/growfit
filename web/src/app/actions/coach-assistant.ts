@@ -7,6 +7,7 @@ import { buildSquadContext } from "./squad-context";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
 import { getAssistantContext, type AssistantContext } from "@/lib/assistant-context";
 import { parseJsonObject } from "@/lib/ai-json";
+import { COACH_SYSTEM } from "@/lib/ai-safeguards";
 
 /**
  * Lazily fetches the same teams/roster/fixtures brief the dedicated
@@ -20,15 +21,6 @@ export async function getAssistantContextAction(): Promise<AssistantContext> {
 }
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-
-const COACH_SYSTEM =
-  "You are the assistant coach at Growfit Sports Academy, a SAFA-registered grassroots youth academy in Greater Durban, South Africa. " +
-  "You are grounded in FIFA's Long-Term Player Development (LTPD) framework, the 4-Corner Player Development Model, SAFA's National Development Programme curriculum, and CAF youth development principles. " +
-  "You are given a brief with the squad's real data. Always use the real player names and real numbers from that brief — never invent a player, a rating, a result or a statistic that is not in it. If the brief does not contain what is needed, say so plainly and say what the coach should record. " +
-  "The academy's attendance policy is 75% per term, and dropping below it triggers a welfare check-in, not a punishment. " +
-  "These are children: player welfare and long-term development always outrank winning a single match. Never suggest anti-football, time-wasting, or playing an injured or unwell child. " +
-  "Never repeat a child's medical details, ID number or contact information. " +
-  "Answer like an experienced coach talking to a colleague: direct, practical, and short. Plain text only — no asterisks, no Markdown formatting.";
 
 export interface CoachMessage {
   role: "user" | "model";

@@ -151,14 +151,71 @@ before the action even ran — with no error surfaced, just an upload that
 hung forever. If a new large-upload feature starts silently failing, check
 this first before assuming the bug is in the upload code itself.
 
+## A missing TABLE is a different error from a missing COLUMN
+
+`isMissingAttributeColumn()` catches `PGRST204` / `42703` -- the *column* codes.
+A migration that creates a whole **table** fails differently: PostgREST `PGRST205`,
+Postgres `42P01`. The column helper does not fire for those, so reusing it for a
+new table turns a not-yet-applied migration into a hard failure on a coach's
+screen. `lib/ai-artefacts.ts` has the table-specific helper
+(`isMissingAiArtefactsTable`); `friendlyError()` recognises both pairs. The
+contract for a new table: reads return `available: false` (not an error) when it
+is absent, and the caller falls through to today's behaviour -- the UI loses
+persistence, not function.
+
+## `profiles` is invisible to a player or parent -- and the join returns null silently
+
+`profiles` RLS lets a player or parent read only their **own** row. A nested join
+to resolve another person's name (the coach who signed a milestone off, who
+approved a plan) therefore comes back `null` on exactly the surfaces that need it,
+with no error -- and reads as "nobody did this". Either denormalise the name at
+write time (`ai_artefacts.approved_by_name`) or render a fallback such as "your
+coach" -- never an empty string. `lib/development-data.ts` resolves names only for
+staff and returns `completedByName: null` everywhere else.
+
+## RLS is row-level, not column-level: a private field needs its own row
+
+You cannot let a player `SELECT` a row and hide one column of it; whatever the UI
+omits, the row still carries it in the RSC payload. The development plan keeps the
+coach's private note and the verdict on the previous plan in a `'development_plan'`
+row, and writes a **second** `'development_plan_shared'` row holding only
+`toPlayerSafePlan()`'s output (a distinct type, built field by field). Migration
+045's policies admit a player or parent to the second kind only, and only once
+approved. The same applies to any future "coach sees more than the child" data.
+
+## AI cache keys: the brief must be deterministic, and must not contain its own output
+
+`lib/ai-artefacts.ts` serves a stored answer when `sha256(brief)` is unchanged.
+Three ways that silently never hit, all of which only show up as a bill:
+
+- **Unstable brief.** An unsorted `.select()`, a `Map`/object iterated in arrival
+  order, a tie with no tie-break, a timestamp in the text. Sort every collection
+  inside the builder and break ties on a stable field.
+- **A moving window.** "The last 90 days" changes daily; bucket its start to a
+  fixed boundary (`bucketedAttendanceStart`) or the key changes with no new data.
+- **Fingerprinting the previous answer.** The development-plan brief includes the
+  previous plan, so a key over the *whole* brief changes every time a plan is
+  generated and can never hit. The key is over the world-state part only
+  (`worldBrief`); the previous plan is shown to the model but is not in the key.
+
+## Testing an action without Supabase
+
+`src/test-utils/fake-supabase.ts` is a chainable, thenable stand-in whose handler
+sees `{ table, action, payload, one }` and returns what that call should resolve
+to. Use it for the decisions an action makes (who is let in, when the model is and
+isn't called, what is written); prove RLS against a real PostgreSQL instead
+(`docs/MIGRATION_RUNBOOK.md`, "Reproducing this verification"). Mock only the
+Gemini SDK (its ESM build can't load under Jest), `next/cache`, and the auth seam
+(`requireStaff` / `coachesPlayer`, whose logic `auth-guards.test.ts` covers).
+Mutate the code once to confirm a new test can actually fail.
+
 ## Testing
 
 - `npm test` — Jest + Testing Library, component/unit tests. Existing
-  convention: no Supabase/network mocking, tests are pure-logic or
-  pure-render. Two pre-existing failures unrelated to any of the above
-  (`src/__tests__/validation.test.ts`, `src/components/__tests__/logo.test.tsx`)
-  were already failing before this note was written — don't assume a change
-  caused them without checking `git blame`.
+  convention: no network mocking; tests are pure-logic or pure-render, plus the
+  action-level tests described above. As of 2026-10-01 the whole suite passes
+  (the two failures older notes mention, `validation.test.ts` and `logo.test.tsx`,
+  no longer fail) -- so a red test is yours.
 - `npm run test:e2e` — Playwright smoke tests, see `web/e2e/README.md` for
   exactly what they do and don't cover. They need no Supabase project (see
   the graceful-degradation gotcha above) and are meant to catch "the whole

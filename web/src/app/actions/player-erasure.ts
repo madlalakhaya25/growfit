@@ -2,6 +2,7 @@
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { friendlyError } from "@/lib/friendly-error";
+import { deleteAiArtefactsForSubject } from "@/lib/ai-artefacts";
 
 /**
  * Full erasure of a player's record — POPIA's right to erasure needs an
@@ -53,6 +54,13 @@ export async function deletePlayerRecord(playerId: string, confirmName: string) 
       }
     }
   }
+
+  // ai_artefacts.subject_id is polymorphic with no foreign key (migration 045),
+  // so the delete below does NOT cascade to it. An erased child's AI-written
+  // profile surviving would defeat the erasure, so this runs first and a
+  // failure stops the whole thing rather than leaving orphans behind.
+  const artefacts = await deleteAiArtefactsForSubject(supabase, { subjectType: "player", subjectId: playerId });
+  if (!artefacts.deleted) return { error: "Couldn't erase this player's saved AI output — nothing was deleted." };
 
   const { error } = await supabase.from("players").delete().eq("id", playerId);
   if (error) return { error: friendlyError(error) };

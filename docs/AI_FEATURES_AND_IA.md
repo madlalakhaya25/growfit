@@ -5,6 +5,11 @@ performance-analysis product) and asking two questions: what else in the
 AI-driven football-app market is worth stealing, and is Growfit's own
 navigation already too cluttered to add more to.*
 
+> **Update 2026-10-01.** `AI_AND_UX_PLAN_2026.md` extends this document with the
+> tactics, video and performance leaders this scan didn't reach, the agentic
+> Gemini video mode, and a build order. Phase 0 and most of Phase 1 of that plan
+> are built (see `BACKLOG.md` Phase 6).
+
 This document has four parts: a market scan, the features it suggests,
 the safeguarding rules a video feature needs, and the navigation/design
 changes that make room for all of it without the app feeling more
