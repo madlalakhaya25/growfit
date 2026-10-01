@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Target } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { DevelopmentPlanPanel } from "@/components/development/development-plan-panel";
+import { EmptyState } from "@/components/ui/empty-state";
 import { MilestoneProgress } from "@/components/development/milestone-progress";
 import type { MilestoneCategory } from "@/app/actions/development";
 
@@ -93,8 +93,15 @@ export default async function PlayerDevelopmentPage() {
         </p>
       )}
 
-      <section className="space-y-3">
-        <DevelopmentPlanPanel playerId={player.id} />
+      {/* The AI plan generator used to be mounted here, callable by the player.
+          It's a coach-grade critique, so it is coach-only now (Phase 0 of
+          docs/AI_AND_UX_PLAN_2026.md); a coach-approved, player-safe version
+          arrives with Phase 1. */}
+      <section>
+        <EmptyState
+          icon={Target}
+          message="Your coach shares your personal development plan with you once it's ready."
+        />
       </section>
     </div>
   );

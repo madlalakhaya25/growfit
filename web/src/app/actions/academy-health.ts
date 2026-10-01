@@ -2,7 +2,7 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { AI_MODEL } from "@/lib/ai-models";
-import { requireUser } from "@/lib/auth";
+import { requireStaff } from "@/lib/auth";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
@@ -12,7 +12,10 @@ export async function generateAcademyHealthReport(): Promise<{
   error?: string;
 }> {
   try {
-    const { supabase, user } = await requireUser();
+    const { supabase, user, profile: staff } = await requireStaff();
+    // Staff only, and before the budget check. The report aggregates the whole
+    // academy's players, so there is no per-player scoping to apply here.
+    if (!staff) return { error: "This is available to coaches and admins only." };
     // One AI call against this user's hourly budget. Counts attempts, not
     // successes: a failed call still costs a request to the provider.
     const overBudget = await checkAiBudget(user.id);

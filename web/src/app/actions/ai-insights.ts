@@ -2,7 +2,8 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { AI_MODEL } from "@/lib/ai-models";
-import { requireUser } from "@/lib/auth";
+import { requireStaff } from "@/lib/auth";
+import { coachesPlayer } from "@/lib/coached-teams";
 import {
   ALL_ATTR_SELECT,
   ATTR_META,
@@ -22,7 +23,15 @@ export async function getPlayerInsights(playerId: string): Promise<{
   error?: string;
 }> {
   try {
-    const { supabase, user } = await requireUser();
+    const { supabase, user, profile: staff } = await requireStaff();
+    // Gate BEFORE the budget check so a probe by a player or parent doesn't
+    // burn budget either. RLS reads of `players` are academy-wide, so this
+    // app-level check is the only thing keeping a child's coach-grade critique
+    // from any signed-in member of the academy.
+    if (!staff) return { error: "This is available to coaches and admins only." };
+    if (!(await coachesPlayer(supabase, { userId: user.id, role: staff.role, playerId }))) {
+      return { error: "You don't coach this player." };
+    }
     // One AI call against this user's hourly budget. Counts attempts, not
     // successes: a failed call still costs a request to the provider.
     const overBudget = await checkAiBudget(user.id);
