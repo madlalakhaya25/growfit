@@ -3,6 +3,7 @@
 import { requireUser } from "@/lib/auth";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { buildStableBrief } from "@/lib/squad-brief";
+import { loadOpponentMemory } from "@/lib/opponent-memory-data";
 import { formatDayMonth, formatInTimezone } from "@/lib/time";
 import {
   ATTENDANCE_WINDOW_DAYS, WELFARE_ATTENDANCE_THRESHOLD,
@@ -341,19 +342,30 @@ export async function buildSquadContext(
   if (upcoming) {
     lines.push("", `NEXT MATCH: ${upcoming.is_home ? "home vs" : "away to"} ${upcoming.opponent} on ${formatInTimezone(upcoming.fixture_date, { weekday: "long", day: "numeric", month: "long" })}.`);
 
-    // Opponent memory — what happened last time we played them
-    const history = results.filter((r) => r.opponent.toLowerCase() === upcoming!.opponent.toLowerCase());
-    if (history.length > 0) {
+    // Opponent memory — what happened every time we played them, not just in
+    // the last six results, matched on the name (case and whitespace only).
+    const memory = await loadOpponentMemory(supabase, {
+      teamId,
+      opponent: upcoming.opponent,
+      fixtureId: opts!.fixtureId!,
+    });
+    if (memory.meetings.length > 0) {
       lines.push("PREVIOUS MEETINGS WITH THIS OPPONENT:");
-      for (const h of history) {
-        const mr = Array.isArray(h.match_results) ? h.match_results[0] : h.match_results;
+      for (const m of memory.meetings) {
         lines.push(
-          `- ${formatDayMonth(h.fixture_date)}: ${scoreOf(h)}` +
-          (mr?.match_notes ? ` — notes: ${mr.match_notes.slice(0, 200)}` : "")
+          `- ${formatDayMonth(m.date)}: ${m.score ? `${m.score.team}-${m.score.opponent}` : "score not logged"}` +
+          (m.notes ? ` — notes: ${m.notes}` : "")
         );
       }
     } else {
       lines.push("We have no logged result against this opponent yet.");
+    }
+    if (memory.formations.length > 0) {
+      lines.push(
+        "OPPONENT SHAPE FROM OUR SAVED PLAYS: " +
+          memory.formations.map((f) => `${f.label} (${f.count} play${f.count === 1 ? "" : "s"})`).join(", ") +
+          "."
+      );
     }
   }
 

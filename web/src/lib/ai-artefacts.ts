@@ -39,7 +39,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export type AiArtefactKind =
   | "development_plan" | "development_plan_shared" | "player_insights"
   | "academy_health"   | "match_plan"             | "session_plan"
-  | "parent_report"    | "match_report";
+  | "parent_report"    | "match_report"
+  // Migration 048 widens ai_artefacts_kind_check for this one.
+  | "scouting_report";
 
 export type AiSubjectType = "player" | "fixture" | "team" | "academy";
 export type AiArtefactStatus = "draft" | "approved";
@@ -124,6 +126,7 @@ export const AI_ARTEFACT_TTL: Record<AiArtefactKind, number> = {
   session_plan: 7 * DAY,
   parent_report: 7 * DAY,
   match_report: 7 * DAY,
+  scouting_report: 24 * HOUR, // a week out it is stale; a day out it is not
 };
 
 /** Pure: the documented cache rule (conditions 2-5; 1 is the query, 6 the caller). */
