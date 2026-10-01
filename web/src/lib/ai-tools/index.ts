@@ -24,7 +24,10 @@ export const AGENT_TOOLS: AgentTool<any, any>[] = [
 
 /** Gemini `functionDeclarations` for the registry. */
 export function toolDeclarations() {
-  return AGENT_TOOLS.map((t) => ({ name: t.name, description: t.description, parameters: t.parameters }));
+  // `parametersJsonSchema` takes plain JSON Schema (lowercase types), which is
+  // what each tool's `parameters` is; `parameters` would want Gemini's own
+  // upper-case `Type` enum.
+  return AGENT_TOOLS.map((t) => ({ name: t.name, description: t.description, parametersJsonSchema: t.parameters }));
 }
 
 /** Short, human label for the stream's `tool` event ("checking attendance…"). */
