@@ -8,6 +8,15 @@ reach, and with what changed in the market since.*
 implementation spec and are ready to build.** Phase 0 is a live defect and
 ships regardless of whether the rest is agreed.
 
+> **Implementation status (2026-10-01).** Phase 0 and Phase 1 steps 1.1-1.6, 1.8
+> and 1.9 are built and pushed on `claude/gracious-brown-lz6zo7`, one commit per
+> step. **1.7 is held** on the human check this document specifies. Two things in
+> the spec were wrong and are corrected in the code: the cache key must not
+> include the previous plan (it could never hit), and the attendance bucketing as
+> written was off by a day-of-month and, for Feb-May, 89 days. See
+> `BACKLOG.md` Phase 6 for the table, deviations and what is still outstanding.
+> Phases 2-5 have no implementation spec yet.
+
 ---
 
 ## How to use this document
