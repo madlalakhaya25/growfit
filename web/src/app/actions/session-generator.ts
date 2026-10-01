@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
 import { parseJsonObject } from "@/lib/ai-json";
 import { getLTPDPhase, specialistSystem } from "@/lib/ai-safeguards";
+import { renderSessionPlanProse } from "@/lib/session-plan";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -30,28 +31,6 @@ export interface SessionDrill {
 export interface SessionPlanStructured {
   drills: SessionDrill[];
   coachReflection: string;
-}
-
-/**
- * Renders the exact "DRILL N: Name (X min)" prose shape the old freeform
- * prompt produced, from the now-structured data — session-generator-panel.tsx
- * still splits on `/(?=DRILL \d+:)/g` to render each drill, so this keeps
- * that display completely unchanged.
- */
-function renderSessionPlanProse(s: SessionPlanStructured): string {
-  const lines: string[] = [];
-  s.drills.forEach((d, i) => {
-    if (i > 0) lines.push("");
-    lines.push(`DRILL ${i + 1}: ${d.name} (${d.durationMinutes} min)`);
-    lines.push(`LTPD Focus: ${d.ltpdFocus}`);
-    lines.push(`4-Corner: ${d.fourCorner}`);
-    lines.push(`Setup: ${d.setup}`);
-    lines.push(`Instructions: ${d.instructions}`);
-    lines.push(`Coaching Points: ${d.coachingPoints}`);
-  });
-  lines.push("");
-  lines.push(`COACH REFLECTION: ${s.coachReflection}`);
-  return lines.join("\n");
 }
 
 export async function generateSessionPlan(

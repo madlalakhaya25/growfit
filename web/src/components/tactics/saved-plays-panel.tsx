@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FolderOpen, Save, Send, Sparkles, Swords, Trash2 } from "lucide-react";
+import { FolderOpen, ListChecks, Save, Send, Sparkles, Swords, Trash2 } from "lucide-react";
 import { useBoardStore } from "@/store/boardStore";
 import { useBoardSetupStore } from "@/store/boardSetupStore";
 import { useBoardPlaybackStore } from "@/store/boardPlaybackStore";
@@ -9,6 +9,9 @@ import { useSavedPlaysStore } from "@/store/savedPlaysStore";
 import { useBoardInsightsStore } from "@/store/boardInsightsStore";
 import { savePlay, listPlays, loadPlay, deletePlay, sharePlayToSquad, listLinkTargets } from "@/app/actions/tactic-plays";
 import { describePlay, analyseOpponent } from "@/app/actions/tactics";
+import { generateSessionFromBoard } from "@/app/actions/board-to-session";
+import { SessionProgression } from "@/components/tactics/session-progression";
+import type { SessionPlanStructured } from "@/app/actions/session-generator";
 import { SpeakButton } from "@/components/tactics/speak-button";
 import { VoiceNoteRecorder } from "@/components/tactics/voice-note-recorder";
 import { TACTICAL_CONCEPTS, TACTICAL_CATEGORIES, getConcept } from "@/lib/tactics";
@@ -70,6 +73,8 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
   const [description, setDescription] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [voiceUrl, setVoiceUrl] = useState<string | null>(null);
+  // The three-drill progression made from the board, awaiting "Add to session".
+  const [progression, setProgression] = useState<SessionPlanStructured | null>(null);
   // The structured counter itself lives in the insights store, because the
   // board draws it; this panel only keeps the read-aloud prose above.
   const setAiCounter = useBoardInsightsStore((s) => s.setAiCounter);
@@ -130,6 +135,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
     setFixtureId(meta?.fixture_id ?? "");
     setDescription(null);
     setAnalysis(null);
+    setProgression(null);
     setAiCounter(null);
     setVoiceUrl(meta?.voice_url ?? null);
     clearDraft();
@@ -150,6 +156,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
     setPlayName(tpl.label);
     setDescription(null);
     setAnalysis(null);
+    setProgression(null);
     setAiCounter(null);
     setVoiceUrl(null);
     setNotice("Template loaded — press Play under the pitch to watch it, then drag it about and save it as your own.");
@@ -245,6 +252,24 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
     setAnalysis(res.analysis ?? null);
     setAiCounter(res.counter ?? null);
     if (res.counter) setNotice("Counter drawn on the pitch in violet — see \"Where the space is\" under the board to apply it.");
+  }
+
+  async function handleMakeSession() {
+    if (!state.tokens.some((t) => t.kind === "player")) {
+      setNotice("Put some players on the board first so there's a play to teach.");
+      return;
+    }
+    setBusy("session");
+    setProgression(null);
+    const res = await generateSessionFromBoard({
+      teamId,
+      playName: playName.trim(),
+      conceptLabels: conceptIds.map((id) => getConcept(id)?.label ?? id),
+      summary: summariseBoard(),
+    });
+    setBusy(null);
+    if (res.error) { setNotice(res.error); return; }
+    setProgression(res.structured ?? null);
   }
 
   async function handleDelete(id: string) {
@@ -362,11 +387,15 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
           <Swords className="size-3 text-primary" aria-hidden="true" />
           {busy === "analyse" ? "Analysing…" : "Counter them"}
         </button>
+        <button type="button" onClick={handleMakeSession} disabled={busy !== null} title="Turn this play into a three-drill session: unopposed, opposed, then a small-sided game" className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
+          <ListChecks className="size-3 text-primary" aria-hidden="true" />
+          {busy === "session" ? "Planning…" : "Make a session"}
+        </button>
         <button type="button" onClick={handleShare} disabled={busy !== null} className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
           <Send className="size-3" aria-hidden="true" /> Share to squad
         </button>
         {currentPlayId && (
-          <button type="button" onClick={() => { setCurrentPlayId(null); setPlayName(""); setVoiceUrl(null); setAnalysis(null); setAiCounter(null); setDescription(null); }} className="inline-flex h-10 sm:h-8 items-center rounded-md border border-border bg-background px-2 text-xs hover:bg-muted">
+          <button type="button" onClick={() => { setCurrentPlayId(null); setPlayName(""); setVoiceUrl(null); setAnalysis(null); setAiCounter(null); setDescription(null); setProgression(null); }} className="inline-flex h-10 sm:h-8 items-center rounded-md border border-border bg-background px-2 text-xs hover:bg-muted">
             New
           </button>
         )}
@@ -397,6 +426,15 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
           </div>
           <AiProse text={analysis} className="text-xs" />
         </div>
+      )}
+
+      {progression && (
+        <SessionProgression
+          plan={progression}
+          sessions={targets.sessions}
+          defaultSessionId={sessionId}
+          onApplied={setNotice}
+        />
       )}
 
       {plays.length > 1 && (
