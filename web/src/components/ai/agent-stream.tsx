@@ -1,9 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Loader2, Send } from "lucide-react";
 import { streamAgent } from "./agent-sse";
+import type { AgentPage } from "@/lib/ai-tools/agent-request";
+import { readCurrentTeamCookie, resolveCurrentTeamId, writeCurrentTeamCookie } from "@/lib/current-team";
 import { isInternalHref } from "@/lib/ai-tools/links";
 import type { AgentLink } from "@/lib/ai-tools/types";
 
@@ -18,10 +20,36 @@ interface Turn {
  * line names the tool being used ("checking attendance…"), and the players and
  * fixtures the answer drew on are offered as one-tap chips underneath.
  *
- * Not mounted anywhere yet — step 2.7 gives it a page, a nav entry and the
- * current page's context.
+ * `page` tells the server where the question was asked from, so the answer can
+ * lean the right way (a tactics question gets a coaching-concept answer).
+ * `starters` are one-tap first questions, shown until the conversation begins.
+ * With `teams`, a coach with several teams picks one, defaulting to the team
+ * they last chose elsewhere in the app.
  */
-export function AgentStream({ teamId }: { teamId?: string }) {
+export function AgentStream({
+  teamId: fixedTeamId,
+  teams,
+  page,
+  starters = [],
+}: {
+  teamId?: string;
+  teams?: { id: string; name: string }[];
+  page?: AgentPage;
+  starters?: string[];
+}) {
+  const [pickedTeam, setPickedTeam] = useState<string | undefined>(fixedTeamId);
+  // Read the cookie after mount, not during render, so the server's render
+  // (no cookie) and the client's first render agree.
+  useEffect(() => {
+    if (!teams?.length || fixedTeamId) return;
+    const fromCookie = resolveCurrentTeamId(teams, null, readCurrentTeamCookie()) ?? undefined;
+    // Deferred a tick, like the other cookie-after-mount readers: not a
+    // synchronous setState in the effect body.
+    void Promise.resolve().then(() => setPickedTeam(fromCookie));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const teamId = pickedTeam;
+
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [status, setStatus] = useState<string | null>(null);
@@ -29,8 +57,8 @@ export function AgentStream({ teamId }: { teamId?: string }) {
   const [busy, setBusy] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  async function send() {
-    const question = input.trim();
+  async function send(text?: string) {
+    const question = (text ?? input).trim();
     if (!question || busy) return;
     setError(null);
     setInput("");
@@ -41,7 +69,7 @@ export function AgentStream({ teamId }: { teamId?: string }) {
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     try {
-      for await (const ev of streamAgent({ question, history, teamId }, ctrl.signal)) {
+      for await (const ev of streamAgent({ question, history, teamId, page }, ctrl.signal)) {
         if (ev.type === "text") {
           setStatus(null);
           setTurns((t) => {
@@ -75,6 +103,33 @@ export function AgentStream({ teamId }: { teamId?: string }) {
 
   return (
     <div className="space-y-4">
+      {teams && teams.length > 1 && (
+        <select
+          value={teamId ?? ""}
+          onChange={(e) => { setPickedTeam(e.target.value); writeCurrentTeamCookie(e.target.value); }}
+          aria-label="Team"
+          className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+        >
+          {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+      )}
+
+      {turns.length === 0 && starters.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {starters.map((q) => (
+            <button
+              key={q}
+              type="button"
+              onClick={() => void send(q)}
+              disabled={busy}
+              className="rounded-full border border-border bg-background px-2.5 py-1 text-xs hover:bg-muted disabled:opacity-50"
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="space-y-3" aria-live="polite">
         {turns.map((t, i) => (
           <div key={i} className={t.role === "user" ? "text-right" : ""}>

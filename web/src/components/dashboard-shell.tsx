@@ -88,7 +88,13 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
         { href: "/dashboard/admin/development", label: "Development" },
       ],
     },
-    { key: "academy", label: "Academy", Icon: Building2, mobileHide: true, tabs: [{ href: "/dashboard/admin/academy", label: "Academy" }] },
+    {
+      key: "academy", label: "Academy", Icon: Building2, mobileHide: true,
+      tabs: [
+        { href: "/dashboard/admin/academy", label: "Academy" },
+        { href: "/dashboard/admin/agent", label: "Agent", feature: "agent" },
+      ],
+    },
   ],
   coach: [
     { key: "today", label: "Overview", mobileLabel: "Home", Icon: LayoutDashboard, tabs: [{ href: "/dashboard/coach", label: "Today" }] },
@@ -119,6 +125,7 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
       tabs: [
         { href: "/dashboard/coach/announcements", label: "Posts" },
         { href: "/dashboard/coach/assistant", label: "Assistant", feature: "assistant" },
+        { href: "/dashboard/coach/agent", label: "Agent", feature: "agent" },
         { href: "/dashboard/coach/settings", label: "Settings" },
       ],
     },

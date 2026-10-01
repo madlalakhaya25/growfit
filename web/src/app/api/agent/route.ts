@@ -3,6 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 import { AI_MODEL } from "@/lib/ai-models";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
 import { requireUser } from "@/lib/auth";
+import { getAcademyFeatures } from "@/lib/features";
 import { createClient } from "@/lib/supabase/server";
 import { buildAgentContext } from "@/lib/ai-tools/context";
 import { agentSystem } from "@/lib/ai-tools/agent-prompt";
@@ -49,6 +50,13 @@ export async function POST(request: NextRequest) {
   const ctx = await buildAgentContext(supabase, user.id);
   if (!ctx) return NextResponse.json({ error: "The agent is for coaches and admins." }, { status: 403 });
 
+  // An academy can switch the agent off (Academy settings). Checked on the
+  // server as well as hidden in the nav: a hidden link is not a disabled API.
+  const features = await getAcademyFeatures(supabase, ctx.academyId);
+  if (features.agent === false) {
+    return NextResponse.json({ error: "The assistant is switched off for this academy." }, { status: 403 });
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -57,7 +65,7 @@ export async function POST(request: NextRequest) {
   }
   const parsed = parseAgentRequest(body);
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
-  const { question, history, teamId } = parsed.value;
+  const { question, history, teamId, page } = parsed.value;
 
   // A team the caller can't access is dropped, not trusted.
   const currentTeam = teamId ? (ctx.teams.find((t) => t.id === teamId) ?? null) : null;
@@ -66,7 +74,7 @@ export async function POST(request: NextRequest) {
   const overBudget = await checkAiBudget(user.id);
   if (overBudget) return NextResponse.json({ error: overBudget }, { status: 429 });
 
-  const system = agentSystem({ currentTeam });
+  const system = agentSystem({ currentTeam, page });
   const initial: LoopContent[] = [
     ...history.map((m) => ({ role: m.role, parts: [{ text: m.text }] })),
     { role: "user", parts: [{ text: question }] },

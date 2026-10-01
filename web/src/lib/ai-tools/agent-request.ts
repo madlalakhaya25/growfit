@@ -2,6 +2,14 @@ export const MAX_QUESTION_CHARS = 1000;
 export const MAX_HISTORY_TURNS = 8;
 const MAX_TURN_CHARS = 4000;
 
+/**
+ * Where in the app the question was asked from. A closed list, not free text:
+ * the client names a page and the server decides what that means for the
+ * prompt, so a request can never smuggle its own instructions in as "context".
+ */
+export const AGENT_PAGES = ["agent", "tactics", "squad", "fixtures", "training", "welfare"] as const;
+export type AgentPage = (typeof AGENT_PAGES)[number];
+
 export interface AgentTurn {
   role: "user" | "model";
   text: string;
@@ -10,6 +18,7 @@ export interface AgentRequest {
   question: string;
   history: AgentTurn[];
   teamId?: string;
+  page?: AgentPage;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -36,6 +45,12 @@ export function parseAgentRequest(body: unknown): { ok: true; value: AgentReques
     teamId = b.teamId;
   }
 
+  let page: AgentPage | undefined;
+  if (b.page !== undefined && b.page !== null) {
+    if (typeof b.page !== "string" || !(AGENT_PAGES as readonly string[]).includes(b.page)) return { ok: false, error: "Invalid request." };
+    page = b.page as AgentPage;
+  }
+
   const rawHistory = b.history === undefined ? [] : b.history;
   if (!Array.isArray(rawHistory)) return { ok: false, error: "Invalid request." };
   const history: AgentTurn[] = [];
@@ -47,5 +62,5 @@ export function parseAgentRequest(body: unknown): { ok: true; value: AgentReques
   }
   while (history.length > 0 && history[history.length - 1].role === "user") history.pop();
 
-  return { ok: true, value: { question, history, teamId } };
+  return { ok: true, value: { question, history, teamId, page } };
 }

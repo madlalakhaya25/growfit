@@ -3,8 +3,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AI_MODEL, AI_MODEL_LITE } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
-import { getConcept } from "@/lib/tactics";
-import { buildSquadContext } from "./squad-context";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
 import { getLTPDPhase, specialistSystem } from "@/lib/ai-safeguards";
 import { parseJsonObject } from "@/lib/ai-json";
@@ -61,76 +59,6 @@ COACHING CUES: [3 short phrases the coach can shout to this player during play]`
         // truncating the answer before the reader ever saw it end.
         thinkingConfig: { thinkingBudget: 0 },
         systemInstruction: specialistSystem({ focus: "positions and positional play" }),
-      },
-    });
-
-    let text = response.text ?? "";
-    text = text.replace(/\*/g, "");
-
-    return { explanation: text };
-  } catch (err) {
-    return { error: aiError(err) };
-  }
-}
-
-export async function explainTacticalConcept(params: {
-  conceptId: string;
-  ageGroup: string;
-  teamId?: string;
-}): Promise<{ explanation?: string; error?: string }> {
-  try {
-    const { user } = await requireUser();
-    // One AI call against this user's hourly budget. Counts attempts, not
-    // successes: a failed call still costs a request to the provider.
-    const overBudget = await checkAiBudget(user.id);
-    if (overBudget) return { error: overBudget };
-
-
-    const concept = getConcept(params.conceptId);
-    if (!concept) return { error: "Unknown tactical concept." };
-
-    // Ground the explanation in this squad's real numbers when we have a team.
-    let squadNote = "";
-    if (params.teamId) {
-      const { context } = await buildSquadContext(params.teamId);
-      if (context) {
-        squadNote = `\n\nTHIS COACH'S ACTUAL SQUAD — tailor the advice to these players and cite their real numbers where relevant. Never invent a player or a statistic that is not listed:\n${context.brief}`;
-      }
-    }
-
-    const ageGroup = params.ageGroup.trim() || "U15";
-    const ltpdPhase = getLTPDPhase(ageGroup);
-
-    const prompt = `Explain the football tactical concept "${concept.label}" for a coach at a SAFA-registered grassroots youth academy.
-
-CONCEPT: ${concept.label}
-WORKING DEFINITION: ${concept.summary}
-AGE GROUP: ${ageGroup} | LTPD Phase: ${ltpdPhase}
-
-Write a clear, practical explanation the coach can act on today. Pitch every point at the LTPD phase above — what is age-appropriate for ${ageGroup} specifically, and what should NOT be demanded yet at this stage. Reflect South African grassroots reality (mixed-ability squads, limited equipment, small-sided formats).
-
-Return plain text (no markdown, no asterisks) in exactly this structure:
-
-WHAT IT IS: [2-3 sentences a coach could repeat to the squad]
-WHY IT MATTERS AT ${ageGroup}: [2 sentences tied to this developmental phase]
-KEY PRINCIPLES: [3 short, numbered coaching principles]
-WHAT TO LOOK FOR: [2 things the coach should watch the players doing well]
-COMMON MISTAKES: [2 typical errors at this age and the fix]
-COACHING CUES: [3 short phrases the coach can shout during play]${squadNote}`;
-
-    const response = await ai.models.generateContent({
-      // Fixed-structure definition — the cheap tier (see ai-models.ts) even
-      // when a squad brief is attached, since the answer is still a
-      // definition, not a decision about who plays.
-      model: AI_MODEL_LITE,
-      contents: prompt,
-      config: {
-        maxOutputTokens: 1000,
-        // Disable thinking: this is a direct-answer task, and unbudgeted
-        // thinking tokens were silently eating the whole visible-output budget,
-        // truncating the answer before the reader ever saw it end.
-        thinkingConfig: { thinkingBudget: 0 },
-        systemInstruction: specialistSystem({ focus: "tactical concepts" }),
       },
     });
 

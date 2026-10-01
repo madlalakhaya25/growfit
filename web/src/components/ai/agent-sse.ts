@@ -31,6 +31,7 @@ export interface AgentAskInput {
   question: string;
   history: { role: "user" | "model"; text: string }[];
   teamId?: string;
+  page?: string;
 }
 
 /** POSTs to /api/agent and yields events as they stream in. */
