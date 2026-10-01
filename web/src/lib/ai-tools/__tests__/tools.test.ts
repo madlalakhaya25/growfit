@@ -218,8 +218,25 @@ describe("getWelfareAlerts", () => {
 });
 
 describe("searchDrills", () => {
+  it("maps the session page's `fitness` to the library's `physical`, at this boundary only", () => {
+    expect(searchDrills.parseInput({ category: "fitness" })).toMatchObject({ category: "physical" });
+  });
+  it("turns a development corner into a library category in the query", async () => {
+    const { ctx, calls } = makeCtx(() => ({ data: [] }));
+    await searchDrills.run(ctx, { corner: "physical", limit: 5 });
+    expect(calls).toHaveLength(1);
+  });
+  it("says there is no drill category for mental or leadership, without querying", async () => {
+    const { ctx, calls } = makeCtx(() => ({ data: [] }));
+    const out = await searchDrills.run(ctx, { corner: "mental", limit: 5 });
+    expect(out.drills).toEqual([]);
+    expect(out.note).toMatch(/no drill category for mental/);
+    expect(calls).toHaveLength(0);
+  });
   it("validates category and strips filter syntax from the query", () => {
-    expect(searchDrills.parseInput({ category: "fitness" })).toBeNull();
+    expect(searchDrills.parseInput({ category: "cardio" })).toBeNull();
+    expect(searchDrills.parseInput({ category: "technical", developmentCorner: "physical" })).toBeNull();
+    expect(searchDrills.parseInput({ developmentCorner: "speed" })).toBeNull();
     expect(searchDrills.parseInput({ query: 5 })).toBeNull();
     expect(sanitiseDrillQuery("a,b%c(d)*")).toBe("a b c d");
     expect(searchDrills.parseInput({ query: "rondo,id.eq.1", category: "small_sided" })).toMatchObject({
