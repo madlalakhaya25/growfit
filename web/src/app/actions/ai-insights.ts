@@ -13,6 +13,7 @@ import {
   type AttrKey,
 } from "@/lib/attributes";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
+import { ltpdPhaseForAge } from "@/lib/ai-safeguards";
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY!,
@@ -145,14 +146,7 @@ export async function getPlayerInsights(playerId: string): Promise<{
       .filter(Boolean)
       .join(", ");
 
-    const ltpdPhase = (() => {
-      if (!age) return "Training to Train (U13-U15)";
-      if (age <= 9)  return "FUNdamentals (U6-U9)";
-      if (age <= 12) return "Learning to Train (U10-U12)";
-      if (age <= 15) return "Training to Train (U13-U15)";
-      if (age <= 18) return "Training to Compete (U16-U18)";
-      return "Training to Win (U19+)";
-    })();
+    const ltpdPhase = ltpdPhaseForAge(age);
 
     const prompt = `Generate a concise, high-impact technical player evaluation for the coaching staff of a SAFA-registered youth academy.
 

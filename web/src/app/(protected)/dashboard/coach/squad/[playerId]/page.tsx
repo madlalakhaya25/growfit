@@ -27,6 +27,8 @@ import { DevelopmentPlanPanel } from "@/components/development/development-plan-
 import { DevelopmentOverview } from "@/components/development/development-overview";
 import { MilestoneTimeline } from "@/components/development/milestone-timeline";
 import { loadDevelopmentSnapshot } from "@/lib/development-data";
+import { getLatestAiArtefact } from "@/lib/ai-artefacts";
+import type { DevelopmentPlanStructured } from "@/lib/development-plan-schema";
 import { currentSeason as seasonKey } from "@/lib/development-categories";
 import { ClipsSection } from "./clips-section";
 import { AttributeSummary } from "@/components/player/attribute-summary";
@@ -211,7 +213,7 @@ export default async function PlayerDetailPage({
   const quickAssessKeys = getQuickAssessKeys(player?.position);
   const squadMedians = computeSquadMedians(squadAttrPlayers, quickAssessKeys);
 
-  const [{ data: medical }, developmentSnapshot, { data: clips }, { data: recentFixtures }, { data: docs }] = await Promise.all([
+  const [{ data: medical }, developmentSnapshot, savedPlan, { data: clips }, { data: recentFixtures }, { data: docs }] = await Promise.all([
     supabase
       .from("player_medical")
       .select("*")
@@ -224,6 +226,13 @@ export default async function PlayerDetailPage({
       academyId: profile?.academy_id ?? null,
       position: player.position ?? null,
       resolveCompletedBy: true,
+    }),
+    // The stored plan, so Tuesday's plan is still here on Wednesday. Reads as
+    // "no plan yet" if migration 045 hasn't been applied (available: false).
+    getLatestAiArtefact<DevelopmentPlanStructured>(supabase, {
+      kind: "development_plan",
+      subjectType: "player",
+      subjectId: playerId,
     }),
     supabase
       .from("player_clips")
@@ -506,7 +515,21 @@ export default async function PlayerDetailPage({
                         content: (
                           <>
                             <section className="max-w-2xl space-y-3">
-                              <DevelopmentPlanPanel playerId={player.id} />
+                              <DevelopmentPlanPanel
+                                playerId={player.id}
+                                initial={
+                                  savedPlan.artefact
+                                    ? {
+                                        artefactId: savedPlan.artefact.id,
+                                        plan: savedPlan.artefact.prose ?? "",
+                                        generatedAt: savedPlan.artefact.createdAt,
+                                        status: savedPlan.artefact.status,
+                                        approvedByName: savedPlan.artefact.approvedByName,
+                                        feedback: savedPlan.artefact.feedback,
+                                      }
+                                    : null
+                                }
+                              />
                             </section>
                             <section className="max-w-2xl space-y-3">
                               <AiInsightsPanel playerId={player.id} />
