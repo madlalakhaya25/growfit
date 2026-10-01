@@ -51,5 +51,5 @@ export const getSquad: AgentTool<Input, Output> = {
     }
     return { players: rows.slice(0, getSquad.maxRows), truncated: rows.length > getSquad.maxRows };
   },
-  links: (o) => o.players.filter((p) => p.href).map((p) => ({ label: p.name, href: p.href! })),
+  links: (o) => o.players.filter((p) => p.href).map((p) => ({ label: p.name, href: p.href!, match: [p.name] })),
 };

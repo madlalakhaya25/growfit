@@ -68,5 +68,5 @@ export const searchDrills: AgentTool<Input, Output> = {
       })),
     };
   },
-  links: (o) => (o.drills.length ? [{ label: "Drill library", href: "/dashboard/coach/training/drills" }] : []),
+  links: (o) => (o.drills.length ? [{ label: "Drill library", href: "/dashboard/coach/training/drills", match: o.drills.map((d) => d.name) }] : []),
 };

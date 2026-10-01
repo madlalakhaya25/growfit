@@ -4,6 +4,12 @@ import type { UserRole } from "@/lib/types";
 export interface AgentLink {
   label: string;
   href: string;
+  /**
+   * Words that, when they appear in the final answer, mean the answer cited
+   * this row (a player's name, an opponent, a drill name). A link with no
+   * `match` is not tied to a particular mention and is always offered.
+   */
+  match?: string[];
 }
 
 export interface AgentToolContext {

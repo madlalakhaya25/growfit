@@ -74,7 +74,7 @@ describe("/api/agent", () => {
     mockStream
       .mockResolvedValueOnce(chunks([{ functionCall: { name: "getSquad", args: {} } }]))
       .mockResolvedValueOnce(chunks([{ text: "Two " }], [{ text: "players." }]));
-    mockExecute.mockResolvedValue({ ok: true, data: { players: [] }, links: [{ label: "A", href: "/a" }] });
+    mockExecute.mockResolvedValue({ ok: true, data: { players: [] }, links: [{ label: "A", href: "/dashboard/coach/squad/a" }] });
 
     const res = await POST(req({ question: "how many?" }));
     expect(res.headers.get("Content-Type")).toContain("text/event-stream");
