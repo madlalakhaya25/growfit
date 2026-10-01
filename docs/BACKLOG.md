@@ -799,7 +799,12 @@ document's own stated architecture. **Each numbered item is sized to be its
 own session/PR.** Do 5.0 first — everything else in this phase depends on
 it.
 
-### 5.0 Migration `043` — schema for fair game time and the voice log
+### 5.0 Migration `046` — schema for fair game time and the voice log
+*(Renumbered 2026-10-01: this was `043`, but 043 is `private_player_photos`,
+044 is `fixture_delete` and 045 is `ai_artefacts` — see
+`AI_AND_UX_PLAN_2026.md` Step 1.1. Any `log_match_result()` rewrite must be
+copied from the latest version — 040 — not reconstructed, and verified on the
+local harness; see 040's header for why.)*
 Additive, nullable/safely-defaulted, checked in and run by hand against the
 live Supabase project per this repo's convention (see `MIGRATION_RUNBOOK.md`):
 `team_members.shirt_number`, `academies.short_code`,
@@ -845,7 +850,7 @@ Copy-for-WhatsApp, and an optional isiZulu toggle — shipped switched off
 until a staff member who reads isiZulu approves sample output.
 
 ### 5.4 Welfare and load watch — Part 2 #7
-Needs migration `044` (`training_attendance.rpe`, plus `player_growth` —
+Needs migration `047` (was `044`, now taken; `training_attendance.rpe`, plus `player_growth` —
 see below): an optional 1–10 effort entry after the register ("everyone: 6,
 then adjust the exceptions"), and three new reasons in the existing
 `getWelfareAlerts()` — falling attendance trend, falling ratings, and a

@@ -1,12 +1,12 @@
-# Migration Runbook — 030 → 041
+# Migration Runbook — 030 → 045
 
 *Written 2026-09-21. Backlog item 0.1. Extended the same day to cover 038-039
 (Phase 1, backlog items 1.2/1.5), again on 2026-09-22 to cover 040 (more of
 1.5's same audit), and again on 2026-09-22 to add 041 — see that section for
 why 041's verification is not held to the same standard as everything else
-on this page.
+on this page. Extended on 2026-10-01 to backfill 042–044 and add 045.
 
-Eleven migrations are checked in and **not applied to the live Supabase
+Sixteen migrations are checked in and **not applied to the live Supabase
 project**. Nothing in a Claude Code session can apply them: there is no
 Supabase CLI, no project link and no credentials in that environment. This
 document exists so the person who *can* apply them does not have to take it
@@ -178,6 +178,83 @@ rather than erroring on the unique constraint. Both are the kind of thing
 that reads correctly on paper and still fails the first time it meets a
 real Postgres instance's exact constraint-conflict behavior.
 
+### 042 — academy_features, 043 — private_player_photos, 044 — fixture_delete
+
+*Backfilled 2026-10-01; these shipped (PRs #36, #37, #41) without a runbook
+entry.*
+
+- **042** adds `academies.features JSONB NOT NULL DEFAULT '{}'`. Re-applies
+  cleanly on the harness. The app reads it through `getAcademyFeatures()`,
+  which treats a missing column or an absent key as "on", so deploying before
+  applying it loses nothing.
+- **043** flips the `player-photos` bucket to private, adds
+  `player_has_current_photo_consent()` and a consent-aware `storage.objects`
+  read policy (docs/BACKLOG.md 4.10, POPIA). **Not runnable on the local
+  harness** — it needs Supabase's `storage` schema, which a plain PostgreSQL
+  does not have (`relation "storage.buckets" does not exist`). It is therefore
+  unverified here. **Apply it only after the app code that signs photo URLs
+  is deployed** (`signPlayerPhotoUrls`), otherwise every existing photo link
+  breaks the moment the bucket goes private. Confirm afterwards, as `anon`,
+  that a photo URL for a child *without* current photo consent is refused.
+- **044** adds the missing `DELETE` policy on `fixtures`
+  (`fixture_staff_delete`). Re-applies cleanly on the harness. Which team a
+  coach may delete from, and the refusal to delete a completed fixture, live
+  in `deleteFixture()` — RLS here is academy-wide by design (see 1.5).
+
+### 045 — ai_artefacts
+
+The artefact store behind every persisted AI output
+(docs/AI_AND_UX_PLAN_2026.md Step 1.1). One table, three policies.
+
+**Verified on the local PostgreSQL 16 harness**, with the full `001`→`045`
+chain applied, two academies, two coaches, two players, a parent linked to one
+of them, and artefacts of every kind/status seeded:
+
+| As | Reads | Result |
+|---|---|---|
+| player A | `ai_artefacts` | **exactly** A's approved `development_plan_shared` row — no `development_plan` row, no draft, no superseded row, nothing of player B's |
+| player B | `ai_artefacts` | exactly B's shared row |
+| parent of A | `ai_artefacts` | exactly A's shared row, nothing of B's |
+| coach, same academy | `ai_artefacts` | every row (6) |
+| coach, other academy | `ai_artefacts` | 0 rows |
+| coach, other academy | `INSERT` into academy 1 | rejected by `WITH CHECK` |
+| player | `INSERT` | rejected by `WITH CHECK` |
+| coach, same academy | two-row insert (private + shared, as `approveDevelopmentPlan` does) | succeeds |
+
+The first row is **the safeguarding boundary**: RLS is row-level, not
+column-level, so the coach's private concern note is only safe because it
+lives in a *different row* (`kind = 'development_plan'`) from the player-safe
+copy (`'development_plan_shared'`). Re-applies cleanly (3 policies after the
+second run).
+
+**Graceful degradation.** Deploying the code before this runs is safe: every
+read goes through `lib/ai-artefacts.ts`, which treats a missing table
+(`PGRST205` / `42P01` — *table* codes, **not** the `PGRST204` / `42703` column
+codes `isMissingAttributeColumn()` catches) as `available: false`, and the
+caller falls through to a live Gemini call. The UI loses persistence, not
+function. `friendlyError()` now also recognises both table codes.
+
+**Erasure.** `ai_artefacts.subject_id` is polymorphic with **no foreign key**,
+so deleting a player does not cascade. `deletePlayerRecord()` calls
+`deleteAiArtefactsForSubject()` before the `players` delete and refuses to
+proceed if that fails.
+
+**Still outstanding — needs a live Supabase project:**
+
+- Repeat the table above with real accounts. The single most important line
+  is "player reads only their own `development_plan_shared`, never a
+  `development_plan`".
+- Whether a parent's `profiles.academy_id` is actually populated in this
+  academy's real data (migration 032 sets it on verified link) — the parent
+  view depends on it.
+- Delete a seeded player through the admin UI and confirm zero surviving
+  `ai_artefacts` rows for them.
+
+```sql
+SELECT policyname, cmd FROM pg_policies WHERE tablename = 'ai_artefacts';
+-- expect 3: staff_all (ALL), player_read (SELECT), parent_read (SELECT)
+```
+
 ### Idempotency
 
 `030`–`040` were re-run against the already-migrated database. **All eleven
@@ -197,7 +274,7 @@ page, so it is expected, not proven, to be idempotent.
 Either route works. Take a backup first regardless.
 
 **Supabase SQL editor** — paste each file in numeric order, `030` through
-`041`, checking each succeeds before the next.
+`045`, checking each succeeds before the next.
 
 **CLI**, from a machine with it installed and linked:
 
