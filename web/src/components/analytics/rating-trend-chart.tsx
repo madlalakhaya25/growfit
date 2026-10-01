@@ -14,17 +14,17 @@ export function RatingTrendChart({ data }: { data: DataPoint[] }) {
   return (
     <ResponsiveContainer width="100%" height={200}>
       <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -24 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
         <XAxis
           dataKey="month"
-          tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+          tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
           tickLine={false}
           axisLine={false}
         />
         <YAxis
           domain={[1, 5]}
           ticks={[1, 2, 3, 4, 5]}
-          tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+          tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
           tickLine={false}
           axisLine={false}
         />
@@ -43,9 +43,9 @@ export function RatingTrendChart({ data }: { data: DataPoint[] }) {
         <Line
           type="monotone"
           dataKey="avg"
-          stroke="hsl(var(--primary))"
+          stroke="var(--color-primary)"
           strokeWidth={2}
-          dot={{ fill: "hsl(var(--primary))", r: 3 }}
+          dot={{ fill: "var(--color-primary)", r: 3 }}
           activeDot={{ r: 5 }}
         />
       </LineChart>
