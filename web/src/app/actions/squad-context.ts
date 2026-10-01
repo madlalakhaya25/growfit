@@ -1,9 +1,8 @@
 "use server";
 
 import { requireUser } from "@/lib/auth";
-import { POSITIONS } from "@/lib/types";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
-import { calculateAge } from "@/lib/player";
+import { buildStableBrief } from "@/lib/squad-brief";
 import { formatDayMonth, formatInTimezone } from "@/lib/time";
 import {
   ATTENDANCE_WINDOW_DAYS, WELFARE_ATTENDANCE_THRESHOLD,
@@ -33,12 +32,19 @@ import { reportError } from "@/lib/report-error";
 export interface SquadContext {
   teamName: string;
   ageGroup: string;
+  academyId: string;
+  teamId: string;
+  /** stableBrief + volatileBrief — what every feature that wants the whole picture reads. */
   brief: string;
+  /**
+   * Roster, positions, age bands and policy numbers. Changes only on a squad
+   * write, so it is the half worth caching (lib/ai-context-cache.ts).
+   */
+  stableBrief: string;
+  /** Form, attendance, availability, injuries, results: rebuilt every request. */
+  volatileBrief: string;
   playerCount: number;
 }
-
-const posLabel = (v: string | null) =>
-  POSITIONS.find((p) => p.value === v)?.label ?? "unknown position";
 
 export async function buildSquadContext(
   teamId: string,
@@ -48,7 +54,7 @@ export async function buildSquadContext(
 
   const { data: team } = await supabase
     .from("teams")
-    .select("id, name, age_group")
+    .select("id, name, age_group, academy_id")
     .eq("id", teamId)
     .in("id", await getCoachedTeamIds(supabase, user.id))
     .eq("active", true)
@@ -203,10 +209,14 @@ export async function buildSquadContext(
   }
 
   // ── Build the brief ──────────────────────────────────────────
+  //
+  // Two halves, joined at the end. The stable half (roster, positions, ages,
+  // policy) is built by lib/squad-brief.ts so it can be hashed for the context
+  // cache; this function builds only the volatile half. A per-player line
+  // here deliberately omits position and age -- they are in the roster above
+  // it, and repeating them would put the stable text back into every turn.
   const lines: string[] = [];
-  lines.push(`TEAM: ${team.name}${team.age_group ? ` (${team.age_group})` : ""} — ${players.length} registered players.`);
-
-  lines.push("", "SQUAD:");
+  lines.push("SQUAD STATUS (changes week to week):");
   for (const p of players) {
     const ratings = p.player_ratings ?? [];
     const avg = ratings.length
@@ -220,8 +230,6 @@ export async function buildSquadContext(
       : "n/a";
 
     const attendance = summariseAttendance(marksByPlayer.get(p.id) ?? []);
-
-    const age = calculateAge(p.date_of_birth);
 
     // Averaged across every coach who has assessed this player, filtered to
     // the attributes their position is actually rated on. `null` where
@@ -245,7 +253,7 @@ export async function buildSquadContext(
       : "";
 
     lines.push(
-      `- ${p.full_name} — ${availabilityFlag}${posLabel(p.position)}${age ? `, age ${age}` : ""} | avg rating ${avg}/5 (${ratings.length} rated), recent form ${form}/5` +
+      `- ${p.full_name} — ${availabilityFlag}avg rating ${avg}/5 (${ratings.length} rated), recent form ${form}/5` +
       (attendance.pct !== null
         ? ` | training attendance ${attendance.pct}% of ${attendance.assessed} session${attendance.assessed === 1 ? "" : "s"}${attendance.belowThreshold ? " (BELOW the 75% policy threshold)" : ""}`
         : " | training attendance: not yet marked") +
@@ -349,11 +357,18 @@ export async function buildSquadContext(
     }
   }
 
+  const stableBrief = buildStableBrief({ teamName: team.name, ageGroup: team.age_group, players });
+  const volatileBrief = lines.join("\n");
+
   return {
     context: {
       teamName: team.name,
       ageGroup: team.age_group ?? "U15",
-      brief: lines.join("\n"),
+      academyId: team.academy_id as string,
+      teamId,
+      brief: `${stableBrief}\n\n${volatileBrief}`,
+      stableBrief,
+      volatileBrief,
       playerCount: players.length,
     },
   };
