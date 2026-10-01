@@ -5,6 +5,7 @@ import { PlayViewer, type PlayData } from "@/components/tactics/play-viewer";
 import { FilmViewer, type FilmViewerData } from "@/components/tactics/film-viewer";
 import { getConcept } from "@/lib/tactics";
 import { Badge } from "@/components/ui/badge";
+import { MyJobInPlay } from "./my-job";
 
 export default async function PlayerPlayPage({
   params,
@@ -55,6 +56,8 @@ export default async function PlayerPlayPage({
           <p className="text-sm text-muted-foreground leading-relaxed">{play.notes}</p>
         </div>
       )}
+
+      <MyJobInPlay token={token} />
 
       {play.voice_url && (
         <div className="rounded-xl border border-border bg-card p-4 space-y-2">

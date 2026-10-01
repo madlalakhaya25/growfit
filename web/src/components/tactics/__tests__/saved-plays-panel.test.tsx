@@ -17,6 +17,7 @@ jest.mock("@/app/actions/tactics", () => ({
 jest.mock("@/app/actions/board-to-session", () => ({ generateSessionFromBoard: jest.fn() }));
 jest.mock("@/app/actions/training", () => ({ addDrills: jest.fn() }));
 jest.mock("@/app/actions/board-from-text", () => ({ generateBoardFromSentence: jest.fn() }));
+jest.mock("@/app/actions/play-roles", () => ({ generatePlayRoles: jest.fn(), approvePlayRoles: jest.fn() }));
 
 import { SavedPlaysPanel } from "@/components/tactics/saved-plays-panel";
 
