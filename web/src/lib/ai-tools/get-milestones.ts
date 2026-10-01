@@ -60,5 +60,5 @@ export const getMilestones: AgentTool<Input, Output> = {
       href: playerHref(ctx, playerId),
     };
   },
-  links: (o) => ("href" in o && o.href ? [{ label: o.name, href: o.href }] : []),
+  links: (o) => ("href" in o && o.href ? [{ label: o.name, href: o.href, match: [o.name] }] : []),
 };

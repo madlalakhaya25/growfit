@@ -111,6 +111,34 @@ describe("runAgentLoop", () => {
     expect(events).toEqual([{ type: "error", message: "The academy's AI quota is used up for now. Try again later." }]);
   });
 
+  it("offers chips only for the rows the final answer mentions", async () => {
+    const model = scripted([
+      [call("getSquad")],
+      [{ text: "Only Anele Dube is below the line.", parts: [] }],
+    ]);
+    const events = await collect(
+      runAgentLoop(
+        {
+          generate: model.generate,
+          execute: async () => ({
+            ok: true,
+            data: {},
+            links: [
+              { label: "Sipho Dlamini", href: "/dashboard/coach/squad/1", match: ["Sipho Dlamini"] },
+              { label: "Anele Dube", href: "/dashboard/coach/squad/2", match: ["Anele Dube"] },
+            ],
+          }),
+          toError: () => "x",
+        },
+        [{ role: "user", parts: [{ text: "q" }] }]
+      )
+    );
+    expect(events.find((e) => e.type === "links")).toEqual({
+      type: "links",
+      links: [{ label: "Anele Dube", href: "/dashboard/coach/squad/2" }],
+    });
+  });
+
   it("answers directly with no tools and no links event", async () => {
     const model = scripted([[{ text: "Hello coach.", parts: [{ text: "Hello coach." }] }]]);
     const events = await collect(

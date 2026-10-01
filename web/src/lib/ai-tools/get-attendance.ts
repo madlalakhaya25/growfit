@@ -115,5 +115,5 @@ export const getAttendance: AgentTool<Input, Output> = {
     };
   },
   links: (o) =>
-    "players" in o ? o.players.filter((p) => p.href).map((p) => ({ label: p.name, href: p.href! })) : [],
+    "players" in o ? o.players.filter((p) => p.href).map((p) => ({ label: p.name, href: p.href!, match: [p.name] })) : [],
 };

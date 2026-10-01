@@ -1,9 +1,9 @@
 import { TOOL_LABELS } from "./index";
+import { selectCitedLinks } from "./links";
 import type { AgentLink, AgentToolResult } from "./types";
 
 /** A tool round is one model turn that asked for tools. Bounds cost and prevents a loop. */
 export const MAX_TOOL_ROUNDS = 5;
-const MAX_LINKS = 8;
 
 export type AgentEvent =
   | { type: "text"; delta: string }
@@ -63,6 +63,9 @@ export async function* runAgentLoop(
 ): AsyncGenerator<AgentEvent> {
   const contents = [...initial];
   const links: AgentLink[] = [];
+  // Only the FINAL answer decides which rows were cited; text from earlier
+  // tool rounds is usually a preamble, and is included anyway (cheap and safe).
+  let answer = "";
 
   try {
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
@@ -71,7 +74,10 @@ export async function* runAgentLoop(
       const calls: ModelCall[] = [];
 
       for await (const chunk of deps.generate(contents, { allowTools })) {
-        if (chunk.text) yield { type: "text", delta: chunk.text };
+        if (chunk.text) {
+          answer += chunk.text;
+          yield { type: "text", delta: chunk.text };
+        }
         if (chunk.parts) parts.push(...chunk.parts);
         // The forced final round has no tools declared; ignore a stray call.
         if (allowTools && chunk.calls) calls.push(...chunk.calls);
@@ -100,8 +106,7 @@ export async function* runAgentLoop(
     return;
   }
 
-  const seen = new Set<string>();
-  const unique = links.filter((l) => !seen.has(l.href) && seen.add(l.href)).slice(0, MAX_LINKS);
-  if (unique.length) yield { type: "links", links: unique };
+  const cited = selectCitedLinks(links, answer);
+  if (cited.length) yield { type: "links", links: cited };
   yield { type: "done" };
 }

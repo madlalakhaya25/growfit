@@ -25,7 +25,7 @@ describe("getSquad", () => {
       { playerId: P1, name: "Sipho", team: "U13", position: "winger", href: `/dashboard/coach/squad/${P1}` },
     ]);
     expect(calls[0].table).toBe("team_members");
-    expect(getSquad.links!(out)).toEqual([{ label: "Sipho", href: `/dashboard/coach/squad/${P1}` }]);
+    expect(getSquad.links!(out)).toEqual([{ label: "Sipho", href: `/dashboard/coach/squad/${P1}`, match: ["Sipho"] }]);
   });
   it("returns nothing, and never queries, for a team outside ctx.teamIds", async () => {
     const { ctx, calls } = makeCtx(() => ({ data: [] }));

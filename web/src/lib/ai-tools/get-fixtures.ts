@@ -70,5 +70,5 @@ export const getFixtures: AgentTool<Input, Output> = {
       }),
     };
   },
-  links: (o) => o.fixtures.filter((f) => f.href).map((f) => ({ label: `vs ${f.opponent}`, href: f.href! })),
+  links: (o) => o.fixtures.filter((f) => f.href).map((f) => ({ label: `vs ${f.opponent}`, href: f.href!, match: [f.opponent] })),
 };

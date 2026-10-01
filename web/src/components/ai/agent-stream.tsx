@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { Loader2, Send } from "lucide-react";
 import { streamAgent } from "./agent-sse";
+import { isInternalHref } from "@/lib/ai-tools/links";
 import type { AgentLink } from "@/lib/ai-tools/types";
 
 interface Turn {
@@ -87,7 +88,7 @@ export function AgentStream({ teamId }: { teamId?: string }) {
             </p>
             {t.links && t.links.length > 0 && (
               <div className="mt-1 flex flex-wrap gap-2">
-                {t.links.map((l) => (
+                {t.links.filter((l) => isInternalHref(l.href)).map((l) => (
                   <Link key={l.href} href={l.href} className="rounded-full border border-border px-3 py-1 text-xs hover:bg-muted">
                     {l.label}
                   </Link>

@@ -34,5 +34,5 @@ export const getWelfareAlerts: AgentTool<Record<string, never>, Output> = {
     }));
     return { alerts: rows.slice(0, getWelfareAlerts.maxRows), truncated: rows.length > getWelfareAlerts.maxRows };
   },
-  links: (o) => ("alerts" in o ? o.alerts.filter((a) => a.href).map((a) => ({ label: a.name, href: a.href! })) : []),
+  links: (o) => ("alerts" in o ? o.alerts.filter((a) => a.href).map((a) => ({ label: a.name, href: a.href!, match: [a.name] })) : []),
 };
