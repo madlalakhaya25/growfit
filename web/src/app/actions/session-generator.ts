@@ -7,6 +7,7 @@ import { aiError, checkAiBudget } from "@/lib/ai-guard";
 import { parseJsonObject } from "@/lib/ai-json";
 import { getLTPDPhase, specialistSystem } from "@/lib/ai-safeguards";
 import { renderSessionPlanProse } from "@/lib/session-plan";
+import { constraintLines, normaliseConstraints, type KitValue, type SpaceValue } from "@/lib/session-constraints";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -17,6 +18,10 @@ interface SessionParams {
   durationMinutes: number;
   squadSize: number;
   sessionId?: string;
+  /** Real-world limits (docs/BACKLOG.md 5.6). Validated against the lists in
+   * lib/session-constraints.ts; anything else is ignored. */
+  space?: SpaceValue;
+  kit?: KitValue[];
 }
 
 export interface SessionDrill {
@@ -44,7 +49,9 @@ export async function generateSessionPlan(
     if (overBudget) return { error: overBudget };
 
 
-    const { ageGroup, sessionType, focusArea, durationMinutes, squadSize } = params;
+    const { ageGroup, sessionType, focusArea } = params;
+    const constraints = normaliseConstraints(params);
+    const { durationMinutes } = constraints;
     const ltpdPhase = getLTPDPhase(ageGroup);
 
     const prompt = `Generate a complete, structured training session plan for a SAFA-registered youth football academy.
@@ -53,8 +60,9 @@ SESSION PARAMETERS:
 - Age Group: ${ageGroup} | LTPD Phase: ${ltpdPhase}
 - Session Type: ${sessionType}
 - Focus Area: ${focusArea}
-- Total Duration: ${durationMinutes} minutes
-- Squad Size: ${squadSize} players
+
+CONSTRAINTS (the session must fit these, they are not suggestions):
+${constraintLines(constraints).join("\n")}
 
 DESIGN REQUIREMENTS:
 - Follow FIFA's 5-phase session structure: Activation -> Technical -> Tactical -> Small-Sided Game -> Recovery/Reflection

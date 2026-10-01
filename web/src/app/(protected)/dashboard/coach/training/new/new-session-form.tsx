@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { generateSessionPlan } from "@/app/actions/session-generator";
 import { createTrainingSessionWithDrills } from "@/app/actions/training";
 import { packDrillDescription } from "@/lib/drill-description";
+import { SessionConstraintFields } from "@/components/ai/session-constraint-fields";
+import type { KitValue, SpaceValue } from "@/lib/session-constraints";
 
 const SESSION_TYPES = [
   { value: "general", label: "General" },
@@ -48,10 +50,13 @@ export function NewSessionForm({
   teamId,
   teams,
   backHref,
+  suggestedSquadSizes = {},
 }: {
   teamId: string;
   teams: { id: string; name: string; age_group: string | null }[];
   backHref: string;
+  /** Typical turnout per team id, from recent registers; absent when none are marked. */
+  suggestedSquadSizes?: Record<string, number>;
 }) {
   const router = useRouter();
 
@@ -78,7 +83,9 @@ export function NewSessionForm({
   const [ageGroup, setAgeGroup] = useState("");
   const [focusArea, setFocusArea] = useState("");
   const [duration, setDuration] = useState(90);
-  const [squadSize, setSquadSize] = useState(16);
+  const [squadSize, setSquadSize] = useState(suggestedSquadSizes[teamId] ?? 16);
+  const [space, setSpace] = useState<SpaceValue | "">("");
+  const [kit, setKit] = useState<KitValue[] | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<DrillItem[]>([]);
   const [aiError, setAiError] = useState("");
   const [isGenerating, startGenerate] = useTransition();
@@ -109,6 +116,8 @@ export function NewSessionForm({
         focusArea,
         durationMinutes: duration,
         squadSize,
+        ...(space ? { space } : {}),
+        ...(kit ? { kit } : {}),
       });
       if (result.error) {
         setAiError(result.error);
@@ -205,7 +214,12 @@ export function NewSessionForm({
             <select
               id="ns-team_id"
               value={selectedTeamId}
-              onChange={(e) => setSelectedTeamId(e.target.value)}
+              onChange={(e) => {
+                setSelectedTeamId(e.target.value);
+                // A different team turns up in different numbers.
+                const typical = suggestedSquadSizes[e.target.value];
+                if (typical) setSquadSize(typical);
+              }}
               className={selectCls}
             >
               {teams.map((t) => (
@@ -355,7 +369,7 @@ export function NewSessionForm({
                     onChange={(e) => setDuration(Number(e.target.value))}
                     className={selectCls}
                   >
-                    {[60, 75, 90, 120].map((d) => (
+                    {[45, 60, 75, 90, 120].map((d) => (
                       <option key={d} value={d}>
                         {d} min
                       </option>
@@ -374,8 +388,15 @@ export function NewSessionForm({
                     max={40}
                     className={inputCls}
                   />
+                  {suggestedSquadSizes[selectedTeamId] && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Usually {suggestedSquadSizes[selectedTeamId]} turn up, from recent registers.
+                    </p>
+                  )}
                 </div>
               </div>
+
+              <SessionConstraintFields idPrefix="ns" space={space} onSpace={setSpace} kit={kit} onKit={setKit} />
 
               {aiError && (
                 <p className="text-sm text-destructive">{aiError}</p>

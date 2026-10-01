@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { NewSessionForm } from "./new-session-form";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { recentTurnout } from "@/lib/recent-turnout";
 
 export default async function NewTrainingSessionPage({
   searchParams,
@@ -27,6 +28,14 @@ export default async function NewTrainingSessionPage({
 
   const team = allTeams.find((t) => t.id === teamParam) ?? allTeams[0];
 
+  const suggestedSquadSizes: Record<string, number> = {};
+  await Promise.all(
+    allTeams.map(async (t) => {
+      const typical = await recentTurnout(supabase, t.id);
+      if (typical) suggestedSquadSizes[t.id] = typical;
+    })
+  );
+
   return (
     <div className="space-y-6 max-w-xl">
       <div>
@@ -43,7 +52,12 @@ export default async function NewTrainingSessionPage({
           </p>
         )}
       </div>
-      <NewSessionForm teamId={team.id} teams={allTeams} backHref={`/dashboard/coach/training?team=${team.id}`} />
+      <NewSessionForm
+        teamId={team.id}
+        teams={allTeams}
+        backHref={`/dashboard/coach/training?team=${team.id}`}
+        suggestedSquadSizes={suggestedSquadSizes}
+      />
     </div>
   );
 }
