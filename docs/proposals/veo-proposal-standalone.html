@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Growfit Match Video Programme – Funding Proposal</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4; margin: 18mm 17mm 20mm 17mm; }
+  :root {
+    --red: #AF2D35; --red-dark: #6B1B1F; --red-tint: #F7EAEB;
+    --ink: #16181D; --ink-2: #474C55; --ink-3: #7A808A;
+    --rule: #DADDE2; --panel: #F5F6F8;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: #fff; }
+  body { font-family: Inter, "Liberation Sans", Arial, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.5; margin: 0; }
+  h1, h2, h3 { line-height: 1.2; margin: 0; }
+  h2 { font-size: 17pt; font-weight: 800; color: var(--ink); margin: 0 0 4mm; padding-top: 1mm; }
+  h2 .num { color: var(--red); margin-right: 6px; }
+  h3 { font-size: 11pt; font-weight: 700; margin: 5mm 0 2mm; }
+  p { margin: 0 0 2.6mm; }
+  ul { margin: 0 0 3mm; padding-left: 5mm; }
+  li { margin-bottom: 1.2mm; }
+  .section { break-before: page; }
+  .avoid { break-inside: avoid; }
+  .muted { color: var(--ink-2); }
+  .small { font-size: 8.5pt; color: var(--ink-3); }
+  strong { font-weight: 700; }
+
+  /* cover */
+  .cover { height: 257mm; display: flex; flex-direction: column; }
+  .cover-top { display: flex; align-items: center; gap: 6mm; }
+  .cover-top img { width: 26mm; height: 26mm; }
+  .cover-org { font-weight: 700; font-size: 11pt; }
+  .cover-org span { display: block; font-weight: 400; color: var(--ink-2); font-size: 9.5pt; }
+  .cover-band { margin-top: 30mm; border-left: 3mm solid var(--red); padding-left: 7mm; }
+  .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: 8.5pt; font-weight: 700; color: var(--red); }
+  .cover h1 { font-size: 30pt; font-weight: 800; margin: 3mm 0 4mm; letter-spacing: -.01em; }
+  .cover .lede { font-size: 12pt; color: var(--ink-2); max-width: 150mm; }
+  .cover-ask { margin-top: 18mm; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+  .cover-foot { margin-top: auto; border-top: 1px solid var(--rule); padding-top: 4mm; display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; font-size: 9pt; color: var(--ink-2); }
+  .cover-foot b { color: var(--ink); }
+
+  /* tiles */
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 4mm 0 5mm; }
+  .tile { background: var(--panel); border-radius: 3mm; padding: 3.5mm 4mm; }
+  .tile .v { font-size: 16pt; font-weight: 800; color: var(--ink); line-height: 1.1; }
+  .tile .l { font-size: 8.3pt; color: var(--ink-2); margin-top: 1.2mm; line-height: 1.35; }
+  .tile.hero { background: var(--red); }
+  .tile.hero .v, .tile.hero .l { color: #fff; }
+
+  /* tables */
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 9pt; }
+  th { text-align: left; font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); border-bottom: 1.5px solid var(--ink); padding: 2mm 2mm; }
+  td { border-bottom: 1px solid var(--rule); padding: 2mm 2mm; vertical-align: top; }
+  td.n, th.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tr.sub td { background: var(--panel); font-weight: 600; }
+  tr.total td { border-top: 1.5px solid var(--ink); border-bottom: none; font-weight: 800; font-size: 10pt; }
+  tr.total td.n { color: var(--red); }
+
+  .callout { background: var(--red-tint); border-left: 1.2mm solid var(--red); padding: 3.5mm 4.5mm; border-radius: 0 2mm 2mm 0; margin: 3mm 0 4mm; }
+  .callout p:last-child { margin: 0; }
+  .note { background: var(--panel); padding: 3mm 4mm; border-radius: 2mm; font-size: 8.8pt; color: var(--ink-2); margin: 3mm 0; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+  .card { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; }
+  .card h3 { margin-top: 0; }
+
+  /* weekly cycle */
+  .cycle { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2mm; margin: 3mm 0 4mm; }
+  .step { border-top: 1.2mm solid var(--red); background: var(--panel); padding: 2.5mm 3mm; border-radius: 0 0 2mm 2mm; font-size: 8.5pt; }
+  .step b { display: block; font-size: 9pt; margin-bottom: .8mm; }
+  .step .d { color: var(--red); font-weight: 700; font-size: 7.8pt; text-transform: uppercase; letter-spacing: .06em; }
+
+  /* bar figure */
+  .fig { margin: 3mm 0 2mm; }
+  .bar-row { display: grid; grid-template-columns: 30mm 1fr 22mm; align-items: center; gap: 3mm; margin: 2.2mm 0; font-size: 9pt; }
+  .bar-track { position: relative; height: 7mm; }
+  .bar { height: 100%; background: var(--red); border-radius: 0 1.2mm 1.2mm 0; }
+  .ref { position: absolute; top: -2mm; bottom: -2mm; border-left: 1.5px dashed var(--ink); }
+  .ref-label { font-size: 7.8pt; color: var(--ink-2); position: absolute; top: -6mm; transform: translateX(-50%); white-space: nowrap; }
+  .fig-cap { font-size: 8.3pt; color: var(--ink-3); margin-top: 1mm; }
+
+  .sig { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 10mm; }
+  .sig div { border-top: 1px solid var(--ink); padding-top: 2mm; font-size: 9pt; color: var(--ink-2); }
+  .src { font-size: 8pt; color: var(--ink-2); word-break: break-all; }
+  .src li { margin-bottom: .8mm; }
+  .tag { display: inline-block; border-radius: 1mm !important; font-size: 7.5pt; font-weight: 700; padding: .3mm 1.8mm; border-radius: 10mm; background: var(--panel); color: var(--ink-2); text-transform: uppercase; letter-spacing: .05em; }
+  .tag.r { background: var(--red-tint); color: var(--red-dark); }
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<div class="cover">
+  <div class="cover-top">
+    <img src="../../growfit.png" alt="Growfit Football Academy crest">
+    <div class="cover-org">Growfit Sports Academy NPC<span>Grassroots football · U11 · U13 · U15 · Greater Durban, KwaZulu-Natal</span></div>
+  </div>
+
+  <div class="cover-band">
+    <div class="eyebrow">Funding proposal · October 2026</div>
+    <h1>Growfit Match Video &amp; Analysis Programme</h1>
+    <p class="lede">A Veo AI camera for a Durban grassroots academy. Every Growfit match is filmed and used to coach players. The service is shared with partner clubs, and a small service income is built to cover the running costs after Year&nbsp;1.</p>
+  </div>
+
+  <div class="cover-ask">
+    <div class="tile hero"><div class="v">R83,500</div><div class="l">Total funding requested: equipment plus the first 12 months of running costs</div></div>
+    <div class="tile"><div class="v">~70</div><div class="l">Matches filmed per season across three age groups</div></div>
+    <div class="tile"><div class="v">94%</div><div class="l">Share of Year-2 running costs covered by service income (base case)</div></div>
+  </div>
+
+  <div class="cover-foot">
+    <div><b>Contact</b><br>Buhle Madlala, Founder &amp; Academy Director<br>Khaya Madlala, Fundraising &amp; Registration<br>[email] · [phone]</div>
+    <div><b>Organisation</b><br>Growfit Sports Academy NPC (est. 2023)<br>NPC Reg. No. [__________] · PBO No. [__________]<br>Member club, Greater Durban Football League (GDFL)</div>
+  </div>
+</div>
+
+<!-- ============ 1. EXECUTIVE SUMMARY ============ -->
+<div class="section">
+  <h2><span class="num">1</span>Executive summary</h2>
+  <p>Professional academies use match video every week to show players what they did and how to do it better. Grassroots players in Greater Durban almost never see themselves play. At about R80,000 for the first year, an AI camera system is out of reach for a volunteer-run club, so most clubs in the GDFL have no video at all.</p>
+  <p>Growfit Sports Academy is a non-profit academy running U11, U13 and U15 squads, now in its third year. We are asking for <strong>R83,500</strong> to buy a <strong>Veo Cam 3</strong> system and fund its first year of software. The camera films a whole match on its own from a tripod. It needs no operator, and the AI produces the broadcast-style video, highlights and match statistics within hours.</p>
+
+  <div class="tiles">
+    <div class="tile hero"><div class="v">R83,500</div><div class="l">Funding ask (budget at the conservative end, pending local quote)</div></div>
+    <div class="tile"><div class="v">R35,600</div><div class="l">Once-off equipment, import &amp; setup</div></div>
+    <div class="tile"><div class="v">R47,900</div><div class="l">Year-1 software, insurance, data &amp; contingency</div></div>
+    <div class="tile"><div class="v">R41,300</div><div class="l">Base-case net service income, Year 1</div></div>
+  </div>
+
+  <h3>What the funding achieves</h3>
+  <ul>
+    <li><strong>Player development:</strong> every Growfit match is filmed and reviewed by coaches. Short clips are used at Wednesday and Friday training, so 60-odd players learn from their own games.</li>
+    <li><strong>Visibility for talent:</strong> players whose parents have given media consent get highlight reels, which can support high-school sport scholarships and trials.</li>
+    <li><strong>Raising the level of the league:</strong> opposition clubs can buy the recording of their own match, giving other Durban clubs access to video for the first time.</li>
+    <li><strong>Sustainability:</strong> a priced service (match footage, parent highlight packages, tournament filming and a local sponsor) is projected to cover <strong>94% of Year-2 running costs in the base case</strong>, and more than all of them in the strong case.</li>
+  </ul>
+
+  <div class="callout">
+    <p><strong>How this differs from the earlier draft.</strong> This version prices the hardware and software from Veo's 2026 list prices instead of estimates. It budgets for Veo Analytics, which the parent highlight service depends on, and for insurance, data, import VAT and a contingency. The revenue streams are made POPIA-compliant: children's footage is only shared with consent, and only with the club responsible for those children. The return is presented as a path to self-sustaining operation, not as a short-term profit.</p>
+  </div>
+</div>
+
+<!-- ============ 2. ABOUT GROWFIT ============ -->
+<div class="section">
+  <h2><span class="num">2</span>About Growfit Sports Academy</h2>
+  <p>Growfit Sports Academy is a registered Non-Profit Company founded in 2023 in Greater Durban. It runs three competitive age groups (U11, U13 and U15) in the Greater Durban Football League. Teams train on Wednesdays and Fridays and play on Sundays.</p>
+
+  <div class="two">
+    <div class="card avoid">
+      <h3>Leadership</h3>
+      <table>
+        <tr><td><strong>Buhle Madlala</strong></td><td>Founder, Academy &amp; Technical Director, Finance; primary U13 coach</td></tr>
+        <tr><td><strong>Sphe Mlotshwa</strong></td><td>U11 Head Coach; Admin &amp; Equipment Manager</td></tr>
+        <tr><td><strong>Khaya Madlala</strong></td><td>U15 Head Coach; Fundraising &amp; Registration</td></tr>
+      </table>
+      <p class="small">Open seats being recruited: Safeguarding Officer, Programmes &amp; Camps Coordinator, Logistics Coordinator.</p>
+    </div>
+    <div class="card avoid">
+      <h3>Governance already in place</h3>
+      <ul>
+        <li>8 adopted policies, including Child Protection &amp; Safeguarding (Children's Act 38 of 2005), Discipline, Injury &amp; Medical, Attendance and Social Media</li>
+        <li>6-document registration pack per player per season, including <strong>POPIA and photo/media consent</strong></li>
+        <li>SAFA / GDFL registration for every player; CPR Part B checks for coaches</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>How we run the academy today</h3>
+  <p>Coaches mark attendance at every session, and a player who drops below 75% gets a welfare check-in. Development is tracked across five areas: technical, tactical, physical, mental and leadership. Every player's consent forms are kept on file, and the video programme uses those same consent records (Section 5), so footage follows the same safeguarding rules as the rest of the player data.</p>
+
+  <h2 style="margin-top:8mm"><span class="num">3</span>The need</h2>
+  <div class="two">
+    <div>
+      <h3>For players</h3>
+      <p>Players learn faster when they see what happened. Right now, feedback after a game depends on what a coach remembers from the touchline. Video turns "keep your shape" into a clip the player can watch.</p>
+      <h3>For families</h3>
+      <p>High-school sports programmes and scouts increasingly ask for footage. Families in our community can't pay for private filming, so talented players stay unseen.</p>
+    </div>
+    <div>
+      <h3>For the league</h3>
+      <p>Most GDFL clubs are volunteer-run and have no video. A shared camera service lets the clubs we play against use their own match footage for coaching.</p>
+      <h3>The barrier</h3>
+      <p>The barrier is money, not interest. The hardware and first-year software for an AI camera cost about R80,000, and the subscription renews every year. One-off funding plus a service income solves both parts of the problem.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 4. THE SOLUTION ============ -->
+<div class="section">
+  <h2><span class="num">4</span>The solution: Veo Cam 3</h2>
+  <p>Veo is the most widely used AI camera in youth football. Leagues such as MLS NEXT, US Youth Soccer and US Club Soccer have adopted it as their video partner. The camera is put up on a tall tripod at the halfway line, records the whole pitch, and uploads the footage after the match. Veo's AI then produces the edited video and the data.</p>
+
+  <table class="avoid">
+    <thead><tr><th style="width:24%">Component</th><th>What it does for Growfit</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Veo Cam 3</strong></td><td>Two 4K sensors record the full pitch in panorama. AI produces a 1080p "follow-cam" view that tracks the ball. Up to 6.5&nbsp;hours of battery, enough for three back-to-back age-group games. Weighs 1.25&nbsp;kg and uploads over Wi-Fi or a phone hotspot. No camera operator needed.</td></tr>
+      <tr><td><strong>Veo Editor</strong> (in the subscription)</td><td>Shots and goals are clipped automatically. Coaches add their own clips, tags and comments, and draw on the video (arrows, shapes, spotlight). An interactive view lets them pan and zoom around the full pitch for 90&nbsp;days after the match. Clips download as MP4 or share by link, and viewers don't need a Veo account.</td></tr>
+      <tr><td><strong>Veo Analytics</strong> (add-on)</td><td>AI-generated match statistics: possession, passes, shots, a 2D tactical view, heatmaps, shot and pass maps and a momentum graph. Per-player physical data covers distance, sprints and top speed. <strong>Player Moments</strong> reads shirt numbers to build an individual highlight reel for each player automatically. <strong>Coach Assist</strong> is an AI chat that answers questions about the team's match data.</td></tr>
+      <tr><td><strong>Share with Opponent</strong></td><td>Veo's built-in feature for giving the opposing club its own copy of the recording, without our internal notes. Access can be withdrawn at any time. This is the delivery channel for the club footage service.</td></tr>
+      <tr><td><strong>League Exchange</strong> (future)</td><td>A shared video library for a whole league. It is a natural next step to propose to the GDFL once the service is established.</td></tr>
+      <tr><td><strong>Veo Live</strong> (not in budget)</td><td>Live-streaming with score and sponsor overlays. Deliberately left out of Year&nbsp;1 and only to be considered if a sponsor funds it.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>How the camera is used in a normal week</h3>
+  <div class="cycle avoid">
+    <div class="step"><span class="d">Sunday</span><b>Record</b>Camera set up at kick-off and left to run for the age-group matches at the venue.</div>
+    <div class="step"><span class="d">Sun night</span><b>Upload</b>Upload over home Wi-Fi; Veo AI processes the video, highlights and stats.</div>
+    <div class="step"><span class="d">Monday</span><b>Review</b>Coaches tag key moments and note 3 coaching points per squad.</div>
+    <div class="step"><span class="d">Wed · Fri</span><b>Coach</b>5–10 minute clip reviews at training, then drills that work on what the clips showed.</div>
+    <div class="step"><span class="d">Mon–Tue</span><b>Share</b>Opposition clubs and consented parents receive their footage and reels.</div>
+  </div>
+
+  <h3>Why Veo, and not a cheaper camera</h3>
+  <p>We compared Veo with other systems. Pixellot is built for venues and leagues and costs more. Trace is leased rather than owned. XbotGo Falcon costs about US$700–850 with no subscription, but it is a pan-and-follow camera with no automatic match statistics and no per-player reels. Veo's automatic Player Moments reels and match statistics drive two of the four income streams. Its built-in opponent sharing is what makes the club service practical for volunteers to run.</p>
+</div>
+
+<!-- ============ 5. OPERATIONS ============ -->
+<div class="section">
+  <h2><span class="num">5</span>How the programme is run</h2>
+  <p>The programme runs on Veo's own apps and a few simple records kept by the academy. No extra software is needed. Each task has a named owner, so the work fits around three volunteer coaches.</p>
+  <table>
+    <thead><tr><th style="width:24%">Task</th><th>How it is done</th><th style="width:20%">Owner</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Match-day recording</strong></td><td>Camera and tripod collected from the Equipment Manager, set up at the halfway line before kick-off, left running for the matches at that venue, and returned in its locked case. A one-page checklist covers setup, battery and upload.</td><td>Equipment Manager / duty coach</td></tr>
+      <tr><td><strong>Upload &amp; processing</strong></td><td>Uploaded over home Wi-Fi on Sunday night. Veo processes the video, automatic highlights and statistics overnight.</td><td>Duty coach</td></tr>
+      <tr><td><strong>Coach review</strong></td><td>Each head coach reviews their squad's match in Veo Editor, tags key moments, and picks 2–3 clips and coaching points for training.</td><td>Head coach per age group</td></tr>
+      <tr><td><strong>Using clips at training</strong></td><td>Short clip reviews (5–10 minutes) on a phone or tablet at Wednesday or Friday training, followed by drills that work on what the clips showed.</td><td>Head coach</td></tr>
+      <tr><td><strong>Consent register</strong></td><td>A register built from the season's registration forms shows each player's photo/media consent status. It is checked before any clip or reel of a player is shared.</td><td>Registration lead</td></tr>
+      <tr><td><strong>Sharing with families</strong></td><td>Highlight reels are sent as private Veo links to the parent of that child only. Nothing is posted in group chats, and recordings stay set to Restricted in Veo.</td><td>Head coach</td></tr>
+      <tr><td><strong>Footage orders</strong></td><td>A simple order register records which club, which match, whether the sharing agreement is signed, and payment status. Footage is released through Veo's Share with Opponent only once both the agreement and payment are in.</td><td>Admin Manager</td></tr>
+      <tr><td><strong>Money</strong></td><td>Payment by EFT or SnapScan into the academy account, recorded against the order, and reported to the funder each quarter.</td><td>Finance (Academy Director)</td></tr>
+    </tbody>
+  </table>
+  <div class="note">All templates (recording checklist, consent register, footage sharing agreement and order register) will be ready before launch (Section 11, Month 0).</div>
+</div>
+
+<div class="section">
+  <h2><span class="num">6</span>Budget</h2>
+  <p>Prices are 2026 US-dollar list prices published by Veo and its resellers, converted at <strong>R16.40/US$</strong> (late-September 2026 rate). Subscriptions are billed annually in advance. The <strong>Club</strong> plan is used because Growfit runs three age groups and needs player and parent seats beyond the Team plan's limit. All figures will be replaced by a formal quote from Veo's authorised South African reseller (MilkaSports). Any saving reduces the amount requested.</p>
+  <table class="avoid">
+    <thead><tr><th>Item</th><th>Basis</th><th class="n">ZAR</th></tr></thead>
+    <tbody>
+      <tr class="sub"><td colspan="3">Once-off: equipment &amp; setup</td></tr>
+      <tr><td>Veo Cam 3 camera</td><td>US$1,299</td><td class="n">21,300</td></tr>
+      <tr><td>Veo 5.2&nbsp;m carbon-fibre tripod</td><td>US$379</td><td class="n">6,200</td></tr>
+      <tr><td>Import VAT</td><td>15% on hardware</td><td class="n">4,100</td></tr>
+      <tr><td>Shipping, clearance &amp; delivery to Durban</td><td>Estimate</td><td class="n">1,500</td></tr>
+      <tr><td>Accessories</td><td>Hard case, power bank, rain cover, tripod lock &amp; cable</td><td class="n">2,500</td></tr>
+      <tr><td colspan="2"><strong>Subtotal once-off</strong></td><td class="n"><strong>35,600</strong></td></tr>
+      <tr class="sub"><td colspan="3">Year 1: running costs</td></tr>
+      <tr><td>Veo Club subscription (12 months)</td><td>US$1,749 / year</td><td class="n">28,700</td></tr>
+      <tr><td>Veo Analytics add-on (12 months)</td><td>US$59 / month on Club</td><td class="n">11,600</td></tr>
+      <tr><td>Portable-equipment insurance</td><td>All-risk, estimate</td><td class="n">1,200</td></tr>
+      <tr><td>Mobile data for uploads</td><td>Backup to home Wi-Fi</td><td class="n">2,400</td></tr>
+      <tr><td>Contingency</td><td>5% (exchange rate, quote variance)</td><td class="n">4,000</td></tr>
+      <tr><td colspan="2"><strong>Subtotal Year 1 running</strong></td><td class="n"><strong>47,900</strong></td></tr>
+      <tr class="total"><td colspan="2">Total funding requested (Full package)</td><td class="n">R83,500</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><strong>Essential package: R71,300.</strong> The same budget without the Analytics add-on, with contingency recalculated. Coaches still get the full video, automatic shot and goal clips, drawing tools and opponent sharing. Automatic per-player reels and advanced statistics are lost, so parent reels would have to be made by hand. Analytics can be added later from service income.</div>
+</div>
+
+<!-- ============ 7. SERVICE MODEL ============ -->
+<div class="section">
+  <h2><span class="num">7</span>Service &amp; income model</h2>
+  <p>The service exists to keep the camera running. Prices are set for grassroots clubs and families, and every income stream follows the consent rules in Section&nbsp;9.</p>
+  <table>
+    <thead><tr><th style="width:22%">Stream</th><th>Offer</th><th class="n">Price</th><th style="width:26%">Who it's for / safeguard</th></tr></thead>
+    <tbody>
+      <tr><td><strong>1. Club match footage</strong></td><td>Full recording of a match, delivered through Veo's Share with Opponent or as an MP4 download. <em>Plus:</em> one-page match summary (shots, key moments).</td><td class="n">R350<br>R650 Plus</td><td>The opposition <strong>club</strong> only, after signing a footage-sharing agreement confirming it holds its own players' media consent.</td></tr>
+      <tr><td><strong>2. Player highlight packages</strong></td><td>Term package of AI-generated Player Moments reels (3+ matches), or an edited season "showcase reel" for trials and school applications.</td><td class="n">R400 / term<br>R1,000 / season</td><td>Growfit players only, and only where media consent is on file.</td></tr>
+      <tr><td><strong>3. Filming service</strong></td><td>Camera and volunteer operator for school matches, friendlies and holiday tournaments.</td><td class="n">R900 / match<br>R2,500 / day</td><td>The organising club or school, which is responsible for consent at its event.</td></tr>
+      <tr><td><strong>4. Community sponsor</strong></td><td>"Growfit Match Cam, supported by [Sponsor]": logo on highlight reels, social posts and the tripod banner.</td><td class="n">R6,000+ / year</td><td>Local business. The sponsor's branding never appears next to an individual child's name.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Key assumptions</h3>
+  <table class="avoid">
+    <thead><tr><th>Assumption</th><th class="n">Conservative</th><th class="n">Base</th><th class="n">Strong</th></tr></thead>
+    <tbody>
+      <tr><td>Active match months per year</td><td class="n">9</td><td class="n">9</td><td class="n">9</td></tr>
+      <tr><td>Growfit matches filmed per month (one camera, three squads)</td><td class="n">6</td><td class="n">8</td><td class="n">9</td></tr>
+      <tr><td>Opposition clubs that buy footage</td><td class="n">20%</td><td class="n">30%</td><td class="n">45%</td></tr>
+      <tr><td>Average footage price</td><td class="n">R400</td><td class="n">R450</td><td class="n">R500</td></tr>
+      <tr><td>Families buying a term package (of ~60 players)</td><td class="n">6</td><td class="n">9</td><td class="n">14</td></tr>
+      <tr><td>Season showcase reels sold</td><td class="n">3</td><td class="n">5</td><td class="n">8</td></tr>
+      <tr><td>External filming jobs per month / tournament days per year</td><td class="n">0.5 / 1</td><td class="n">1 / 2</td><td class="n">1.5 / 3</td></tr>
+      <tr><td>Sponsorship per year</td><td class="n">R0</td><td class="n">R6,000</td><td class="n">R12,000</td></tr>
+    </tbody>
+  </table>
+  <p class="small">Player numbers and fixture counts are planning assumptions and will be confirmed against the 2027 GDFL fixture list and registrations.</p>
+</div>
+
+<!-- ============ 8. PROJECTIONS ============ -->
+<div class="section">
+  <h2><span class="num">8</span>Financial projections</h2>
+  <p>Year&nbsp;1 equipment and running costs are covered by this grant, so all Year&nbsp;1 service income goes into a reserve for the <strong>Year&nbsp;2 renewal</strong>. That renewal costs R43,900: the Club plan, Analytics, insurance and data. The test of the model is how much of that renewal the service income covers.</p>
+
+  <table class="avoid">
+    <thead><tr><th>Annual figures (ZAR)</th><th class="n">Conservative</th><th class="n">Base</th><th class="n">Strong</th></tr></thead>
+    <tbody>
+      <tr><td>1. Club match footage</td><td class="n">4,300</td><td class="n">9,700</td><td class="n">18,200</td></tr>
+      <tr><td>2. Player highlight packages</td><td class="n">10,200</td><td class="n">15,800</td><td class="n">24,800</td></tr>
+      <tr><td>3. Filming service</td><td class="n">6,600</td><td class="n">13,100</td><td class="n">19,700</td></tr>
+      <tr><td>4. Community sponsor</td><td class="n">0</td><td class="n">6,000</td><td class="n">12,000</td></tr>
+      <tr class="sub"><td>Gross service income</td><td class="n">21,100</td><td class="n">44,600</td><td class="n">74,700</td></tr>
+      <tr><td>Less payment fees (3%)</td><td class="n">(600)</td><td class="n">(1,300)</td><td class="n">(2,200)</td></tr>
+      <tr><td>Less operator stipends (external jobs)</td><td class="n">(1,000)</td><td class="n">(2,000)</td><td class="n">(2,900)</td></tr>
+      <tr class="sub"><td>Net service income</td><td class="n">19,500</td><td class="n">41,300</td><td class="n">69,600</td></tr>
+      <tr><td>Year-2 running cost (Full)</td><td class="n">43,900</td><td class="n">43,900</td><td class="n">43,900</td></tr>
+      <tr class="total"><td>Share of Year-2 running cost covered</td><td class="n">44%</td><td class="n">94%</td><td class="n">159%</td></tr>
+    </tbody>
+  </table>
+
+  <div class="fig avoid" role="img" aria-label="Net service income by scenario compared with the R43,900 Year-2 running cost: Conservative R19,500, Base R41,300, Strong R69,600.">
+    <h3>Net service income vs. Year-2 running cost</h3>
+    <div style="height:6mm"></div>
+    <div class="bar-row"><div>Conservative</div><div class="bar-track"><div class="bar" style="width:28.02%"></div><div class="ref" style="left:63.07%"><span class="ref-label">Year-2 cost R43,900</span></div></div><div class="n">R19,500</div></div>
+    <div class="bar-row"><div>Base</div><div class="bar-track"><div class="bar" style="width:59.34%"></div><div class="ref" style="left:63.07%"></div></div><div class="n">R41,300</div></div>
+    <div class="bar-row"><div>Strong</div><div class="bar-track"><div class="bar" style="width:100%"></div><div class="ref" style="left:63.07%"></div></div><div class="n">R69,600</div></div>
+    <div class="fig-cap">Bars: net service income in Year 1 (ZAR). Dashed line: cost of renewing the full system for Year 2.</div>
+  </div>
+
+  <h3>If income falls short</h3>
+  <ul>
+    <li><strong>Drop to the Essential setup in Year&nbsp;2.</strong> Removing Analytics cuts the renewal to R32,300, which the base case covers at 128%.</li>
+    <li><strong>Grow sponsorship.</strong> A single R12,000 sponsor moves the conservative case from 44% to 71%.</li>
+    <li><strong>Propose a league partnership.</strong> Offer the GDFL a filming and League Exchange arrangement funded by participating clubs.</li>
+  </ul>
+  <div class="note">Growfit's NPC status: service income is used only for the programme. Tax treatment of trading income (including the partial exemption for public benefit organisations) will be confirmed with our accountant before the service launches.</div>
+</div>
+
+<!-- ============ 9. COMPLIANCE ============ -->
+<div class="section">
+  <h2><span class="num">9</span>Child protection, POPIA &amp; consent</h2>
+  <p>Every player we film is a child. Under POPIA (sections 34–35), children's personal information, including identifiable video, may only be processed with the consent of a parent or guardian, or under a narrow legal exception. The programme is built around that rule.</p>
+  <table>
+    <thead><tr><th style="width:30%">Rule</th><th>How it is applied</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Consent before footage is used</strong></td><td>Growfit's registration pack already includes POPIA and photo/media consent. Clips and reels are only created and shared for players with consent on file, checked against the consent register before anything is shared.</td></tr>
+      <tr><td><strong>Opposition players</strong></td><td>Opposition footage goes only to the opposition club, for its own players. The club signs a short <em>Footage Sharing Agreement</em> confirming it holds media consent and will not publish the footage. We do not sell individual reels of opposition players.</td></tr>
+      <tr><td><strong>League &amp; venue notice</strong></td><td>The GDFL is informed before launch. Pre-match notice to the opponent and a sign at the venue that filming is taking place. A match is not filmed if the league or the opposition objects.</td></tr>
+      <tr><td><strong>Private by default</strong></td><td>Recordings are set to Restricted in Veo, not Public. Nothing is published on social media without consent, and children are never identified by full name with their video.</td></tr>
+      <tr><td><strong>Retention &amp; deletion</strong></td><td>Recordings are kept for up to 12&nbsp;months (Veo plan storage), then deleted unless needed for safeguarding. Parents can ask for their child's clips to be removed, and a removal also withdraws copies shared with other clubs.</td></tr>
+      <tr><td><strong>Safeguarding</strong></td><td>Camera handled only by vetted adults (CPR Part B checked). Recording is only of matches and training, never in changing rooms. The incoming Safeguarding Officer will be the named lead for video.</td></tr>
+      <tr><td><strong>Information Officer</strong></td><td>The Academy Director serves as Information Officer and will be registered with the Information Regulator before launch. Cross-border storage happens on Veo's cloud under its data-processing terms, and this is disclosed in the consent form.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h2><span class="num">10</span>Risks &amp; mitigation</h2>
+  <table class="avoid">
+    <thead><tr><th style="width:26%">Risk</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr><td>Theft or damage</td><td>Camera always stays with a named adult and goes in a locked case between games. Tripod is tethered and weighted, and portable-equipment insurance is included in the budget. An asset register is held by the Equipment Manager.</td></tr>
+      <tr><td>Exchange rate / price rises</td><td>Local quote obtained before purchase. Subscription paid annually in advance, which fixes the Year&nbsp;1 cost. A 5% contingency is included.</td></tr>
+      <tr><td>Low uptake by clubs or parents</td><td>The programme's main value is coaching our own players, which doesn't depend on sales. The Essential fallback and sponsorship close any gap (Section&nbsp;8).</td></tr>
+      <tr><td>Volunteer capacity</td><td>The camera runs itself, so setup takes about 10 minutes. Sales and delivery happen inside Veo with no file handling. External filming jobs pay a stipend to a trained parent or youth volunteer.</td></tr>
+      <tr><td>Upload / connectivity</td><td>Upload over home Wi-Fi on Sunday night, with mobile data as backup. Footage is stored on the camera until the upload is confirmed.</td></tr>
+      <tr><td>Clashing fixtures</td><td>One camera can't cover games at two venues. Priority rotates fairly between age groups, published per term.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ============ 11. PLAN + KPIs ============ -->
+<div class="section">
+  <h2><span class="num">11</span>Implementation plan</h2>
+  <table class="avoid">
+    <thead><tr><th style="width:18%">When</th><th>Milestone</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Month 0</strong></td><td>Funding agreed. Formal quote from the SA reseller. Information Officer registration confirmed. Footage Sharing Agreement, consent register, order register and updated consent wording finalised.</td></tr>
+      <tr><td><strong>Month 1</strong></td><td>Equipment purchased and insured. Coach training on recording, Editor and Analytics. GDFL informed. Consent refreshed for all registered players.</td></tr>
+      <tr><td><strong>Months 1–2</strong></td><td>Internal pilot: all Growfit matches filmed and used in training. No sales during the pilot.</td></tr>
+      <tr><td><strong>Month 3</strong></td><td>Club footage service and parent highlight packages launched. Sponsor approached.</td></tr>
+      <tr><td><strong>School holidays</strong></td><td>Tournament filming offered to schools and organisers.</td></tr>
+      <tr><td><strong>Month 9</strong></td><td>Review against KPIs. Year-2 decision: Full or Essential renewal from reserve. League Exchange proposal to the GDFL.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:6mm"><span class="num">12</span>What we will report</h2>
+  <p>Growfit will send the funder a short report each quarter, with an annual summary.</p>
+  <div class="tiles">
+    <div class="tile"><div class="v">≥ 80%</div><div class="l">of Growfit league matches filmed</div></div>
+    <div class="tile"><div class="v">≥ 2</div><div class="l">video review sessions per squad per month</div></div>
+    <div class="tile"><div class="v">100%</div><div class="l">of shared footage covered by consent or a signed agreement</div></div>
+    <div class="tile"><div class="v">≥ R41k</div><div class="l">net service income in Year 1 (base case)</div></div>
+  </div>
+  <p>We will also report qualitatively: players who moved to higher-level teams, school sports programmes or trials using their reels, and feedback from coaches, parents and partner clubs.</p>
+
+  <h2 style="margin-top:6mm"><span class="num">13</span>The request</h2>
+  <div class="callout">
+    <p>Growfit Sports Academy NPC requests <strong>R83,500</strong> (Full package) or <strong>R71,300</strong> (Essential package) as a <strong>grant or sponsorship</strong> to establish the Growfit Match Video &amp; Analysis Programme. Growfit is a non-profit company with no shareholders, so it cannot offer equity. An interest-free loan repayable from service income from Year&nbsp;2 can be discussed. The funder will be credited on all programme material unless they ask otherwise.</p>
+  </div>
+
+  <div class="sig">
+    <div>For Growfit Sports Academy NPC<br><br>Name: ______________________<br>Role: Academy Director<br>Date: ____ / ____ / 2026</div>
+    <div>For the Funding Partner<br><br>Name: ______________________<br>Organisation: ________________<br>Date: ____ / ____ / 2026</div>
+  </div>
+</div>
+
+<!-- ============ APPENDIX ============ -->
+<div class="section">
+  <h2><span class="num">A</span>Sources &amp; notes</h2>
+  <p class="small">Product and price information was taken from Veo's published materials and independent reviews as of September 2026. Some published prices differ between sources (for example, plan prices quoted by resellers). This budget uses the higher figures. All figures are indicative until a formal quote is received.</p>
+  <ul class="src">
+    <li>Veo Cam 3 product and specifications: https://www.veo.com/en-us/product/veo-cam-3 · https://support.veo.com/hc/en-us/articles/34166787752337</li>
+    <li>Veo plans and pricing: https://www.veo.com/en-us/pricing · https://support.veo.com/hc/en-us/articles/4450464075025</li>
+    <li>Veo Editor features (follow-cam, interactive view, drawing tools, clips): https://support.veo.com/hc/en-us/articles/4454946199057 · https://support.veo.com/hc/en-us/articles/10288769409425</li>
+    <li>Veo Analytics and Player Moments: https://www.veo.com/product/veo-analytics-2 · https://updates.veo.co/announcements/veo-player-moments</li>
+    <li>Coach Assist (March 2026): https://updates.veo.co/announcements/coach-assist-chat-is-now-available</li>
+    <li>Share with Opponent: https://support.veo.co/hc/en-us/articles/4433744428945</li>
+    <li>League Exchange: https://www.veo.com/en-us/product/league-exchange · https://www.mlssoccer.com/news/mls-next-and-veo-to-deliver-advanced-video-exchange-to-north-america-youth-soccer</li>
+    <li>Veo Live add-on: https://www.veo.com/en-us/product/veo-live</li>
+    <li>Tripod pricing: https://sportsactioncameras.au/veo-tripods-accessories/</li>
+    <li>SA authorised reseller (MilkaSports): https://www.veo.com/reseller</li>
+    <li>Alternative systems: https://xbotgo.com/products/xbotgo-falcon-true-4k-ai-camera-for-team-sports · https://zone14.ai/en/blog/videoanalysis/solutions-for-football-video-analysis-compared-2026/</li>
+    <li>Exchange rate (USD/ZAR, late Sept 2026 ≈ 16.3–16.4): https://www.exchangerates.org.uk/USD-ZAR-exchange-rate-history.html</li>
+    <li>POPIA (Act 4 of 2013), sections 34–35, processing of children's personal information; Children's Act 38 of 2005.</li>
+  </ul>
+  <h3>Calculation notes</h3>
+  <ul class="small">
+    <li>USD converted at R16.40 and rounded to the nearest R100. Import VAT is 15% of the converted hardware value.</li>
+    <li>Club footage income = matches filmed per month × purchase rate × average price × 9 months.</li>
+    <li>Highlight income = term packages × R400 × 3 terms + season reels × R1,000.</li>
+    <li>Filming income = jobs per month × R900 × 9 months + tournament days × R2,500. Stipends are R150 per job and R300 per tournament day.</li>
+    <li>Year-2 running cost = Club plan R28,700 + Analytics R11,600 + insurance R1,200 + data R2,400 = R43,900 (Essential: R32,300).</li>
+  </ul>
+</div>
+
+</body>
+</html>
