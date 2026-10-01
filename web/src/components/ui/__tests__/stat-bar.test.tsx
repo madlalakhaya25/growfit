@@ -44,3 +44,17 @@ describe("StatBar", () => {
     expect(meter).toHaveAttribute("aria-valuenow", "0");
   });
 });
+
+describe("StatBar colour", () => {
+  const fillOf = () => screen.getByRole("meter").firstElementChild as HTMLElement;
+
+  it("bands the fill by value when no colour is given (unchanged behaviour)", () => {
+    render(<StatBar label="Pace" value={90} />);
+    expect(fillOf().style.backgroundColor).toBe("var(--color-rating-high)");
+  });
+
+  it("uses an explicit colour instead of the value band", () => {
+    render(<StatBar label="Technical" value={10} color="var(--color-dev-technical)" />);
+    expect(fillOf().style.backgroundColor).toBe("var(--color-dev-technical)");
+  });
+});

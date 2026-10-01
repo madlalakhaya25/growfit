@@ -15,6 +15,10 @@ import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AiPanel } from "@/components/ai/ai-panel";
+import { StatBar } from "@/components/ui/stat-bar";
+import { Spinner } from "@/components/ui/spinner";
+import { Sparkles } from "lucide-react";
 import { MILESTONE_CATEGORIES, MILESTONE_CATEGORY_META } from "@/lib/development-categories";
 
 /**
@@ -173,6 +177,66 @@ export default function UiGuidePage() {
             </div>
           </CardContent>
         </Card>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-display text-xl">StatBar</h2>
+        <Card>
+          <CardContent className="space-y-3 pt-4">
+            <StatBar label="Banded" value={82} />
+            <StatBar label="Banded" value={48} />
+            {MILESTONE_CATEGORIES.map((key) => (
+              <StatBar
+                key={key}
+                label={MILESTONE_CATEGORY_META[key].label}
+                value={60}
+                color={MILESTONE_CATEGORY_META[key].cssVar}
+              />
+            ))}
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-display text-xl">AiPanel &amp; Spinner</h2>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Spinner label="Loading" /> Spinner
+        </div>
+        <AiPanel
+          icon={Sparkles}
+          title="Idle"
+          idleMessage="One sentence on what generating does."
+          pendingMessage="Working…"
+          generateLabel="Generate"
+          content={null}
+          pending={false}
+          error={null}
+          onGenerate={() => {}}
+        />
+        <AiPanel
+          icon={Sparkles}
+          title="With content"
+          idleMessage=""
+          pendingMessage="Working…"
+          generateLabel="Generate"
+          content={"SUMMARY: A short generated answer.\n- First point\n- Second point"}
+          generatedAt="2026-10-03T08:00:00Z"
+          pending={false}
+          error={null}
+          onGenerate={() => {}}
+          feedback={{ value: "helpful", onChange: () => {} }}
+        />
+        <AiPanel
+          icon={Sparkles}
+          title="Error"
+          idleMessage=""
+          pendingMessage="Working…"
+          generateLabel="Generate"
+          content={null}
+          pending={false}
+          error="Something went wrong. Please try again."
+          onGenerate={() => {}}
+        />
       </section>
 
       <section className="space-y-3">

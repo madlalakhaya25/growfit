@@ -4,6 +4,13 @@ interface StatBarProps {
   label: string;
   /** 0–100 attribute value (FIFA-style). */
   value: number;
+  /**
+   * Fill colour override (any CSS colour, e.g. a `--color-dev-*` var). Omitted,
+   * the fill is banded by the value itself (high / mid / low) -- right for an
+   * attribute, meaningless for a category, which needs its own identity colour
+   * rather than one chosen by how complete it is.
+   */
+  color?: string;
   className?: string;
 }
 
@@ -15,7 +22,7 @@ function ratingColor(value: number) {
 }
 
 /** FIFA-card style attribute bar: label, animated fill, numeric value. */
-export function StatBar({ label, value, className }: StatBarProps) {
+export function StatBar({ label, value, color, className }: StatBarProps) {
   const clamped = Math.max(0, Math.min(100, value));
   return (
     <div className={cn("flex items-center gap-3", className)}>
@@ -32,7 +39,7 @@ export function StatBar({ label, value, className }: StatBarProps) {
       >
         <div
           className="h-full rounded-full transition-[width] duration-500 ease-out"
-          style={{ width: `${clamped}%`, backgroundColor: ratingColor(clamped) }}
+          style={{ width: `${clamped}%`, backgroundColor: color ?? ratingColor(clamped) }}
         />
       </div>
       <span className="w-7 shrink-0 text-right text-sm font-semibold tabular-nums">
