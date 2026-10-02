@@ -27,6 +27,8 @@ export interface PlayTemplate {
   /** Concept id from lib/tactics.ts, used to pre-tag the play. */
   conceptId: string;
   summary: string;
+  /** Set when the template belongs under a heading in the picker. */
+  group?: "Set pieces";
   tokens: TemplateToken[];
   steps: TemplateStep[];
 }
@@ -143,6 +145,7 @@ export const PLAY_TEMPLATES: PlayTemplate[] = [
     id: "tpl-corner-near",
     label: "Corner routine — near post run",
     conceptId: "attacking-set-pieces",
+    group: "Set pieces",
     summary: "Two players start central, one attacks the near post to flick on, the second arrives at the back post.",
     tokens: [
       P("tak", "Taker", "Midfielder"), P("np", "Near", "Forward"), P("bp", "Back", "Defender"),
@@ -164,6 +167,88 @@ export const PLAY_TEMPLATES: PlayTemplate[] = [
         pos: { tak: [7, 7], np: [36, 12], bp: [64, 14], edge: [50, 34], ogk: [46, 11], ball: [64, 14] },
         shapes: [["pass", 36, 12, 64, 14]],
       },
+    ],
+  },
+  {
+    id: "tpl-corner-short",
+    label: "Corner routine: short and in",
+    conceptId: "attacking-set-pieces",
+    group: "Set pieces",
+    summary: "A short corner draws the defender out, then the ball is worked to the edge of the box for a shot or a cross from a better angle.",
+    tokens: [
+      P("tak", "Taker", "Midfielder"), P("short", "Short", "Midfielder"), P("edge", "Edge", "Midfielder"),
+      P("far", "Far", "Forward"), O("o1", "4"), O("ogk", "1"), BALL,
+    ],
+    steps: [
+      { pos: { tak: [6, 6], short: [22, 16], edge: [46, 40], far: [62, 20], o1: [14, 10], ogk: [50, 10], ball: [6, 6] } },
+      { pos: { tak: [6, 6], short: [22, 16], edge: [46, 40], far: [62, 20], o1: [16, 12], ogk: [50, 10], ball: [22, 16] }, shapes: [["pass", 6, 6, 22, 16]] },
+      { pos: { tak: [8, 12], short: [24, 22], edge: [46, 40], far: [64, 16], o1: [20, 16], ogk: [50, 10], ball: [46, 40] }, shapes: [["pass", 22, 16, 46, 40], ["run", 62, 20, 64, 16]] },
+      { pos: { tak: [8, 12], short: [24, 22], edge: [46, 40], far: [64, 12], o1: [22, 20], ogk: [52, 10], ball: [64, 12] }, shapes: [["pass", 46, 40, 64, 12]] },
+    ],
+  },
+  {
+    id: "tpl-corner-far",
+    label: "Corner routine: screen and far post",
+    conceptId: "attacking-set-pieces",
+    group: "Set pieces",
+    summary: "One player screens the keeper, a decoy attacks the near post, and the ball goes to the tallest player arriving late at the far post.",
+    tokens: [
+      P("tak", "Taker", "Midfielder"), P("scr", "Screen", "Defender"), P("dec", "Decoy", "Forward"),
+      P("tall", "Tall", "Defender"), P("edge", "Edge", "Midfielder"), O("ogk", "1"), BALL,
+    ],
+    steps: [
+      { pos: { tak: [6, 6], scr: [46, 12], dec: [50, 24], tall: [52, 30], edge: [50, 42], ogk: [50, 10], ball: [6, 6] } },
+      { pos: { tak: [6, 6], scr: [46, 12], dec: [36, 12], tall: [60, 24], edge: [50, 42], ogk: [50, 10], ball: [6, 6] }, shapes: [["run", 50, 24, 36, 12], ["run", 52, 30, 60, 24]] },
+      { pos: { tak: [6, 6], scr: [46, 12], dec: [36, 12], tall: [66, 12], edge: [50, 40], ogk: [49, 10], ball: [66, 12] }, shapes: [["pass", 6, 6, 66, 12], ["run", 60, 24, 66, 12]] },
+    ],
+  },
+  {
+    id: "tpl-free-kick-direct",
+    label: "Free kick: direct shot with a decoy",
+    conceptId: "attacking-set-pieces",
+    group: "Set pieces",
+    summary: "A decoy runs over the ball to pull the wall's attention, then the taker shoots round the end of the wall.",
+    tokens: [
+      P("tak", "Taker", "Forward"), P("dec", "Decoy", "Midfielder"), P("rb", "Rebound", "Forward"),
+      O("w1", "W"), O("w2", "W"), O("w3", "W"), O("ogk", "1"), BALL,
+    ],
+    steps: [
+      { pos: { tak: [56, 54], dec: [48, 56], rb: [62, 32], w1: [42, 42], w2: [48, 42], w3: [54, 42], ogk: [50, 10], ball: [50, 54] } },
+      { pos: { tak: [56, 54], dec: [52, 52], rb: [62, 30], w1: [42, 42], w2: [48, 42], w3: [54, 42], ogk: [50, 10], ball: [50, 54] }, shapes: [["run", 48, 56, 52, 52]] },
+      { pos: { tak: [52, 54], dec: [52, 52], rb: [62, 28], w1: [42, 42], w2: [48, 42], w3: [54, 42], ogk: [46, 10], ball: [36, 4] }, shapes: [["pass", 50, 54, 36, 4]] },
+    ],
+  },
+  {
+    id: "tpl-free-kick-cross",
+    label: "Free kick: wide cross to the far post",
+    conceptId: "attacking-set-pieces",
+    group: "Set pieces",
+    summary: "From wide, three runners attack different spaces at once: near post, penalty spot and the far post where the ball is aimed.",
+    tokens: [
+      P("tak", "Taker", "Midfielder"), P("n", "Near", "Forward"), P("m", "Spot", "Midfielder"),
+      P("f", "Far", "Defender"), O("d1", "4"), O("d2", "5"), O("d3", "6"), O("ogk", "1"), BALL,
+    ],
+    steps: [
+      { pos: { tak: [10, 62], n: [44, 36], m: [54, 38], f: [64, 40], d1: [40, 30], d2: [52, 30], d3: [64, 30], ogk: [50, 10], ball: [10, 62] } },
+      { pos: { tak: [10, 62], n: [40, 22], m: [52, 26], f: [68, 22], d1: [40, 28], d2: [52, 28], d3: [64, 28], ogk: [50, 10], ball: [10, 62] }, shapes: [["run", 44, 36, 40, 22], ["run", 54, 38, 52, 26], ["run", 64, 40, 68, 22]] },
+      { pos: { tak: [10, 62], n: [40, 22], m: [52, 26], f: [68, 20], d1: [42, 26], d2: [54, 26], d3: [66, 28], ogk: [52, 10], ball: [68, 20] }, shapes: [["pass", 10, 62, 68, 20]] },
+    ],
+  },
+  {
+    id: "tpl-defend-corner",
+    label: "Defending a corner: zonal with a counter outlet",
+    conceptId: "defending-set-pieces",
+    group: "Set pieces",
+    summary: "Players hold zones across the six-yard box and penalty spot, the keeper commands the near side, and one player stays high as the outlet.",
+    tokens: [
+      P("gk", "GK", "Goalkeeper"), P("z1", "Z1", "Defender"), P("z2", "Z2", "Defender"), P("z3", "Z3", "Midfielder"),
+      P("z4", "Z4", "Midfielder"), P("out", "Out", "Forward"), O("tak", "7"), O("a1", "9"), O("a2", "10"), BALL,
+    ],
+    steps: [
+      { pos: { gk: [50, 140], z1: [42, 134], z2: [58, 134], z3: [50, 126], z4: [38, 122], out: [50, 80], tak: [94, 144], a1: [46, 128], a2: [60, 124], ball: [94, 144] } },
+      { pos: { gk: [52, 140], z1: [42, 134], z2: [58, 134], z3: [50, 126], z4: [38, 122], out: [50, 80], tak: [94, 144], a1: [48, 130], a2: [62, 126], ball: [58, 132] }, shapes: [["pass", 94, 144, 58, 132]] },
+      { pos: { gk: [52, 140], z1: [42, 134], z2: [58, 132], z3: [50, 126], z4: [38, 122], out: [50, 70], tak: [94, 144], a1: [48, 130], a2: [62, 126], ball: [58, 132] }, shapes: [["run", 50, 80, 50, 70]] },
+      { pos: { gk: [52, 140], z1: [42, 134], z2: [58, 132], z3: [50, 120], z4: [38, 122], out: [50, 64], tak: [94, 144], a1: [48, 130], a2: [62, 126], ball: [50, 64] }, shapes: [["pass", 58, 132, 50, 64]] },
     ],
   },
 ];
