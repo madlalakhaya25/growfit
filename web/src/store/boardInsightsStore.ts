@@ -13,8 +13,8 @@ import type { OpponentCounter } from "@/lib/opponent-counter";
  */
 /** Phase 2 analysis overlays (lib/board-overlays.ts), each on or off. */
 /** "times" and "jobs" are Phase 3 coaching layers (lib/board-coaching.ts). */
-export type AnalysisLayer = "lanes" | "space" | "lines" | "numbers" | "times" | "jobs";
-const NO_LAYERS: Record<AnalysisLayer, boolean> = { lanes: false, space: false, lines: false, numbers: false, times: false, jobs: false };
+export type AnalysisLayer = "lanes" | "space" | "lines" | "numbers" | "times" | "jobs" | "verdict";
+const NO_LAYERS: Record<AnalysisLayer, boolean> = { lanes: false, space: false, lines: false, numbers: false, times: false, jobs: false, verdict: false };
 
 interface BoardInsightsState {
   showExploits: boolean;

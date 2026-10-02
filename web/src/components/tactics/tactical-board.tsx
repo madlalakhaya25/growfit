@@ -6,7 +6,7 @@ import {
   Pencil, Download, Tag, Grid3x3,
   Play, Square, Plus, Trash2,
   Target, MessageSquare, Type, Ruler,
-  FlipHorizontal2, Maximize2, Minimize2, Hexagon, Video, Magnet, Timer, ListChecks, Crosshair, Share2, Map as MapIcon, AlignVerticalSpaceAround, Hash,
+  FlipHorizontal2, Maximize2, Minimize2, Hexagon, Video, Magnet, Timer, ListChecks, Gauge, Crosshair, Share2, Map as MapIcon, AlignVerticalSpaceAround, Hash,
 } from "lucide-react";
 import { FORMATIONS, FORMATION_SIZES, firstFormationOfSize, formatSizeForAge, type Formation } from "@/lib/formations";
 import { readOpponent } from "@/lib/board-analysis";
@@ -38,6 +38,8 @@ import { DraftRecoveryBanner } from "@/components/tactics/draft-recovery-banner"
 import { ExploitLayer, ExploitLegend } from "@/components/tactics/exploit-layer";
 import { PassingLaneLayer, SpaceControlLayer, LinesLayer, ZoneCountLayer, ReachTimeLayer } from "@/components/tactics/analysis-layers";
 import { PlayerJobsList } from "@/components/tactics/player-jobs";
+import { VerdictList } from "@/components/tactics/verdict-list";
+import { willItWork } from "@/lib/board-verdict";
 import { getOpponentScouting, type OpponentScouting } from "@/app/actions/tactic-plays";
 import { useBoardStore, type BoardState } from "@/store/boardStore";
 import { useBoardSetupStore } from "@/store/boardSetupStore";
@@ -430,6 +432,10 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const times = useMemo(
     () => (layers.times ? reachTimes(view.tokens, view.shapes, pitch, ageGroup) : null),
     [layers.times, view.tokens, view.shapes, pitch, ageGroup]
+  );
+  const verdict = useMemo(
+    () => (layers.verdict ? willItWork(view.tokens, view.shapes, pitch, ageGroup) : null),
+    [layers.verdict, view.tokens, view.shapes, pitch, ageGroup]
   );
   const jobs = useMemo(
     () => (layers.jobs ? playerJobs(state.tokens, state.shapes, pitch) : null),
@@ -1932,6 +1938,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
         </button>
         {([
           ["times", Timer, "Run times", "How long each run takes at this age group, and whether the nearest opponent gets there first"],
+          ["verdict", Gauge, "Will it work?", "Reads every pass and run: is the lane open, is the receiver onside, who gets there first"],
           ["jobs", ListChecks, "Player jobs", "Each player's movements as plain instructions — the same list players see on a shared play"],
         ] as [AnalysisLayer, typeof Timer, string, string][]).map(([key, Icon, label, title]) => (
           <button
@@ -2149,6 +2156,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               onClearAi={() => setAiCounter(null)}
             />
           )}
+          {verdict && <VerdictList verdict={verdict} className="mt-3" />}
           {jobs && <PlayerJobsList jobs={jobs} className="mt-3" />}
         </div>
 
