@@ -12,6 +12,7 @@ import { describePlay, analyseOpponent } from "@/app/actions/tactics";
 import { generateSessionFromBoard } from "@/app/actions/board-to-session";
 import { generateBoardFromSentence } from "@/app/actions/board-from-text";
 import { SessionProgression } from "@/components/tactics/session-progression";
+import { PlayRolesPanel } from "@/components/tactics/play-roles-panel";
 import type { SessionPlanStructured } from "@/app/actions/session-generator";
 import { SpeakButton } from "@/components/tactics/speak-button";
 import { VoiceNoteRecorder } from "@/components/tactics/voice-note-recorder";
@@ -469,6 +470,8 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
           <AiProse text={analysis} className="text-xs" />
         </div>
       )}
+
+      {currentPlayId && <PlayRolesPanel key={currentPlayId} playId={currentPlayId} onNotice={setNotice} />}
 
       {progression && (
         <SessionProgression

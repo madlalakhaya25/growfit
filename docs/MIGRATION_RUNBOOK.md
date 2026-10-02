@@ -1,4 +1,4 @@
-# Migration Runbook — 030 → 048
+# Migration Runbook — 030 → 049
 
 *Written 2026-09-21. Backlog item 0.1. Extended the same day to cover 038-039
 (Phase 1, backlog items 1.2/1.5), again on 2026-09-22 to cover 040 (more of
@@ -272,6 +272,26 @@ reserved by `BACKLOG.md` Phase 5.
 SELECT pg_get_constraintdef(oid) FROM pg_constraint
  WHERE conname = 'ai_artefacts_kind_check';
 -- expect the original eight kinds plus 'scouting_report'
+```
+
+### 049 — ai_artefacts_play_roles
+
+Phase 3 step 3.3 ("My job in this play"). Widens **both** fixed CHECK lists on
+`ai_artefacts` (`ai_artefacts_kind_check` gains `'play_roles'`,
+`ai_artefacts_subject_type_check` gains `'play'`; both names confirmed against
+the live project) and adds `ai_artefacts_play_roles_player_read`, so a player
+can read an **approved** play-roles artefact for a shared play on a team they
+are an active member of. The kind list in 049 is the full list including
+`'scouting_report'`, so it is correct whether or not 048 has run.
+
+Until it runs the code is safe: generating still works but `persisted: false`
+comes back, nothing can be approved, and the player page shows no "My job"
+card.
+
+```sql
+SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint
+ WHERE conname IN ('ai_artefacts_kind_check','ai_artefacts_subject_type_check');
+SELECT policyname FROM pg_policies WHERE tablename = 'ai_artefacts';
 ```
 
 ### Idempotency

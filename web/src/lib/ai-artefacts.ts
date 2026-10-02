@@ -41,9 +41,11 @@ export type AiArtefactKind =
   | "academy_health"   | "match_plan"             | "session_plan"
   | "parent_report"    | "match_report"
   // Migration 048 widens ai_artefacts_kind_check for this one.
-  | "scouting_report";
+  | "scouting_report"
+  // Migration 049 widens it again, and adds the 'play' subject type.
+  | "play_roles";
 
-export type AiSubjectType = "player" | "fixture" | "team" | "academy";
+export type AiSubjectType = "player" | "fixture" | "team" | "academy" | "play";
 export type AiArtefactStatus = "draft" | "approved";
 export type AiFeedback = "helpful" | "not_helpful";
 
@@ -127,6 +129,7 @@ export const AI_ARTEFACT_TTL: Record<AiArtefactKind, number> = {
   parent_report: 7 * DAY,
   match_report: 7 * DAY,
   scouting_report: 24 * HOUR, // a week out it is stale; a day out it is not
+  play_roles: 28 * DAY, // changes only when the play does, which the fingerprint sees
 };
 
 /** Pure: the documented cache rule (conditions 2-5; 1 is the query, 6 the caller). */
