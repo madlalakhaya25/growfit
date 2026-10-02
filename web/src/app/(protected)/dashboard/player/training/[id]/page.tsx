@@ -55,6 +55,7 @@ export default async function PlayerTrainingSessionPage({
     .maybeSingle();
 
   const date = new Date(session.session_date);
+  const rsvpOpen = date.getTime() > new Date().getTime();
   const teamName = Array.isArray(session.teams)
     ? session.teams[0]?.name
     : (session.teams as { name: string } | null)?.name;
@@ -105,7 +106,7 @@ export default async function PlayerTrainingSessionPage({
       {/* RSVP: the player's own intention, kept apart from the coach's register
           (migration 051) and only open until the session starts. */}
       <div className="rounded-xl border border-border bg-card px-4 py-3.5">
-        {date.getTime() > Date.now() ? (
+        {rsvpOpen ? (
           <>
             <p className="text-sm font-medium mb-3">Are you coming?</p>
             <AttendanceButton
