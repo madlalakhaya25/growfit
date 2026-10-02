@@ -21,6 +21,8 @@ import { calculateAge, matchRatingAverage } from "@/lib/player";
 import { RemovePlayerButton } from "../remove-player-button";
 import { RatingEditRow } from "./rating-edit-row";
 import { PlayerAttributesForm } from "./player-attributes-form";
+import { PlayerCurves } from "@/components/development/player-curves";
+import { loadCurves } from "@/lib/curves-data";
 import { RatingChart } from "@/components/rating-chart";
 import { AiInsightsPanel } from "@/components/development/ai-insights-panel";
 import { DevelopmentPlanPanel } from "@/components/development/development-plan-panel";
@@ -278,6 +280,7 @@ export default async function PlayerDetailPage({
     fixtures: { opponent: string; fixture_date: string } | { opponent: string; fixture_date: string }[] | null;
   };
 
+  const curves = await loadCurves(supabase, player.id);
   const ratings: Rating[] = player.player_ratings ?? [];
 
   // Chart data — sorted ascending by date for the trend line
@@ -441,6 +444,8 @@ export default async function PlayerDetailPage({
                     {/* Ratings history */}
                     <div className="space-y-3">
                       <h2 className="text-lg font-semibold">Rating history</h2>
+
+                      <PlayerCurves curves={curves} />
 
                       {chartData.length >= 2 && (
                         <section className="rounded-xl border border-border bg-card p-4 space-y-2">

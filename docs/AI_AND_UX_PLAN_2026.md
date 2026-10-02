@@ -1602,7 +1602,9 @@ from `match_results` / `match_appearances` and the ratings already logged by
 `logMatch` (`actions/fixtures.ts:211`). Player- and parent-facing, so
 `PLAYER_FACING_RULE` applies and a coach approves first.
 
-### Step 4.7 — Performance curves with a narrative
+### Step 4.7 — Performance curves with a narrative — DONE (#93)
+
+> **Shipped for coaches, without a model.** The chart theming was already fixed. `lib/curves.ts` builds six months of match rating, training attendance (excused left out) and milestones per month, and a fixed-template sentence per line comparing the latest three months with the three before. "Last six months" card at the top of the coach's player profile. Not shown to players or parents.
 
 Trend charts over ratings, attendance and milestone completions with an AI
 reading underneath. `rating-chart.tsx` covers most of the chart half.
