@@ -42,6 +42,8 @@ import {
 import { renderDevelopmentPlanProse, renderPlayerPlanProse, toPlayerSafePlan } from "@/lib/development-plan-view";
 import { reportError } from "@/lib/report-error";
 import { formatInTimezone } from "@/lib/time";
+import { checkPlayerFacing, describeFlags } from "@/lib/child-safe-check";
+import { applyPlanEdits, type PlanEdits } from "@/lib/plan-edits";
 
 // The plan types live in a plain lib module so Jest can load them (this file
 // imports @google/genai, whose ESM build Jest can't). Re-exported as types so
@@ -385,12 +387,24 @@ async function loadOwnedPlan(artefactId: string) {
  * stacking a second one, so a retry after a partial failure heals itself.
  */
 export async function approveDevelopmentPlan(
-  artefactId: string
-): Promise<{ success?: boolean; approvedByName?: string; error?: string }> {
+  artefactId: string,
+  options?: { acknowledgeWording?: boolean }
+): Promise<{ success?: boolean; approvedByName?: string; error?: string; flagged?: boolean }> {
   try {
     const loaded = await loadOwnedPlan(artefactId);
     if ("error" in loaded) return { error: loaded.error };
     const { supabase, user, row } = loaded;
+
+    // A last look at the words a child will read (lib/child-safe-check.ts). It
+    // is an aid, not a verdict: the coach can edit the wording, or approve it
+    // knowingly with `acknowledgeWording` once they have seen what was flagged.
+    const flags = checkPlayerFacing(toPlayerSafePlan(row.data));
+    if (flags.length > 0 && !options?.acknowledgeWording) {
+      return {
+        error: `Some of the wording may read as negative to a child (${describeFlags(flags)}). Edit it, or approve it as it is.`,
+        flagged: true,
+      };
+    }
 
     const { data: me } = await supabase.from("profiles").select("full_name, academy_id").eq("id", user.id).single();
     const approverName = (me?.full_name as string | undefined) ?? "A coach";
@@ -436,6 +450,41 @@ export async function approveDevelopmentPlan(
   } catch (err) {
     reportError(err, { scope: "approveDevelopmentPlan" });
     return { error: "Couldn't approve the plan. Try again." };
+  }
+}
+
+/**
+ * A coach edits the wording of a draft plan before approving it. Words only:
+ * see lib/plan-edits.ts for what can and cannot change. An approved plan is not
+ * edited in place, because the family may already be reading the shared copy;
+ * the coach generates a new one instead.
+ */
+export async function saveDevelopmentPlanEdits(
+  artefactId: string,
+  edits: PlanEdits
+): Promise<{ success?: boolean; plan?: string; error?: string }> {
+  try {
+    const loaded = await loadOwnedPlan(artefactId);
+    if ("error" in loaded) return { error: loaded.error };
+    const { supabase, row } = loaded;
+    if (row.status === "approved") return { error: "This plan is already approved. Generate a new one to change it." };
+
+    const result = applyPlanEdits(row.data, edits);
+    if ("error" in result) return { error: result.error };
+
+    const prose = renderDevelopmentPlanProse(result.plan).replaceAll("*", "");
+    const { error } = await supabase
+      .from("ai_artefacts")
+      .update({ data: result.plan, prose })
+      .eq("id", row.id)
+      .eq("status", "draft");
+    if (error) return { error: "Couldn't save your changes. Try again." };
+
+    revalidatePath("/dashboard/coach/squad/plans");
+    return { success: true, plan: prose };
+  } catch (err) {
+    reportError(err, { scope: "saveDevelopmentPlanEdits" });
+    return { error: "Couldn't save your changes. Try again." };
   }
 }
 

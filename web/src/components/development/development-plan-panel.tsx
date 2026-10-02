@@ -68,6 +68,7 @@ export function DevelopmentPlanPanel({
     if (!artefactId) return;
     startApprove(async () => {
       const result = await approveDevelopmentPlan(artefactId);
+      if (result.flagged) { toast.error(`${result.error} Open Squad > Plans to edit it or approve it knowingly.`); return; }
       if (result.error) { toast.error(result.error); return; }
       setStatus("approved");
       setApprovedByName(result.approvedByName ?? null);

@@ -28,7 +28,7 @@ jest.mock("@/lib/ai-guard", () => ({
 }));
 
 import { fakeSupabase, type FakeOp, type FakeReply } from "@/test-utils/fake-supabase";
-import { approveDevelopmentPlan, generateDevelopmentPlan, setDevelopmentPlanFeedback } from "../development-plan";
+import { approveDevelopmentPlan, generateDevelopmentPlan, saveDevelopmentPlanEdits, setDevelopmentPlanFeedback } from "../development-plan";
 
 type Op = FakeOp;
 type Reply = FakeReply;
@@ -315,6 +315,99 @@ describe("approveDevelopmentPlan", () => {
     expect((await approveDevelopmentPlan("gone")).error).toMatch(/no longer exists/);
     mockRequireStaff.mockResolvedValue({ ...coach, supabase: approveDb({ ...planRow, superseded_at: "2026-10-01T00:00:00Z" }).client });
     expect((await approveDevelopmentPlan("a1")).error).toMatch(/newer plan/);
+  });
+});
+
+describe("approving wording a child may read as negative", () => {
+  const row = (playerNote: string) => ({
+    id: "a1", kind: "development_plan", subject_id: PLAYER_ID, academy_id: "ac-1", superseded_at: null, model_id: "m", inputs_fingerprint: "f",
+    data: {
+      playerSummary: "S", focusAreas: [{ category: "technical", area: "A", why: "W" }],
+      actions: [{ what: "X", how: "Y", timesPerWeek: 2, measure: "M", milestoneTemplateId: null }],
+      reviewDate: "2026-10-30", previous: { verdict: "no_previous_plan", evidence: "", carriedForward: [] },
+      coachNote: "", playerNote,
+    },
+  });
+  function dbFor(r: Record<string, unknown>) {
+    const writes: Op[] = [];
+    const f = fakeSupabase((op) => {
+      if (op.table === "ai_artefacts" && op.action === "select") return { data: r };
+      if (op.table === "profiles") return { data: { full_name: "Sphe", academy_id: "ac-1" } };
+      if (op.action !== "select") writes.push(op);
+      return { data: null };
+    });
+    mockRequireStaff.mockResolvedValue({ ...coach, supabase: f.client });
+    mockCoachesPlayer.mockResolvedValue(true);
+    return writes;
+  }
+
+  it("stops, names the wording, and writes nothing", async () => {
+    const writes = dbFor(row("Your passing is poor."));
+    const r = await approveDevelopmentPlan("a1");
+    expect(r.flagged).toBe(true);
+    expect(r.error).toMatch(/note to the player: "poor"/);
+    expect(writes).toHaveLength(0);
+  });
+
+  it("approves it once the coach has seen the flag and says so", async () => {
+    const writes = dbFor(row("Your passing is poor."));
+    const r = await approveDevelopmentPlan("a1", { acknowledgeWording: true });
+    expect(r).toEqual({ success: true, approvedByName: "Sphe" });
+    expect(writes.some((w) => w.action === "insert")).toBe(true);
+  });
+
+  it("approves warm wording without being asked", async () => {
+    dbFor(row("Keep enjoying the ball."));
+    expect((await approveDevelopmentPlan("a1")).success).toBe(true);
+  });
+});
+
+describe("saveDevelopmentPlanEdits", () => {
+  const draft = {
+    id: "a1", kind: "development_plan", subject_id: PLAYER_ID, academy_id: "ac-1", superseded_at: null, status: "draft",
+    data: {
+      playerSummary: "S", focusAreas: [{ category: "technical", area: "A", why: "W" }],
+      actions: [{ what: "X", how: "Y", timesPerWeek: 2, measure: "M", milestoneTemplateId: null }],
+      reviewDate: "2026-10-30", previous: { verdict: "no_previous_plan", evidence: "", carriedForward: [] },
+      coachNote: "PRIVATE", playerNote: "Keep going.",
+    },
+  };
+  function dbFor(r: Record<string, unknown> | null) {
+    const writes: Op[] = [];
+    const f = fakeSupabase((op) => {
+      if (op.table === "ai_artefacts" && op.action === "select") return { data: r };
+      if (op.action !== "select") writes.push(op);
+      return { data: null };
+    });
+    mockRequireStaff.mockResolvedValue({ ...coach, supabase: f.client });
+    mockCoachesPlayer.mockResolvedValue(true);
+    return writes;
+  }
+
+  it("writes the edited wording to the draft and keeps the coach's private note", async () => {
+    const writes = dbFor(draft);
+    const r = await saveDevelopmentPlanEdits("a1", { playerNote: "Well done this term." });
+    expect(r.success).toBe(true);
+    const update = writes.find((w) => w.action === "update")!;
+    expect((update.payload!.data as Record<string, unknown>).playerNote).toBe("Well done this term.");
+    expect((update.payload!.data as Record<string, unknown>).coachNote).toBe("PRIVATE");
+  });
+
+  it("refuses to edit a plan that is already approved, and writes nothing", async () => {
+    const writes = dbFor({ ...draft, status: "approved" });
+    const r = await saveDevelopmentPlanEdits("a1", { playerNote: "Changed" });
+    expect(r.error).toMatch(/already approved/);
+    expect(writes).toHaveLength(0);
+  });
+
+  it("refuses a coach who does not coach this player, and an empty note", async () => {
+    let writes = dbFor(draft);
+    mockCoachesPlayer.mockResolvedValue(false);
+    expect((await saveDevelopmentPlanEdits("a1", { playerNote: "x" })).error).toMatch(/don't coach this player/);
+    expect(writes).toHaveLength(0);
+    writes = dbFor(draft);
+    expect((await saveDevelopmentPlanEdits("a1", { playerNote: "  " })).error).toMatch(/can't be empty/);
+    expect(writes).toHaveLength(0);
   });
 });
 

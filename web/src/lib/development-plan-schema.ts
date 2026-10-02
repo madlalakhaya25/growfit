@@ -65,7 +65,7 @@ export const PLAN_LIMITS = {
 } as const;
 
 /** One line, no markdown, bounded. The prompts forbid asterisks; this enforces it. */
-function clean(value: unknown, max: number): string {
+export function clean(value: unknown, max: number): string {
   if (typeof value !== "string") return "";
   const text = value.replace(/[*_`#]/g, "").replace(/\s+/g, " ").trim();
   return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;

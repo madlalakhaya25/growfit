@@ -33,6 +33,7 @@ const FOCUS_OPTIONS = [
   "Pressing",
   "Transition",
 ];
+const FOCUS_SET = new Set(FOCUS_OPTIONS);
 
 interface DrillItem {
   id: string;
@@ -365,7 +366,7 @@ export function NewSessionForm({
                     className={selectCls}
                   >
                     <option value="">Select…</option>
-                    {[...(defaultFocus && !FOCUS_OPTIONS.includes(defaultFocus) ? [defaultFocus] : []), ...FOCUS_OPTIONS].map((f) => (
+                    {[...(defaultFocus && !FOCUS_SET.has(defaultFocus) ? [defaultFocus] : []), ...FOCUS_OPTIONS].map((f) => (
                       <option key={f} value={f}>
                         {f}
                       </option>
