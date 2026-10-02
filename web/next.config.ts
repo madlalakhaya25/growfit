@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 const nextConfig: NextConfig = {
   experimental: {
@@ -55,4 +56,14 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Source maps are uploaded only when SENTRY_AUTH_TOKEN is set in the build
+// environment; without it the build is unchanged. The project lives in
+// Sentry's EU region.
+export default withSentryConfig(nextConfig, {
+  org: "growfit-1t",
+  project: "javascript-nextjs",
+  sentryUrl: "https://de.sentry.io",
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: !process.env.CI,
+  telemetry: false,
+});
