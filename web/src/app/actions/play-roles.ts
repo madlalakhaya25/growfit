@@ -60,7 +60,10 @@ export async function generatePlayRoles(params: { playId: string; force?: boolea
       .eq("team_id", play.team_id)
       .eq("active", true);
     const roster: RosterPlayer[] = ((members ?? []) as unknown as { players: RosterPlayer | RosterPlayer[] | null }[])
-      .flatMap((m) => (Array.isArray(m.players) ? m.players : m.players ? [m.players] : []));
+      .flatMap((m) => {
+        if (Array.isArray(m.players)) return m.players;
+        return m.players ? [m.players] : [];
+      });
 
     const players = collectRolePlayers(play.data, roster);
     if (players.length === 0) {
@@ -143,7 +146,7 @@ export async function approvePlayRoles(artefactId: string): Promise<{ success?: 
       .select("id, kind, subject_type, subject_id, status, superseded_at")
       .eq("id", artefactId)
       .single();
-    if (!art || art.kind !== "play_roles" || art.subject_type !== "play" || art.superseded_at) {
+    if (art?.kind !== "play_roles" || art.subject_type !== "play" || art.superseded_at) {
       return { error: "That set of player jobs is out of date. Generate it again." };
     }
     const { data: play } = await supabase.from("tactic_plays").select("team_id").eq("id", art.subject_id).single();

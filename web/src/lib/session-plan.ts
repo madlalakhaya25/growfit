@@ -14,15 +14,16 @@ export function renderSessionPlanProse(s: SessionPlanStructured): string {
   const lines: string[] = [];
   s.drills.forEach((d, i) => {
     if (i > 0) lines.push("");
-    lines.push(`DRILL ${i + 1}: ${d.name} (${d.durationMinutes} min)`);
-    lines.push(`LTPD Focus: ${d.ltpdFocus}`);
-    lines.push(`4-Corner: ${d.fourCorner}`);
-    lines.push(`Setup: ${d.setup}`);
-    lines.push(`Instructions: ${d.instructions}`);
-    lines.push(`Coaching Points: ${d.coachingPoints}`);
+    lines.push(
+      `DRILL ${i + 1}: ${d.name} (${d.durationMinutes} min)`,
+      `LTPD Focus: ${d.ltpdFocus}`,
+      `4-Corner: ${d.fourCorner}`,
+      `Setup: ${d.setup}`,
+      `Instructions: ${d.instructions}`,
+      `Coaching Points: ${d.coachingPoints}`,
+    );
   });
-  lines.push("");
-  lines.push(`COACH REFLECTION: ${s.coachReflection}`);
+  lines.push("", `COACH REFLECTION: ${s.coachReflection}`);
   return lines.join("\n");
 }
 
@@ -32,7 +33,7 @@ export const PROGRESSION_LENGTH = PROGRESSION_STAGES.length;
 const MAX_DRILL_MINUTES = 30;
 
 const str = (v: unknown, max: number): string =>
-  typeof v === "string" ? v.replace(/\*/g, "").trim().slice(0, max) : "";
+  typeof v === "string" ? v.replaceAll("*", "").trim().slice(0, max) : "";
 
 /**
  * Trust only what the session page can store: strings of sane length, a whole
