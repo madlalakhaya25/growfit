@@ -44,7 +44,7 @@ function TermForm({ term }: Readonly<{ term: TermRow }>) {
           Delete
         </Button>
         {s?.error && <span role="alert" className="text-sm text-destructive">{s.error}</span>}
-        {s?.success && <span role="status" className="text-sm text-green-600 dark:text-green-400">Saved</span>}
+        {s?.success && <output className="text-sm text-green-600 dark:text-green-400">Saved</output>}
       </div>
     </form>
   );
@@ -70,7 +70,7 @@ export function TermsCard({ terms, year }: Readonly<{ terms: TermRow[]; year: nu
       <Button type="button" onClick={setUp} disabled={pending}>
         {pending ? "Adding…" : `Set up ${year} terms`}
       </Button>
-      {note && <p role="status" className="text-sm text-amber-600 dark:text-amber-400">{note}</p>}
+      {note && <output className="block text-sm text-amber-600 dark:text-amber-400">{note}</output>}
       <div className="space-y-3">
         {terms.map((t) => <TermForm key={`${t.id}:${t.name}:${t.starts_on}:${t.ends_on}`} term={t} />)}
       </div>

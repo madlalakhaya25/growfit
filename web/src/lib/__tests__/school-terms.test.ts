@@ -83,3 +83,18 @@ describe("todayIso", () => {
     expect(todayIso(new Date("2026-10-01T10:00:00Z"))).toBe("2026-10-01");
   });
 });
+
+import { previousTerm } from "@/lib/school-terms";
+
+describe("previousTerm", () => {
+  const t1 = T("T1", "2026-01-14", "2026-03-27");
+  const t2 = T("T2", "2026-04-08", "2026-06-26");
+  const t3 = T("T3", "2026-07-21", "2026-10-02");
+  it("returns the term that started just before", () => {
+    expect(previousTerm([t3, t1, t2], t3)).toBe(t2);
+    expect(previousTerm([t3, t1, t2], t2)).toBe(t1);
+  });
+  it("is null for the first term", () => {
+    expect(previousTerm([t1, t2], t1)).toBeNull();
+  });
+});

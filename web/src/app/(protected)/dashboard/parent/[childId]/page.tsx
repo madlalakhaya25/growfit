@@ -26,6 +26,9 @@ import {
   type AttrKey,
 } from "@/lib/attributes";
 import { matchRatingAverage } from "@/lib/player";
+import { loadTermReview } from "@/lib/term-review-data";
+import { TermGrowthCard } from "@/components/development/term-growth-card";
+import { todayIso } from "@/lib/time";
 
 export default async function ChildDetailPage({
   params,
@@ -52,7 +55,7 @@ export default async function ChildDetailPage({
     supabase
       .from("players")
       .select(`
-        id, full_name, position, secondary_pos, preferred_foot, date_of_birth, photo_url, share_token,
+        id, academy_id, full_name, position, secondary_pos, preferred_foot, date_of_birth, photo_url, share_token,
         player_ratings (
           id, rating, note, created_at,
           fixtures ( opponent, fixture_date )
@@ -74,6 +77,10 @@ export default async function ChildDetailPage({
   ]);
 
   if (!player) notFound();
+
+  const termReview = player.academy_id
+    ? await loadTermReview(supabase, player.id, player.academy_id as string, todayIso())
+    : null;
 
   const sharedPlan = await loadSharedDevelopmentPlan(supabase, player.id);
   const homeChallenge = sharedPlan ? pickHomeChallenge(sharedPlan.plan) : null;
@@ -390,6 +397,10 @@ export default async function ChildDetailPage({
           </section>
         </div>
       </div>
+
+      {termReview?.term && (
+        <TermGrowthCard termName={termReview.term.name} current={termReview.current} last={termReview.last} />
+      )}
 
       <section id="development" className="space-y-3">
         <h2 className="text-lg font-semibold">Development plan</h2>

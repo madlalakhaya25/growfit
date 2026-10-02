@@ -80,7 +80,7 @@ export function currentTerm<T extends { starts_on: string; ends_on: string }>(
   return (
     sorted.find((t) => t.starts_on <= today && today <= t.ends_on) ??
     sorted.find((t) => t.starts_on > today) ??
-    sorted[sorted.length - 1]
+    sorted.at(-1) ?? null
   );
 }
 
@@ -95,4 +95,12 @@ export function overlappingTerms<T extends { starts_on: string; ends_on: string 
     }
   }
   return [...out];
+}
+
+/** The term that started just before `term`, or null for the first one. */
+export function previousTerm<T extends { starts_on: string }>(terms: T[], term: T): T | null {
+  const earlier = terms
+    .filter((t) => t.starts_on < term.starts_on)
+    .sort((a, b) => b.starts_on.localeCompare(a.starts_on));
+  return earlier[0] ?? null;
 }
