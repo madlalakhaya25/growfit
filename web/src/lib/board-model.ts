@@ -354,7 +354,7 @@ export function followAttached(shapes: Shape[], tokens: { id: string; x: number;
     const a = (sh.fromTokenId && at.get(sh.fromTokenId)) || null;
     const b = (sh.toTokenId && at.get(sh.toTokenId)) || null;
     const start = a ? { x: a.x, y: a.y } : sh.pts[0];
-    const end = b ? { x: b.x, y: b.y } : sh.pts[sh.pts.length - 1];
+    const end = b ? { x: b.x, y: b.y } : sh.pts.at(-1)!;
     if (start.x === sh.pts[0].x && start.y === sh.pts[0].y && end.x === sh.pts[1].x && end.y === sh.pts[1].y) return sh;
     changed = true;
     return { ...sh, pts: [start, end] };
