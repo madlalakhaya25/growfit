@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Growfit Gauteng Tour 2027 – Sponsorship Proposal</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4; margin: 18mm 17mm 20mm 17mm; }
+  :root {
+    --red: #AF2D35; --red-dark: #6B1B1F; --red-tint: #F7EAEB;
+    --ink: #16181D; --ink-2: #474C55; --ink-3: #7A808A;
+    --rule: #DADDE2; --panel: #F5F6F8;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: #fff; }
+  body { font-family: Inter, "Liberation Sans", Arial, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.5; margin: 0; }
+  h1, h2, h3 { line-height: 1.2; margin: 0; }
+  h2 { font-size: 17pt; font-weight: 800; color: var(--ink); margin: 0 0 4mm; padding-top: 1mm; }
+  h2 .num { color: var(--red); margin-right: 6px; }
+  h3 { font-size: 11pt; font-weight: 700; margin: 5mm 0 2mm; }
+  p { margin: 0 0 2.6mm; }
+  ul { margin: 0 0 3mm; padding-left: 5mm; }
+  li { margin-bottom: 1.2mm; }
+  .section { break-before: page; }
+  .avoid { break-inside: avoid; }
+  .muted { color: var(--ink-2); }
+  .small { font-size: 8.5pt; color: var(--ink-3); }
+  strong { font-weight: 700; }
+
+  /* cover */
+  .cover { height: 257mm; display: flex; flex-direction: column; }
+  .cover-top { display: flex; align-items: center; gap: 6mm; }
+  .cover-top img { width: 26mm; height: 26mm; }
+  .cover-org { font-weight: 700; font-size: 11pt; }
+  .cover-org span { display: block; font-weight: 400; color: var(--ink-2); font-size: 9.5pt; }
+  .cover-band { margin-top: 30mm; border-left: 3mm solid var(--red); padding-left: 7mm; }
+  .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: 8.5pt; font-weight: 700; color: var(--red); }
+  .cover h1 { font-size: 30pt; font-weight: 800; margin: 3mm 0 4mm; letter-spacing: -.01em; }
+  .cover .lede { font-size: 12pt; color: var(--ink-2); max-width: 150mm; }
+  .cover-ask { margin-top: 18mm; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+  .cover-foot { margin-top: auto; border-top: 1px solid var(--rule); padding-top: 4mm; display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; font-size: 9pt; color: var(--ink-2); }
+  .cover-foot b { color: var(--ink); }
+
+  /* tiles */
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 4mm 0 5mm; }
+  .tile { background: var(--panel); border-radius: 3mm; padding: 3.5mm 4mm; }
+  .tile .v { font-size: 16pt; font-weight: 800; color: var(--ink); line-height: 1.1; }
+  .tile .l { font-size: 8.3pt; color: var(--ink-2); margin-top: 1.2mm; line-height: 1.35; }
+  .tile.hero { background: var(--red); }
+  .tile.hero .v, .tile.hero .l { color: #fff; }
+
+  /* tables */
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 9pt; }
+  th { text-align: left; font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); border-bottom: 1.5px solid var(--ink); padding: 2mm 2mm; }
+  td { border-bottom: 1px solid var(--rule); padding: 2mm 2mm; vertical-align: top; }
+  td.n, th.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tr.sub td { background: var(--panel); font-weight: 600; }
+  tr.total td { border-top: 1.5px solid var(--ink); border-bottom: none; font-weight: 800; font-size: 10pt; }
+  tr.total td.n { color: var(--red); }
+
+  .callout { background: var(--red-tint); border-left: 1.2mm solid var(--red); padding: 3.5mm 4.5mm; border-radius: 0 2mm 2mm 0; margin: 3mm 0 4mm; }
+  .callout p:last-child { margin: 0; }
+  .note { background: var(--panel); padding: 3mm 4mm; border-radius: 2mm; font-size: 8.8pt; color: var(--ink-2); margin: 3mm 0; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+  .card { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; }
+  .card h3 { margin-top: 0; }
+
+  /* weekly cycle */
+  .cycle { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2mm; margin: 3mm 0 4mm; }
+  .step { border-top: 1.2mm solid var(--red); background: var(--panel); padding: 2.5mm 3mm; border-radius: 0 0 2mm 2mm; font-size: 8.5pt; }
+  .step b { display: block; font-size: 9pt; margin-bottom: .8mm; }
+  .step .d { color: var(--red); font-weight: 700; font-size: 7.8pt; text-transform: uppercase; letter-spacing: .06em; }
+
+  /* bar figure */
+  .fig { margin: 3mm 0 2mm; }
+  .bar-row { display: grid; grid-template-columns: 30mm 1fr 22mm; align-items: center; gap: 3mm; margin: 2.2mm 0; font-size: 9pt; }
+  .bar-track { position: relative; height: 7mm; }
+  .bar { height: 100%; background: var(--red); border-radius: 0 1.2mm 1.2mm 0; }
+  .ref { position: absolute; top: -2mm; bottom: -2mm; border-left: 1.5px dashed var(--ink); }
+  .ref-label { font-size: 7.8pt; color: var(--ink-2); position: absolute; top: -6mm; transform: translateX(-50%); white-space: nowrap; }
+  .fig-cap { font-size: 8.3pt; color: var(--ink-3); margin-top: 1mm; }
+
+  .compact table { font-size: 8.3pt; margin: 1.5mm 0 2.5mm; }
+  .compact td { padding: 1.3mm 2mm; }
+  .compact h3 { margin: 2.5mm 0 1mm; }
+  .compact li { margin-bottom: .6mm; font-size: 9pt; }
+  .compact .callout { margin: 2mm 0; padding: 2.5mm 4mm; }
+  .sig { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 10mm; }
+  .sig div { border-top: 1px solid var(--ink); padding-top: 2mm; font-size: 9pt; color: var(--ink-2); }
+  .src { font-size: 8pt; color: var(--ink-2); word-break: break-all; }
+  .src li { margin-bottom: .8mm; }
+  .tag { display: inline-block; border-radius: 1mm !important; font-size: 7.5pt; font-weight: 700; padding: .3mm 1.8mm; border-radius: 10mm; background: var(--panel); color: var(--ink-2); text-transform: uppercase; letter-spacing: .05em; }
+  .tag.r { background: var(--red-tint); color: var(--red-dark); }
+
+  .ph { background: #F7EAEB; color: #6B1B1F; padding: 0 1.2mm; border-radius: 1mm; font-weight: 600; }
+  .tpl-label { display:inline-block; font-size: 8pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #fff; background: var(--ink); padding: .8mm 2.5mm; border-radius: 1mm; margin-bottom: 3mm; }
+  .letter { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 7mm 8mm; font-size: 9.6pt; }
+  .letter p { margin-bottom: 2.8mm; }
+  .letter .lh { display:flex; justify-content: space-between; align-items:flex-start; border-bottom: 1.5px solid var(--red); padding-bottom: 3mm; margin-bottom: 5mm; }
+  .letter .lh img { width: 15mm; height: 15mm; }
+  .letter .lh .org { text-align:right; font-size: 8.3pt; color: var(--ink-2); line-height: 1.4; }
+  .letter .lh .org b { color: var(--ink); font-size: 9.5pt; }
+  .msg { background: var(--panel); border-radius: 3mm; padding: 4mm 5mm; font-size: 9.6pt; white-space: normal; }
+  .howto { font-size: 8.8pt; color: var(--ink-2); margin: 0 0 3mm; }
+  .form-row { display:grid; grid-template-columns: 45mm 1fr; border-bottom: 1px solid var(--rule); padding: 2.6mm 0; font-size: 9.3pt; }
+  .form-row span:last-child { border-bottom: 1px dotted var(--ink-3); }
+  .check { display:inline-block; width:3.2mm; height:3.2mm; border:1px solid var(--ink); margin-right:1.5mm; vertical-align:-0.4mm; }
+  .tier { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; break-inside: avoid; }
+  .tier .price { color: var(--red); font-weight: 800; font-size: 13pt; }
+  .tier h3 { margin: 0 0 1mm; }
+  .tiers { display:grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; }
+  .tiers ul { margin-bottom: 0; }
+  .toc { columns: 2; font-size: 9.5pt; }
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="cover-top">
+    <img src="../../../growfit.png" alt="Growfit Football Academy crest">
+    <div class="cover-org">Growfit Sports Academy NPC<span>Grassroots football · Greater Durban, KwaZulu-Natal</span></div>
+  </div>
+  <div class="cover-band">
+    <div class="eyebrow">Sponsorship &amp; donation proposal · 2027</div>
+    <h1>Growfit Gauteng Tour 2027</h1>
+    <p class="lede">Taking our U15 and U17 squads from Durban to <span class="ph">[tournament name]</span> in Gauteng. We're asking for help with travel, accommodation, meals, a new custom match kit and team travel wear, so that 36 young players can compete against some of the best youth teams in the country.</p>
+  </div>
+  <div class="cover-ask">
+    <div class="tile hero"><div class="v">R293,200</div><div class="l">Total tour budget: 42 travellers, 5 days, travelling by bus</div></div>
+    <div class="tile"><div class="v">2 squads</div><div class="l">U15 and U17, 18 players each</div></div>
+    <div class="tile"><div class="v">From R1,500</div><div class="l">To kit out a player. Partner packages up to R80,000</div></div>
+  </div>
+  <div class="cover-foot">
+    <div><b>Contact</b><br>Khaya Madlala, Fundraising &amp; Registration<br>Buhle Madlala, Founder &amp; Academy Director<br><span class="ph">[email]</span> · <span class="ph">[phone]</span></div>
+    <div><b>Tournament</b><br><span class="ph">[Tournament name]</span><br><span class="ph">[Venue, city, Gauteng]</span><br><span class="ph">[Dates, 2027]</span></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2><span class="num">1</span>The opportunity</h2>
+  <p>Growfit Sports Academy is a registered non-profit company founded in 2023 in Greater Durban. In <span class="ph">[month]</span> 2027 our <strong>U15 and U17 squads</strong> have the chance to compete at <span class="ph">[tournament name]</span> in <span class="ph">[city]</span>, Gauteng, against <span class="ph">[number]</span> teams from <span class="ph">[across South Africa / the region]</span>.</p>
+  <p>For most of our players, this would be their first time competing outside KwaZulu-Natal, and for some their first trip away from home. A tournament like this matters in youth football:</p>
+  <ul>
+    <li><strong>Higher competition</strong> against strong club and academy sides from other provinces.</li>
+    <li><strong>Visibility</strong> in front of scouts, school sports programmes and higher-level clubs. This matters most at U17, the age when players step toward senior and professional football.</li>
+    <li><strong>Life experience:</strong> travelling as a team, discipline, independence and representing their community.</li>
+  </ul>
+  <p>Families in our community cannot cover the full cost of a trip like this. Without sponsors and donors, most of these players simply won't go.</p>
+
+  <div class="tiles">
+    <div class="tile hero"><div class="v">36</div><div class="l">Players: 18 per squad</div></div>
+    <div class="tile"><div class="v">6</div><div class="l">Staff &amp; chaperones, all police-cleared</div></div>
+    <div class="tile"><div class="v">5 days</div><div class="l">4 nights, including travel</div></div>
+    <div class="tile"><div class="v">~600 km</div><div class="l">Each way, Durban to Gauteng</div></div>
+  </div>
+
+  <h3>Who we are</h3>
+  <p>Growfit runs competitive teams in the Greater Durban Football League. We are governed by eight adopted policies, including Child Protection &amp; Safeguarding (Children's Act 38 of 2005), Injury &amp; Medical Emergency, and Codes of Conduct for players, coaches and parents. Every player is SAFA-registered and every coach is police/CPR Part B cleared. Our focus is development: every player plays, and school comes first.</p>
+</div>
+
+<div class="section">
+  <h2><span class="num">2</span>What the tour costs</h2>
+  <p>Planning estimates for <strong>42 travellers</strong> (36 players and 6 staff/chaperones) over 5 days and 4 nights. Every line will be replaced with written quotes, and any saving reduces the amount we raise.</p>
+  <table>
+    <thead><tr><th>Item</th><th>Basis</th><th class="n">ZAR</th></tr></thead>
+    <tbody>
+      <tr class="sub"><td colspan="3">Travel &amp; stay</td></tr>
+      <tr><td>Return intercity bus tickets</td><td>Scheduled coach (e.g. Intercape / Greyhound), Durban–Gauteng return, daytime departures, group booking · 42 × ~R1,300</td><td class="n">54,600</td></tr>
+      <tr><td>Local transfers in Gauteng</td><td>Shuttle/minibus hire: bus station ↔ lodge, and lodge ↔ venue daily · ~R4,000/day × 4</td><td class="n">16,000</td></tr>
+      <tr><td>Accommodation</td><td>Group lodge, ~R250 per person per night incl. breakfast × 42 × 4 nights</td><td class="n">42,000</td></tr>
+      <tr><td>Meals</td><td>Lunch &amp; dinner ~R150 per person per day × 42 × 5, plus travel snacks</td><td class="n">34,000</td></tr>
+      <tr class="sub"><td colspan="3">Tournament</td></tr>
+      <tr><td>Tournament entry fees</td><td>2 teams × <span class="ph">[R5,000]</span></td><td class="n">10,000</td></tr>
+      <tr class="sub"><td colspan="3">New custom kit &amp; team wear</td></tr>
+      <tr><td>Custom match kits, home &amp; away</td><td>Sublimated shirt, shorts and socks with names, numbers and sponsor logos · 2 squads × 20 sets × 2 colours × ~R450</td><td class="n">36,000</td></tr>
+      <tr><td>Travel &amp; uniform wear</td><td>Per traveller: tracksuit, travel polo, training top, kit bag (~R1,420) × 42</td><td class="n">59,600</td></tr>
+      <tr class="sub"><td colspan="3">Safety &amp; support</td></tr>
+      <tr><td>Medical &amp; insurance</td><td>Travel accident cover for 42 travellers, first-aid restock</td><td class="n">7,800</td></tr>
+      <tr><td>Equipment</td><td>Match balls, bibs, water bottles, ice packs, strapping</td><td class="n">5,000</td></tr>
+      <tr><td>Admin</td><td>Consent packs, communications, documents</td><td class="n">1,500</td></tr>
+      <tr><td>Contingency</td><td>10%</td><td class="n">26,700</td></tr>
+      <tr class="total"><td colspan="2">Total tour budget (travel by intercity bus)</td><td class="n">R293,200</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><strong>Travel option: flying.</strong> Return flights Durban–Johannesburg cost roughly <strong>R2,800 per person</strong> (group fare, booked early), or R117,600 for 42 travellers instead of R54,600 by bus. That brings the total to about <strong>R362,500</strong>. Flying cuts the journey from about 8 hours to about 1 hour each way. We'll fly only if an airline or travel partner provides tickets in kind or at a reduced rate.</div>
+  <p class="small">The bus budget works out to about R7,000 per traveller. The new kit and team wear (R95,600) <strong>stays with the academy and players after the tour</strong>: match kits are used for the next two seasons, and travel wear for all future away fixtures.</p>
+</div>
+
+<div class="section">
+  <h2><span class="num">3</span>How we'll fund it</h2>
+  <p>No single funder has to carry the whole cost. The tour is funded from four sources, and families contribute what they can.</p>
+  <table class="avoid">
+    <thead><tr><th>Source</th><th>How</th><th class="n">Target</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Business sponsorship</strong></td><td>Partner packages (Section 4), in cash or in kind (tickets, lodge, kit)</td><td class="n">190,000</td></tr>
+      <tr><td><strong>Donations &amp; crowdfunding</strong></td><td>"Sponsor a Player's Tour" appeal to family, community, diaspora, faith and community organisations</td><td class="n">45,000</td></tr>
+      <tr><td><strong>Family contributions</strong></td><td>R1,000 per player, payable in instalments. Waived quietly for families who can't pay, so no child stays behind for money.</td><td class="n">30,000</td></tr>
+      <tr><td><strong>Fundraising events</strong></td><td>Quiz night or braai day, a corporate 5-a-side challenge and a "buy a brick" campaign</td><td class="n">28,200</td></tr>
+      <tr class="total"><td colspan="2">Total</td><td class="n">R293,200</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Go / no-go and what happens to the money</h3>
+  <ul>
+    <li><strong>Decision point: 8 weeks before departure.</strong> The tour goes ahead when at least 85% of the budget is in the bank or confirmed in writing, and travel and accommodation are booked.</li>
+    <li><strong>If we fall short:</strong> first reduce the cost (fewer travel-wear items, a cheaper lodge, one kit colour), then take one squad only. Donors and sponsors are told and asked how they'd like their gift used.</li>
+    <li><strong>If the tour doesn't happen:</strong> sponsors and donors can choose a refund or let their gift go to kit and equipment for the academy. Family contributions are refunded in full.</li>
+    <li><strong>Any surplus</strong> goes to the academy's player-support fund and is reported to all funders.</li>
+    <li>All money goes into the academy's bank account under the reference "TOUR", is tracked separately, and is reported in a <strong>post-tour financial report</strong>.</li>
+  </ul>
+
+  <div class="avoid">
+  <h3>Timeline</h3>
+  <table>
+    <thead><tr><th style="width:22%">When</th><th>Milestone</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Now – Nov 2026</strong></td><td>Tournament entry confirmed. Group bus tickets reserved (or flights if a travel partner is secured). Sponsor approaches start. Crowdfunding page live. Parent information meeting.</td></tr>
+      <tr><td><strong>Dec 2026 – Jan 2027</strong></td><td>Year-end giving appeal. Fundraising events. Bus ticket and lodge quotes secured. Local shuttle booked.</td></tr>
+      <tr><td><strong>12 weeks before</strong></td><td>Kit design signed off with the Kit Partner's logo. Kit and travel wear ordered (4–6 week lead time).</td></tr>
+      <tr><td><strong>8 weeks before</strong></td><td><strong>Go/no-go decision.</strong> Bus tickets, shuttle and accommodation paid. Consent packs out to parents.</td></tr>
+      <tr><td><strong>2 weeks before</strong></td><td>Kit handover and send-off photo session with sponsors. Final travel briefing for parents and players.</td></tr>
+      <tr><td><strong>Tour</strong></td><td>Day 1 travel · Days 2–4 tournament · Day 5 return. Daily updates to parents and sponsors.</td></tr>
+      <tr><td><strong>Within 4 weeks after</strong></td><td>Thank-you pack and post-tour report (results, photos, finances) to all sponsors and donors.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<div class="section">
+  <h2><span class="num">4</span>Sponsorship packages</h2>
+  <p>Packages can be shared, combined or given in kind. Logo placements depend on the tournament's kit rules.</p>
+  <div class="tiers">
+    <div class="tier"><h3>Principal Tour Partner</h3><div class="price">R80,000 · 1 available</div><ul>
+      <li>"Growfit Gauteng Tour 2027, presented by <span class="ph">[Partner]</span>"</li>
+      <li>Logo on the <strong>front of the new match shirts</strong> (both squads, home and away)</li>
+      <li>Logo on the tracksuit back and the team banner</li>
+      <li>Send-off event at your premises, or your team at ours</li>
+      <li>Daily tour content, framed signed shirt, post-tour report</li>
+    </ul></div>
+    <div class="tier"><h3>Travel Partner</h3><div class="price">R70,600, or tickets in kind</div><ul>
+      <li>Covers the return bus tickets and local transfers. A bus line or airline can give tickets in kind, and an airline partner would let the team fly</li>
+      <li>Logo on the tracksuit sleeve and travel banner</li>
+      <li>Featured in departure and arrival posts</li>
+    </ul></div>
+    <div class="tier"><h3>Kit Partner</h3><div class="price">R36,000 · or kit in kind</div><ul>
+      <li>Covers the new custom home and away match kits</li>
+      <li>Logo on the shirt sleeve or back of the match kit, used for two seasons</li>
+      <li>Kit launch photo shoot and social feature</li>
+    </ul></div>
+    <div class="tier"><h3>Accommodation &amp; Meals Partner</h3><div class="price">R40,000, or stay/meals in kind</div><ul>
+      <li>Keeps 42 travellers housed and fed</li>
+      <li>Logo on the training tops worn every day of the tour</li>
+      <li>Thanked in all tour updates</li>
+    </ul></div>
+    <div class="tier"><h3>Team Wear Partner</h3><div class="price">R30,000</div><ul>
+      <li>Covers half of the travel wear (tracksuits, polos, bags)</li>
+      <li>Logo on the tracksuit chest and kit bag</li>
+      <li>Seen at every away fixture for the next two seasons</li>
+    </ul></div>
+    <div class="tier"><h3>Sponsor a Player</h3><div class="price">R7,000 per player · or R1,500 to kit out a player</div><ul>
+      <li>R7,000 covers one player's full tour</li>
+      <li>R1,500 covers one player's tracksuit, polo and bag</li>
+      <li>Thank-you card from the squad. Ideal for small businesses, staff and individuals</li>
+    </ul></div>
+  </div>
+
+  <div class="avoid">
+  <h3>Why partner with us</h3>
+  <table>
+    <tbody>
+      <tr><td style="width:28%"><strong>Visibility in two provinces</strong></td><td>Your brand on the kit and tracksuits in Gauteng, at every away fixture in KZN afterwards, and in tour content shared by families and partner clubs.</td></tr>
+      <tr><td><strong>B-BBEE socio-economic development</strong></td><td>Support for sports development where at least 75% of beneficiaries are black people may count toward SED. We provide a beneficiary confirmation letter and proof of contribution (your verification agent confirms recognition).</td></tr>
+      <tr><td><strong>A story worth telling</strong></td><td>Young Durban players stepping onto a national stage. Partners receive photos and short videos, using only players with media consent and never full names.</td></tr>
+      <tr><td><strong>Accountability</strong></td><td>Separate tour account, written agreement, post-tour financial report.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="small">Growfit does not accept sponsorship from alcohol, tobacco/vaping, gambling or betting brands. Tax certificates (section 18A) are only issued if Growfit holds 18A approval and the gift qualifies. Please check with your adviser.</p>
+</div>
+
+<div class="section">
+  <h2><span class="num">5</span>Keeping players safe on tour</h2>
+  <p>Taking 36 young people on an overnight trip to another province is a big responsibility. These rules apply from departure to return and are explained to parents and players before anyone signs up.</p>
+  <table>
+    <thead><tr><th style="width:26%">Area</th><th>Rule</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Consent</strong></td><td>Signed parent/guardian consent and indemnity, medical form, emergency contacts, copy of the player's ID or birth certificate, and a media-consent choice for every player. No form, no travel.</td></tr>
+      <tr><td><strong>Supervision</strong></td><td>6 police-cleared adults for 36 players (1 : 6), with a named <strong>tour leader</strong>, a <strong>safeguarding lead</strong> and a <strong>first aider</strong>. If any player is female, a female chaperone travels.</td></tr>
+      <tr><td><strong>Rooms</strong></td><td>Players share rooms by age group and gender. Adults never share a room with a player. Chaperones' rooms are on the same floor. Lights-out and room checks every night.</td></tr>
+      <tr><td><strong>Travel</strong></td><td>Scheduled, licensed bus operator (or airline). <strong>Daytime departures only</strong>, with all 42 travellers booked together and seated as a group, chaperones spread through the group, and seatbelts on. A headcount at boarding, every stop and arrival. Only licensed shuttle operators are used in Gauteng.</td></tr>
+      <tr><td><strong>Conduct</strong></td><td>Tour code of conduct signed by players and parents. Nobody leaves the group without an adult. Zero tolerance for alcohol, smoking/vaping or bullying. A clear process if a player has to be sent home.</td></tr>
+      <tr><td><strong>Medical</strong></td><td>Medical forms carried by the first aider. Nearest hospital and clinic mapped for each venue. Travel accident insurance for all travellers. Parents called straight away for anything more than minor first aid.</td></tr>
+      <tr><td><strong>Communication</strong></td><td>Daily WhatsApp broadcast to parents: arrival, results, wellbeing. One emergency number answered 24/7 by the tour leader.</td></tr>
+      <tr><td><strong>Photos (POPIA)</strong></td><td>Only players with media consent appear in sponsor and social content, and never with full names. Player details are never shared with sponsors.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Tour staff</h3>
+  <table class="avoid">
+    <thead><tr><th>Role</th><th>Who</th></tr></thead>
+    <tbody>
+      <tr><td>Tour leader &amp; U15/U17 technical lead</td><td>Buhle Madlala</td></tr>
+      <tr><td>U15/U17 head coach &amp; finance/registration</td><td>Khaya Madlala</td></tr>
+      <tr><td>Logistics &amp; equipment manager</td><td>Sphe Mlotshwa</td></tr>
+      <tr><td>Safeguarding lead (chaperone)</td><td><span class="ph">[name]</span></td></tr>
+      <tr><td>First aider (chaperone)</td><td><span class="ph">[name]</span></td></tr>
+      <tr><td>Parent chaperone</td><td><span class="ph">[name]</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <div class="eyebrow">Templates</div>
+  <h2 style="margin-top:2mm">Using these templates</h2>
+  <table class="avoid">
+    <thead><tr><th style="width:10%">#</th><th>Template</th><th>Use for</th></tr></thead>
+    <tbody>
+      <tr><td>T1</td><td>Sponsorship request letter</td><td>Businesses and corporates. Send with this proposal.</td></tr>
+      <tr><td>T2</td><td>Cover email &amp; short intro</td><td>Email, WhatsApp, LinkedIn first contact</td></tr>
+      <tr><td>T3</td><td>In-kind request</td><td>Bus lines, airlines, shuttle operators, lodges, caterers, kit manufacturers</td></tr>
+      <tr><td>T4</td><td>Donation appeal &amp; crowdfunding text</td><td>Family, community, diaspora, faith organisations</td></tr>
+      <tr><td>T5</td><td>Parent letter &amp; tour consent form</td><td>Every travelling player's family</td></tr>
+      <tr><td>T6</td><td>Thank-you &amp; post-tour report outline</td><td>All sponsors and donors</td></tr>
+    </tbody>
+  </table>
+  <p class="howto">For the sponsorship agreement, B-BBEE beneficiary letter and donation receipt, use Templates S5 and S6 in the Sponsorship pack and D7 in the Donations &amp; Grants pack. Add "Gauteng Tour 2027" as the purpose.</p>
+
+  <span class="tpl-label">Template T2 · Cover email</span>
+  <div class="msg"><strong>Subject:</strong> Help send Durban's young footballers to <span class="ph">[tournament]</span> in Gauteng<br><br>
+  Dear <span class="ph">[Name]</span>,<br><br>
+  I'm <span class="ph">[name]</span> from Growfit Sports Academy, a non-profit youth football academy in Greater Durban. Our U15 and U17 squads have been invited to <span class="ph">[tournament]</span> in <span class="ph">[city]</span> in <span class="ph">[month]</span> 2027. For most of these 36 players, it will be their first time competing outside KZN.<br><br>
+  We're looking for partners to cover travel, accommodation, meals and a new custom match kit and team wear. I'd like to invite <span class="ph">[Business]</span> to be our <strong><span class="ph">[package]</span></strong> at <strong><span class="ph">[R amount]</span></strong>, which would <span class="ph">[outcome]</span>. Your logo would appear on <span class="ph">[placement]</span>, and the support may count toward your B-BBEE socio-economic development.<br><br>
+  Our tour proposal is attached. Could we have a 20-minute chat this week or next?<br><br>
+  Kind regards,<br><span class="ph">[Name]</span> · <span class="ph">[Role]</span> · <span class="ph">[phone]</span></div>
+
+  <span class="tpl-label" style="margin-top:5mm">Short intro (WhatsApp / LinkedIn)</span>
+  <div class="msg">Hi <span class="ph">[Name]</span>, I'm <span class="ph">[name]</span> from Growfit Sports Academy (non-profit, Durban). Our U15 and U17 teams are going to <span class="ph">[tournament]</span> in Gauteng in 2027, the first national tournament for most of our 36 players! We're looking for local businesses to help with travel, stay and new kit, from R1,500 to kit out a player up to tour partnerships, with your logo on the kit. Could I send you our tour proposal? ⚽🚌</div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Template T1 · Sponsorship request letter</span>
+  <div class="letter">
+    <div class="lh"><img src="../../../growfit.png" alt=""><div class="org"><b>Growfit Sports Academy NPC</b><br>NPC Reg. No. <span class="ph">[ ]</span> · PBO No. <span class="ph">[if applicable]</span><br><span class="ph">[address]</span><br><span class="ph">[email]</span> · <span class="ph">[phone]</span></div></div>
+    <p><span class="ph">[Date]</span></p>
+    <p><span class="ph">[Name]</span><br><span class="ph">[Title]</span><br><span class="ph">[Company]</span><br><span class="ph">[Address]</span></p>
+    <p><strong>Sponsorship request: Growfit Gauteng Tour 2027, U15 and U17 squads</strong></p>
+    <p>Dear <span class="ph">[Mr/Ms Surname]</span>,</p>
+    <p>Growfit Sports Academy NPC is a registered non-profit company founded in 2023 that develops young footballers in Greater Durban. Our teams compete in the Greater Durban Football League, under eight adopted policies including Child Protection and Safeguarding.</p>
+    <p>In <span class="ph">[month]</span> 2027, our U15 and U17 squads will compete at <span class="ph">[tournament name]</span> in <span class="ph">[city]</span>, Gauteng. For most of our 36 players, this is their first chance to compete at this level and in front of scouts and school sports programmes from outside our province. The total cost for 42 travellers over five days is <span class="ph">R293,200</span>. This covers return bus travel, accommodation, meals, entry fees and a new custom match kit and team wear that the academy will keep using after the tour.</p>
+    <p>We respectfully invite <span class="ph">[Company]</span> to support the tour as our <strong><span class="ph">[package]</span></strong> at <strong><span class="ph">[R amount / in-kind description]</span></strong>. In recognition, <span class="ph">[Company]</span> would receive <span class="ph">[benefits, e.g. logo on the front of the match shirts, tour naming rights, a send-off event and a post-tour report]</span>. As at least 75% of our beneficiaries are black youth, the contribution may also count toward your B-BBEE socio-economic development, and we will provide the supporting letter.</p>
+    <p>Tour funds are held separately and reported in full after the tour. Our tour proposal, with budget and safeguarding arrangements, is enclosed. I would welcome the opportunity to meet with you.</p>
+    <p>Yours sincerely,</p>
+    <p><br>Buhle Madlala<br>Founder &amp; Academy Director, Growfit Sports Academy NPC</p>
+    <p class="small">Enclosures: Tour proposal · NPC registration certificate · Bank confirmation letter · <span class="ph">[Tournament invitation letter]</span></p>
+  </div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Template T3 · In-kind request (bus line, airline, shuttle, lodge, caterer, kit maker)</span>
+  <div class="letter">
+    <p><span class="ph">[Date]</span></p>
+    <p>Dear <span class="ph">[Name]</span>,</p>
+    <p>Growfit Sports Academy, a non-profit youth football academy in Greater Durban, is taking its U15 and U17 squads (36 players and 6 staff) to <span class="ph">[tournament]</span> in <span class="ph">[city]</span> from <span class="ph">[dates]</span> 2027.</p>
+    <p>We are asking <span class="ph">[Business]</span> to help with <span class="ph">[one of: "42 return bus tickets Durban–<span>[city]</span>" / "42 return flights Durban–Johannesburg" / "local shuttle transfers in Gauteng for 4 days" / "group accommodation for 42 people for 4 nights" / "lunches and dinners for 42 people for 5 days" / "custom match kits for two squads"]</span>, either <strong>free of charge or at a reduced community rate</strong> of <span class="ph">[R ]</span>.</p>
+    <p>In return, <span class="ph">[Business]</span> would be recognised as our <strong><span class="ph">[Travel / Accommodation / Kit]</span> Partner</strong>, with <span class="ph">[logo placement / travel banner / mentions in daily tour updates]</span>. We can also provide a letter confirming the value of your contribution for your B-BBEE records.</p>
+    <p>We would be very grateful for any support you can offer. A short call would be welcome.</p>
+    <p>Kind regards,<br><br><span class="ph">[Name]</span> · Growfit Sports Academy NPC · <span class="ph">[phone]</span></p>
+  </div>
+
+  <span class="tpl-label" style="margin-top:6mm">Template T4 · Donation appeal &amp; crowdfunding text</span>
+  <div class="msg"><strong>Title:</strong> Send Durban's young footballers to Gauteng! ⚽🚌<br><br>
+  Our U15 and U17 players from Growfit Sports Academy, a non-profit grassroots academy in Durban, have the chance of a lifetime: competing at <span class="ph">[tournament]</span> in Gauteng in <span class="ph">[month]</span> 2027. For most of them it's their first trip outside KZN, and a chance to be seen by scouts and school sports programmes.<br><br>
+  We need <strong>R293,200</strong> for travel, accommodation, meals and new team kit for 36 players and 6 staff. Families are contributing what they can, and local businesses are stepping in, but we still need your help.<br><br>
+  <strong>What your gift does:</strong> R250 = a day's meals for one player · R1,500 = a player's tracksuit, polo and bag · R7,000 = one player's whole tour.<br><br>
+  Every rand goes into our tour account, and we'll post updates from the road and a full report when we're home. Thank you for backing our players! 🔴⚪<br>
+  <span class="ph">[link]</span> · EFT: <span class="ph">[bank details]</span>, reference <span class="ph">TOUR + surname</span></div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Template T5 · Parent letter &amp; tour consent form</span>
+  <div class="letter">
+    <p>Dear Parent / Guardian of <span class="ph">[player first name]</span>,</p>
+    <p>We are delighted to invite <span class="ph">[player first name]</span> to travel with our <span class="ph">[U15 / U17]</span> squad to <span class="ph">[tournament]</span> in <span class="ph">[city]</span>, Gauteng, from <span class="ph">[departure date and time]</span> to <span class="ph">[return date and time]</span>. The team travels together by scheduled intercity bus (return tickets, daytime departures) <span class="ph">[or by air]</span> and stays at <span class="ph">[accommodation]</span>, supervised by six police-cleared adults, including a first aider and a safeguarding lead.</p>
+    <p><strong>Cost to families:</strong> R1,000 per player, payable in up to <span class="ph">[4]</span> instalments by <span class="ph">[date]</span>. The rest of the cost (about R7,000 per traveller) is being raised from sponsors and donors. <strong>If this contribution is difficult, please speak to <span class="ph">[name]</span> privately.</strong> No player will be left behind because of money.</p>
+    <p>Please complete and return the consent form below with a copy of your child's ID or birth certificate by <span class="ph">[date]</span>. A parent information meeting will be held on <span class="ph">[date, venue]</span>.</p>
+    <p>Kind regards, <span class="ph">[Name]</span>, Tour Leader · <span class="ph">[phone]</span></p>
+  </div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Template T5 (continued) · Tour consent form</span>
+  <h3 style="margin-top:1mm">Tour consent form</h3>
+  <div class="form-row"><span>Player's full name · squad</span><span></span></div>
+  <div class="form-row"><span>Date of birth · ID / birth cert. no.</span><span></span></div>
+  <div class="form-row"><span>Parent / guardian name · phone</span><span></span></div>
+  <div class="form-row"><span>Second emergency contact · phone</span><span></span></div>
+  <div class="form-row"><span>Medical conditions · medication · allergies</span><span></span></div>
+  <div class="form-row"><span>Medical aid (if any) · number</span><span></span></div>
+  <div class="form-row"><span>Dietary requirements</span><span></span></div>
+  <div class="form-row"><span>Tracksuit / kit size</span><span><span class="check"></span>S &nbsp;<span class="check"></span>M &nbsp;<span class="check"></span>L &nbsp;<span class="check"></span>XL &nbsp; Boots size: ____</span></div>
+  <p style="margin-top:3mm"><span class="check"></span>I consent to my child travelling and taking part in the Growfit Gauteng Tour 2027 under the supervision of Growfit staff, and I have read the tour code of conduct with my child.</p>
+  <p><span class="check"></span>In an emergency, I consent to first aid and medical treatment for my child if I cannot be reached immediately.</p>
+  <p><span class="check"></span>I understand that if my child seriously breaks the code of conduct, I may be asked to collect them, or they may be sent home at my cost.</p>
+  <p>Photos: <span class="check"></span>My child may appear in tour photos and video for sponsors and social media (no full names) &nbsp; <span class="check"></span>No photos of my child, please.</p>
+  <p><span class="check"></span>I agree that Growfit may keep this information for the tour and delete it within 12 months, in line with POPIA.</p>
+  <div class="sig"><div>Parent / guardian signature<br><br>______________________<br>Date: ____ / ____ / ______</div><div>Player signature (code of conduct)<br><br>______________________<br>Date: ____ / ____ / ______</div></div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Template T6 · Thank-you letter</span>
+  <div class="letter">
+    <p>Dear <span class="ph">[Name]</span>,</p>
+    <p>We're home! On behalf of our U15 and U17 players, their families and our coaches, thank you for making the Growfit Gauteng Tour 2027 possible.</p>
+    <p>Thanks to <span class="ph">[Business / you]</span>, 36 young players <span class="ph">[result highlight, e.g. "reached the quarter-finals of the U17 competition"]</span>, and <span class="ph">[personal highlight, e.g. "three of our players were invited to trials"]</span>. Just as important, many of them travelled beyond KZN for the first time and represented Durban with pride.</p>
+    <p>Our full post-tour report is enclosed, and a framed squad photo <span class="ph">[and signed shirt]</span> is on its way to you.</p>
+    <p>With heartfelt thanks,<br><br><span class="ph">[Name]</span> and the Growfit Sports Academy family</p>
+  </div>
+  <h3>Post-tour report: outline</h3>
+  <table class="avoid">
+    <thead><tr><th style="width:30%">Section</th><th>Contents</th></tr></thead>
+    <tbody>
+      <tr><td>1. The tour in numbers</td><td>Players and staff, matches played, results, goals, km travelled</td></tr>
+      <tr><td>2. Highlights</td><td>Best moments, player progress, scouting or trial invitations (with consent)</td></tr>
+      <tr><td>3. Our partners</td><td>Where each partner's logo appeared, photos, reach of tour posts</td></tr>
+      <tr><td>4. Finances</td><td>Every source of income, every cost against budget, any surplus and where it went</td></tr>
+      <tr><td>5. Lessons &amp; next steps</td><td>What we'd do differently, and plans for 2028</td></tr>
+    </tbody>
+  </table>
+</div>
+
+</body>
+</html>
