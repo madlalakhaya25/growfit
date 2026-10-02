@@ -16,6 +16,12 @@ export interface PlayRolesData {
   /** Hash of the play as players see it: if the play changes after approval,
    * the stored text no longer matches and is not shown. */
   playHash: string;
+  /** The players the hash was computed over (everyone who had a job in the play
+   * when it was generated). The hash only matches if the viewer side is rebuilt
+   * from the same people, so it is stored rather than re-derived: a token for
+   * someone who has since left the team would otherwise change the answer.
+   * Absent on sets written before this was stored. */
+  playerIds?: string[];
 }
 
 export interface RosterPlayer {

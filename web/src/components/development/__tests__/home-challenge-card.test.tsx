@@ -3,14 +3,13 @@ import { HomeChallengeCard } from "../home-challenge-card";
 
 const challenge = {
   action: { what: "Wall passes", how: "Ten minutes", timesPerWeek: 3, measure: "20 in a row", milestoneTemplateId: null },
-  focus: "First touch",
 };
 
-it("shows the drill, how often, and the focus it belongs to", () => {
+it("shows the drill and how often, with no focus-area label", () => {
   render(<HomeChallengeCard challenge={challenge} audience="player" />);
   expect(screen.getByText("Wall passes")).toBeInTheDocument();
   expect(screen.getByText(/3x this week/)).toBeInTheDocument();
-  expect(screen.getByText(/First touch/)).toBeInTheDocument();
+  expect(screen.queryByText(/Part of the work on/)).not.toBeInTheDocument();
 });
 
 it("names the child for a parent", () => {

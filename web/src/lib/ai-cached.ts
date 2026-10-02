@@ -72,13 +72,18 @@ export async function generateOrServeText(
     subjectId: opts.subjectId,
   });
 
+  // An empty stored answer is never a hit: one saved before this check existed
+  // (or by a model that returned nothing) would otherwise be served for the
+  // whole TTL, so every retry would "succeed" with a blank.
+  const stored = artefact?.prose ?? artefact?.data?.text ?? "";
   if (
     !opts.force &&
     artefact &&
+    stored.trim() &&
     isCacheHit(artefact, { modelId: opts.modelId, inputsFingerprint: fingerprint }, now)
   ) {
     return {
-      text: artefact.prose ?? artefact.data?.text ?? "",
+      text: stored,
       artefactId: artefact.id,
       cached: true,
       persisted: true,
@@ -91,6 +96,9 @@ export async function generateOrServeText(
   if (refusal) return { error: refusal };
 
   const { text, response } = await opts.generate();
+  // A blank answer (a safety block, a truncated reply) is an error to retry,
+  // not something to store: saved, it would be served as a hit until it expired.
+  if (!text.trim()) return { error: "The AI didn't return an answer. Try again." };
 
   const saved = await saveAiArtefact<{ text: string }>(supabase, {
     kind: opts.kind,

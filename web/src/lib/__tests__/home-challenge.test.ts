@@ -23,6 +23,13 @@ describe("pickHomeChallenge", () => {
     expect(new Set(seen).size).toBe(3);
   });
 
+  it("never pairs an action with a focus area: they carry no link, so any label could be wrong", () => {
+    const two = { ...plan, focusAreas: [plan.focusAreas[0], { category: "mental" as const, area: "Confidence", why: "w" }] };
+    for (let i = 0; i < 6; i++) {
+      expect(pickHomeChallenge(two, new Date(Date.UTC(2026, 9, 5 + 7 * i)))).not.toHaveProperty("focus");
+    }
+  });
+
   it("only ever returns text that is in the approved plan", () => {
     const c = pickHomeChallenge(plan, new Date("2026-10-05T06:00:00Z"));
     expect(plan.actions).toContain(c?.action);

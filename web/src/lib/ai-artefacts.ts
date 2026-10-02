@@ -364,6 +364,34 @@ export async function summariseAiUsage(
 }
 
 /**
+ * Hard-delete the "my job in this play" sets that name one player. Those are
+ * keyed by PLAY (one set holds every named player's text, with their first
+ * name in it), so deleteAiArtefactsForSubject on the player misses them: this
+ * deletes any set whose entries include the player, and the coach regenerates
+ * it for the rest of the squad. Same missing-table rule as above.
+ */
+export async function deletePlayRolesForPlayer(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any, any, any>,
+  playerId: string
+): Promise<{ deleted: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from("ai_artefacts")
+      .delete()
+      .eq("kind", "play_roles")
+      .contains("data", { roles: [{ playerId }] });
+    if (error) {
+      if (isMissingAiArtefactsTable(error)) return { deleted: true };
+      return { deleted: false, error: error.message };
+    }
+    return { deleted: true };
+  } catch (e) {
+    return { deleted: false, error: e instanceof Error ? e.message : "Could not delete AI output." };
+  }
+}
+
+/**
  * Hard-delete every artefact about one subject. subject_id is polymorphic with
  * no foreign key, so deleting a player does NOT cascade here -- erasure calls
  * this explicitly (POPIA erasure is not optional). A missing table counts as

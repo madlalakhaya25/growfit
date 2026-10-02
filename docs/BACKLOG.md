@@ -805,7 +805,7 @@ is on `claude/gracious-brown-lz6zo7`, one commit per numbered step.
 | 1.4 | Develop surfaces on one data path (`loadDevelopmentSnapshot`) and one component | **Done** |
 | 1.5 | Season timeline from `completed_at` / `completed_by` / `season` | **Done** |
 | 1.6 | Development plans that remember: structured, stored, approval-gated, with the previous plan's outcome fed back | **Done** |
-| **1.7** | **Player and parent read-only views of an approved plan** | **Held — needs a human.** The plan gates it on someone reading real model output for a child with falling ratings and 40% attendance, to confirm `playerNote` stays non-negative under adversarial input. No Gemini key exists in a session. Everything it needs is in place: the `'development_plan_shared'` row, RLS (proven), `PlayerSafeDevelopmentPlan`, `renderPlayerPlanProse`, and `AiPanel readOnly`. |
+| **1.7** | **Player and parent read-only views of an approved plan** | **Done 2026-10-02 (PR #63); the human check below is still outstanding, so the coach's Approve click is the only gate.** The plan gated it on someone reading real model output for a child with falling ratings and 40% attendance, to confirm `playerNote` stays non-negative under adversarial input. No Gemini key exists in a session. Everything it needs is in place: the `'development_plan_shared'` row, RLS (proven), `PlayerSafeDevelopmentPlan`, `renderPlayerPlanProse`, and `AiPanel readOnly`. |
 | 1.8 | Store adopted at player insights and academy health; "AI use this month" card | **Done** |
 | 1.9 | Removed unused `@anthropic-ai/sdk` and root `@google/generative-ai`; `thinkingBudget: 0` on the PDF import; docs | **Done** |
 

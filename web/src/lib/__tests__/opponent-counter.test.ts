@@ -1,3 +1,4 @@
+import { FORMATIONS } from "@/lib/formations";
 import { validateCounter, counterExploits, counterRunShapes, tallyOpponentFormations } from "@/lib/opponent-counter";
 import { parseJsonObject } from "@/lib/ai-json";
 import { zoneCentre } from "@/lib/board-analysis";
@@ -86,6 +87,17 @@ describe("counterRunShapes", () => {
     const [s] = counterRunShapes([{ fromZoneId: "D-C", toZoneId: "M-LHS", kind: "pass", note: "" }], tokens);
     expect(s.pts[0]).toEqual(zoneCentre("D-C"));
     expect(s.kind).toBe("pass");
+  });
+});
+
+describe("tallyOpponentFormations tie-break", () => {
+  const play = (awayFormationId: string) => ({ awayFormationId, tokens: [{ kind: "opponent" }] });
+  it("orders equal counts the same whatever order the plays arrive in", () => {
+    const ids = FORMATIONS.slice(0, 3).map((f) => f.id);
+    const forward = tallyOpponentFormations(ids.map(play)).map((t) => t.formationId);
+    const reversed = tallyOpponentFormations([...ids].reverse().map(play)).map((t) => t.formationId);
+    expect(reversed).toEqual(forward);
+    expect(forward).toEqual([...ids].sort((a, b) => (a < b ? -1 : 1)));
   });
 });
 

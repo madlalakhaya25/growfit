@@ -88,9 +88,9 @@ describe("rewriteForAge", () => {
     mockGenerate.mockRejectedValue(new Error("secret"));
     expect(await rewriteForAge({ text: NOTE, ageGroup: "U11" })).toEqual({ error: "friendly" });
   });
-  it("won't show an empty rewrite", async () => {
+  it("won't show an empty rewrite, and doesn't keep one to serve again", async () => {
     setup();
     mockGenerate.mockResolvedValue({ text: "  " });
-    expect((await rewriteForAge({ text: NOTE, ageGroup: "U11" })).error).toMatch(/Could not simplify/);
+    expect((await rewriteForAge({ text: NOTE, ageGroup: "U11" })).error).toMatch(/didn't return an answer/);
   });
 });

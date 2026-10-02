@@ -122,7 +122,9 @@ Write 2 to 4 short sentences per player, speaking to them as "you", using only t
     const roles = validatePlayRoles(parseJsonObject(response.text ?? ""), players.map((p) => p.playerId));
     if (roles.length === 0) return { error: "Could not read the AI's player jobs. Try again." };
 
-    const data: PlayRolesData = { roles, playHash: playRolesHash({ name, conceptIds }, players) };
+    const data: PlayRolesData = {
+      roles, playHash: playRolesHash({ name, conceptIds }, players), playerIds: players.map((p) => p.playerId),
+    };
     const saved = await saveAiArtefact<PlayRolesData>(supabase, {
       kind: "play_roles", subjectType: "play", subjectId: params.playId,
       academyId: play.academy_id as string, createdBy: user.id, data, modelId: AI_MODEL,
@@ -201,15 +203,16 @@ export async function getMyPlayRole(token: string): Promise<{ text: string | nul
     });
     if (!artefact) return { text: null };
 
-    // Recompute from the play as it is now. Ages don't matter here, only the
-    // drawn jobs, so a one-player roster built from the viewer is enough to
-    // find THEIR job; the hash needs every player, so rebuild from the data.
+    // Recompute from the play as it is now, over the same players the set was
+    // generated for. Ages don't matter here, only the drawn jobs, so a roster
+    // of ids with a placeholder name is enough, and the viewer's own name is
+    // never needed. A set written before the ids were stored falls back to
+    // every named token on the board.
     const conceptIds = (play.concept_ids as string[] | null) ?? [];
-    const tokens = ((play.data as { tokens?: { playerId?: string }[] } | null)?.tokens ?? [])
+    const tokenIds = ((play.data as { tokens?: { playerId?: string }[] } | null)?.tokens ?? [])
       .map((t) => t.playerId).filter((id): id is string => !!id);
-    const roster = tokens.map((id) => ({
-      id, full_name: id === me.id ? (me.full_name as string) : "Player", date_of_birth: null, position: null,
-    }));
+    const ids = Array.isArray(artefact.data?.playerIds) ? artefact.data.playerIds : tokenIds;
+    const roster = ids.map((id) => ({ id, full_name: id === me.id ? (me.full_name as string) : "Player", date_of_birth: null, position: null }));
     const current = playRolesHash({ name: play.name as string, conceptIds }, collectRolePlayers(play.data, roster));
     if (artefact.data?.playHash !== current) return { text: null };
 
