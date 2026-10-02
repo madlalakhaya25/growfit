@@ -76,7 +76,8 @@ export function TermReviewCard({ playerId, termId, termName, ageGroup, initial, 
                   <span className="text-xs text-muted-foreground">{lastTermName}: {BAND_LABELS[before]}</span>
                 )}
               </div>
-              <div role="group" aria-label={`${meta.label} band`} className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+              <fieldset className="m-0 grid min-w-0 grid-cols-2 gap-1.5 border-0 p-0 sm:grid-cols-4">
+                <legend className="sr-only">{meta.label} band</legend>
                 {BANDS.map((band) => (
                   <button
                     key={band}
@@ -93,7 +94,7 @@ export function TermReviewCard({ playerId, termId, termName, ageGroup, initial, 
                     {BAND_LABELS[band]}
                   </button>
                 ))}
-              </div>
+              </fieldset>
               {chosen && (
                 <p className="text-sm text-muted-foreground">{describeBand(category, ageGroup, chosen)}</p>
               )}

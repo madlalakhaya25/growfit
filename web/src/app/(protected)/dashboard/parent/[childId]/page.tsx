@@ -8,7 +8,7 @@ import { ListRow, ListRowGroup } from "@/components/ui/list-row";
 import { POSITIONS, FEET } from "@/lib/types";
 import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
 import { calculateAge } from "@/lib/player";
-import { formatDayMonth, formatWeekdayDayMonth } from "@/lib/time";
+import { formatDayMonth, formatWeekdayDayMonth, todayIso } from "@/lib/time";
 import { RemovePlayerPhotoButton } from "@/components/remove-player-photo-button";
 import { signPlayerPhotoUrl } from "@/lib/player-photo";
 import { MedicalForm } from "@/components/records/medical-form";
@@ -28,7 +28,6 @@ import {
 import { matchRatingAverage } from "@/lib/player";
 import { loadTermReview } from "@/lib/term-review-data";
 import { TermGrowthCard } from "@/components/development/term-growth-card";
-import { todayIso } from "@/lib/time";
 
 export default async function ChildDetailPage({
   params,

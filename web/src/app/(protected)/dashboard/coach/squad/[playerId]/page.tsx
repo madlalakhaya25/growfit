@@ -43,11 +43,10 @@ import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
 import { ProfileTabs } from "./profile-tabs";
 import { reportError } from "@/lib/report-error";
-import { formatDayMonth } from "@/lib/time";
+import { formatDayMonth, todayIso } from "@/lib/time";
 import { signPlayerPhotoUrl } from "@/lib/player-photo";
 import { loadTermReview } from "@/lib/term-review-data";
 import { TermReviewCard } from "@/components/development/term-review-card";
-import { todayIso } from "@/lib/time";
 
 
 export default async function PlayerDetailPage({
