@@ -29,6 +29,6 @@ describe("TermPlanView", () => {
   it("marks days the team already trains and offers no second add", () => {
     render(<TermPlanView teamId="t1" weeks={weeks} sessionDates={["2026-10-14"]} />);
     expect(screen.getAllByText("On your training list")).toHaveLength(1);
-    expect(screen.getAllByRole("button", { name: "Add to training" }).length).toBe(weeks.flatMap((w) => w.sessions).length - 1);
+    expect(screen.getAllByRole("button", { name: "Add to training" })).toHaveLength(weeks.flatMap((w) => w.sessions).length - 1);
   });
 });

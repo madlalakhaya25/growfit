@@ -133,10 +133,13 @@ export function buildTermPlan(input: {
       notes: `Week ${index + 1} of the term plan (${LOAD_LABELS[load]}). Effort: ${wedLoad.toLowerCase()}. Edit freely.`,
     };
     const next = fixtures[0];
+    let friType: SessionType = CORNER_TYPE[corner];
+    if (next) friType = "match_prep";
+    if (load === "lighter") friType = "recovery";
     const fri: PlannedSession = {
       date: addDays(weekKey, 4), weekday: "Friday",
       title: next ? `Match prep: ${next.opponent}` : `${CORNER_LABELS[corner]}: games to finish the week`,
-      type: load === "lighter" ? "recovery" : next ? "match_prep" : CORNER_TYPE[corner],
+      type: friType,
       intensity: friLoad,
       notes: next
         ? `Get ready for ${next.opponent} on ${dayMonth(next.date)}. Effort: ${friLoad.toLowerCase()}. Edit freely.`
