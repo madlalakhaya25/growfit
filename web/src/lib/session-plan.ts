@@ -35,14 +35,17 @@ const MAX_DRILL_MINUTES = 30;
 const str = (v: unknown, max: number): string =>
   typeof v === "string" ? v.replaceAll("*", "").trim().slice(0, max) : "";
 
+/** Most drills a generated session may carry; the prompt asks for five. */
+export const MAX_SESSION_DRILLS = 8;
+
 /**
  * Trust only what the session page can store: strings of sane length, a whole
- * number of minutes in a sane range, no more than three drills. A drill with no
- * name or no instructions is dropped rather than saved half-empty. Fewer than
- * two usable drills is not a progression, so it returns null and the caller
- * says so instead of showing one lonely drill.
+ * number of minutes in a sane range, and no more than `maxDrills` drills. A
+ * drill with no name or no instructions is dropped rather than saved
+ * half-empty. Fewer than `minDrills` usable drills is not a plan, so it returns
+ * null and the caller says so instead of showing a lonely one.
  */
-export function validateProgression(raw: Record<string, unknown> | null): SessionPlanStructured | null {
+function readPlan(raw: Record<string, unknown> | null, maxDrills: number, minDrills: number): SessionPlanStructured | null {
   if (!raw || !Array.isArray(raw.drills)) return null;
   const drills: SessionDrill[] = [];
   for (const item of raw.drills) {
@@ -61,8 +64,18 @@ export function validateProgression(raw: Record<string, unknown> | null): Sessio
       instructions,
       coachingPoints: str(d.coachingPoints, 400),
     });
-    if (drills.length === PROGRESSION_LENGTH) break;
+    if (drills.length === maxDrills) break;
   }
-  if (drills.length < 2) return null;
+  if (drills.length < minDrills) return null;
   return { drills, coachReflection: str(raw.coachReflection, 400) };
+}
+
+/** A model-written progression: two or three drills. */
+export function validateProgression(raw: Record<string, unknown> | null): SessionPlanStructured | null {
+  return readPlan(raw, PROGRESSION_LENGTH, 2);
+}
+
+/** A model-written session: one to MAX_SESSION_DRILLS drills. */
+export function validateSessionPlan(raw: Record<string, unknown> | null): SessionPlanStructured | null {
+  return readPlan(raw, MAX_SESSION_DRILLS, 1);
 }

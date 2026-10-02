@@ -1,4 +1,4 @@
-import { renderSessionPlanProse, validateProgression } from "../session-plan";
+import { MAX_SESSION_DRILLS, renderSessionPlanProse, validateProgression, validateSessionPlan } from "../session-plan";
 
 const drill = (over: Record<string, unknown> = {}) => ({
   name: "Pattern play", durationMinutes: 10, ltpdFocus: "Passing", fourCorner: "Technical",
@@ -48,5 +48,22 @@ describe("renderSessionPlanProse", () => {
     expect(out.split(/(?=DRILL \d+:)/g)).toHaveLength(2);
     expect(out).toContain("DRILL 2: B (10 min)");
     expect(out).toContain("COACH REFLECTION: Q?");
+  });
+});
+
+describe("validateSessionPlan", () => {
+  it("accepts a single drill, which a progression would not", () => {
+    expect(validateSessionPlan({ drills: [drill()], coachReflection: "Q?" })?.drills).toHaveLength(1);
+    expect(validateProgression({ drills: [drill()], coachReflection: "Q?" })).toBeNull();
+  });
+  it("keeps up to the cap and no more, and a progression still stops at three", () => {
+    const many = Array.from({ length: MAX_SESSION_DRILLS + 3 }, (_, i) => drill({ name: `D${i}` }));
+    expect(validateSessionPlan({ drills: many, coachReflection: "" })?.drills).toHaveLength(MAX_SESSION_DRILLS);
+    expect(validateProgression({ drills: many, coachReflection: "" })?.drills).toHaveLength(3);
+  });
+  it("is null with no drills array or only empty drills", () => {
+    expect(validateSessionPlan(null)).toBeNull();
+    expect(validateSessionPlan({ coachReflection: "x" })).toBeNull();
+    expect(validateSessionPlan({ drills: [drill({ name: "", instructions: "" }), "junk", null] })).toBeNull();
   });
 });
