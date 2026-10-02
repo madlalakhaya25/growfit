@@ -110,6 +110,11 @@ export function ratingChange(ratings: RatingEntry[]): number | null {
   return Math.round((mean(recent) - mean(before)) * 100) / 100;
 }
 
+function levelFor(flagCount: number): ReadinessLevel {
+  if (flagCount >= 2) return "check-in";
+  return flagCount === 1 ? "watch" : "steady";
+}
+
 export function readiness(input: ReadinessInput, now: Date = new Date()): Readiness {
   const flags: ReadinessFlag[] = [];
   const reasons: string[] = [];
@@ -129,7 +134,7 @@ export function readiness(input: ReadinessInput, now: Date = new Date()): Readin
     reasons.push(`Their last ${RATING_TREND_WINDOW} match ratings are ${Math.abs(change)} lower than the ${RATING_TREND_WINDOW} before. Worth finding out why, as it is often tiredness or something off the pitch.`);
   }
 
-  const level: ReadinessLevel = flags.length >= 2 ? "check-in" : flags.length === 1 ? "watch" : "steady";
+  const level = levelFor(flags.length);
   const needsEffortRatings = acwr === null && input.sessions.some((s) => s.attended);
   return { level, flags, acwr, reasons, needsEffortRatings };
 }

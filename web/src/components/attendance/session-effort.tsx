@@ -6,6 +6,11 @@ import { rateSessionEffort } from "@/app/actions/session-effort";
 import { EFFORT_LEVELS, effortLabel } from "@/lib/session-effort";
 import { cn } from "@/lib/utils";
 
+function savedMessage(count: number): string {
+  if (count === 0) return "Mark who came first, then rate it again.";
+  return `Saved for ${count} ${count === 1 ? "child" : "children"}.`;
+}
+
 /**
  * One tap after training: how hard was it for the squad. It sets the same value
  * for everyone who came, because the readiness figure needs a rough load, not a
@@ -25,7 +30,7 @@ export function SessionEffort({ sessionId, initialRpe }: Readonly<{ sessionId: s
         toast.error(res.error);
         return;
       }
-      toast.success(res.count ? `Saved for ${res.count} ${res.count === 1 ? "child" : "children"}.` : "Mark who came first, then rate it again.");
+      toast.success(savedMessage(res.count ?? 0));
     });
   }
 
@@ -38,7 +43,8 @@ export function SessionEffort({ sessionId, initialRpe }: Readonly<{ sessionId: s
           {rpe !== null && ` Now: ${effortLabel(rpe)}.`}
         </p>
       </div>
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Session effort">
+      <fieldset className="flex flex-wrap gap-2">
+        <legend className="sr-only">Session effort</legend>
         {EFFORT_LEVELS.map((l) => (
           <button
             key={l.rpe}
@@ -54,7 +60,7 @@ export function SessionEffort({ sessionId, initialRpe }: Readonly<{ sessionId: s
             {l.label}
           </button>
         ))}
-      </div>
+      </fieldset>
     </section>
   );
 }

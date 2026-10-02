@@ -6,6 +6,43 @@ import {
 
 const DAY_MS = 86_400_000;
 
+type Client = SupabaseClient<any, any, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+function pushTo<T>(map: Map<string, T[]>, key: string, value: T) {
+  const list = map.get(key) ?? [];
+  list.push(value);
+  map.set(key, list);
+}
+
+async function loadSessions(supabase: Client, sessionDate: Map<string, string>, ids: string[]) {
+  const sessionsBy = new Map<string, SessionEntry[]>();
+  let effortRecorded = false;
+  if (sessionDate.size === 0) return { sessionsBy, effortRecorded };
+  const sessionIds = [...sessionDate.keys()];
+  type Row = { session_id: string; player_id: string; status: string; rpe?: number | null };
+  const wide = await supabase.from("training_attendance").select("session_id, player_id, status, rpe").in("session_id", sessionIds).in("player_id", ids);
+  const rows: Row[] = wide.error
+    ? (((await supabase.from("training_attendance").select("session_id, player_id, status").in("session_id", sessionIds).in("player_id", ids)).data ?? []) as Row[])
+    : ((wide.data ?? []) as Row[]);
+  for (const row of rows) {
+    if (!isAttendanceStatus(row.status)) continue;
+    const rpe = row.rpe ?? null;
+    if (rpe !== null) effortRecorded = true;
+    pushTo(sessionsBy, row.player_id, { date: sessionDate.get(row.session_id)!, attended: countsAsAttended(row.status), rpe });
+  }
+  return { sessionsBy, effortRecorded };
+}
+
+async function loadMatches(supabase: Client, fixtureDate: Map<string, string>, ids: string[]) {
+  const matchesBy = new Map<string, MatchEntry[]>();
+  if (fixtureDate.size === 0) return matchesBy;
+  const { data } = await supabase.from("match_appearances").select("fixture_id, player_id, played").in("fixture_id", [...fixtureDate.keys()]).in("player_id", ids);
+  for (const row of (data ?? []) as { fixture_id: string; player_id: string; played: boolean }[]) {
+    pushTo(matchesBy, row.player_id, { date: fixtureDate.get(row.fixture_id)!, played: row.played });
+  }
+  return matchesBy;
+}
+
 /**
  * Readiness for each listed player on one team, from what the coach has already
  * recorded. Read-only, and never fails the page: a missing effort column
@@ -38,40 +75,12 @@ export async function loadReadiness(
   const sessionDate = new Map(((sessions ?? []) as { id: string; session_date: string }[]).map((s) => [s.id, s.session_date]));
   const fixtureDate = new Map(((fixtures ?? []) as { id: string; fixture_date: string }[]).map((f) => [f.id, f.fixture_date]));
 
-  const sessionsBy = new Map<string, SessionEntry[]>();
-  let effortRecorded = false;
-  if (sessionDate.size > 0) {
-    const sessionIds = [...sessionDate.keys()];
-    type Row = { session_id: string; player_id: string; status: string; rpe?: number | null };
-    const wide = await supabase.from("training_attendance").select("session_id, player_id, status, rpe").in("session_id", sessionIds).in("player_id", ids);
-    const rows: Row[] = wide.error
-      ? (((await supabase.from("training_attendance").select("session_id, player_id, status").in("session_id", sessionIds).in("player_id", ids)).data ?? []) as Row[])
-      : ((wide.data ?? []) as Row[]);
-    for (const row of rows) {
-      if (!isAttendanceStatus(row.status)) continue;
-      const rpe = row.rpe ?? null;
-      if (rpe !== null) effortRecorded = true;
-      const list = sessionsBy.get(row.player_id) ?? [];
-      list.push({ date: sessionDate.get(row.session_id)!, attended: countsAsAttended(row.status), rpe });
-      sessionsBy.set(row.player_id, list);
-    }
-  }
-
-  const matchesBy = new Map<string, MatchEntry[]>();
-  if (fixtureDate.size > 0) {
-    const { data } = await supabase.from("match_appearances").select("fixture_id, player_id, played").in("fixture_id", [...fixtureDate.keys()]).in("player_id", ids);
-    for (const row of (data ?? []) as { fixture_id: string; player_id: string; played: boolean }[]) {
-      const list = matchesBy.get(row.player_id) ?? [];
-      list.push({ date: fixtureDate.get(row.fixture_id)!, played: row.played });
-      matchesBy.set(row.player_id, list);
-    }
-  }
+  const { sessionsBy, effortRecorded } = await loadSessions(supabase, sessionDate, ids);
+  const matchesBy = await loadMatches(supabase, fixtureDate, ids);
 
   const ratingsBy = new Map<string, RatingEntry[]>();
   for (const row of (ratingRows ?? []) as { player_id: string; rating: number; created_at: string }[]) {
-    const list = ratingsBy.get(row.player_id) ?? [];
-    list.push({ date: row.created_at, rating: row.rating });
-    ratingsBy.set(row.player_id, list);
+    pushTo(ratingsBy, row.player_id, { date: row.created_at, rating: row.rating });
   }
 
   for (const p of players) {
