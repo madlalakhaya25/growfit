@@ -110,98 +110,117 @@ function crowded(points: Point[]): boolean {
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-export function validateDiagram(raw: unknown): DrillDiagram | null {
-  if (!isRecord(raw)) return null;
-  const pitchId = DIAGRAM_PITCH_IDS.find((p) => p === raw.pitch);
-  if (!pitchId) return null;
-  const pitch = getPitch(pitchId);
+/** A point on the pitch: coordinates pulled back inside the markings. */
+function onPitch(x: number, y: number, pitch: { w: number; h: number }): Point {
+  return { x: round1(clamp(x, EDGE_INSET, pitch.w - EDGE_INSET)), y: round1(clamp(y, EDGE_INSET, pitch.h - EDGE_INSET)) };
+}
 
-  // Tokens. `oldToNew` lets a move name a token by its position in the model's
-  // list even after unreadable entries have been dropped.
-  const rawTokens = Array.isArray(raw.tokens) ? raw.tokens.slice(0, MAX_DIAGRAM_TOKENS) : [];
+interface ReadTokens {
+  kept: RawToken[];
+  /** The model's index of each readable token -> its index once the unreadable ones are gone. */
+  oldToNew: Map<number, number>;
+}
+
+/** The tokens we can read, capped; a ball past the cap is skipped. */
+function readTokens(raw: unknown): ReadTokens {
+  const list = Array.isArray(raw) ? raw.slice(0, MAX_DIAGRAM_TOKENS) : [];
   const kept: RawToken[] = [];
   const oldToNew = new Map<number, number>();
   let balls = 0;
-  rawTokens.forEach((item, i) => {
+  list.forEach((item, i) => {
     const t = readToken(item);
     if (!t) return;
     if (t.role === "ball" && ++balls > MAX_DIAGRAM_BALLS) return;
     oldToNew.set(i, kept.length);
     kept.push(t);
   });
-  const people = kept.filter((t) => t.role !== "ball");
-  if (people.length < 2) return null;
+  return { kept, oldToNew };
+}
 
+/** Clamp every token onto the pitch and keep the people apart. Null when that
+ * cannot be done without moving someone far from where the model put them. */
+function placeTokens(kept: RawToken[], pitch: { w: number; h: number }): Point[] | null {
   const pts: Point[] = kept.map((t) => ({
     x: clamp(t.x, TOKEN_INSET, pitch.w - TOKEN_INSET),
     y: clamp(t.y, TOKEN_INSET, pitch.h - TOKEN_INSET),
   }));
   // Only people are kept apart: a ball sits beside the player who has it.
-  const personIdx = kept.flatMap((t, i) => (t.role === "ball" ? [] : [i]));
-  const personPts = personIdx.map((i) => pts[i]);
-  const before = personPts.map((p) => ({ ...p }));
-  relax(personPts, pitch.w, pitch.h);
-  if (crowded(personPts) || personPts.some((p, i) => Math.hypot(p.x - before[i].x, p.y - before[i].y) > MAX_NUDGE)) return null;
+  const people = kept.flatMap((t, i) => (t.role === "ball" ? [] : [pts[i]]));
+  const before = people.map((p) => ({ ...p }));
+  relax(people, pitch.w, pitch.h);
+  const movedFar = people.some((p, i) => Math.hypot(p.x - before[i].x, p.y - before[i].y) > MAX_NUDGE);
+  return crowded(people) || movedFar ? null : pts;
+}
 
+function buildTokens(kept: RawToken[], pts: Point[]): Token[] {
   let teamNo = 0;
-  const tokens: Token[] = kept.map((t, i) => {
+  return kept.map((t, i): Token => {
     const base = { id: `t${i + 1}`, x: round1(pts[i].x), y: round1(pts[i].y) };
     if (t.role === "ball") return { ...base, label: "", kind: "ball", group: "Ball" };
     if (t.role === "opponent") return { ...base, label: "", kind: "opponent", group: GROUP_FOR_ROLE.opponent };
     return { ...base, label: String(++teamNo), kind: "player", group: GROUP_FOR_ROLE[t.role] };
   });
+}
 
-  // Moves: an arrow starts on a token and ends on another token or a point.
-  const shapes: Shape[] = [];
-  const rawMoves = Array.isArray(raw.moves) ? raw.moves.slice(0, MAX_DIAGRAM_MOVES) : [];
-  for (const m of rawMoves) {
-    if (!isRecord(m)) continue;
-    const kind = [...ARROW_SHAPE_KINDS].find((k) => k === m.kind);
-    const from = isNum(m.from) ? oldToNew.get(m.from) : undefined;
-    if (!kind || from === undefined) continue;
-    const toTok = isNum(m.toToken) ? oldToNew.get(m.toToken) : undefined;
-    let end: Point | null = null;
-    if (toTok !== undefined && toTok !== from) end = { x: tokens[toTok].x, y: tokens[toTok].y };
-    else if (isNum(m.x) && isNum(m.y)) {
-      end = { x: round1(clamp(m.x, EDGE_INSET, pitch.w - EDGE_INSET)), y: round1(clamp(m.y, EDGE_INSET, pitch.h - EDGE_INSET)) };
-    }
-    if (!end) continue;
-    const start = { x: tokens[from].x, y: tokens[from].y };
-    if (Math.hypot(end.x - start.x, end.y - start.y) < MIN_MOVE_LENGTH) continue;
-    shapes.push({
-      id: `m${shapes.length + 1}`, kind, pts: [start, end],
-      ...(isNum(m.curve) && m.curve !== 0 ? { curve: clamp(m.curve, -MAX_CURVE, MAX_CURVE) } : {}),
-    });
-  }
+/** One arrow: starts on a token, ends on another token or a point. */
+function readMove(m: unknown, tokens: Token[], oldToNew: Map<number, number>, pitch: { w: number; h: number }): Omit<Shape, "id"> | null {
+  if (!isRecord(m)) return null;
+  const kind = [...ARROW_SHAPE_KINDS].find((k) => k === m.kind);
+  const from = isNum(m.from) ? oldToNew.get(m.from) : undefined;
+  if (!kind || from === undefined) return null;
+  const toTok = isNum(m.toToken) ? oldToNew.get(m.toToken) : undefined;
+  let end: Point | null = null;
+  if (toTok !== undefined && toTok !== from) end = { x: tokens[toTok].x, y: tokens[toTok].y };
+  else if (isNum(m.x) && isNum(m.y)) end = onPitch(m.x, m.y, pitch);
+  if (!end) return null;
+  const start = { x: tokens[from].x, y: tokens[from].y };
+  if (Math.hypot(end.x - start.x, end.y - start.y) < MIN_MOVE_LENGTH) return null;
+  const curve = isNum(m.curve) && m.curve !== 0 ? { curve: clamp(m.curve, -MAX_CURVE, MAX_CURVE) } : {};
+  return { kind, pts: [start, end], ...curve };
+}
 
-  // Zones: a marked-out area, solid for space or hatched for "press here".
-  const rawZones = Array.isArray(raw.zones) ? raw.zones.slice(0, MAX_DIAGRAM_ZONES) : [];
-  for (const z of rawZones) {
-    if (!isRecord(z) || !Array.isArray(z.points)) continue;
-    const poly: Point[] = [];
-    for (const p of z.points.slice(0, MAX_ZONE_POINTS)) {
-      if (isRecord(p) && isNum(p.x) && isNum(p.y)) {
-        poly.push({ x: round1(clamp(p.x, EDGE_INSET, pitch.w - EDGE_INSET)), y: round1(clamp(p.y, EDGE_INSET, pitch.h - EDGE_INSET)) });
-      }
-    }
-    if (poly.length < 3) continue;
-    shapes.unshift({ id: `z${shapes.length + 1}`, kind: "zone", pts: poly, fill: z.hatch === true ? "hatch" : "solid" });
-  }
+/** A marked-out area: solid for space, hatched for "press here / no-go". */
+function readZone(z: unknown, pitch: { w: number; h: number }): Omit<Shape, "id"> | null {
+  if (!isRecord(z) || !Array.isArray(z.points)) return null;
+  const poly = z.points
+    .slice(0, MAX_ZONE_POINTS)
+    .flatMap((p) => (isRecord(p) && isNum(p.x) && isNum(p.y) ? [onPitch(p.x, p.y, pitch)] : []));
+  if (poly.length < 3) return null;
+  return { kind: "zone", pts: poly, fill: z.hatch === true ? "hatch" : "solid" };
+}
 
-  // Equipment.
-  const objects: BoardObject[] = [];
-  const rawKit = Array.isArray(raw.equipment) ? raw.equipment.slice(0, MAX_DIAGRAM_OBJECTS) : [];
-  for (const e of rawKit) {
-    if (!isRecord(e) || !isNum(e.x) || !isNum(e.y)) continue;
-    const kind = (Object.keys(EQUIPMENT_SPECS) as EquipmentKind[]).find((k) => k === e.kind);
-    if (!kind) continue;
-    objects.push({
-      id: `e${objects.length + 1}`, kind,
-      x: round1(clamp(e.x, EDGE_INSET, pitch.w - EDGE_INSET)),
-      y: round1(clamp(e.y, EDGE_INSET, pitch.h - EDGE_INSET)),
-      ...(isNum(e.rotation) ? { rotation: round1(e.rotation % 360) } : {}),
-    });
-  }
+function readObject(e: unknown, pitch: { w: number; h: number }): Omit<BoardObject, "id"> | null {
+  if (!isRecord(e) || !isNum(e.x) || !isNum(e.y)) return null;
+  const kind = (Object.keys(EQUIPMENT_SPECS) as EquipmentKind[]).find((k) => k === e.kind);
+  if (!kind) return null;
+  return { kind, ...onPitch(e.x, e.y, pitch), ...(isNum(e.rotation) ? { rotation: round1(e.rotation % 360) } : {}) };
+}
+
+/** Read up to `max` entries of a model-written list with `read`, dropping the ones it rejects. */
+function readList<T>(raw: unknown, max: number, read: (item: unknown) => T | null): T[] {
+  return (Array.isArray(raw) ? raw.slice(0, max) : []).flatMap((item) => {
+    const v = read(item);
+    return v ? [v] : [];
+  });
+}
+
+export function validateDiagram(raw: unknown): DrillDiagram | null {
+  if (!isRecord(raw)) return null;
+  const pitchId = DIAGRAM_PITCH_IDS.find((p) => p === raw.pitch);
+  if (!pitchId) return null;
+  const pitch = getPitch(pitchId);
+
+  const { kept, oldToNew } = readTokens(raw.tokens);
+  if (kept.filter((t) => t.role !== "ball").length < 2) return null;
+  const pts = placeTokens(kept, pitch);
+  if (!pts) return null;
+  const tokens = buildTokens(kept, pts);
+
+  // Zones sit under the arrows.
+  const zones = readList(raw.zones, MAX_DIAGRAM_ZONES, (z) => readZone(z, pitch));
+  const moves = readList(raw.moves, MAX_DIAGRAM_MOVES, (m) => readMove(m, tokens, oldToNew, pitch));
+  const shapes: Shape[] = [...zones, ...moves].map((sh, i) => ({ ...sh, id: `${sh.kind === "zone" ? "z" : "m"}${i + 1}` }));
+  const objects: BoardObject[] = readList(raw.equipment, MAX_DIAGRAM_OBJECTS, (e) => readObject(e, pitch)).map((o, i) => ({ ...o, id: `e${i + 1}` }));
 
   return { pitchId, tokens, shapes, objects };
 }
