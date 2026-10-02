@@ -120,8 +120,9 @@ export async function loadSquadReview(
     .select("players ( id, full_name )")
     .eq("team_id", teamId)
     .eq("active", true);
-  const roster = ((membersRes.data ?? []) as unknown as { players: { id: string; full_name: string } | { id: string; full_name: string }[] | null }[])
-    .flatMap((m) => (m.players ? (Array.isArray(m.players) ? m.players : [m.players]) : []))
+  type Person = { id: string; full_name: string };
+  const roster = ((membersRes.data ?? []) as unknown as { players: Person | Person[] | null }[])
+    .flatMap((m) => [m.players ?? []].flat())
     .sort((a, b) => a.full_name.localeCompare(b.full_name) || a.id.localeCompare(b.id));
 
   const ids = [term.id, previous?.id].filter((x): x is string => Boolean(x));

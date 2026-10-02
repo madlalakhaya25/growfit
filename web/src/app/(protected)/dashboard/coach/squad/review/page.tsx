@@ -8,7 +8,7 @@ import { loadSquadReview } from "@/lib/term-review-data";
 import { todayIso } from "@/lib/time";
 import { SquadReview } from "@/components/development/squad-review";
 
-export default async function SquadReviewPage({ searchParams }: { searchParams: Promise<{ team?: string }> }) {
+export default async function SquadReviewPage({ searchParams }: Readonly<{ searchParams: Promise<{ team?: string }> }>) {
   const { team: teamParam } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
