@@ -63,9 +63,7 @@ CREATE POLICY "ai_artefacts_play_roles_player_read" ON ai_artefacts
 
 COMMIT;
 
--- Verify with:
---   SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint
---    WHERE conname IN ('ai_artefacts_kind_check','ai_artefacts_subject_type_check');
---   -- kind list ends in 'scouting_report','play_roles'; subject list ends in 'play'
---   SELECT policyname FROM pg_policies WHERE tablename = 'ai_artefacts';
---   -- includes ai_artefacts_play_roles_player_read
+-- To verify, read the definitions of ai_artefacts_kind_check and
+-- ai_artefacts_subject_type_check from pg_constraint: the kind list should end
+-- in 'scouting_report' then 'play_roles', and the subject list in 'play'. The
+-- pg_policies rows for ai_artefacts should include ai_artefacts_play_roles_player_read.
