@@ -4,6 +4,11 @@ import { requireUser } from "@/lib/auth";
 import { friendlyError } from "@/lib/friendly-error";
 import { suggestTerms, termProblem } from "@/lib/school-terms";
 
+function text(formData: FormData, key: string): string {
+  const v = formData.get(key);
+  return typeof v === "string" ? v : "";
+}
+
 async function adminContext() {
   const { supabase, user } = await requireUser();
   const { data: profile } = await supabase
@@ -39,14 +44,14 @@ export async function saveTerm(prevState: unknown, formData: FormData) {
   if (!ctx) return { error: "Unauthorized" };
 
   const term = {
-    name: String(formData.get("name") ?? "").trim(),
-    starts_on: String(formData.get("starts_on") ?? ""),
-    ends_on: String(formData.get("ends_on") ?? ""),
+    name: text(formData, "name").trim(),
+    starts_on: text(formData, "starts_on"),
+    ends_on: text(formData, "ends_on"),
   };
   const problem = termProblem(term);
   if (problem) return { error: problem };
 
-  const id = String(formData.get("id") ?? "");
+  const id = text(formData, "id");
   const query = id
     ? ctx.supabase.from("academy_terms").update(term).eq("id", id).eq("academy_id", ctx.academyId)
     : ctx.supabase.from("academy_terms").insert({ ...term, academy_id: ctx.academyId });

@@ -1,0 +1,82 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { currentTerm, previousTerm } from "@/lib/school-terms";
+import { isBand, type Band } from "@/lib/term-review";
+import { MILESTONE_CATEGORIES, type MilestoneCategory } from "@/lib/development-categories";
+
+export interface ReviewTerm {
+  id: string;
+  name: string;
+  starts_on: string;
+  ends_on: string;
+}
+
+export type BandMap = Partial<Record<MilestoneCategory, Band>>;
+
+export interface TermReviewSnapshot {
+  /** False until migrations 053 and 054 are applied: the screen then shows nothing, not an error. */
+  available: boolean;
+  term: ReviewTerm | null;
+  previous: ReviewTerm | null;
+  current: BandMap;
+  last: BandMap;
+}
+
+const EMPTY: TermReviewSnapshot = { available: false, term: null, previous: null, current: {}, last: {} };
+
+/** `42P01` / `PGRST205`: the table is not there yet. See web/CLAUDE.md "A missing TABLE...". */
+function isMissingTable(error: { code?: string } | null | undefined): boolean {
+  return error?.code === "42P01" || error?.code === "PGRST205";
+}
+
+function toBandMap(rows: { term_id: string; category: string; band: number }[], termId: string | undefined): BandMap {
+  const out: BandMap = {};
+  if (!termId) return out;
+  for (const r of rows) {
+    if (r.term_id !== termId) continue;
+    if ((MILESTONE_CATEGORIES as readonly string[]).includes(r.category) && isBand(r.band)) {
+      out[r.category as MilestoneCategory] = r.band;
+    }
+  }
+  return out;
+}
+
+/** This term's and last term's bands for one player. */
+export async function loadTermReview(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any, any, any>,
+  playerId: string,
+  academyId: string,
+  today: string
+): Promise<TermReviewSnapshot> {
+  const termsRes = await supabase
+    .from("academy_terms")
+    .select("id, name, starts_on, ends_on")
+    .eq("academy_id", academyId);
+  if (termsRes.error) {
+    if (isMissingTable(termsRes.error)) return EMPTY;
+    return { ...EMPTY, available: true };
+  }
+  const terms = (termsRes.data ?? []) as ReviewTerm[];
+  const term = currentTerm(terms, today);
+  if (!term) return { ...EMPTY, available: true };
+  const previous = previousTerm(terms, term);
+
+  const ids = [term.id, previous?.id].filter((x): x is string => Boolean(x));
+  const reviewsRes = await supabase
+    .from("player_term_reviews")
+    .select("term_id, category, band")
+    .eq("player_id", playerId)
+    .in("term_id", ids);
+  if (reviewsRes.error) {
+    if (isMissingTable(reviewsRes.error)) return EMPTY;
+    return { ...EMPTY, available: true, term, previous };
+  }
+  const rows = (reviewsRes.data ?? []) as { term_id: string; category: string; band: number }[];
+  return {
+    available: true,
+    term,
+    previous,
+    current: toBandMap(rows, term.id),
+    last: toBandMap(rows, previous?.id),
+  };
+}

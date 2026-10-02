@@ -8,7 +8,7 @@ import { ListRow, ListRowGroup } from "@/components/ui/list-row";
 import { POSITIONS, FEET } from "@/lib/types";
 import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
 import { calculateAge } from "@/lib/player";
-import { formatDayMonth, formatWeekdayDayMonth } from "@/lib/time";
+import { formatDayMonth, formatWeekdayDayMonth, todayIso } from "@/lib/time";
 import { RemovePlayerPhotoButton } from "@/components/remove-player-photo-button";
 import { signPlayerPhotoUrl } from "@/lib/player-photo";
 import { MedicalForm } from "@/components/records/medical-form";
@@ -26,6 +26,8 @@ import {
   type AttrKey,
 } from "@/lib/attributes";
 import { matchRatingAverage } from "@/lib/player";
+import { loadTermReview } from "@/lib/term-review-data";
+import { TermGrowthCard } from "@/components/development/term-growth-card";
 
 export default async function ChildDetailPage({
   params,
@@ -52,7 +54,7 @@ export default async function ChildDetailPage({
     supabase
       .from("players")
       .select(`
-        id, full_name, position, secondary_pos, preferred_foot, date_of_birth, photo_url, share_token,
+        id, academy_id, full_name, position, secondary_pos, preferred_foot, date_of_birth, photo_url, share_token,
         player_ratings (
           id, rating, note, created_at,
           fixtures ( opponent, fixture_date )
@@ -74,6 +76,10 @@ export default async function ChildDetailPage({
   ]);
 
   if (!player) notFound();
+
+  const termReview = player.academy_id
+    ? await loadTermReview(supabase, player.id, player.academy_id as string, todayIso())
+    : null;
 
   const sharedPlan = await loadSharedDevelopmentPlan(supabase, player.id);
   const homeChallenge = sharedPlan ? pickHomeChallenge(sharedPlan.plan) : null;
@@ -390,6 +396,10 @@ export default async function ChildDetailPage({
           </section>
         </div>
       </div>
+
+      {termReview?.term && (
+        <TermGrowthCard termName={termReview.term.name} current={termReview.current} last={termReview.last} />
+      )}
 
       <section id="development" className="space-y-3">
         <h2 className="text-lg font-semibold">Development plan</h2>

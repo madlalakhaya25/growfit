@@ -3,7 +3,7 @@
  * tests of actions and helpers that talk to the database.
  *
  * It does not interpret filters: the handler is told the table, the action
- * (select / insert / update / delete), the payload and whether `.single()` /
+ * (select / insert / update / upsert / delete), the payload and whether `.single()` /
  * `.maybeSingle()` was called, and returns whatever that call should resolve
  * to. That is deliberate -- the point is to exercise the code's own decisions
  * (what it asks for, what it writes, what it does with each reply), not to
@@ -12,7 +12,7 @@
  */
 export type FakeOp = {
   table: string;
-  action: "select" | "insert" | "update" | "delete";
+  action: "select" | "insert" | "update" | "upsert" | "delete";
   payload?: Record<string, unknown>;
   one: boolean;
 };
@@ -34,7 +34,7 @@ export function fakeSupabase(handler: (op: FakeOp) => FakeReply) {
                 resolve({ data: r.data ?? null, error: r.error ?? null });
               };
             }
-            if (prop === "insert" || prop === "update") {
+            if (prop === "insert" || prop === "update" || prop === "upsert") {
               return (p: Record<string, unknown>) => { op.action = prop; op.payload = p; return chain; };
             }
             if (prop === "delete") return () => { op.action = "delete"; return chain; };

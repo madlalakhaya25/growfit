@@ -43,8 +43,10 @@ import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
 import { ProfileTabs } from "./profile-tabs";
 import { reportError } from "@/lib/report-error";
-import { formatDayMonth } from "@/lib/time";
+import { formatDayMonth, todayIso } from "@/lib/time";
 import { signPlayerPhotoUrl } from "@/lib/player-photo";
+import { loadTermReview } from "@/lib/term-review-data";
+import { TermReviewCard } from "@/components/development/term-review-card";
 
 
 export default async function PlayerDetailPage({
@@ -209,6 +211,14 @@ export default async function PlayerDetailPage({
     squadAttrPlayers = ((coreRows ?? []) as unknown as { players: SquadAttrPlayer | SquadAttrPlayer[] | null }[])
       .flatMap((m) => (m.players ? (Array.isArray(m.players) ? m.players : [m.players]) : []));
   }
+
+  // Term review: absent until migrations 053 and 054 are run, then the card appears.
+  const termReview = profile?.academy_id
+    ? await loadTermReview(supabase, playerId, profile.academy_id as string, todayIso())
+    : null;
+  const { data: reviewTeam } = teamId
+    ? await supabase.from("teams").select("age_group").eq("id", teamId).single()
+    : { data: null };
 
   const quickAssessKeys = getQuickAssessKeys(player?.position);
   const squadMedians = computeSquadMedians(squadAttrPlayers, quickAssessKeys);
@@ -480,6 +490,17 @@ export default async function PlayerDetailPage({
                 label: "Assessment",
                 content: (
                   <>
+                  {termReview?.term && (
+                    <TermReviewCard
+                      playerId={player.id}
+                      termId={termReview.term.id}
+                      termName={termReview.term.name}
+                      ageGroup={(reviewTeam as { age_group: string | null } | null)?.age_group ?? null}
+                      initial={termReview.current}
+                      last={termReview.last}
+                      lastTermName={termReview.previous?.name ?? null}
+                    />
+                  )}
                   {/* Ability attributes */}
                   <Card>
                     <CardHeader>

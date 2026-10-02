@@ -370,6 +370,17 @@ friendly error rather than failing the page. Not yet applied in production.
 
 ---
 
+## 054: player term reviews
+
+Adds `player_term_reviews`: one row per (player, term, category) holding a band
+from 1 to 4. Needs 053. Additive: a new table. Staff of the player's academy
+read and write; the player and their linked parents read. The coach's private
+notes are deliberately not in this table (row-level security cannot hide one
+column). Safe to re-run. Until it is run, the coach's Assessment tab and the
+parent page simply show no term review.
+
+---
+
 ## How to apply
 
 Either route works. Take a backup first regardless.
