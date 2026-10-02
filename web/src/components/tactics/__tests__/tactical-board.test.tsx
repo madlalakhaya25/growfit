@@ -32,6 +32,7 @@ jest.mock("@/app/actions/tactic-plays", () => ({
   listLinkTargets: jest.fn().mockResolvedValue({ fixtures: [], sessions: [] }),
 }));
 jest.mock("@/app/actions/play-roles", () => ({ generatePlayRoles: jest.fn(), approvePlayRoles: jest.fn() }));
+jest.mock("@/app/actions/coach-notes", () => ({ transcribeCoachNote: jest.fn() }));
 
 import { TacticalBoard } from "@/components/tactics/tactical-board";
 import { useBoardInsightsStore } from "@/store/boardInsightsStore";
