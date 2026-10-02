@@ -16,6 +16,7 @@ jest.mock("@/app/actions/tactics", () => ({
 // @google/genai) and the session page's addDrills; neither runs on mount.
 jest.mock("@/app/actions/board-to-session", () => ({ generateSessionFromBoard: jest.fn() }));
 jest.mock("@/app/actions/training", () => ({ addDrills: jest.fn() }));
+jest.mock("@/app/actions/board-from-text", () => ({ generateBoardFromSentence: jest.fn() }));
 
 import { SavedPlaysPanel } from "@/components/tactics/saved-plays-panel";
 
