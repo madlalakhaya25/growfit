@@ -24,10 +24,11 @@ export interface DiagramBrief {
 /** The prompt for the call that draws a finished plan's drills. */
 export function buildDiagramPrompt({ drills, constraints }: DiagramBrief): string {
   const space = SPACE_OPTIONS.find((s) => s.value === constraints.space)?.hint;
+  const kit = constraints.kit?.join(", ") || "none";
   const limits = [
     `Players available: ${constraints.squadSize}`,
     space ? `Space: ${space}` : null,
-    constraints.kit ? `Kit available: ${constraints.kit.length ? constraints.kit.join(", ") : "none"}` : null,
+    constraints.kit ? `Kit available: ${kit}` : null,
   ].filter(Boolean);
   const list = drills
     .map((d, i) => `DRILL ${i}: ${d.name}\nSetup: ${d.setup}\nInstructions: ${d.instructions}`)
