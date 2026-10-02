@@ -100,6 +100,20 @@ describe("TacticalBoard", () => {
     expect(screen.getByText(/Switched to 4-2-3-1 and drew 1 suggested move/)).toBeInTheDocument();
   });
 
+  it("keeps the setup cards open on a blank board and folds them once players are placed", async () => {
+    render(<TacticalBoard teams={[]} />);
+    await act(async () => { await Promise.resolve(); });
+    const setup = screen.getByText("Set up teams and pitch").closest("details");
+    expect(setup).toHaveProperty("open", true);
+    act(() => {
+      useBoardStore.getState().setState({
+        tokens: [{ id: "p1", label: "1", x: 50, y: 100, kind: "player", group: "Midfielder" }],
+        shapes: [], objects: [], playerNotes: [],
+      });
+    });
+    expect(screen.getByText("Set up teams and pitch").closest("details")).toHaveProperty("open", false);
+  });
+
   it("draws passing lanes from the player on the ball", async () => {
     render(<TacticalBoard teams={[]} />);
     await act(async () => { await Promise.resolve(); });
