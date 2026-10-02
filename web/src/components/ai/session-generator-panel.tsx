@@ -8,13 +8,17 @@ import { generateSessionPlan, type SessionPlanStructured } from "@/app/actions/s
 import { addDrills } from "@/app/actions/training";
 import { packDrillDescription } from "@/lib/drill-description";
 import { AiProse } from "@/components/ai/ai-prose";
+import { SessionConstraintFields } from "@/components/ai/session-constraint-fields";
+import type { KitValue, SpaceValue } from "@/lib/session-constraints";
 
 interface Props {
   sessionId: string;
   teamId: string;
+  /** Typical turnout from the team's recent registers; null when none are marked. */
+  suggestedSquadSize?: number | null;
 }
 
-export function SessionGeneratorPanel({ sessionId, teamId: _teamId }: Props) {
+export function SessionGeneratorPanel({ sessionId, teamId: _teamId, suggestedSquadSize = null }: Readonly<Props>) {
   const router = useRouter();
   const [plan, setPlan] = useState<string | null>(null);
   const [structured, setStructured] = useState<SessionPlanStructured | null>(null);
@@ -26,7 +30,9 @@ export function SessionGeneratorPanel({ sessionId, teamId: _teamId }: Props) {
   const [ageGroup, setAgeGroup] = useState("");
   const [focusArea, setFocusArea] = useState("");
   const [durationMinutes, setDurationMinutes] = useState(75);
-  const [squadSize, setSquadSize] = useState(16);
+  const [squadSize, setSquadSize] = useState(suggestedSquadSize ?? 16);
+  const [space, setSpace] = useState<SpaceValue | "">("");
+  const [kit, setKit] = useState<KitValue[] | null>(null);
 
   function runGenerate() {
     setError(null);
@@ -39,6 +45,8 @@ export function SessionGeneratorPanel({ sessionId, teamId: _teamId }: Props) {
         durationMinutes,
         squadSize,
         sessionId,
+        ...(space ? { space } : {}),
+        ...(kit ? { kit } : {}),
       });
       if (result.error) { setError(result.error); toast.error(result.error); }
       else { setPlan(result.plan ?? null); setStructured(result.structured ?? null); }
@@ -140,6 +148,7 @@ export function SessionGeneratorPanel({ sessionId, teamId: _teamId }: Props) {
                 onChange={(e) => setDurationMinutes(Number(e.target.value))}
                 className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               >
+                <option value={45}>45 min</option>
                 <option value={60}>60 min</option>
                 <option value={75}>75 min</option>
                 <option value={90}>90 min</option>
@@ -159,8 +168,15 @@ export function SessionGeneratorPanel({ sessionId, teamId: _teamId }: Props) {
                 onChange={(e) => setSquadSize(Number(e.target.value))}
                 className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               />
+              {suggestedSquadSize !== null && (
+                <p className="text-[11px] text-muted-foreground">
+                  Usually {suggestedSquadSize} turn up, from your recent registers.
+                </p>
+              )}
             </div>
           </div>
+
+          <SessionConstraintFields idPrefix="sg" space={space} onSpace={setSpace} kit={kit} onKit={setKit} />
 
           {error && (
             <p className="text-sm text-destructive">{error}</p>
