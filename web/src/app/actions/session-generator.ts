@@ -9,9 +9,11 @@ import { loadRecentSessions } from "@/lib/session-memory-data";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
 import { parseJsonObject } from "@/lib/ai-json";
 import { getLTPDPhase, specialistSystem } from "@/lib/ai-safeguards";
-import { SESSION_PLAN_SCHEMA } from "@/lib/session-plan-schema";
-import { renderSessionPlanProse } from "@/lib/session-plan";
-import { constraintLines, normaliseConstraints, type KitValue, type SpaceValue } from "@/lib/session-constraints";
+import { DRILL_DIAGRAMS_SCHEMA, SESSION_PLAN_SCHEMA } from "@/lib/session-plan-schema";
+import { validateDiagram, type DrillDiagram } from "@/lib/drill-diagram";
+import { buildDiagramPrompt } from "@/lib/drill-diagram-prompt";
+import { renderSessionPlanProse, validateSessionPlan } from "@/lib/session-plan";
+import { constraintLines, normaliseConstraints, type KitValue, type SessionConstraints, type SpaceValue } from "@/lib/session-constraints";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -39,6 +41,10 @@ export interface SessionDrill {
   setup: string;
   instructions: string;
   coachingPoints: string;
+  /** A pitch layout for the drill, when the model drew one that held together
+   * (lib/drill-diagram.ts). Shown in the preview; not saved with the drill,
+   * whose description column is text only. */
+  diagram?: DrillDiagram;
 }
 export interface SessionPlanStructured {
   drills: SessionDrill[];
@@ -128,13 +134,50 @@ Generate exactly 5 drills, the 5th a small-sided game of max 7v7. For each: a na
       },
     });
 
-    const parsed = parseJsonObject(response.text ?? "");
-    if (!parsed) return { error: "Could not read the AI's session plan. Try again." };
-    const structured = parsed as unknown as SessionPlanStructured;
+    const base = validateSessionPlan(parseJsonObject(response.text ?? ""));
+    if (!base) return { error: "Could not read the AI's session plan. Try again." };
+    const structured = await withDiagrams(base, constraints);
     const plan = renderSessionPlanProse(structured).replace(/\*/g, "");
 
     return { plan, structured, builtOn };
   } catch (err) {
     return { error: aiError(err) };
+  }
+}
+
+/**
+ * Draw the drills of a finished plan, in a second call of their own. A plan
+ * is worth having without diagrams, so nothing here can fail the request: a
+ * model error, an answer cut off at the token limit, or a layout that does not
+ * validate each just leave that drill (or all of them) undrawn. Raw model
+ * geometry never reaches the page: every diagram goes through validateDiagram.
+ */
+async function withDiagrams(plan: SessionPlanStructured, constraints: SessionConstraints): Promise<SessionPlanStructured> {
+  try {
+    const response = await ai.models.generateContent({
+      model: AI_MODEL,
+      contents: buildDiagramPrompt({ drills: plan.drills, constraints }),
+      config: {
+        // Room for a diagram on each of up to eight drills; an answer cut off
+        // here is unreadable JSON and simply means no diagrams.
+        maxOutputTokens: 6000,
+        thinkingConfig: { thinkingBudget: 0 },
+        systemInstruction: specialistSystem({ focus: "training sessions" }),
+        responseMimeType: "application/json",
+        responseSchema: DRILL_DIAGRAMS_SCHEMA,
+      },
+    });
+    const parsed = parseJsonObject(response.text ?? "");
+    const entries: unknown[] = Array.isArray(parsed?.diagrams) ? parsed.diagrams : [];
+    const byDrill = new Map<number, DrillDiagram>();
+    for (const e of entries) {
+      if (!e || typeof e !== "object") continue;
+      const { drill, diagram: raw } = e as { drill?: unknown; diagram?: unknown };
+      const diagram = validateDiagram(raw);
+      if (typeof drill === "number" && Number.isInteger(drill) && diagram && !byDrill.has(drill)) byDrill.set(drill, diagram);
+    }
+    return { ...plan, drills: plan.drills.map((d, i) => (byDrill.has(i) ? { ...d, diagram: byDrill.get(i) } : d)) };
+  } catch {
+    return plan;
   }
 }
