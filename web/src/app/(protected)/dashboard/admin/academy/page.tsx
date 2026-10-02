@@ -5,6 +5,9 @@ import { AcademyFeaturesForm } from "./academy-features-form";
 import { ResetJoinCodeButton } from "./reset-join-code-button";
 import { updateAcademyInfo, updateAcademyFeatures } from "@/app/actions/academy";
 import { getAcademyFeatures } from "@/lib/features";
+import { todayIso } from "@/lib/time";
+import { TermsCard } from "./terms-card";
+import { overlappingTerms } from "@/lib/school-terms";
 
 export default async function AcademySettingsPage() {
   const supabase = await createClient();
@@ -28,6 +31,18 @@ export default async function AcademySettingsPage() {
   if (!academy) redirect("/dashboard/admin");
 
   const features = await getAcademyFeatures(supabase, academy.id);
+
+  // Absent until migration 053 is run: the card then just offers setup and
+  // the page keeps working.
+  const { data: termRows } = await supabase
+    .from("academy_terms")
+    .select("id, name, starts_on, ends_on")
+    .eq("academy_id", academy.id)
+    .order("starts_on");
+  const terms = (termRows ?? []) as { id: string; name: string; starts_on: string; ends_on: string }[];
+  const overlaps = overlappingTerms(terms);
+  const today = todayIso();
+  const year = Number(today.slice(0, 4));
 
   return (
     <div className="space-y-8 max-w-2xl">
@@ -69,6 +84,22 @@ export default async function AcademySettingsPage() {
           </div>
           <ResetJoinCodeButton />
         </div>
+      </section>
+
+      {/* School terms card */}
+      <section className="rounded-xl border border-border bg-card p-6 space-y-4">
+        <div>
+          <h2 className="text-base font-semibold">School terms</h2>
+          <p className="text-sm text-muted-foreground">
+            The dates each term review is measured against.
+          </p>
+        </div>
+        {overlaps.length > 0 && (
+          <p role="alert" className="rounded-md bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+            Some terms overlap: {overlaps.map((t) => t.name).join(", ")}.
+          </p>
+        )}
+        <TermsCard terms={terms} year={year} />
       </section>
 
       {/* Feature toggles card */}
