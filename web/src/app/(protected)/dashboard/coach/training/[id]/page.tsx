@@ -17,6 +17,8 @@ import { formatInTimezone, formatTime } from "@/lib/time";
 import { SessionGeneratorPanel } from "@/components/ai/session-generator-panel";
 import { recentTurnout } from "@/lib/recent-turnout";
 import { SessionRunner } from "@/components/training/session-runner";
+import { DrillDetailsView } from "@/components/training/drill-details-view";
+import { sanitiseDrillDetails } from "@/lib/drill-details";
 
 const TYPE_STYLES: Record<string, { label: string; chip: string; header: string }> = {
   general:    { label: "General",    chip: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",       header: "bg-slate-500/10" },
@@ -59,7 +61,7 @@ export default async function CoachTrainingSessionPage({
   ] = await Promise.all([
     supabase
       .from("training_drills")
-      .select("id, title, description, video_url, sort_order")
+      .select("id, title, description, video_url, sort_order, details")
       .eq("session_id", id)
       .order("sort_order"),
     // `marked_by`/`marked_at` let the register say who actually marked it
@@ -200,7 +202,7 @@ export default async function CoachTrainingSessionPage({
       </div>
 
       {/* Pitch-side view: one drill at a time with a stopwatch. */}
-      <SessionRunner drills={(drills ?? []).map((d) => ({ id: d.id, title: d.title, description: d.description }))} />
+      <SessionRunner drills={(drills ?? []).map((d) => ({ id: d.id, title: d.title, description: d.description, details: sanitiseDrillDetails(d.details) }))} />
 
       {/* Coach attendance marking — its own header already shows the real
           P/A/L/E summary (attended/assessed/pct/unmarked); a duplicate
@@ -272,7 +274,9 @@ export default async function CoachTrainingSessionPage({
 
         {(drills ?? []).length > 0 && (
           <div className="divide-y divide-border rounded-xl border border-border bg-card">
-            {(drills ?? []).map((drill, idx) => (
+            {(drills ?? []).map((drill, idx) => {
+              const details = sanitiseDrillDetails(drill.details);
+              return (
               <div key={drill.id} className="flex items-start gap-3 px-4 py-3.5">
                 {/* Step number */}
                 <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
@@ -280,8 +284,10 @@ export default async function CoachTrainingSessionPage({
                 </span>
                 <div className="min-w-0 flex-1 space-y-0.5">
                   <p className="font-medium leading-snug">{drill.title}</p>
-                  {drill.description && (
-                    <p className="text-sm text-muted-foreground">{drill.description}</p>
+                  {details ? (
+                    <DrillDetailsView details={details} />
+                  ) : (
+                    drill.description && <p className="text-sm text-muted-foreground">{drill.description}</p>
                   )}
                   {drill.video_url && (
                     <a
@@ -297,7 +303,8 @@ export default async function CoachTrainingSessionPage({
                 </div>
                 <DeleteDrillButton drillId={drill.id} sessionId={id} />
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

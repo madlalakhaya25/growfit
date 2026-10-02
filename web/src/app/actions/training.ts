@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { friendlyError } from "@/lib/friendly-error";
+import { sanitiseDrillDetails } from "@/lib/drill-details";
 
 const sessionSchema = z.object({
   team_id: z.string().uuid("Invalid team"),
@@ -85,7 +86,7 @@ export async function createTrainingSessionWithDrills(params: {
   location?: string;
   session_type: string;
   notes?: string;
-  drills: { title: string; description?: string; video_url?: string }[];
+  drills: { title: string; description?: string; video_url?: string; details?: unknown }[];
 }): Promise<{ id?: string; error?: string }> {
   const { supabase, user } = await requireUser();
 
@@ -128,6 +129,7 @@ export async function createTrainingSessionWithDrills(params: {
       title: d.title,
       description: d.description || null,
       video_url: d.video_url || null,
+      details: sanitiseDrillDetails(d.details),
       sort_order: i,
     }));
     const { error: drillError } = await supabase.from("training_drills").insert(drillRows);
@@ -279,7 +281,7 @@ export async function addDrill(formData: FormData) {
  */
 export async function addDrills(
   sessionId: string,
-  drills: { title: string; description: string; video_url: string }[]
+  drills: { title: string; description: string; video_url: string; details?: unknown }[]
 ): Promise<{ success?: true; error?: string }> {
   const { supabase, user } = await requireUser();
 
@@ -297,7 +299,7 @@ export async function addDrills(
       const msgs = parsed.error.flatten().fieldErrors;
       return { error: Object.values(msgs).flat()[0] ?? "Invalid drill." };
     }
-    parsedDrills.push(parsed.data);
+    parsedDrills.push({ ...parsed.data, details: sanitiseDrillDetails(d.details) });
   }
 
   // Verify the caller coaches this session's team — not that they personally
@@ -327,6 +329,7 @@ export async function addDrills(
     title: d.title,
     description: d.description ?? null,
     video_url: d.video_url || null,
+    details: d.details,
     sort_order: startOrder + i,
   }));
 

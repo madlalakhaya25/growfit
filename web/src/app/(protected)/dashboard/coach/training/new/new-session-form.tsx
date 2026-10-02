@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Wand2, Plus, X, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { generateSessionPlan } from "@/app/actions/session-generator";
+import { generateSessionPlan, type SessionDrill } from "@/app/actions/session-generator";
 import { createTrainingSessionWithDrills } from "@/app/actions/training";
 import { packDrillDescription } from "@/lib/drill-description";
 import { SessionConstraintFields } from "@/components/ai/session-constraint-fields";
@@ -39,6 +39,8 @@ interface DrillItem {
   title: string;
   description: string;
   video_url: string;
+  /** The generated plan this drill came from, saved whole (migration 052). */
+  details?: SessionDrill;
 }
 
 const inputCls =
@@ -137,6 +139,7 @@ export function NewSessionForm({
           title: d.name,
           description: packDrillDescription(d),
           video_url: "",
+          details: d,
         }));
         if (parsed.length === 0) {
           setAiError("AI did not return any drills. Try again.");
@@ -196,10 +199,11 @@ export function NewSessionForm({
         location: location || undefined,
         session_type: sessionType,
         notes: notes || undefined,
-        drills: drills.map(({ title, description, video_url }) => ({
+        drills: drills.map(({ title, description, video_url, details }) => ({
           title,
           description: description || undefined,
           video_url: video_url || undefined,
+          details,
         })),
       });
       if (result.error) {

@@ -1,11 +1,15 @@
 "use client";
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw } from "lucide-react";
+import { DrillDetailsView } from "@/components/training/drill-details-view";
+import type { DrillDetails } from "@/lib/drill-details";
 
 export interface RunnerDrill {
   id: string;
   title: string;
   description: string | null;
+  /** The drill's saved plan, when it has one (migration 052). */
+  details?: DrillDetails | null;
 }
 
 /** m:ss, minutes unbounded (a long drill never wraps to 0). */
@@ -70,7 +74,11 @@ export function SessionRunner({ drills }: Readonly<{ drills: RunnerDrill[] }>) {
 
       <div className="space-y-2">
         <h2 className="text-2xl font-bold leading-tight">{drill.title}</h2>
-        {drill.description && <p className="whitespace-pre-wrap text-base">{drill.description}</p>}
+        {drill.details ? (
+          <DrillDetailsView details={drill.details} large />
+        ) : (
+          drill.description && <p className="whitespace-pre-wrap text-base">{drill.description}</p>
+        )}
       </div>
 
       <p
