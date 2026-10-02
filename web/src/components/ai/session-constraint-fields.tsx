@@ -15,14 +15,14 @@ export function SessionConstraintFields({
   onSpace,
   kit,
   onKit,
-}: {
+}: Readonly<{
   idPrefix: string;
   space: SpaceValue | "";
   onSpace: (v: SpaceValue | "") => void;
   /** null = the coach hasn't said what kit they have. */
   kit: KitValue[] | null;
   onKit: (v: KitValue[] | null) => void;
-}) {
+}>) {
   const toggle = (k: KitValue, on: boolean) => {
     const current = kit ?? [];
     onKit(on ? [...current, k] : current.filter((x) => x !== k));

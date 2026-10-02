@@ -11,7 +11,7 @@ import { approvePlayRoles, generatePlayRoles, type PlayRolesResult } from "@/app
  * unreviewed). Generating again for an unchanged play is free: the stored set
  * comes back.
  */
-export function PlayRolesPanel({ playId, onNotice }: { playId: string; onNotice?: (m: string) => void }) {
+export function PlayRolesPanel({ playId, onNotice }: Readonly<{ playId: string; onNotice?: (m: string) => void }>) {
   const [result, setResult] = useState<PlayRolesResult | null>(null);
   const [busy, setBusy] = useState<"generate" | "approve" | null>(null);
   const [error, setError] = useState<string | null>(null);

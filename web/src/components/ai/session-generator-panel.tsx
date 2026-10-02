@@ -18,7 +18,7 @@ interface Props {
   suggestedSquadSize?: number | null;
 }
 
-export function SessionGeneratorPanel({ sessionId, teamId, suggestedSquadSize = null }: Props) {
+export function SessionGeneratorPanel({ sessionId, teamId, suggestedSquadSize = null }: Readonly<Props>) {
   const router = useRouter();
   const [plan, setPlan] = useState<string | null>(null);
   const [structured, setStructured] = useState<SessionPlanStructured | null>(null);
