@@ -12,6 +12,27 @@ export interface SharedDevelopmentPlan {
 
 const text = (v: unknown): string => (typeof v === "string" ? v : "");
 
+const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object";
+
+function readFocusArea(item: unknown): DevelopmentFocusArea | null {
+  if (!isRecord(item)) return null;
+  const category = MILESTONE_CATEGORIES.find((c) => c === item.category);
+  if (!category || !text(item.area)) return null;
+  return { category, area: text(item.area), why: text(item.why) };
+}
+
+function readAction(item: unknown): DevelopmentAction | null {
+  if (!isRecord(item) || !text(item.what)) return null;
+  const times = Math.round(Number(item.timesPerWeek));
+  return {
+    what: text(item.what),
+    how: text(item.how),
+    timesPerWeek: Number.isFinite(times) && times > 0 ? times : 1,
+    measure: text(item.measure),
+    milestoneTemplateId: typeof item.milestoneTemplateId === "string" ? item.milestoneTemplateId : null,
+  };
+}
+
 /**
  * Rebuilds a PlayerSafeDevelopmentPlan field by field from a stored row, so
  * anything extra on the row (a `coachNote` that should never have been there)
@@ -20,36 +41,11 @@ const text = (v: unknown): string => (typeof v === "string" ? v : "");
  * page.
  */
 export function readSharedPlan(data: unknown): PlayerSafeDevelopmentPlan | null {
-  if (!data || typeof data !== "object") return null;
-  const d = data as Record<string, unknown>;
-  if (!Array.isArray(d.focusAreas) || !Array.isArray(d.actions)) return null;
-
-  const focusAreas: DevelopmentFocusArea[] = [];
-  for (const item of d.focusAreas) {
-    if (!item || typeof item !== "object") continue;
-    const f = item as Record<string, unknown>;
-    const category = MILESTONE_CATEGORIES.find((c) => c === f.category);
-    if (!category || !text(f.area)) continue;
-    focusAreas.push({ category, area: text(f.area), why: text(f.why) });
-  }
-
-  const actions: DevelopmentAction[] = [];
-  for (const item of d.actions) {
-    if (!item || typeof item !== "object") continue;
-    const a = item as Record<string, unknown>;
-    if (!text(a.what)) continue;
-    const times = Math.round(Number(a.timesPerWeek));
-    actions.push({
-      what: text(a.what),
-      how: text(a.how),
-      timesPerWeek: Number.isFinite(times) && times > 0 ? times : 1,
-      measure: text(a.measure),
-      milestoneTemplateId: typeof a.milestoneTemplateId === "string" ? a.milestoneTemplateId : null,
-    });
-  }
-
+  if (!isRecord(data) || !Array.isArray(data.focusAreas) || !Array.isArray(data.actions)) return null;
+  const focusAreas = data.focusAreas.map(readFocusArea).filter((f): f is DevelopmentFocusArea => f !== null);
+  const actions = data.actions.map(readAction).filter((a): a is DevelopmentAction => a !== null);
   if (focusAreas.length === 0 && actions.length === 0) return null;
-  return { focusAreas, actions, reviewDate: text(d.reviewDate), playerNote: text(d.playerNote) };
+  return { focusAreas, actions, reviewDate: text(data.reviewDate), playerNote: text(data.playerNote) };
 }
 
 /**
@@ -70,7 +66,7 @@ export async function loadSharedDevelopmentPlan(
     subjectId: playerId,
     status: "approved",
   });
-  if (!artefact || !artefact.approvedAt) return null;
+  if (!artefact?.approvedAt) return null;
   const plan = readSharedPlan(artefact.data);
   if (!plan) return null;
   return { plan, approvedByName: artefact.approvedByName, approvedAt: artefact.approvedAt };
