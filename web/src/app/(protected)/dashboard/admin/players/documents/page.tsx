@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { DOCUMENTS, isDocComplete } from "@/lib/document-definitions";
+import { buildChase, type ChaseReason } from "@/lib/compliance-chase";
+import { flagAgeEligibility, findDuplicates } from "@/lib/eligibility";
 import { ChaseMessageButton } from "@/components/records/chase-message-button";
 
 /**
@@ -43,16 +45,19 @@ export default async function DocumentFunnelPage({
   const { data: players } = await supabase
     .from("players")
     .select(`
-      id, full_name,
-      team_members ( active, teams ( age_group ) )
+      id, full_name, date_of_birth, id_number, mysafa_number,
+      team_members ( active, team_id, teams ( age_group ) )
     `)
     .eq("academy_id", profile.academy_id)
     .eq("active", true)
     .order("full_name");
 
   type TeamRow = { age_group: string | null };
-  type MemberRow = { active: boolean; teams: TeamRow | TeamRow[] | null };
-  type PlayerRow = { id: string; full_name: string; team_members: MemberRow[] | null };
+  type MemberRow = { active: boolean; team_id: string; teams: TeamRow | TeamRow[] | null };
+  type PlayerRow = {
+    id: string; full_name: string; date_of_birth: string | null; id_number: string | null; mysafa_number: string | null;
+    team_members: MemberRow[] | null;
+  };
 
   const allPlayers = (players ?? []) as unknown as PlayerRow[];
   const ageGroupOf = (p: PlayerRow): string | null => {
@@ -85,6 +90,44 @@ export default async function DocumentFunnelPage({
     statusByPlayerDoc.set(`${row.player_id}:${row.document_type}`, row.status);
   }
 
+  // This week's chase. Teams' next kick-offs inside the week make a gap urgent.
+  const now = new Date();
+  const { data: fixtureRows } = await supabase
+    .from("fixtures")
+    .select("team_id, fixture_date")
+    .eq("status", "upcoming")
+    .gte("fixture_date", now.toISOString())
+    .order("fixture_date");
+  const nextByTeam = new Map<string, string>();
+  for (const f of (fixtureRows ?? []) as { team_id: string; fixture_date: string }[]) {
+    if (!nextByTeam.has(f.team_id)) nextByTeam.set(f.team_id, f.fixture_date);
+  }
+  const activeTeamOf = (p: PlayerRow) => (p.team_members ?? []).find((m) => m.active)?.team_id ?? null;
+  const flags = {
+    overage: new Set(flagAgeEligibility(allPlayers.map((p) => ({ ...p, age_group: ageGroupOf(p) }))).map((f) => f.playerId)),
+    duplicate: new Set(findDuplicates(allPlayers.map((p) => ({ ...p, mysafa_number: p.mysafa_number }))).flatMap((g) => g.players.map((x) => x.id))),
+  };
+  const chase = buildChase(
+    visiblePlayers.map((p) => ({
+      id: p.id,
+      name: p.full_name,
+      ageGroup: ageGroupOf(p),
+      safaNumber: p.mysafa_number,
+      docStatus: new Map(
+        DOCUMENTS.flatMap((d) => {
+          const st = statusByPlayerDoc.get(`${p.id}:${d.type}`);
+          return st ? [[d.type, st] as [string, string]] : [];
+        }),
+      ),
+      nextFixture: nextByTeam.get(activeTeamOf(p) ?? "") ?? null,
+    })),
+    flags,
+    academy?.name ?? "the academy",
+    currentSeason,
+    now,
+  );
+  const messageFor = new Map(chase.map((c) => [c.playerId, c.message]));
+
   const rows = visiblePlayers.map((p) => {
     const cells = DOCUMENTS.map((def) => {
       const status = statusByPlayerDoc.get(`${p.id}:${def.type}`);
@@ -112,6 +155,8 @@ export default async function DocumentFunnelPage({
           {age ? ` · ${age}` : ""}.
         </p>
       </div>
+
+      <ThisWeek chase={chase} />
 
       {ageGroups.length > 1 && (
         <div className="flex flex-wrap gap-1.5">
@@ -176,13 +221,7 @@ export default async function DocumentFunnelPage({
                   ))}
                   <td className="px-3 py-2.5">
                     {outstanding.length > 0 && (
-                      <ChaseMessageButton
-                        message={
-                          `Hi! Following up on ${player.full_name}'s registration with ${academy?.name ?? "the academy"} for the ${currentSeason} season — ` +
-                          `we're still missing: ${outstanding.map((o) => o.def.label).join(", ")}. ` +
-                          `Please let me know if you have any questions. Thank you!`
-                        }
-                      />
+                      <ChaseMessageButton message={messageFor.get(player.id) ?? ""} />
                     )}
                   </td>
                 </tr>
@@ -192,5 +231,49 @@ export default async function DocumentFunnelPage({
         </div>
       )}
     </div>
+  );
+}
+
+const REASON_LABEL: Record<ChaseReason, string> = {
+  "no-safa": "No SAFA number",
+  documents: "Documents missing",
+  age: "Check age band",
+  duplicate: "Possible duplicate",
+};
+
+/** The short list to work through before Sunday, most urgent first. */
+function ThisWeek({ chase }: Readonly<{ chase: ReturnType<typeof buildChase> }>) {
+  if (chase.length === 0) {
+    return <p className="rounded-xl border border-border bg-card p-4 text-sm">Nobody needs chasing this week.</p>;
+  }
+  return (
+    <section className="space-y-2 rounded-xl border border-border bg-card p-4" aria-label="This week's chase">
+      <h2 className="text-sm font-semibold">Chase this week ({chase.length})</h2>
+      <p className="text-xs text-muted-foreground">
+        Most urgent first. Players with a match in the next seven days and a gap come to the top. Messages are copied, never sent.
+      </p>
+      <ul className="divide-y divide-border">
+        {chase.slice(0, 12).map((c) => (
+          <li key={c.playerId} className="flex flex-wrap items-center justify-between gap-2 py-2">
+            <div className="min-w-0">
+              <Link href={`/dashboard/admin/players/${c.playerId}`} className="text-sm font-medium hover:underline">{c.name}</Link>
+              {c.ageGroup && <span className="ml-1.5 text-xs text-muted-foreground">{c.ageGroup}</span>}
+              <div className="mt-0.5 flex flex-wrap gap-1">
+                {c.fixtureInDays !== null && (
+                  <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
+                    {c.fixtureInDays <= 1 ? "Plays tomorrow" : `Plays in ${c.fixtureInDays} days`}
+                  </span>
+                )}
+                {c.reasons.map((r) => (
+                  <span key={r} className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">{REASON_LABEL[r]}</span>
+                ))}
+              </div>
+            </div>
+            {c.message && <ChaseMessageButton message={c.message} />}
+          </li>
+        ))}
+      </ul>
+      {chase.length > 12 && <p className="text-xs text-muted-foreground">And {chase.length - 12} more in the table below.</p>}
+    </section>
   );
 }
