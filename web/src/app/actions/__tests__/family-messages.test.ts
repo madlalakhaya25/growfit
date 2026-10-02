@@ -1,5 +1,7 @@
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
+jest.mock("@/lib/weekly-digest-data", () => ({ loadDigestFacts: (...a: unknown[]) => mockFacts(...a) }));
 jest.mock("@/lib/report-error", () => ({ reportError: jest.fn() }));
+const mockFacts = jest.fn();
 const mockRequireStaff = jest.fn();
 jest.mock("@/lib/auth", () => ({ requireStaff: () => mockRequireStaff() }));
 const mockCoachesPlayer = jest.fn();
@@ -9,7 +11,7 @@ jest.mock("@/lib/coached-teams", () => ({
 }));
 
 import { fakeSupabase, type FakeOp } from "@/test-utils/fake-supabase";
-import { approveFamilyMessage, draftMatchStories, retractFamilyMessage, saveFamilyMessage } from "../family-messages";
+import { approveFamilyMessage, draftMatchStories, draftWeeklyDigests, retractFamilyMessage, saveFamilyMessage } from "../family-messages";
 
 const staff = { id: "u1", role: "coach", academy_id: "ac" };
 const fixture = {
@@ -139,5 +141,53 @@ describe("retractFamilyMessage", () => {
     const { ops } = setup();
     expect(await retractFamilyMessage("m1")).toEqual({ success: true });
     expect(writes(ops, "update")[0].payload).toEqual({ status: "draft", approved_by: null, approved_by_name: null, approved_at: null });
+  });
+});
+
+describe("draftWeeklyDigests", () => {
+  const facts = (id: string, attended = 2) => ({
+    playerId: id, fullName: `Kid${id} Name`, sessionsHeld: 2, sessionsAttended: attended, matchesPlayed: 0, nextFixture: null, homeChallenge: null,
+  });
+
+  it("writes one draft per child with something to say, never approved, keyed on the week's Monday", async () => {
+    mockFacts.mockResolvedValue([facts("a"), facts("b"), facts("c", 0)]);
+    const { ops } = setup();
+    expect(await draftWeeklyDigests("t1")).toEqual({ created: 2 });
+    const rows = writes(ops, "insert")[0].payload as unknown as { player_id: string; status: string; kind: string; ref_key: string; body: string }[];
+    expect(rows.map((r) => r.player_id)).toEqual(["a", "b"]);
+    expect(rows.every((r) => r.status === "draft" && r.kind === "weekly_digest" && /^\d{4}-\d{2}-\d{2}$/.test(r.ref_key))).toBe(true);
+    expect(new Date(`${rows[0].ref_key}T00:00:00Z`).getUTCDay()).toBe(1);
+  });
+
+  it("leaves a child who already has a note alone", async () => {
+    mockFacts.mockResolvedValue([facts("a"), facts("b")]);
+    const { ops } = setup({ existing: [{ player_id: "a" }] });
+    expect(await draftWeeklyDigests("t1")).toEqual({ created: 1 });
+    expect((writes(ops, "insert")[0].payload as unknown as { player_id: string }[]).map((r) => r.player_id)).toEqual(["b"]);
+  });
+
+  it("refuses a coach for a team they do not coach, and non-staff, without writing", async () => {
+    mockFacts.mockResolvedValue([facts("a")]);
+    const other = setup();
+    expect((await draftWeeklyDigests("t9")).error).toMatch(/don't coach this team/);
+    const outsider = setup({ profile: null });
+    expect((await draftWeeklyDigests("t1")).error).toMatch(/coaches and admins/);
+    expect(writes(other.ops, "insert")).toHaveLength(0);
+    expect(writes(outsider.ops, "insert")).toHaveLength(0);
+  });
+
+  it("lets an admin write for any team", async () => {
+    mockFacts.mockResolvedValue([facts("a")]);
+    setup({ profile: { ...staff, role: "admin" } });
+    expect(await draftWeeklyDigests("t9")).toEqual({ created: 1 });
+  });
+
+  it("names the migration when the table is not there yet, and says so for an empty team", async () => {
+    mockFacts.mockResolvedValue([facts("a")]);
+    setup({ existingError: { code: "42P01" } });
+    expect((await draftWeeklyDigests("t1")).error).toMatch(/migration 058/);
+    mockFacts.mockResolvedValue([]);
+    setup();
+    expect((await draftWeeklyDigests("t1")).error).toMatch(/no players/);
   });
 });

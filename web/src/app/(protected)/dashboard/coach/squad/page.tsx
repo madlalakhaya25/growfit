@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { loadReadiness } from "@/lib/readiness-data";
 import { redirect } from "next/navigation";
-import { Upload, Plus, ShieldAlert, ClipboardCheck, Target } from "lucide-react";
+import { Upload, Plus, ShieldAlert, ClipboardCheck, Target, MessageSquareText } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { resolveCurrentTeamFromCookies } from "@/lib/current-team-server";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -302,6 +302,12 @@ export default async function SquadPage({
               <Link href={`/dashboard/coach/squad/review?team=${team.id}`}>
                 <ClipboardCheck className="size-4" aria-hidden="true" />
                 Term review
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="outline" className="shrink-0">
+              <Link href={`/dashboard/coach/squad/digest?team=${team.id}`}>
+                <MessageSquareText className="size-4" aria-hidden="true" />
+                Weekly notes
               </Link>
             </Button>
             <Button asChild size="sm" variant="outline" className="shrink-0">

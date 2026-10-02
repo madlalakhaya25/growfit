@@ -69,7 +69,7 @@ export function MatchStoriesPanel({ fixtureId, rows: initial, available }: Reado
   );
 }
 
-function StoryItem({ row, onChange }: Readonly<{ row: StoryRow; onChange: (playerId: string, patch: Partial<NonNullable<StoryRow["message"]>>) => void }>) {
+export function StoryItem({ row, onChange, noun = "Story" }: Readonly<{ row: StoryRow; onChange: (playerId: string, patch: Partial<NonNullable<StoryRow["message"]>>) => void; noun?: string }>) {
   const m = row.message!;
   const [text, setText] = useState(m.body);
   const [busy, start] = useTransition();
@@ -102,6 +102,12 @@ function StoryItem({ row, onChange }: Readonly<{ row: StoryRow; onChange: (playe
       toast.success(`Shared with ${row.name.split(" ")[0]}'s family.`);
     });
   }
+  function copy() {
+    navigator.clipboard.writeText(m.body).then(
+      () => toast.success("Copied. Paste it into WhatsApp."),
+      () => toast.error("Couldn't copy. Select the words and copy them."),
+    );
+  }
   function takeBack() {
     start(async () => {
       const res = await retractFamilyMessage(m.id);
@@ -120,13 +126,16 @@ function StoryItem({ row, onChange }: Readonly<{ row: StoryRow; onChange: (playe
       {m.status === "approved" ? (
         <>
           <p className="text-sm">{m.body}</p>
-          <button type="button" onClick={takeBack} disabled={busy} className="text-xs underline disabled:opacity-60">Take back to edit</button>
+          <div className="flex gap-3">
+            <button type="button" onClick={copy} className="text-xs underline">Copy for WhatsApp</button>
+            <button type="button" onClick={takeBack} disabled={busy} className="text-xs underline disabled:opacity-60">Take back to edit</button>
+          </div>
         </>
       ) : (
         <>
           <textarea
             value={text} onChange={(e) => setText(e.target.value)} maxLength={FAMILY_BODY_MAX} rows={4}
-            aria-label={`Story for ${row.name}`}
+            aria-label={`${noun} for ${row.name}`}
             className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
           />
           {flags.length > 0 && <p className="text-xs text-amber-700 dark:text-amber-400">May read as negative: {flags.join(", ")}.</p>}
