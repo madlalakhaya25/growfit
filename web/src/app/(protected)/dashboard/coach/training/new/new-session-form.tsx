@@ -11,6 +11,7 @@ import { createTrainingSessionWithDrills } from "@/app/actions/training";
 import { packDrillDescription } from "@/lib/drill-description";
 import { SessionConstraintFields } from "@/components/ai/session-constraint-fields";
 import type { KitValue, SpaceValue } from "@/lib/session-constraints";
+import { toDateTimeLocal } from "@/components/fixtures/fixture-fields";
 
 const SESSION_TYPES = [
   { value: "general", label: "General" },
@@ -46,6 +47,15 @@ const inputCls =
 const selectCls =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
+/**
+ * Two days out, as a `datetime-local` value in the coach's own timezone.
+ * `toISOString().slice(0, 16)` was UTC, so in SAST the prefilled time read
+ * two hours earlier than the clock on the coach's phone.
+ */
+export function defaultSessionDate(now: Date): string {
+  return toDateTimeLocal(new Date(now.getTime() + 2 * 86_400_000).toISOString());
+}
+
 export function NewSessionForm({
   teamId,
   teams,
@@ -68,9 +78,7 @@ export function NewSessionForm({
   // hydrates — a value computed at SSR time and a value recomputed on the
   // client's first render could genuinely differ, exactly the class of bug
   // toDateTimeLocal's own fix (fixture-fields.tsx) already found once).
-  const [sessionDate, setSessionDate] = useState(() =>
-    new Date(Date.now() + 2 * 86_400_000).toISOString().slice(0, 16)
-  );
+  const [sessionDate, setSessionDate] = useState(() => defaultSessionDate(new Date()));
   const [location, setLocation] = useState("");
   const [sessionType, setSessionType] = useState("general");
   const [notes, setNotes] = useState("");
