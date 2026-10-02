@@ -6,6 +6,9 @@ import { coachesPlayer, getCoachedTeamIds } from "@/lib/coached-teams";
 import { findFlaggedWording } from "@/lib/child-safe-check";
 import { FAMILY_BODY_MAX, isMissingFamilyTable } from "@/lib/family-messages";
 import { planStoryDrafts, type SquadFact } from "@/lib/match-story";
+import { planDigestDrafts, weekKeyFor } from "@/lib/weekly-digest";
+import { loadDigestFacts } from "@/lib/weekly-digest-data";
+import { todayIso } from "@/lib/time";
 import { reportError } from "@/lib/report-error";
 
 const NOT_STAFF = "Only coaches and admins can do this.";
@@ -89,6 +92,45 @@ export async function draftMatchStories(fixtureId: string): Promise<{ created?: 
   } catch (err) {
     reportError(err, { scope: "draftMatchStories" });
     return { error: "Couldn't write the stories. Try again." };
+  }
+}
+
+/**
+ * Write this week's note for every child on a team who has something kind and
+ * true to be told and no note yet. Drafts only: a family sees nothing until a
+ * coach shares each one. A coach may only write for a team they coach.
+ */
+export async function draftWeeklyDigests(teamId: string): Promise<{ created?: number; error?: string }> {
+  try {
+    const { supabase, user, profile } = await requireStaff();
+    if (!profile?.academy_id) return { error: NOT_STAFF };
+    if (profile.role !== "admin" && !(await getCoachedTeamIds(supabase, user.id)).includes(teamId)) {
+      return { error: "You don't coach this team." };
+    }
+    const now = new Date();
+    const weekKey = weekKeyFor(todayIso(now));
+    const facts = await loadDigestFacts(supabase, teamId, weekKey, now);
+    if (facts.length === 0) return { error: "This team has no players yet." };
+
+    const { data: existing, error: existingError } = await supabase
+      .from("family_messages").select("player_id").eq("kind", "weekly_digest").eq("ref_key", weekKey).in("player_id", facts.map((f) => f.playerId));
+    if (existingError) return { error: isMissingFamilyTable(existingError) ? NOT_YET : "Couldn't read the notes. Try again." };
+    const have = new Set(((existing ?? []) as { player_id: string }[]).map((r) => r.player_id));
+
+    const drafts = planDigestDrafts(facts, have);
+    if (drafts.length === 0) return { created: 0 };
+    const { error } = await supabase.from("family_messages").insert(
+      drafts.map((d) => ({
+        academy_id: profile.academy_id, player_id: d.playerId, kind: "weekly_digest", ref_key: weekKey,
+        body: d.body, status: "draft", created_by: user.id,
+      })),
+    );
+    if (error) return { error: isMissingFamilyTable(error) ? NOT_YET : "Couldn't save the notes. Try again." };
+    revalidatePath("/dashboard/coach/squad/digest");
+    return { created: drafts.length };
+  } catch (err) {
+    reportError(err, { scope: "draftWeeklyDigests" });
+    return { error: "Couldn't write the notes. Try again." };
   }
 }
 

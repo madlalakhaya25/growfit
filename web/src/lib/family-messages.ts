@@ -44,6 +44,22 @@ export async function loadFixtureStories(
   return { available: true, byPlayer };
 }
 
+/** This week's notes for some children, for the coach: drafts and shared. */
+export async function loadWeekDigests(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any, any, any>,
+  playerIds: string[],
+  weekKey: string,
+): Promise<{ available: boolean; byPlayer: Map<string, FamilyMessage> }> {
+  const byPlayer = new Map<string, FamilyMessage>();
+  if (playerIds.length === 0) return { available: true, byPlayer };
+  const { data, error } = await supabase
+    .from("family_messages").select(COLUMNS).eq("kind", "weekly_digest").eq("ref_key", weekKey).in("player_id", playerIds);
+  if (error) return { available: !isMissingFamilyTable(error), byPlayer };
+  for (const r of (data ?? []) as Row[]) byPlayer.set(r.player_id, toMessage(r));
+  return { available: true, byPlayer };
+}
+
 /**
  * What a family can read about one child: approved messages only, newest first.
  * RLS already hides drafts from a player or parent; the filter is here as well so
