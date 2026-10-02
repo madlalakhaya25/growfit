@@ -9,6 +9,7 @@ import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { loginSchema, type LoginInput } from "@/lib/validation";
 import { createClient } from "@/lib/supabase/client";
+import { rememberSignIn } from "@/lib/auth-cookies";
 
 const INPUT_CLASS =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
@@ -68,6 +69,11 @@ export function LoginForm() {
       router.push(pendingCreate ? "/register-club" : "/auth/role");
       return;
     }
+
+    // Coaches and parents stay signed in for about 30 days; players stay
+    // session-only (lib/auth-cookies.ts). Written on every sign-in so a
+    // player signing in after a coach on the same phone clears it.
+    rememberSignIn(profileData.role);
 
     // A code entered at registration couldn't be applied yet if email
     // confirmation was required — signUp() only stores it as metadata, it
