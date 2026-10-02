@@ -16,13 +16,22 @@
  * ## Turning on a real tracker
  *
  * Set `SENTRY_DSN` (or `NEXT_PUBLIC_SENTRY_DSN`) in the host's environment and
- * redeploy. Reports then go to Sentry over its HTTP API (lib/sentry-report.ts,
- * no SDK, personal data scrubbed) as well as the console. Nothing else in the
+ * redeploy. Reports then go to Sentry through the SDK (instrumentation.ts,
+ * personal data scrubbed in lib/sentry-scrub.ts) as well as the console. Nothing else in the
  * app needs touching. Until then, `isErrorReportingConfigured()` is false and
  * this is only the console output.
  */
 
-import { sendToSentry, type ReportPayload } from "@/lib/sentry-report";
+import * as Sentry from "@sentry/nextjs";
+
+export interface ReportPayload {
+  severity: string;
+  scope: string;
+  message: string;
+  stack?: string;
+  extra?: Record<string, unknown>;
+  at: string;
+}
 
 export type ErrorSeverity = "error" | "warning";
 
@@ -89,6 +98,20 @@ function deliver(payload: ReportPayload) {
   // Sentry as well once a DSN is set.
   console.error("[growfit:error]", JSON.stringify(payload));
   sendToSentry(payload);
+}
+
+/** Hands the report to the Sentry SDK, which does nothing until a DSN is set and scrubs in beforeSend. */
+function sendToSentry(payload: ReportPayload) {
+  const error = new Error(payload.message);
+  if (payload.stack) error.stack = payload.stack;
+  Sentry.withScope((scope) => {
+    scope.setLevel(payload.severity === "warning" ? "warning" : "error");
+    scope.setTag("scope", payload.scope);
+    // One issue per place and message, however the stack differs between builds.
+    scope.setFingerprint([payload.scope, payload.message]);
+    if (payload.extra) scope.setExtras(payload.extra);
+    Sentry.captureException(error);
+  });
 }
 
 /**

@@ -1,3 +1,10 @@
+const mockScope = { setLevel: jest.fn(), setTag: jest.fn(), setFingerprint: jest.fn(), setExtras: jest.fn() };
+const mockCapture = jest.fn();
+jest.mock("@sentry/nextjs", () => ({
+  withScope: (fn: (s: typeof mockScope) => void) => fn(mockScope),
+  captureException: (e: unknown) => mockCapture(e),
+}));
+
 import {
   isErrorReportingConfigured,
   redactContext,
@@ -101,34 +108,29 @@ describe("reportError", () => {
   });
 });
 
-describe("reportError sends to Sentry only when configured", () => {
-  const realFetch = globalThis.fetch;
-  const realDsn = process.env.SENTRY_DSN;
-  const realPublic = process.env.NEXT_PUBLIC_SENTRY_DSN;
-  beforeEach(() => { jest.spyOn(console, "error").mockImplementation(() => undefined); });
-  afterEach(() => {
-    globalThis.fetch = realFetch;
-    jest.restoreAllMocks();
-    if (realDsn === undefined) delete process.env.SENTRY_DSN; else process.env.SENTRY_DSN = realDsn;
-    if (realPublic === undefined) delete process.env.NEXT_PUBLIC_SENTRY_DSN; else process.env.NEXT_PUBLIC_SENTRY_DSN = realPublic;
+describe("reportError hands the report to the Sentry SDK", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+  afterEach(() => jest.restoreAllMocks());
+
+  it("captures an error carrying the original message and stack, tagged by scope", () => {
+    const err = new Error("boom");
+    reportError(err, { scope: "squad page", severity: "warning", extra: { id_number: "0001015800086", team: "u13" } });
+    expect(mockCapture).toHaveBeenCalledTimes(1);
+    const sent = mockCapture.mock.calls[0][0] as Error;
+    expect(sent.message).toBe("boom");
+    expect(sent.stack).toBe(err.stack);
+    expect(mockScope.setTag).toHaveBeenCalledWith("scope", "squad page");
+    expect(mockScope.setLevel).toHaveBeenCalledWith("warning");
+    expect(mockScope.setFingerprint).toHaveBeenCalledWith(["squad page", "boom"]);
+    expect(mockScope.setExtras).toHaveBeenCalledWith({ id_number: "[redacted]", team: "u13" });
   });
 
-  it("only logs with no DSN", () => {
-    delete process.env.SENTRY_DSN; delete process.env.NEXT_PUBLIC_SENTRY_DSN;
-    const f = jest.fn().mockResolvedValue({});
-    globalThis.fetch = f as never;
-    reportError(new Error("boom"), { scope: "x" });
-    expect(f).not.toHaveBeenCalled();
-    expect(console.error).toHaveBeenCalled();
-  });
-
-  it("logs and sends once a DSN is set", () => {
-    process.env.SENTRY_DSN = "https://abc@o1.ingest.sentry.io/9";
-    const f = jest.fn().mockResolvedValue({});
-    globalThis.fetch = f as never;
-    reportError(new Error("boom"), { scope: "x", extra: { id_number: "0001015800086" } });
-    expect(f).toHaveBeenCalledTimes(1);
-    expect(f.mock.calls[0][1].body).not.toContain("0001015800086");
+  it("still logs, and never throws, if Sentry itself fails", () => {
+    mockCapture.mockImplementationOnce(() => { throw new Error("sdk down"); });
+    expect(() => reportError(new Error("boom"), { scope: "x" })).not.toThrow();
     expect(console.error).toHaveBeenCalled();
   });
 });
