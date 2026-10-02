@@ -51,6 +51,15 @@ describe("SavedPlaysPanel", () => {
     expect(screen.getByText("Share to squad")).toBeInTheDocument();
   });
 
+  it("lists the set-piece routines under their own heading", async () => {
+    render(<SavedPlaysPanel ageGroup="U15" busy={null} setBusy={jest.fn()} notice={null} setNotice={jest.fn()} snapshot={jest.fn()} clearDraft={jest.fn()} />);
+    await act(async () => { await Promise.resolve(); });
+    const group = screen.getByRole("group", { name: "Set pieces" });
+    expect(group).toHaveTextContent("Corner routine: short and in");
+    expect(group).toHaveTextContent("Defending a corner");
+    expect(group).not.toHaveTextContent("High press");
+  });
+
   it("puts what the coach says into the box for them to check, and draws nothing yet", async () => {
     (transcribeCoachNote as jest.Mock).mockResolvedValue({ text: "4-3-3, press high" });
     render(<SavedPlaysPanel ageGroup="U15" busy={null} setBusy={jest.fn()} notice={null} setNotice={jest.fn()} snapshot={jest.fn()} clearDraft={jest.fn()} />);

@@ -1547,7 +1547,9 @@ positions **per frame**; validate each frame exactly as 3.2 validates a board �
 clamped coordinates, capped counts, squad size checked. `play-motion.test.ts`
 already covers the movement derivation this builds on.
 
-### Step 4.2 — Set-piece routines
+### Step 4.2 — Set-piece routines — DONE (this PR, templates only)
+
+> **Shipped as reviewed templates, not generation.** Six hand-authored routines (short and far-post corners, direct and wide free kicks, a zonal defending corner, and the existing near-post corner) sit under "Set pieces" in the play template picker, tested to stay on the board. The app records no observed opponent weakness, so nothing is generated "against" one; a coach who wants a routine for a specific side can describe it in the describe-a-play box, which already uses the validated generation path.
 
 Corners and free kicks generated against the opponent's observed weakness, as
 board shapes. Set pieces decide grassroots matches. Reuse 3.2's validated

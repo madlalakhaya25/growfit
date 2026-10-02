@@ -341,9 +341,14 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
         className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
       >
         <option value="">Start from a template…</option>
-        {PLAY_TEMPLATES.map((t) => (
+        {PLAY_TEMPLATES.filter((t) => !t.group).map((t) => (
           <option key={t.id} value={t.id}>{t.label}</option>
         ))}
+        <optgroup label="Set pieces">
+          {PLAY_TEMPLATES.filter((t) => t.group === "Set pieces").map((t) => (
+            <option key={t.id} value={t.id}>{t.label}</option>
+          ))}
+        </optgroup>
       </select>
 
       <input
