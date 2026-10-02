@@ -557,7 +557,7 @@ export const YOUNG_PITCH_SCALE = 0.71;
  * unrecognised is treated as full size. */
 export function pitchForAge(pitch: Pitch, ageGroup: string | null | undefined): Pitch {
   const n = Number(/^U(\d{1,2})$/i.exec((ageGroup ?? "").trim())?.[1]);
-  const isMatchPitch = pitch.metresPerUnit === MATCH_METRES_PER_UNIT;
+  const isMatchPitch = pitch.id === "full" || pitch.id === "half" || pitch.id === "third";
   if (!isMatchPitch || !Number.isFinite(n) || n > 12) return pitch;
   return { ...pitch, metresPerUnit: pitch.metresPerUnit * YOUNG_PITCH_SCALE };
 }
