@@ -80,3 +80,8 @@ export function monthStartIso(now: Date = new Date()): string {
   const ym = formatInTimezone(now, { year: "numeric", month: "2-digit" }, "en-CA"); // "2026-10"
   return new Date(`${ym}-01T00:00:00+02:00`).toISOString();
 }
+
+/** Today's date as `YYYY-MM-DD` in the academy's timezone (not the server's). */
+export function todayIso(now: Date = new Date()): string {
+  return formatInTimezone(now, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA");
+}

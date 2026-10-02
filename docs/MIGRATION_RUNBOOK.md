@@ -360,6 +360,16 @@ page, so it is expected, not proven, to be idempotent.
 
 ---
 
+## 053: academy terms
+
+Adds `academy_terms` (name, start, end per academy). Additive: a new table with
+RLS, nothing existing changes. Every academy member can read it, only admins can
+write. Safe to re-run. Until it is run, the admin Academy page still loads and
+the School terms card simply has nothing to list; "Set up terms" then reports a
+friendly error rather than failing the page. Not yet applied in production.
+
+---
+
 ## How to apply
 
 Either route works. Take a backup first regardless.
