@@ -12,6 +12,7 @@ import { createContextCacheManager, isStaleCacheError } from "@/lib/ai-context-c
 import { assistantContents, stablePrefixContents } from "@/lib/assistant-request";
 import { stableBriefKey } from "@/lib/squad-brief";
 import { AI_ARTEFACT_TTL, getLatestAiArtefact } from "@/lib/ai-artefacts";
+import { generateWithRetry } from "@/lib/ai-resilient";
 
 /**
  * Lazily fetches the same teams/roster/fixtures brief the dedicated
@@ -156,7 +157,7 @@ export async function askCoachAssistant(params: {
     });
 
     const generate = (cached: boolean) =>
-      ai.models.generateContent({
+      generateWithRetry(ai, {
         model: AI_MODEL,
         contents: assistantContents({
           stableBrief: context.stableBrief,
@@ -226,7 +227,7 @@ Selection rules:
 
 Return the starting XI (one entry per outfield role in ${params.formation}), the bench, 1-2 players who must get minutes and why, and 2 sentences of selection notes on the balance of the side and any risk.`;
 
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry(ai, {
       model: AI_MODEL,
       contents: prompt,
       config: {
@@ -312,7 +313,7 @@ Use the squad's real names and numbers. Never build the plan or key players arou
 
 Produce: one sentence the squad could repeat as the plan; 2 sentences on our shape and why; exactly 3 in-possession instructions; exactly 3 out-of-possession instructions; one attacking and one defending set-piece instruction; exactly 2 key players by name and their job on the day; exactly 2 risks based on the data above; exactly 3 short team-talk points in plain language a young player understands; and one sentence on what to rehearse at training this week.`;
 
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry(ai, {
       model: AI_MODEL,
       contents: prompt,
       config: {

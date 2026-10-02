@@ -8,6 +8,7 @@ import { extractPdfHeadshots, type CardHeadshot } from "@/lib/pdf-headshots";
 import { attachHeadshotsByIdentity } from "@/lib/headshot-matching";
 import { friendlyError } from "@/lib/friendly-error";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
+import { generateWithRetry } from "@/lib/ai-resilient";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -112,7 +113,7 @@ export async function extractPlayersFromPdf(
 
     const [response, headshots, { data: existingPlayers }] = await Promise.all([
 
-      ai.models.generateContent({
+      generateWithRetry(ai, {
         model: AI_MODEL_DOC,
         contents: [
           {

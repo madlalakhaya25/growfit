@@ -6,6 +6,7 @@ import { AI_MODEL } from "@/lib/ai-models";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
 import { parseJsonObject } from "@/lib/ai-json";
 import { PLAYER_FACING_RULE, specialistSystem } from "@/lib/ai-safeguards";
+import { generateWithRetry } from "@/lib/ai-resilient";
 import {
   fingerprintBrief, getLatestAiArtefact, isCacheHit, readUsage, saveAiArtefact,
 } from "@/lib/ai-artefacts";
@@ -88,7 +89,7 @@ export async function generatePlayRoles(params: { playId: string; force?: boolea
     const overBudget = await checkAiBudget(user.id);
     if (overBudget) return { error: overBudget };
 
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry(ai, {
       model: AI_MODEL,
       contents: `A youth football coach has drawn a play. For EACH player below, write what THEY do in the play, to be read by that player.
 

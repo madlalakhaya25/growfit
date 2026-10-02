@@ -6,6 +6,7 @@ import { aiError, checkAiBudget } from "@/lib/ai-guard";
 import { generateOrServeText } from "@/lib/ai-cached";
 import { PLAYER_FACING_RULE } from "@/lib/ai-safeguards";
 import { requireStaff } from "@/lib/auth";
+import { generateWithRetry } from "@/lib/ai-resilient";
 import {
   MAX_REWRITE_CHARS, ageFromAgeGroup, cleanRewrite, missingNumbers, rewriteBrief, rewriteSubjectId,
 } from "@/lib/age-rewrite";
@@ -49,7 +50,7 @@ export async function rewriteForAge(params: { text: string; ageGroup: string | n
       modelId: AI_MODEL_LITE,
       beforeGenerate: () => checkAiBudget(user.id),
       generate: async () => {
-        const response = await ai.models.generateContent({
+        const response = await generateWithRetry(ai, {
           model: AI_MODEL_LITE,
           contents: `Rewrite this note from a youth football coach so a ${age}-year-old can read and follow it.\n\n${text}`,
           config: {

@@ -45,6 +45,7 @@ import { formatInTimezone } from "@/lib/time";
 import { loadSelfView } from "@/lib/self-view-data";
 import { checkPlayerFacing, describeFlags } from "@/lib/child-safe-check";
 import { applyPlanEdits, type PlanEdits } from "@/lib/plan-edits";
+import { generateWithRetry } from "@/lib/ai-resilient";
 
 // The plan types live in a plain lib module so Jest can load them (this file
 // imports @google/genai, whose ESM build Jest can't). Re-exported as types so
@@ -299,7 +300,7 @@ ${selfView.length ? "- The brief says where the player's own view differs from t
       required: ["playerSummary", "focusAreas", "actions", ...(previous ? ["previous"] : []), "coachNote", "playerNote"],
     };
 
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry(ai, {
       model: AI_MODEL,
       contents: prompt,
       config: {

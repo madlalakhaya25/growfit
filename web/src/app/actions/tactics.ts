@@ -10,6 +10,7 @@ import { FORMATIONS } from "@/lib/formations";
 import { ZONE_IDS, zoneLabel } from "@/lib/board-analysis";
 import { validateCounter, renderCounterProse, type OpponentCounter } from "@/lib/opponent-counter";
 import { getOpponentScouting } from "./tactic-plays";
+import { generateWithRetry } from "@/lib/ai-resilient";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -47,7 +48,7 @@ KEY ATTRIBUTES TO DEVELOP: [3 qualities to work on at this age]
 COMMON MISTAKES AT ${ageGroup}: [2 typical errors and the fix]
 COACHING CUES: [3 short phrases the coach can shout to this player during play]`;
 
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry(ai, {
       // Fixed-structure definition, no squad data or selection call riding
       // on it — the cheap tier (see ai-models.ts).
       model: AI_MODEL_LITE,
@@ -116,7 +117,7 @@ COACHING POINTS: [3 numbered points to emphasise at ${ageGroup}]
 WHAT TO WATCH FOR: [2 signs it is working]
 PROGRESSION: [1 sentence on how to make it harder once they master it]`;
 
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry(ai, {
       model: AI_MODEL,
       contents: prompt,
       config: {
@@ -209,7 +210,7 @@ Build on the measured gaps above — do not invent opponent players or movements
 
 Return: reading (2-3 sentences on what their shape is doing); exploits (2-3 zones to attack, each with why the space is there and how to use it, in words a young player understands); counterFormationId (one id from the list) and counterFormationWhy (one sentence); counterRuns (2-3 movements that attack those zones — each from a zone to a zone, kind run, pass or dribble, and a short note naming the role, e.g. "Left winger runs in behind"); watchOut (2 threats their shape poses to us); trainThisWeek (one sentence on what to rehearse).`;
 
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry(ai, {
       model: AI_MODEL,
       contents: prompt,
       config: {
