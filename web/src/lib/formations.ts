@@ -117,5 +117,5 @@ export function formatSizeForAge(ageGroup: string | null | undefined): Formation
 
 /** First preset of a format, used as the starting shape for that age group. */
 export function firstFormationOfSize(size: Formation["size"]): Formation {
-  return FORMATIONS.find((f) => f.size === size) ?? FORMATIONS[FORMATIONS.length - 1];
+  return FORMATIONS.find((f) => f.size === size) ?? FORMATIONS.at(-1)!;
 }
