@@ -7,6 +7,9 @@ import { cn } from "@/lib/utils";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { resolveCurrentTeamFromCookies } from "@/lib/current-team-server";
 import { formatTime, formatWeekdayDayMonth } from "@/lib/time";
+import { WeekBriefCard } from "@/components/training/week-brief-card";
+import { buildWeekBrief } from "@/lib/week-brief";
+import { loadSquadFocus } from "@/lib/squad-focus-data";
 
 const TYPE_STYLES: Record<string, { label: string; chip: string }> = {
   general:    { label: "General",    chip: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" },
@@ -51,6 +54,26 @@ export default async function CoachTrainingPage({
     .order("session_date", { ascending: false });
 
   const now = new Date();
+
+  // The week at a glance: next match, training before it, and what the squad's
+  // approved plans are working on.
+  const [{ data: nextFixtures }, squadFocus] = await Promise.all([
+    supabase
+      .from("fixtures")
+      .select("id, opponent, fixture_date")
+      .eq("team_id", team.id)
+      .eq("status", "upcoming")
+      .gte("fixture_date", now.toISOString())
+      .order("fixture_date")
+      .limit(3),
+    loadSquadFocus(supabase, team.id),
+  ]);
+  const weekBrief = buildWeekBrief(
+    now,
+    (sessions ?? []).map((s) => ({ id: s.id, title: s.title, session_date: s.session_date })),
+    (nextFixtures ?? []) as { id: string; opponent: string; fixture_date: string }[]
+  );
+
   const upcoming = (sessions ?? []).filter((s) => new Date(s.session_date) >= now);
   const past = (sessions ?? []).filter((s) => new Date(s.session_date) < now);
 
@@ -110,6 +133,8 @@ export default async function CoachTrainingPage({
           </Link>
         </Button>
       </div>
+
+      <WeekBriefCard teamId={team.id} brief={weekBrief} focus={squadFocus} />
 
       {(sessions ?? []).length === 0 ? (
         <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed border-border py-16 text-center">

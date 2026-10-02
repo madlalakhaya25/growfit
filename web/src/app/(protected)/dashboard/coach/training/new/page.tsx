@@ -6,13 +6,14 @@ import { createClient } from "@/lib/supabase/server";
 import { NewSessionForm } from "./new-session-form";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { recentTurnout } from "@/lib/recent-turnout";
+import { cleanFocus } from "@/lib/squad-focus";
 
 export default async function NewTrainingSessionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ team?: string }>;
+  searchParams: Promise<{ team?: string; focus?: string }>;
 }) {
-  const { team: teamParam } = await searchParams;
+  const { team: teamParam, focus: focusParam } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
@@ -57,6 +58,7 @@ export default async function NewTrainingSessionPage({
         teams={allTeams}
         backHref={`/dashboard/coach/training?team=${team.id}`}
         suggestedSquadSizes={suggestedSquadSizes}
+        defaultFocus={cleanFocus(focusParam)}
       />
     </div>
   );
