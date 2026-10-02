@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Upload, Plus, ShieldAlert } from "lucide-react";
+import { Upload, Plus, ShieldAlert, ClipboardCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { resolveCurrentTeamFromCookies } from "@/lib/current-team-server";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -284,6 +284,12 @@ export default async function SquadPage({
         action={
           <div className="flex flex-wrap gap-2">
             <CopyInviteLinkButton inviteCode={team.invite_code} />
+            <Button asChild size="sm" variant="outline" className="shrink-0">
+              <Link href={`/dashboard/coach/squad/review?team=${team.id}`}>
+                <ClipboardCheck className="size-4" aria-hidden="true" />
+                Term review
+              </Link>
+            </Button>
             <Button asChild size="sm" variant="outline" className="shrink-0">
               <Link href={`/dashboard/coach/squad/emergency?team=${team.id}`}>
                 <ShieldAlert className="size-4" aria-hidden="true" />

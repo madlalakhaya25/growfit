@@ -43,3 +43,46 @@ describe("loadTermReview", () => {
     expect(snap.term).toBeNull();
   });
 });
+
+import { loadSquadReview } from "@/lib/term-review-data";
+
+describe("loadSquadReview", () => {
+  const roster = [
+    { players: { id: "p2", full_name: "Bheki" } },
+    { players: [{ id: "p1", full_name: "Ayanda" }] },
+  ];
+  function squad(extra?: (op: FakeOp) => { data?: unknown; error?: { code?: string } | null } | undefined) {
+    const f = fakeSupabase((op) => {
+      const o = extra?.(op);
+      if (o) return o;
+      if (op.table === "academy_terms") return { data: TERMS };
+      if (op.table === "team_members") return { data: roster };
+      return { data: [
+        { player_id: "p1", term_id: "t2", category: "technical", band: 3 },
+        { player_id: "p1", term_id: "t1", category: "technical", band: 1 },
+        { player_id: "p2", term_id: "t1", category: "mental", band: 2 },
+      ] };
+    });
+    return loadSquadReview(f.client as never, "team1", "a1", "2026-05-01");
+  }
+
+  it("lists the squad by name with each child's own bands", async () => {
+    const s = await squad();
+    expect(s.players.map((p) => p.name)).toEqual(["Ayanda", "Bheki"]);
+    expect(s.players[0].current).toEqual({ technical: 3 });
+    expect(s.players[0].last).toEqual({ technical: 1 });
+    expect(s.players[1].current).toEqual({});
+    expect(s.players[1].last).toEqual({ mental: 2 });
+  });
+
+  it("is unavailable when the reviews table is missing", async () => {
+    const s = await squad((op) => (op.table === "player_term_reviews" ? { error: { code: "42P01" } } : undefined));
+    expect(s.available).toBe(false);
+  });
+
+  it("handles a team with no active players", async () => {
+    const s = await squad((op) => (op.table === "team_members" ? { data: [] } : undefined));
+    expect(s.available).toBe(true);
+    expect(s.players).toEqual([]);
+  });
+});

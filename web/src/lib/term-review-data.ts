@@ -80,3 +80,70 @@ export async function loadTermReview(
     last: toBandMap(rows, previous?.id),
   };
 }
+
+export interface SquadReviewPlayer {
+  id: string;
+  name: string;
+  current: BandMap;
+  last: BandMap;
+}
+
+export interface SquadReviewSnapshot {
+  available: boolean;
+  term: ReviewTerm | null;
+  previous: ReviewTerm | null;
+  players: SquadReviewPlayer[];
+}
+
+/** Every active player on a team, with this term's and last term's bands. One query for all the reviews. */
+export async function loadSquadReview(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any, any, any>,
+  teamId: string,
+  academyId: string,
+  today: string
+): Promise<SquadReviewSnapshot> {
+  const empty: SquadReviewSnapshot = { available: false, term: null, previous: null, players: [] };
+
+  const termsRes = await supabase
+    .from("academy_terms")
+    .select("id, name, starts_on, ends_on")
+    .eq("academy_id", academyId);
+  if (termsRes.error) return isMissingTable(termsRes.error) ? empty : { ...empty, available: true };
+  const terms = (termsRes.data ?? []) as ReviewTerm[];
+  const term = currentTerm(terms, today);
+  if (!term) return { ...empty, available: true };
+  const previous = previousTerm(terms, term);
+
+  const membersRes = await supabase
+    .from("team_members")
+    .select("players ( id, full_name )")
+    .eq("team_id", teamId)
+    .eq("active", true);
+  const roster = ((membersRes.data ?? []) as unknown as { players: { id: string; full_name: string } | { id: string; full_name: string }[] | null }[])
+    .flatMap((m) => (m.players ? (Array.isArray(m.players) ? m.players : [m.players]) : []))
+    .sort((a, b) => a.full_name.localeCompare(b.full_name) || a.id.localeCompare(b.id));
+
+  const ids = [term.id, previous?.id].filter((x): x is string => Boolean(x));
+  const reviewsRes = roster.length
+    ? await supabase
+        .from("player_term_reviews")
+        .select("player_id, term_id, category, band")
+        .in("player_id", roster.map((p) => p.id))
+        .in("term_id", ids)
+    : { data: [], error: null };
+  if (reviewsRes.error) {
+    return isMissingTable(reviewsRes.error) ? empty : { available: true, term, previous, players: [] };
+  }
+  const rows = (reviewsRes.data ?? []) as { player_id: string; term_id: string; category: string; band: number }[];
+
+  return {
+    available: true,
+    term,
+    previous,
+    players: roster.map((p) => {
+      const mine = rows.filter((r) => r.player_id === p.id);
+      return { id: p.id, name: p.full_name, current: toBandMap(mine, term.id), last: toBandMap(mine, previous?.id) };
+    }),
+  };
+}

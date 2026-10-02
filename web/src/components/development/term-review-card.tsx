@@ -18,15 +18,18 @@ interface Props {
   initial: BandMap;
   last: BandMap;
   lastTermName: string | null;
+  /** Fired once a band is saved, so a surrounding screen can keep its own progress. */
+  onSaved?: (category: MilestoneCategory, band: Band | null) => void;
 }
 
-export function TermReviewCard({ playerId, termId, termName, ageGroup, initial, last, lastTermName }: Readonly<Props>) {
+export function TermReviewCard({ playerId, termId, termName, ageGroup, initial, last, lastTermName, onSaved }: Readonly<Props>) {
   const [bands, setBands] = useState<BandMap>(initial);
   const [, startTransition] = useTransition();
 
   function pick(category: MilestoneCategory, band: Band) {
     const before = bands[category];
     setBands((b) => ({ ...b, [category]: band }));
+    onSaved?.(category, band);
     startTransition(async () => {
       const res = await saveTermReview(playerId, termId, category, band);
       if (res?.error) {
@@ -36,6 +39,7 @@ export function TermReviewCard({ playerId, termId, termName, ageGroup, initial, 
           else delete next[category];
           return next;
         });
+        onSaved?.(category, before ?? null);
         toast.error(res.error);
       }
     });
