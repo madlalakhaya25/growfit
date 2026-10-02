@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Growfit Holiday Football Camps – Proposal</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4; margin: 18mm 17mm 20mm 17mm; }
+  :root {
+    --red: #AF2D35; --red-dark: #6B1B1F; --red-tint: #F7EAEB;
+    --ink: #16181D; --ink-2: #474C55; --ink-3: #7A808A;
+    --rule: #DADDE2; --panel: #F5F6F8;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: #fff; }
+  body { font-family: Inter, "Liberation Sans", Arial, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.5; margin: 0; }
+  h1, h2, h3 { line-height: 1.2; margin: 0; }
+  h2 { font-size: 17pt; font-weight: 800; color: var(--ink); margin: 0 0 4mm; padding-top: 1mm; }
+  h2 .num { color: var(--red); margin-right: 6px; }
+  h3 { font-size: 11pt; font-weight: 700; margin: 5mm 0 2mm; }
+  p { margin: 0 0 2.6mm; }
+  ul { margin: 0 0 3mm; padding-left: 5mm; }
+  li { margin-bottom: 1.2mm; }
+  .section { break-before: page; }
+  .avoid { break-inside: avoid; }
+  .muted { color: var(--ink-2); }
+  .small { font-size: 8.5pt; color: var(--ink-3); }
+  strong { font-weight: 700; }
+
+  /* cover */
+  .cover { height: 257mm; display: flex; flex-direction: column; }
+  .cover-top { display: flex; align-items: center; gap: 6mm; }
+  .cover-top img { width: 26mm; height: 26mm; }
+  .cover-org { font-weight: 700; font-size: 11pt; }
+  .cover-org span { display: block; font-weight: 400; color: var(--ink-2); font-size: 9.5pt; }
+  .cover-band { margin-top: 30mm; border-left: 3mm solid var(--red); padding-left: 7mm; }
+  .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: 8.5pt; font-weight: 700; color: var(--red); }
+  .cover h1 { font-size: 30pt; font-weight: 800; margin: 3mm 0 4mm; letter-spacing: -.01em; }
+  .cover .lede { font-size: 12pt; color: var(--ink-2); max-width: 150mm; }
+  .cover-ask { margin-top: 18mm; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+  .cover-foot { margin-top: auto; border-top: 1px solid var(--rule); padding-top: 4mm; display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; font-size: 9pt; color: var(--ink-2); }
+  .cover-foot b { color: var(--ink); }
+
+  /* tiles */
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 4mm 0 5mm; }
+  .tile { background: var(--panel); border-radius: 3mm; padding: 3.5mm 4mm; }
+  .tile .v { font-size: 16pt; font-weight: 800; color: var(--ink); line-height: 1.1; }
+  .tile .l { font-size: 8.3pt; color: var(--ink-2); margin-top: 1.2mm; line-height: 1.35; }
+  .tile.hero { background: var(--red); }
+  .tile.hero .v, .tile.hero .l { color: #fff; }
+
+  /* tables */
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 9pt; }
+  th { text-align: left; font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); border-bottom: 1.5px solid var(--ink); padding: 2mm 2mm; }
+  td { border-bottom: 1px solid var(--rule); padding: 2mm 2mm; vertical-align: top; }
+  td.n, th.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tr.sub td { background: var(--panel); font-weight: 600; }
+  tr.total td { border-top: 1.5px solid var(--ink); border-bottom: none; font-weight: 800; font-size: 10pt; }
+  tr.total td.n { color: var(--red); }
+
+  .callout { background: var(--red-tint); border-left: 1.2mm solid var(--red); padding: 3.5mm 4.5mm; border-radius: 0 2mm 2mm 0; margin: 3mm 0 4mm; }
+  .callout p:last-child { margin: 0; }
+  .note { background: var(--panel); padding: 3mm 4mm; border-radius: 2mm; font-size: 8.8pt; color: var(--ink-2); margin: 3mm 0; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+  .card { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; }
+  .card h3 { margin-top: 0; }
+
+  /* weekly cycle */
+  .cycle { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2mm; margin: 3mm 0 4mm; }
+  .step { border-top: 1.2mm solid var(--red); background: var(--panel); padding: 2.5mm 3mm; border-radius: 0 0 2mm 2mm; font-size: 8.5pt; }
+  .step b { display: block; font-size: 9pt; margin-bottom: .8mm; }
+  .step .d { color: var(--red); font-weight: 700; font-size: 7.8pt; text-transform: uppercase; letter-spacing: .06em; }
+
+  /* bar figure */
+  .fig { margin: 3mm 0 2mm; }
+  .bar-row { display: grid; grid-template-columns: 30mm 1fr 22mm; align-items: center; gap: 3mm; margin: 2.2mm 0; font-size: 9pt; }
+  .bar-track { position: relative; height: 7mm; }
+  .bar { height: 100%; background: var(--red); border-radius: 0 1.2mm 1.2mm 0; }
+  .ref { position: absolute; top: -2mm; bottom: -2mm; border-left: 1.5px dashed var(--ink); }
+  .ref-label { font-size: 7.8pt; color: var(--ink-2); position: absolute; top: -6mm; transform: translateX(-50%); white-space: nowrap; }
+  .fig-cap { font-size: 8.3pt; color: var(--ink-3); margin-top: 1mm; }
+
+  .compact table { font-size: 8.3pt; margin: 1.5mm 0 2.5mm; }
+  .compact td { padding: 1.3mm 2mm; }
+  .compact h3 { margin: 2.5mm 0 1mm; }
+  .compact li { margin-bottom: .6mm; font-size: 9pt; }
+  .compact .callout { margin: 2mm 0; padding: 2.5mm 4mm; }
+  .sig { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 10mm; }
+  .sig div { border-top: 1px solid var(--ink); padding-top: 2mm; font-size: 9pt; color: var(--ink-2); }
+  .src { font-size: 8pt; color: var(--ink-2); word-break: break-all; }
+  .src li { margin-bottom: .8mm; }
+  .tag { display: inline-block; border-radius: 1mm !important; font-size: 7.5pt; font-weight: 700; padding: .3mm 1.8mm; border-radius: 10mm; background: var(--panel); color: var(--ink-2); text-transform: uppercase; letter-spacing: .05em; }
+  .tag.r { background: var(--red-tint); color: var(--red-dark); }
+
+  .ph { background: #F7EAEB; color: #6B1B1F; padding: 0 1.2mm; border-radius: 1mm; font-weight: 600; }
+  .tpl-label { display:inline-block; font-size: 8pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #fff; background: var(--ink); padding: .8mm 2.5mm; border-radius: 1mm; margin-bottom: 3mm; }
+  .letter { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 7mm 8mm; font-size: 9.6pt; }
+  .letter p { margin-bottom: 2.8mm; }
+  .letter .lh { display:flex; justify-content: space-between; align-items:flex-start; border-bottom: 1.5px solid var(--red); padding-bottom: 3mm; margin-bottom: 5mm; }
+  .letter .lh img { width: 15mm; height: 15mm; }
+  .letter .lh .org { text-align:right; font-size: 8.3pt; color: var(--ink-2); line-height: 1.4; }
+  .letter .lh .org b { color: var(--ink); font-size: 9.5pt; }
+  .msg { background: var(--panel); border-radius: 3mm; padding: 4mm 5mm; font-size: 9.6pt; white-space: normal; }
+  .howto { font-size: 8.8pt; color: var(--ink-2); margin: 0 0 3mm; }
+  .form-row { display:grid; grid-template-columns: 45mm 1fr; border-bottom: 1px solid var(--rule); padding: 2.6mm 0; font-size: 9.3pt; }
+  .form-row span:last-child { border-bottom: 1px dotted var(--ink-3); }
+  .check { display:inline-block; width:3.2mm; height:3.2mm; border:1px solid var(--ink); margin-right:1.5mm; vertical-align:-0.4mm; }
+  .tier { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; break-inside: avoid; }
+  .tier .price { color: var(--red); font-weight: 800; font-size: 13pt; }
+  .tier h3 { margin: 0 0 1mm; }
+  .tiers { display:grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; }
+  .tiers ul { margin-bottom: 0; }
+  .toc { columns: 2; font-size: 9.5pt; }
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="cover-top">
+    <img src="../../../growfit.png" alt="Growfit Football Academy crest">
+    <div class="cover-org">Growfit Sports Academy NPC<span>Grassroots football · U11 · U13 · U15 · Greater Durban, KwaZulu-Natal</span></div>
+  </div>
+  <div class="cover-band">
+    <div class="eyebrow">Programme proposal · October 2026</div>
+    <h1>Growfit Holiday Football Camps</h1>
+    <p class="lede">Four-day school-holiday football camps for boys and girls aged 6–14, open to every child in the community. The camps are coached by Growfit's police-cleared coaches, run four times a year, and bring in a steady income for the academy. They also set up the Programmes &amp; Camps Coordinator role.</p>
+  </div>
+  <div class="cover-ask">
+    <div class="tile hero"><div class="v">48</div><div class="l">Children per camp, aged 6–14, in age-based groups</div></div>
+    <div class="tile"><div class="v">R850</div><div class="l">Per child for 4 mornings, with 5 free bursary places per camp</div></div>
+    <div class="tile"><div class="v">~R6,600</div><div class="l">Surplus per camp · about R26,000 a year from 4 camps</div></div>
+  </div>
+  <div class="cover-foot">
+    <div><b>Contact</b><br>Buhle Madlala, Founder &amp; Technical Director<br><span class="ph">[email]</span> · <span class="ph">[phone]</span></div>
+    <div><b>Camp</b><br>Dates: <span class="ph">[school holiday dates]</span><br>Venue: <span class="ph">[venue]</span><br>Bookings: <span class="ph">[link / phone]</span></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2><span class="num">1</span>The idea</h2>
+  <p>School holidays are long, and many working parents in Greater Durban struggle to find safe, active things for their children to do. Growfit already has the coaches, equipment, policies and experience to run good football sessions. A <strong>holiday camp</strong> puts these to work during the weeks with no league football. Children have a great week, families get affordable supervised care, and the academy earns income to support its players all year.</p>
+
+  <div class="tiles">
+    <div class="tile hero"><div class="v">4 days</div><div class="l">Monday to Thursday, 08:30–13:00</div></div>
+    <div class="tile"><div class="v">6–14</div><div class="l">Ages, in 4 groups of about 12</div></div>
+    <div class="tile"><div class="v">1 : 12</div><div class="l">Coach-to-child ratio, plus a first aider on site</div></div>
+    <div class="tile"><div class="v">4 / year</div><div class="l">Autumn, winter, spring and summer holidays</div></div>
+  </div>
+
+  <h3>A day at camp</h3>
+  <table class="avoid">
+    <thead><tr><th style="width:18%">Time</th><th>Activity</th></tr></thead>
+    <tbody>
+      <tr><td>08:00–08:30</td><td>Sign-in by a parent or authorised adult. Name tags, water bottles filled.</td></tr>
+      <tr><td>08:30–09:00</td><td>Warm-up games: movement, coordination and fun</td></tr>
+      <tr><td>09:00–10:00</td><td><strong>Skill of the day</strong>, one theme per day: Day 1 dribbling, Day 2 passing, Day 3 shooting, Day 4 defending &amp; goalkeeping</td></tr>
+      <tr><td>10:00–10:30</td><td>Snack and shade break, plus a short talk (fair play, healthy eating, school and sport)</td></tr>
+      <tr><td>10:30–11:30</td><td>Small-sided games that use the skill of the day</td></tr>
+      <tr><td>11:30–12:30</td><td>Camp "World Cup": mixed teams, each named after a country, playing for points all week</td></tr>
+      <tr><td>12:30–13:00</td><td>Cool-down, awards of the day, sign-out to an authorised adult only</td></tr>
+    </tbody>
+  </table>
+  <p><strong>Day 4</strong> ends with a mini-tournament, certificates and a family showcase at 12:15. Every child gets a camp T-shirt and certificate, and awards go to Most Improved, Best Team-mate and Skill Star.</p>
+
+  <h3>Who it's for</h3>
+  <ul>
+    <li><strong>Any child aged 6–14</strong>, beginner or experienced, boys and girls. Children are grouped by age and ability.</li>
+    <li><strong>Growfit players</strong> get a 15% discount and help as junior assistants if they're 14–15 years old.</li>
+    <li><strong>5 bursary places per camp</strong> for children from families who can't pay, offered through local schools and community partners. Sponsors can fund extra places at R850 each.</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h2><span class="num">2</span>Budget (per camp, 48 children)</h2>
+  <div class="two">
+    <div>
+      <h3>Costs</h3>
+      <table>
+        <thead><tr><th>Item</th><th class="n">ZAR</th></tr></thead>
+        <tbody>
+          <tr><td>Coaches (4 × R400/day × 4 days)</td><td class="n">6,400</td></tr>
+          <tr><td>Snacks &amp; water (48 × R25 × 4 days)</td><td class="n">4,800</td></tr>
+          <tr><td>Camp T-shirts (48 × R90)</td><td class="n">4,300</td></tr>
+          <tr><td>Venue (4 mornings)</td><td class="n">4,000</td></tr>
+          <tr><td>First aider (R500/day × 4)</td><td class="n">2,000</td></tr>
+          <tr><td>Camps Coordinator stipend</td><td class="n">1,500</td></tr>
+          <tr><td>Equipment &amp; consumables</td><td class="n">1,000</td></tr>
+          <tr><td>Insurance (event cover)</td><td class="n">800</td></tr>
+          <tr><td>Marketing (flyers, boosted posts)</td><td class="n">800</td></tr>
+          <tr><td>Certificates &amp; awards</td><td class="n">300</td></tr>
+          <tr><td>Contingency (10%)</td><td class="n">2,600</td></tr>
+          <tr class="total"><td>Total costs</td><td class="n">R28,500</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h3>Income</h3>
+      <table>
+        <thead><tr><th>Source</th><th class="n">ZAR</th></tr></thead>
+        <tbody>
+          <tr><td>43 paying places × R850</td><td class="n">36,550</td></tr>
+          <tr><td>Less sibling &amp; Growfit-player discounts</td><td class="n">(1,500)</td></tr>
+          <tr><td>5 bursary places</td><td class="n">0</td></tr>
+          <tr class="total"><td>Net income</td><td class="n">R35,050</td></tr>
+        </tbody>
+      </table>
+      <div class="callout"><p><strong>Surplus per camp: about R6,600.</strong> Four camps a year bring in about <strong>R26,000</strong> for the academy's player-support fund, equipment and transport.</p></div>
+      <h3>Break-even and decision point</h3>
+      <ul>
+        <li>The camp breaks even at about <strong>32 paying children</strong>.</li>
+        <li>Two weeks before the camp, if fewer than 28 children are booked, the camp is shortened to 3 days or cancelled with full refunds.</li>
+        <li>A sponsor covering T-shirts (R4,300) raises the surplus to about R10,900.</li>
+      </ul>
+      <p class="small">Planning estimates. Confirm the venue, T-shirt and insurance quotes before the first camp.</p>
+    </div>
+  </div>
+
+</div>
+
+<div class="section">
+  <h2><span class="num">3</span>The Programmes &amp; Camps Coordinator</h2>
+  <p>This is one of Growfit's three open seats. The camps give the role a clear purpose and a stipend, which makes it easier to recruit for.</p>
+  <table class="avoid">
+    <thead><tr><th style="width:26%">Area</th><th>Responsibilities</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Planning</strong></td><td>Set camp dates around the KZN school calendar. Book the venue, first aider and insurance. Order T-shirts and snacks.</td></tr>
+      <tr><td><strong>Bookings &amp; money</strong></td><td>Run bookings and payments by EFT or SnapScan, keep the register, issue invoices and refunds, and manage bursary places with schools.</td></tr>
+      <tr><td><strong>On the day</strong></td><td>Run sign-in and sign-out, keep the register, handle parent contact and support the head coach.</td></tr>
+      <tr><td><strong>Reporting</strong></td><td>Within two weeks after each camp: attendance, finances, feedback survey and incidents.</td></tr>
+      <tr><td><strong>Requirements</strong></td><td>Organised, good with parents, police/CPR Part B clearance, available in the holidays. Stipend: R1,500 per camp.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h2><span class="num">4</span>Safety &amp; safeguarding</h2>
+  <p>Camp children are not all Growfit members, so every camp has its own registration, consent and collection rules.</p>
+  <table>
+    <thead><tr><th style="width:26%">Area</th><th>How it is handled</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Registration &amp; consent</strong></td><td>Every child has a completed registration form before Day 1: parent consent, medical information, allergies, emergency contacts, authorised collectors and photo consent.</td></tr>
+      <tr><td><strong>Collection</strong></td><td>Children are signed out only to adults named on the form, and ID is checked if the coach doesn't know the person. There is a clear process if no one collects a child.</td></tr>
+      <tr><td><strong>Staff</strong></td><td>All coaches and helpers hold police/CPR Part B clearance. Junior assistants (14–15) are always supervised and never alone with younger children. Ratio: one coach to at most 12 children.</td></tr>
+      <tr><td><strong>Medical</strong></td><td>First aider on site all day. Allergy list held by each group coach. Heat plan with shade, water breaks and lighter sessions in hot weather. Concussion rule: "if in doubt, sit them out".</td></tr>
+      <tr><td><strong>Safeguarding</strong></td><td>A named safeguarding lead at every camp. Toilets are visited in pairs or with a same-gender adult nearby. Concerns are reported under Growfit's Child Protection &amp; Safeguarding Policy.</td></tr>
+      <tr><td><strong>Photos (POPIA)</strong></td><td>Only children with photo consent appear in photos, and never with full names. Camp registration data is kept securely and deleted 12 months after the camp unless the family joins the academy.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:6mm"><span class="num">5</span>Timeline for each camp</h2>
+  <table class="avoid">
+    <thead><tr><th style="width:22%">When</th><th>Task</th></tr></thead>
+    <tbody>
+      <tr><td>8 weeks before</td><td>Dates set, venue and first aider booked, flyer designed, bursary places offered to schools</td></tr>
+      <tr><td>6 weeks before</td><td>Bookings open: WhatsApp broadcast, school newsletters, social media, posters at local shops</td></tr>
+      <tr><td>2 weeks before</td><td><strong>Decision point</strong> (28+ bookings). T-shirts and snacks ordered. Coach plan finalised</td></tr>
+      <tr><td>3 days before</td><td>Welcome message to parents: times, what to bring, collection rules</td></tr>
+      <tr><td>After the camp</td><td>Thank-you message, feedback survey, finances and attendance report, invitation to join Growfit trials</td></tr>
+    </tbody>
+  </table>
+  <div class="callout"><p><strong>Bonus for the academy:</strong> camps are the best recruitment channel there is. Children who enjoy camp, and their parents, are invited to Growfit trials and become future players, volunteers and supporters.</p></div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Template C1 · Parent flyer &amp; WhatsApp message</span>
+  <div class="msg"><strong>⚽ GROWFIT HOLIDAY FOOTBALL CAMP ⚽</strong><br>
+  📅 <span class="ph">[dates]</span> · Mon–Thu · 08:30–13:00<br>
+  📍 <span class="ph">[venue]</span><br>
+  👧👦 Boys &amp; girls aged 6–14 · beginners welcome<br><br>
+  ✅ Qualified, police-cleared coaches · first aider on site<br>
+  ✅ A new skill every day, games and a mini World Cup<br>
+  ✅ Camp T-shirt, daily snack and certificate<br><br>
+  💰 <strong>R850 per child</strong> · 10% off for siblings · 15% off for Growfit players<br>
+  🎟️ Limited to 48 places. Book at <span class="ph">[link]</span> or WhatsApp <span class="ph">[number]</span><br><br>
+  <em>Growfit Sports Academy NPC: developing young players, safely.</em></div>
+
+  <span class="tpl-label" style="margin-top:7mm">Template C2 · Welcome message (3 days before)</span>
+  <div class="msg">Hi <span class="ph">[parent name]</span>! We can't wait to see <span class="ph">[child first name]</span> at Growfit Camp on <span class="ph">[date]</span> 🎉<br>
+  ⏰ Sign-in from 08:00 · sessions 08:30–13:00<br>
+  🎒 Bring: water bottle, takkies or boots, shin pads, sunscreen, hat<br>
+  🚸 Only adults named on the form may collect. Please bring ID if we haven't met you.<br>
+  Questions? <span class="ph">[number]</span>. See you soon! ⚽</div>
+
+  <span class="tpl-label" style="margin-top:7mm">Template C3 · Bursary invitation to schools</span>
+  <div class="msg">Dear <span class="ph">[Principal / LO teacher]</span>, Growfit Sports Academy is running a holiday football camp on <span class="ph">[dates]</span> at <span class="ph">[venue]</span> for children aged 6–14. We have <strong>free places</strong> for learners who would love to take part but whose families can't afford the fee. Could you nominate up to <span class="ph">[2]</span> learners by <span class="ph">[date]</span>? We'll contact the families directly, and all details will be kept confidential. Thank you! <span class="ph">[Name, phone]</span></div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Form C4 · Camp registration &amp; consent</span>
+  <p class="howto">One form per child, completed before Day 1. The information is confidential and used only for this camp.</p>
+  <div class="form-row"><span>Child's full name</span><span></span></div>
+  <div class="form-row"><span>Date of birth · age</span><span></span></div>
+  <div class="form-row"><span>School &amp; grade</span><span></span></div>
+  <div class="form-row"><span>Football experience</span><span><span class="check"></span>None &nbsp;&nbsp;<span class="check"></span>Some &nbsp;&nbsp;<span class="check"></span>Plays for a club: ________</span></div>
+  <div class="form-row"><span>Parent / guardian name</span><span></span></div>
+  <div class="form-row"><span>Phone · email</span><span></span></div>
+  <div class="form-row"><span>Emergency contact (not parent)</span><span></span></div>
+  <div class="form-row"><span>Medical conditions / medication</span><span></span></div>
+  <div class="form-row"><span>Allergies</span><span></span></div>
+  <div class="form-row"><span>Medical aid (if any)</span><span></span></div>
+  <div class="form-row"><span>Adults allowed to collect</span><span>1. ______________ &nbsp; 2. ______________ &nbsp; 3. ______________</span></div>
+  <div class="form-row"><span>T-shirt size</span><span><span class="check"></span>7–8 &nbsp;<span class="check"></span>9–10 &nbsp;<span class="check"></span>11–12 &nbsp;<span class="check"></span>13–14 &nbsp;<span class="check"></span>Adult S</span></div>
+  <h3>Consent</h3>
+  <p><span class="check"></span>I consent to my child taking part in the Growfit Holiday Camp and understand that football involves physical activity and some risk of injury.</p>
+  <p><span class="check"></span>In an emergency, I consent to first aid and to my child being taken for medical treatment if I can't be reached.</p>
+  <p><span class="check"></span>Photos: <span class="check"></span>Yes, my child may appear in camp photos shared by Growfit (no full names) &nbsp; <span class="check"></span>No photos of my child, please.</p>
+  <p><span class="check"></span>I agree that Growfit Sports Academy NPC may keep this information to run the camp, and that it will be deleted within 12 months unless my child joins the academy (POPIA).</p>
+  <p>Payment: R850 by EFT to <span class="ph">[bank details]</span>, reference <span class="ph">CAMP + child surname</span>. <span class="check"></span>Bursary place (office use)</p>
+  <div class="sig"><div>Parent / guardian signature<br><br>______________________<br>Date: ____ / ____ / ______</div><div>Office use<br><br>Paid: <span class="check"></span> · Group: ______<br>Received by: ______________</div></div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Growfit Community Fundraising Playbook</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4; margin: 18mm 17mm 20mm 17mm; }
+  :root {
+    --red: #AF2D35; --red-dark: #6B1B1F; --red-tint: #F7EAEB;
+    --ink: #16181D; --ink-2: #474C55; --ink-3: #7A808A;
+    --rule: #DADDE2; --panel: #F5F6F8;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: #fff; }
+  body { font-family: Inter, "Liberation Sans", Arial, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.5; margin: 0; }
+  h1, h2, h3 { line-height: 1.2; margin: 0; }
+  h2 { font-size: 17pt; font-weight: 800; color: var(--ink); margin: 0 0 4mm; padding-top: 1mm; }
+  h2 .num { color: var(--red); margin-right: 6px; }
+  h3 { font-size: 11pt; font-weight: 700; margin: 5mm 0 2mm; }
+  p { margin: 0 0 2.6mm; }
+  ul { margin: 0 0 3mm; padding-left: 5mm; }
+  li { margin-bottom: 1.2mm; }
+  .section { break-before: page; }
+  .avoid { break-inside: avoid; }
+  .muted { color: var(--ink-2); }
+  .small { font-size: 8.5pt; color: var(--ink-3); }
+  strong { font-weight: 700; }
+
+  /* cover */
+  .cover { height: 257mm; display: flex; flex-direction: column; }
+  .cover-top { display: flex; align-items: center; gap: 6mm; }
+  .cover-top img { width: 26mm; height: 26mm; }
+  .cover-org { font-weight: 700; font-size: 11pt; }
+  .cover-org span { display: block; font-weight: 400; color: var(--ink-2); font-size: 9.5pt; }
+  .cover-band { margin-top: 30mm; border-left: 3mm solid var(--red); padding-left: 7mm; }
+  .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: 8.5pt; font-weight: 700; color: var(--red); }
+  .cover h1 { font-size: 30pt; font-weight: 800; margin: 3mm 0 4mm; letter-spacing: -.01em; }
+  .cover .lede { font-size: 12pt; color: var(--ink-2); max-width: 150mm; }
+  .cover-ask { margin-top: 18mm; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+  .cover-foot { margin-top: auto; border-top: 1px solid var(--rule); padding-top: 4mm; display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; font-size: 9pt; color: var(--ink-2); }
+  .cover-foot b { color: var(--ink); }
+
+  /* tiles */
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 4mm 0 5mm; }
+  .tile { background: var(--panel); border-radius: 3mm; padding: 3.5mm 4mm; }
+  .tile .v { font-size: 16pt; font-weight: 800; color: var(--ink); line-height: 1.1; }
+  .tile .l { font-size: 8.3pt; color: var(--ink-2); margin-top: 1.2mm; line-height: 1.35; }
+  .tile.hero { background: var(--red); }
+  .tile.hero .v, .tile.hero .l { color: #fff; }
+
+  /* tables */
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 9pt; }
+  th { text-align: left; font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); border-bottom: 1.5px solid var(--ink); padding: 2mm 2mm; }
+  td { border-bottom: 1px solid var(--rule); padding: 2mm 2mm; vertical-align: top; }
+  td.n, th.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tr.sub td { background: var(--panel); font-weight: 600; }
+  tr.total td { border-top: 1.5px solid var(--ink); border-bottom: none; font-weight: 800; font-size: 10pt; }
+  tr.total td.n { color: var(--red); }
+
+  .callout { background: var(--red-tint); border-left: 1.2mm solid var(--red); padding: 3.5mm 4.5mm; border-radius: 0 2mm 2mm 0; margin: 3mm 0 4mm; }
+  .callout p:last-child { margin: 0; }
+  .note { background: var(--panel); padding: 3mm 4mm; border-radius: 2mm; font-size: 8.8pt; color: var(--ink-2); margin: 3mm 0; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+  .card { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; }
+  .card h3 { margin-top: 0; }
+
+  /* weekly cycle */
+  .cycle { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2mm; margin: 3mm 0 4mm; }
+  .step { border-top: 1.2mm solid var(--red); background: var(--panel); padding: 2.5mm 3mm; border-radius: 0 0 2mm 2mm; font-size: 8.5pt; }
+  .step b { display: block; font-size: 9pt; margin-bottom: .8mm; }
+  .step .d { color: var(--red); font-weight: 700; font-size: 7.8pt; text-transform: uppercase; letter-spacing: .06em; }
+
+  /* bar figure */
+  .fig { margin: 3mm 0 2mm; }
+  .bar-row { display: grid; grid-template-columns: 30mm 1fr 22mm; align-items: center; gap: 3mm; margin: 2.2mm 0; font-size: 9pt; }
+  .bar-track { position: relative; height: 7mm; }
+  .bar { height: 100%; background: var(--red); border-radius: 0 1.2mm 1.2mm 0; }
+  .ref { position: absolute; top: -2mm; bottom: -2mm; border-left: 1.5px dashed var(--ink); }
+  .ref-label { font-size: 7.8pt; color: var(--ink-2); position: absolute; top: -6mm; transform: translateX(-50%); white-space: nowrap; }
+  .fig-cap { font-size: 8.3pt; color: var(--ink-3); margin-top: 1mm; }
+
+  .compact table { font-size: 8.3pt; margin: 1.5mm 0 2.5mm; }
+  .compact td { padding: 1.3mm 2mm; }
+  .compact h3 { margin: 2.5mm 0 1mm; }
+  .compact li { margin-bottom: .6mm; font-size: 9pt; }
+  .compact .callout { margin: 2mm 0; padding: 2.5mm 4mm; }
+  .sig { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 10mm; }
+  .sig div { border-top: 1px solid var(--ink); padding-top: 2mm; font-size: 9pt; color: var(--ink-2); }
+  .src { font-size: 8pt; color: var(--ink-2); word-break: break-all; }
+  .src li { margin-bottom: .8mm; }
+  .tag { display: inline-block; border-radius: 1mm !important; font-size: 7.5pt; font-weight: 700; padding: .3mm 1.8mm; border-radius: 10mm; background: var(--panel); color: var(--ink-2); text-transform: uppercase; letter-spacing: .05em; }
+  .tag.r { background: var(--red-tint); color: var(--red-dark); }
+
+  .ph { background: #F7EAEB; color: #6B1B1F; padding: 0 1.2mm; border-radius: 1mm; font-weight: 600; }
+  .tpl-label { display:inline-block; font-size: 8pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #fff; background: var(--ink); padding: .8mm 2.5mm; border-radius: 1mm; margin-bottom: 3mm; }
+  .letter { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 7mm 8mm; font-size: 9.6pt; }
+  .letter p { margin-bottom: 2.8mm; }
+  .letter .lh { display:flex; justify-content: space-between; align-items:flex-start; border-bottom: 1.5px solid var(--red); padding-bottom: 3mm; margin-bottom: 5mm; }
+  .letter .lh img { width: 15mm; height: 15mm; }
+  .letter .lh .org { text-align:right; font-size: 8.3pt; color: var(--ink-2); line-height: 1.4; }
+  .letter .lh .org b { color: var(--ink); font-size: 9.5pt; }
+  .msg { background: var(--panel); border-radius: 3mm; padding: 4mm 5mm; font-size: 9.6pt; white-space: normal; }
+  .howto { font-size: 8.8pt; color: var(--ink-2); margin: 0 0 3mm; }
+  .form-row { display:grid; grid-template-columns: 45mm 1fr; border-bottom: 1px solid var(--rule); padding: 2.6mm 0; font-size: 9.3pt; }
+  .form-row span:last-child { border-bottom: 1px dotted var(--ink-3); }
+  .check { display:inline-block; width:3.2mm; height:3.2mm; border:1px solid var(--ink); margin-right:1.5mm; vertical-align:-0.4mm; }
+  .tier { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; break-inside: avoid; }
+  .tier .price { color: var(--red); font-weight: 800; font-size: 13pt; }
+  .tier h3 { margin: 0 0 1mm; }
+  .tiers { display:grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; }
+  .tiers ul { margin-bottom: 0; }
+  .toc { columns: 2; font-size: 9.5pt; }
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="cover-top">
+    <img src="../../../growfit.png" alt="Growfit Football Academy crest">
+    <div class="cover-org">Growfit Sports Academy NPC<span>Grassroots football · U11 · U13 · U15 · Greater Durban, KwaZulu-Natal</span></div>
+  </div>
+  <div class="cover-band">
+    <div class="eyebrow">Fundraising playbook · October 2026</div>
+    <h1>Community Fundraising Playbook</h1>
+    <p class="lede">Six fundraising ideas that parents, players and the community can run together. Each one has a step-by-step plan, a budget, the rules to follow and ready-to-use templates.</p>
+  </div>
+  <div class="cover-ask">
+    <div class="tile hero"><div class="v">~R80,000</div><div class="l">Potential net income a year if all six run</div></div>
+    <div class="tile"><div class="v">~R30,000</div><div class="l">Equipment value from the boot drive and kit swap</div></div>
+    <div class="tile"><div class="v">6</div><div class="l">Ideas, each with templates</div></div>
+  </div>
+  <div class="cover-foot">
+    <div><b>Owner</b><br>Khaya Madlala, Fundraising &amp; Registration<br>Supported by a parents' fundraising committee <span class="ph">[names]</span></div>
+    <div><b>Related packs</b><br>Holiday Camps proposal · Sponsorship pack<br>Donations &amp; Grants pack · Youth Cup proposal</div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>The six ideas at a glance</h2>
+  <table>
+    <thead><tr><th style="width:4%">#</th><th>Idea</th><th>When</th><th>Effort</th><th class="n">Net income (est.)</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><strong>Parents' business directory</strong>: paid listings for parents' and supporters' businesses</td><td>Start of season</td><td>Low</td><td class="n">R11,300 / year</td></tr>
+      <tr><td>2</td><td><strong>Corporate 5-a-side challenge</strong> (or family fun run)</td><td>Once a year</td><td>Medium</td><td class="n">R19,400 (fun run R12,600)</td></tr>
+      <tr><td>3</td><td><strong>"Buy a brick" equipment wall</strong>: donors buy named bricks that each fund an item</td><td>Any time; 8-week campaign</td><td>Low</td><td class="n">R24,700</td></tr>
+      <tr><td>4</td><td><strong>Quiz night or braai day</strong></td><td>Once or twice a year</td><td>Medium</td><td class="n">R10,500–R12,700 each</td></tr>
+      <tr><td>5</td><td><strong>Kit swap</strong>: families pass on outgrown kit and boots</td><td>End and start of season</td><td>Low</td><td class="n">~R1,000 + family savings</td></tr>
+      <tr><td>6</td><td><strong>Old-boots drive</strong>: collect used boots for a lending "boot bank"</td><td>Any time; 6-week drive</td><td>Low</td><td class="n">~R30,000 in kind</td></tr>
+    </tbody>
+  </table>
+  <p class="small">All figures are planning estimates and will be updated after the first run of each idea. Together with the holiday camps (about R26,000 a year, separate proposal), community fundraising could raise about <strong>R100,000 a year</strong> without relying on a single large sponsor.</p>
+
+  <h3>Rules for every idea</h3>
+  <ul>
+    <li><strong>Money goes straight into the academy account</strong> (EFT / SnapScan). Any cash is counted by two people, signed for, and deposited within 2 working days.</li>
+    <li><strong>Children's photos</strong> only with media consent, and never with full names.</li>
+    <li><strong>Donor and participant details</strong> (POPIA) are used only for the event and receipts, and never shared or sold.</li>
+    <li><strong>No raffles or lucky draws</strong> without first checking the Lotteries Act rules with the National Lotteries Commission. Auctions of donated items and ticketed events are fine.</li>
+    <li><strong>No alcohol sales</strong> by Growfit. Events are alcohol-free, or the venue's own licensed bar is responsible.</li>
+    <li>Each event gets a <strong>short report</strong> afterwards: income, costs, net, lessons, thank-yous.</li>
+  </ul>
+</div>
+
+<!-- 1 DIRECTORY -->
+<div class="section">
+  <h2><span class="num">1</span>Parents' business directory</h2>
+  <p>Many Growfit parents and supporters run businesses: plumbers, hair salons, caterers, taxi owners, accountants, spaza shops. A <strong>Growfit Business Directory</strong> lists them for the whole Growfit community, with a printed copy handed out at matches and a digital version shared as a link or PDF. Listing fees support the academy, and families support each other's businesses.</p>
+  <div class="two">
+    <div>
+      <h3>How it works</h3>
+      <ol>
+        <li>Announce at the parent meeting and on WhatsApp. Collect listing forms (P1) over 3 weeks.</li>
+        <li>A volunteer designs the directory: one line per standard listing, a box with logo per featured listing.</li>
+        <li>Print 200 copies. Share the PDF link with all parents, players' families and partner clubs.</li>
+        <li>Update every 6 months, with listings running 12 months.</li>
+      </ol>
+    </div>
+    <div>
+      <h3>Numbers</h3>
+      <table>
+        <tbody>
+          <tr><td>Standard listing: 30 × R300 / year</td><td class="n">9,000</td></tr>
+          <tr><td>Featured listing (logo): 5 × R750 / year</td><td class="n">3,750</td></tr>
+          <tr><td>Printing 200 copies</td><td class="n">(1,500)</td></tr>
+          <tr class="total"><td>Net per year</td><td class="n">R11,250</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="note"><strong>Rules:</strong> listings must be legal and suitable for a children's organisation (no alcohol, betting or tobacco). Growfit doesn't endorse or guarantee any business, and the directory says so. Businesses consent to their details being published.</div>
+
+  <span class="tpl-label" style="margin-top:4mm">Template P1 · Directory listing form</span>
+  <div class="form-row"><span>Business name</span><span></span></div>
+  <div class="form-row"><span>Category</span><span><span class="check"></span>Trades &nbsp;<span class="check"></span>Food &amp; catering &nbsp;<span class="check"></span>Beauty &nbsp;<span class="check"></span>Transport &nbsp;<span class="check"></span>Professional &nbsp;<span class="check"></span>Retail &nbsp;<span class="check"></span>Other</span></div>
+  <div class="form-row"><span>One-line description (max 15 words)</span><span></span></div>
+  <div class="form-row"><span>Phone · WhatsApp · email</span><span></span></div>
+  <div class="form-row"><span>Area / address (optional)</span><span></span></div>
+  <div class="form-row"><span>Listing type</span><span><span class="check"></span>Standard R300 &nbsp;&nbsp;<span class="check"></span>Featured with logo R750</span></div>
+  <div class="form-row"><span>Connection to Growfit</span><span><span class="check"></span>Parent &nbsp;<span class="check"></span>Family &nbsp;<span class="check"></span>Supporter &nbsp;<span class="check"></span>Sponsor</span></div>
+  <p style="margin-top:3mm"><span class="check"></span>I consent to these business details being published in the Growfit Business Directory (print and digital). Payment by EFT, reference <span class="ph">DIR + business name</span>.</p>
+</div>
+
+<!-- 2 5-A-SIDE / FUN RUN -->
+<div class="section">
+  <h2><span class="num">2</span>Corporate 5-a-side challenge (or family fun run)</h2>
+  <p>A Saturday-afternoon <strong>5-a-side tournament for company teams</strong> at an indoor arena or on a school field. Businesses pay to enter a team of staff, compete for the "Growfit Corporate Cup", and support youth football at the same time. It's a team-building day for them and a fundraiser for us. Growfit coaches referee or manage, and older players help run the event.</p>
+  <div class="two">
+    <div>
+      <h3>How it works</h3>
+      <ol>
+        <li>Book the venue 10 weeks before and secure an event sponsor.</li>
+        <li>Invite 25–30 companies (P2): parents' employers, suppliers, sponsors, local businesses.</li>
+        <li>12 teams of up to 8 staff. Mixed teams encouraged. 4 groups of 3, then semi-finals and a final (15 matches).</li>
+        <li>Food and drinks for players included. Trophies for the winners and the "Best Dressed Team".</li>
+      </ol>
+    </div>
+    <div>
+      <h3>Numbers (12 teams)</h3>
+      <table>
+        <tbody>
+          <tr><td>Team entries: 12 × R2,500</td><td class="n">30,000</td></tr>
+          <tr><td>Event sponsor</td><td class="n">5,000</td></tr>
+          <tr><td>Venue (4 hours)</td><td class="n">(4,000)</td></tr>
+          <tr><td>Referees: 15 × R150</td><td class="n">(2,250)</td></tr>
+          <tr><td>Food &amp; drinks for players</td><td class="n">(5,000)</td></tr>
+          <tr><td>Trophies &amp; medals</td><td class="n">(1,500)</td></tr>
+          <tr><td>First aid</td><td class="n">(1,000)</td></tr>
+          <tr><td>Banners &amp; printing</td><td class="n">(500)</td></tr>
+          <tr><td>Contingency (10%)</td><td class="n">(1,400)</td></tr>
+          <tr class="total"><td>Net</td><td class="n">R19,350</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <h3>Alternative: Growfit Family Fun Run / Walk (5 km)</h3>
+  <p>A 5 km run or walk on a <strong>closed route in a park, school or estate</strong>, not on public roads. Public roads need municipal and Metro Police permits and full event-safety planning. Entry is R100 per adult and free for children under 10. <strong>Numbers:</strong> 200 entries R20,000 + sponsor R5,000, less medals R5,000, water R2,000, first aid R1,500, venue and permissions R2,000, signs and bibs R800 and contingency R1,100 = <strong>net about R12,600</strong>.</p>
+
+  <span class="tpl-label">Template P2 · Corporate team invitation (email)</span>
+  <div class="msg"><strong>Subject:</strong> Enter a team in the Growfit Corporate Cup: 5-a-side for youth football<br><br>
+  Hi <span class="ph">[Name]</span>,<br><br>
+  Growfit Sports Academy, a non-profit youth football academy in Greater Durban, is hosting the <strong>Growfit Corporate Cup</strong> on <span class="ph">[date]</span> at <span class="ph">[venue]</span>: an afternoon of 5-a-side for company teams.<br><br>
+  🏆 Up to 8 staff per team, 3+ matches, food &amp; drinks included. A great team-building afternoon, and every entry funds kit, equipment and transport for our young players. 📄 Entry R2,500 per team (B-BBEE SED letter on request). Only 12 places, so reply by <span class="ph">[date]</span>!<br><br>
+  <span class="ph">[Name]</span> · Growfit Sports Academy NPC · <span class="ph">[phone]</span></div>
+</div>
+
+<!-- 3 BUY A BRICK -->
+<div class="section">
+  <h2><span class="num">3</span>"Buy a brick" equipment wall</h2>
+  <p>A visual campaign: a printed <strong>wall of 90 bricks</strong> (on a banner at home matches, and online as an image updated weekly). Each brick funds a real piece of equipment. When someone buys a brick, it is coloured in with their name, or "Anonymous" if they prefer. People love watching the wall fill up, and the target is easy to understand.</p>
+  <div class="two">
+    <div>
+      <h3>Brick prices</h3>
+      <table>
+        <thead><tr><th>Brick</th><th>Funds</th><th class="n">Target</th></tr></thead>
+        <tbody>
+          <tr><td>R100 · White</td><td>A set of training cones</td><td class="n">40</td></tr>
+          <tr><td>R250 · Red</td><td>A match ball</td><td class="n">30</td></tr>
+          <tr><td>R500 · Black</td><td>A set of bibs and a pump</td><td class="n">15</td></tr>
+          <tr><td>R1,000 · Silver</td><td>A goalkeeper kit (gloves, top)</td><td class="n">4</td></tr>
+          <tr><td>R2,500 · Gold</td><td>Part of a portable goal</td><td class="n">1</td></tr>
+          <tr class="total"><td colspan="2">Wall total (90 bricks), less R800 banner</td><td class="n">R24,700</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h3>How it works</h3>
+      <ol>
+        <li>Print the wall banner (R800) and make a shareable image.</li>
+        <li>Launch at a home match with the first bricks bought by coaches and parents. A full row early creates momentum.</li>
+        <li>Post the wall every Friday ("23 bricks to go!"). Share in family, church and work groups.</li>
+        <li>Run for 8 weeks. Celebrate when the wall is full, then show a photo of the equipment bought.</li>
+      </ol>
+      <p class="small">Names appear on the wall only with the donor's consent. Children's names are never used.</p>
+    </div>
+  </div>
+  <span class="tpl-label">Template P3 · Brick order slip &amp; social post</span>
+  <div class="form-row"><span>Name to show on the brick</span><span><span class="check"></span>As written: ______________ &nbsp;<span class="check"></span>"Anonymous"</span></div>
+  <div class="form-row"><span>Brick</span><span><span class="check"></span>R100 &nbsp;<span class="check"></span>R250 &nbsp;<span class="check"></span>R500 &nbsp;<span class="check"></span>R1,000 &nbsp;<span class="check"></span>R2,500 &nbsp;&nbsp; Qty: ____</span></div>
+  <div class="form-row"><span>Phone / email (for receipt)</span><span></span></div>
+  <p style="margin-top:2mm">EFT to <span class="ph">[bank details]</span>, reference <span class="ph">BRICK + surname</span>.</p>
+  <div class="msg">🧱 <strong>Help us build the Growfit wall!</strong> Every brick buys real equipment for our young players: R100 = cones · R250 = a match ball · R500 = bibs &amp; pump. <strong><span class="ph">[X]</span> of 90 bricks done!</strong> 👉 <span class="ph">[link]</span> #GrowfitFA</div>
+</div>
+
+<!-- 4 QUIZ / BRAAI -->
+<div class="section">
+  <h2><span class="num">4</span>Quiz night or braai day</h2>
+  <div class="two">
+    <div class="card">
+      <h3>Growfit Quiz Night</h3>
+      <p>Teams of up to 8 at R100 per person. Six rounds of 10 questions (sport, music, general knowledge, Durban, a picture round and a "Growfit" round), led by a volunteer quizmaster. Food is sold separately, and local businesses donate prizes.</p>
+      <table>
+        <tbody>
+          <tr><td>15 tables × 8 × R100</td><td class="n">12,000</td></tr>
+          <tr><td>Food sales profit</td><td class="n">2,500</td></tr>
+          <tr><td>Venue (school or church hall)</td><td class="n">(1,500)</td></tr>
+          <tr><td>Printing &amp; answer sheets</td><td class="n">(300)</td></tr>
+          <tr class="total"><td>Net</td><td class="n">R12,700</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Growfit Family Braai Day</h3>
+      <p>Held after a home match or on a Saturday. Ticket R150 for a plate (meat, pap, chakalaka, salad) and a cooldrink. Music and a parents-vs-players match. Ask a butcher to supply the meat at cost or donate it.</p>
+      <table>
+        <tbody>
+          <tr><td>150 tickets × R150</td><td class="n">22,500</td></tr>
+          <tr><td>Food cost (R70 per plate)</td><td class="n">(10,500)</td></tr>
+          <tr><td>Venue</td><td class="n">(1,000)</td></tr>
+          <tr><td>Wood, gas &amp; consumables</td><td class="n">(500)</td></tr>
+          <tr class="total"><td>Net</td><td class="n">R10,500</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <h3>Make it work</h3>
+  <ul>
+    <li><strong>Sell tickets in advance</strong> (EFT), so food is ordered for a known number and nothing is wasted. Close sales 5 days before.</li>
+    <li><strong>Extra income without a raffle:</strong> an auction of donated items (a signed shirt, a restaurant voucher, a free car wash) and a "heads or tails" game for a donated prize.</li>
+    <li><strong>Food safety:</strong> volunteers handling food wear gloves, meat is kept cold until cooking, and there are hand-wash points.</li>
+    <li><strong>Alcohol:</strong> Growfit doesn't sell alcohol. Choose an alcohol-free event, or a venue with its own licensed bar that is responsible for it.</li>
+  </ul>
+  <span class="tpl-label">Template P4 · Event flyer / WhatsApp</span>
+  <div class="msg">🔥 <strong>GROWFIT FAMILY BRAAI DAY</strong> 🔥 / 🧠 <strong>GROWFIT QUIZ NIGHT</strong> 🧠<br>
+  📅 <span class="ph">[date, time]</span> · 📍 <span class="ph">[venue]</span><br>
+  🎟️ <span class="ph">[R150 per plate / R100 per person, tables of 8]</span>, tickets in advance only<br>
+  🎉 <span class="ph">[Parents vs players match · music / 6 rounds · prizes · food on sale]</span><br>
+  Every ticket supports our U11, U13 &amp; U15 players ⚽ Book by <span class="ph">[date]</span>: <span class="ph">[number / link]</span></div>
+</div>
+
+<!-- 5 KIT SWAP + 6 BOOTS -->
+<div class="section">
+  <h2><span class="num">5</span>Kit swap</h2>
+  <p>Children outgrow boots, shin pads, tracksuits and training kit every season. A <strong>Growfit Swap Shop</strong> at the end of the season and again at pre-season lets families pass on what no longer fits and pick up what does. It saves families money and keeps good kit in use. Income is small. The real value is savings for families and a stronger community.</p>
+  <div class="two">
+    <div>
+      <h3>How it works</h3>
+      <ol>
+        <li>Announce 3 weeks ahead. Families bring <strong>clean</strong> items in good condition.</li>
+        <li>Every item brought earns a token, and each token can be swapped for any item.</li>
+        <li>Families who have nothing to swap can take items for a <strong>R20 donation</strong> per item, or for free on request, no questions asked.</li>
+        <li>Items left over go to the boot bank (idea 6) or a partner club or school.</li>
+      </ol>
+    </div>
+    <div>
+      <h3>Rules</h3>
+      <ul>
+        <li>Items must be clean, washed and safe (no broken studs or torn shin-pad straps).</li>
+        <li>No used socks or underwear. New ones only.</li>
+        <li>Sort by size on labelled tables: kids' sizes and adult S–M.</li>
+        <li>Two volunteers run the table and handle any cash.</li>
+      </ul>
+    </div>
+  </div>
+  <span class="tpl-label">Template P5 · Swap Shop notice</span>
+  <div class="msg">👟 <strong>GROWFIT SWAP SHOP</strong> 👕 <span class="ph">[date]</span> after training at <span class="ph">[venue]</span>. Outgrown boots, shin pads, tracksuits or training kit? Bring them <strong>clean</strong> and swap for the next size up! No items to swap? Take what you need for a R20 donation, or ask us quietly. Leftovers go to our boot bank. ♻️⚽</div>
+
+</div>
+
+<div class="section">
+  <h2><span class="num">6</span>Old-boots drive &amp; boot bank</h2>
+  <p>Good boots are expensive, and some children train in takkies or borrowed pairs. A 6-week <strong>Old Boots Drive</strong> collects used boots from the wider community (gyms, schools, offices, churches, sports shops), and they go into a <strong>Growfit Boot Bank</strong>. Players borrow a pair that fits for the season and return it when they outgrow it.</p>
+  <div class="two">
+    <div>
+      <h3>How it works</h3>
+      <ol>
+        <li>Place labelled collection boxes at 4–6 partner sites (P6 request). Collect weekly.</li>
+        <li>Clean, check and sort by size. Repair or discard unsafe pairs.</li>
+        <li>Record each pair in a simple boot-bank list (size, condition, who has it).</li>
+        <li>Lend for free to players who need them. Coaches refer quietly, and no one is singled out.</li>
+        <li>Share surplus pairs with partner clubs and schools.</li>
+      </ol>
+    </div>
+    <div>
+      <h3>Target &amp; value</h3>
+      <div class="tile"><div class="v">100 pairs</div><div class="l">Target over 6 weeks</div></div>
+      <div class="tile" style="margin-top:3mm"><div class="v">~R30,000</div><div class="l">Estimated value at ~R300 per used pair</div></div>
+      <p class="small" style="margin-top:2mm">A sports shop partner may also offer discounted new boots or donate end-of-range stock. Ask with Template S8 (Sponsorship pack).</p>
+    </div>
+  </div>
+  <span class="tpl-label">Template P6 · Drop-off point request &amp; box poster</span>
+  <div class="msg">Hi <span class="ph">[Name]</span>, Growfit Sports Academy, a non-profit youth football academy in <span class="ph">[area]</span>, is collecting old football boots for young players who can't afford them. Could we place a small collection box at <span class="ph">[business / school]</span> from <span class="ph">[date]</span> to <span class="ph">[date]</span>? We'll collect weekly, and we'll thank you on our social media. 🙏 <span class="ph">[Name, phone]</span></div>
+  <div class="msg" style="margin-top:3mm;text-align:center"><strong style="font-size:13pt">👟 GOT OLD FOOTBALL BOOTS? 👟</strong><br>Drop them here for <strong>Growfit Sports Academy's Boot Bank</strong>. Every pair helps a young player train properly. Any size, clean and with studs intact please. Thank you! ⚽<br><span class="ph">[phone]</span> · Growfit Sports Academy NPC</div>
+</div>
+
+</body>
+</html>
