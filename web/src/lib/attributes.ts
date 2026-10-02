@@ -375,7 +375,6 @@ export const MISSING_ATTR_COLUMNS_MESSAGE =
  *
  *  - `ai-insights.ts`      every coach's row, unaveraged
  *  - `development-plan.ts` `.limit(1)`, the most recently assessed row
- *  - `parent-report.ts`    the legacy six columns only
  *  - `squad-context.ts`    the legacy six columns, then `[0]`
  *
  * `[0]` is the worst of them: with several coaches on a team

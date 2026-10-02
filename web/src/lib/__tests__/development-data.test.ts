@@ -4,6 +4,7 @@ import {
   buildDevelopmentSnapshot,
   groupCompletionsBySeason,
   loadDevelopmentSnapshot,
+  templatesForAgeGroups,
   type MilestoneCompletion,
   type MilestoneTemplate,
 } from "../development-data";
@@ -155,5 +156,53 @@ describe("loadDevelopmentSnapshot", () => {
     );
     expect(s.loadError).toBeNull();
     expect(s.seasons[0].completions[0].completedByName).toBeNull();
+  });
+});
+
+describe("templatesForAgeGroups", () => {
+  const aged = (id: string, age_group: string | null): MilestoneTemplate => ({ ...tpl(id), age_group });
+  const all = [aged("any", null), aged("u11", "U11"), aged("u13", "U13"), aged("u15", "U15")];
+
+  it("keeps the player's own age group and the all-ages milestones", () => {
+    expect(templatesForAgeGroups(all, ["U11"], new Set()).map((t) => t.id)).toEqual(["any", "u11"]);
+  });
+
+  it("matches age groups regardless of case or stray spaces", () => {
+    expect(templatesForAgeGroups(all, [" u13 "], new Set()).map((t) => t.id)).toEqual(["any", "u13"]);
+  });
+
+  it("keeps a milestone the player already completed, so moving up an age group keeps their history", () => {
+    expect(templatesForAgeGroups(all, ["U13"], new Set(["u11"])).map((t) => t.id)).toEqual(["any", "u11", "u13"]);
+  });
+
+  it("hides nothing when the player's age group isn't known", () => {
+    expect(templatesForAgeGroups(all, [], new Set())).toEqual(all);
+  });
+});
+
+describe("loadDevelopmentSnapshot age groups", () => {
+  const tables = (teams: Result) => ({
+    development_milestone_templates: { data: [
+      { ...tpl("any"), age_group: null }, { ...tpl("u11"), age_group: "U11" }, { ...tpl("u15"), age_group: "U15" },
+    ] },
+    player_milestone_completions: { data: [] },
+    team_members: teams,
+  });
+
+  it("shows an U11 player only U11 and all-ages milestones", async () => {
+    const s = await loadDevelopmentSnapshot(
+      stub(tables({ data: [{ teams: { age_group: "U11" } }] })),
+      { playerId: "p", academyId: "ac", position: null, now: NOW }
+    );
+    expect(s.templates.map((t) => t.id)).toEqual(["any", "u11"]);
+  });
+
+  it("shows every milestone, without failing, when the team lookup fails", async () => {
+    const s = await loadDevelopmentSnapshot(
+      stub(tables({ error: { message: "denied" } })),
+      { playerId: "p", academyId: "ac", position: null, now: NOW }
+    );
+    expect(s.loadError).toBeNull();
+    expect(s.templates.map((t) => t.id)).toEqual(["any", "u11", "u15"]);
   });
 });

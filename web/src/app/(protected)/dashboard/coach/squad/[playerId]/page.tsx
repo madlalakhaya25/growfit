@@ -74,7 +74,7 @@ export default async function PlayerDetailPage({
       .single(),
     supabase
       .from("player_attributes")
-      .select(ALL_ATTR_SELECT)
+      .select(`${ALL_ATTR_SELECT}, notes`)
       .eq("player_id", playerId)
       .eq("coach_id", user.id)
       .single(),
@@ -285,6 +285,7 @@ export default async function PlayerDetailPage({
   // Expanded columns are nullable, and are only populated for the attributes
   // this player's position is actually assessed on.
   const initialAttrs = myAttrs;
+  const myNotes = (myAttrsResult.data as { notes?: string | null } | null)?.notes ?? null;
 
   const ratingValues = ratings.map((r) => r.rating);
   const matchAvg = matchRatingAverage(ratingValues);
@@ -491,6 +492,7 @@ export default async function PlayerDetailPage({
                       <PlayerAttributesForm
                         playerId={player.id}
                         initial={initialAttrs}
+                        initialNotes={myNotes}
                         position={player.position}
                         squadMedians={squadMedians}
                       />
