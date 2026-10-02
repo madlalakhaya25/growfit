@@ -1,4 +1,5 @@
 jest.mock("@/app/actions/term-review", () => ({ saveTermReview: jest.fn().mockResolvedValue({ success: true }) }));
+jest.mock("@/app/actions/coach-notes", () => ({ saveCoachNote: jest.fn(), deleteCoachNote: jest.fn(), transcribeCoachNote: jest.fn() }));
 jest.mock("sonner", () => ({ toast: { error: jest.fn() } }));
 
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -12,7 +13,7 @@ const players = [
 ];
 
 function view() {
-  return render(<SquadReview termId="t1" termName="Term 2 2026" lastTermName="Term 1 2026" ageGroup="U13" players={players} />);
+  return render(<SquadReview termId="t1" termName="Term 2 2026" lastTermName="Term 1 2026" ageGroup="U13" players={players} notes={{}} notesAvailable />);
 }
 
 beforeEach(() => jest.clearAllMocks());
