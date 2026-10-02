@@ -82,7 +82,7 @@ function SigningModal({
   const [isPending, startTransition] = useTransition();
 
   const allCheckboxesTicked =
-    !def.checkboxes || def.checkboxes.every((cb) => checkboxValues[cb.id]);
+    !def.checkboxes || def.checkboxes.every((cb) => cb.optional || checkboxValues[cb.id]);
 
   const canSign = signerName.trim().length > 0 && agreed && allCheckboxesTicked;
 
@@ -97,6 +97,7 @@ function SigningModal({
           photo_consent: !!checkboxValues["photo_consent"],
           transport_consent: !!checkboxValues["transport_consent"],
           risk_acknowledged: !!checkboxValues["risk_acknowledged"],
+          ai_analysis_consent: !!checkboxValues["ai_analysis_consent"],
         });
       } else {
         result = await signDocumentDigitally(playerId, def.type, season, signerName.trim(), def.signerRole);

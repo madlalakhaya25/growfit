@@ -1,4 +1,4 @@
-export type CheckboxDef = { id: string; label: string; hint: string };
+export type CheckboxDef = { id: string; label: string; hint: string; optional?: boolean };
 
 export type DocDef = {
   type: string;
@@ -67,7 +67,7 @@ export const DOCUMENTS: DocDef[] = [
     terms:
       "GROWFIT FOOTBALL ACADEMY — PARENT & PLAYER CONSENT FORM (GFA-CON-02)\n" +
       "This form records the informed consent of the parent/guardian for the activities described in each clause below. " +
-      "Tick each box only after reading the full description. All four consents are required to complete registration for the current season. " +
+      "Tick each box only after reading the full description. The first four consents are required to complete registration for the current season; the video analysis consent is optional and declining it does not affect your child's place. " +
       "This form is the authoritative consent record for the current season and supersedes any previously submitted consent. " +
       "Any consent may be withdrawn in writing at any time by contacting Academy administration; note that withdrawal of participation consent will bring the current registration to an end.",
     checkboxes: [
@@ -90,6 +90,12 @@ export const DOCUMENTS: DocDef[] = [
         id: "risk_acknowledged",
         label: "Risk acknowledgement",
         hint: "I acknowledge that participation in organised football — including training drills, small-sided games, and competitive fixtures — carries inherent physical risks including sprains, fractures, concussion, and other injuries. I confirm that: (a) I have been informed of the Academy's emergency first-aid procedures and the location of the first-aid kit at training venues; (b) qualified first-aid assistance is present or on-call at all official fixtures; (c) emergency contacts recorded in the Academy's system are accurate and reachable; and (d) I accept these risks and do not hold the Academy liable for injuries sustained despite reasonable safety measures being observed.",
+      },
+      {
+        id: "ai_analysis_consent",
+        label: "Video analysis (optional)",
+        optional: true,
+        hint: "I consent to video footage of my child being analysed by an automated tool to help coaches review matches and training. I understand that: (a) the footage is used only to help coaches give feedback and is never published; (b) it is shared with an AI service provider only to be analysed; (c) a coach reviews every result before anything is shown to my child or to me; and (d) I may withdraw this consent at any time by contacting administration. Declining does not affect my child's place or playing time.",
       },
     ],
   },

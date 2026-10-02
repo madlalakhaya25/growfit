@@ -46,13 +46,13 @@ export function consentBlockMessage(gate: Extract<ConsentGate, { ok: false }>, n
     case "no_players":
       return "Say which players are in the clip first.";
     case "not_installed":
-      return "Footage checks need a database update that hasn't been run yet. Ask your academy admin to run migration 059.";
+      return "Footage checks need a database update that hasn't been run yet. Ask your academy admin to run migration 060.";
     case "unreadable":
       return "Couldn't check consent just now, so nothing was sent. Try again.";
     case "missing_consent": {
       const names = gate.blockedPlayerIds.map((id) => namesById.get(id)?.split(/\s+/)[0] ?? "A player");
       const list = names.length > 3 ? `${names.slice(0, 3).join(", ")} and ${names.length - 3} more` : names.join(", ");
-      return `Photo and media consent is missing for ${list} this season. Ask their parents to confirm it before using this clip.`;
+      return `Photo and media consent, or video analysis consent, is missing for ${list} this season. Ask their parents to confirm it before using this clip.`;
     }
   }
 }

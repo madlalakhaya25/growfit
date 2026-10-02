@@ -2,7 +2,23 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { friendlyError } from "@/lib/friendly-error";
+import { isMissingAttributeColumn } from "@/lib/attributes";
 import { AVAILABILITY_STATUSES, type AvailabilityStatus } from "@/lib/types";
+
+/**
+ * Saves a consent row. ai_analysis_consent (migration 060) is optional at
+ * runtime: until that migration is run the column does not exist, and the
+ * save must still work for the four required consents.
+ */
+async function upsertConsents(
+  supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
+  row: Record<string, unknown>
+) {
+  const first = await supabase.from("player_consents").upsert(row, { onConflict: "player_id,season" });
+  if (!isMissingAttributeColumn(first.error)) return first;
+  const { ai_analysis_consent: _dropped, ...withoutAi } = row;
+  return supabase.from("player_consents").upsert(withoutAi, { onConflict: "player_id,season" });
+}
 
 /**
  * Record whether a player is currently available to play — separate from
@@ -107,14 +123,18 @@ export async function savePlayerConsents(
     photo_consent: boolean;
     transport_consent: boolean;
     risk_acknowledged: boolean;
+    ai_analysis_consent: boolean;
     signed_by: string;
   }
 ) {
   const { supabase } = await requireUser();
-  const { error } = await supabase.from("player_consents").upsert(
-    { player_id: playerId, season, ...data, signed_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { onConflict: "player_id,season" }
-  );
+  const { error } = await upsertConsents(supabase, {
+    player_id: playerId,
+    season,
+    ...data,
+    signed_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
   if (error) return { error: friendlyError(error) };
   revalidatePath(`/dashboard/admin/players/${playerId}`, "page");
   return { success: true };
@@ -203,6 +223,7 @@ export async function signConsentDocument(
     photo_consent: boolean;
     transport_consent: boolean;
     risk_acknowledged: boolean;
+    ai_analysis_consent: boolean;
   }
 ) {
   const { supabase } = await requireUser();
@@ -222,17 +243,14 @@ export async function signConsentDocument(
   );
   if (docErr) return { error: friendlyError(docErr) };
 
-  const { error: consentErr } = await supabase.from("player_consents").upsert(
-    {
-      player_id: playerId,
-      season,
-      ...consents,
-      signed_by: signerName,
-      signed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "player_id,season" }
-  );
+  const { error: consentErr } = await upsertConsents(supabase, {
+    player_id: playerId,
+    season,
+    ...consents,
+    signed_by: signerName,
+    signed_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
   if (consentErr) return { error: friendlyError(consentErr) };
 
   revalidatePath(`/dashboard/admin/players/${playerId}`, "page");

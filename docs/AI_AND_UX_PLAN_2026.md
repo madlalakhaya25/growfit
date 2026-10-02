@@ -1683,6 +1683,8 @@ rules on it.
 
 > **Code half built (this PR, migration 059).** `clip_consent_gaps` (database function) and `lib/media-consent.ts` (`checkClipConsent`, fails closed) answer "is every child in this clip cleared this season". No video feature calls it yet; each one must call it in its own action and stop on `ok: false`. **The human half is not done.** The current photo and media consent wording covers photographs and video captured and used on the academy's own channels to promote youth football. It does not say footage may be analysed by an AI service run by a third party. Before any Phase 5 feature runs on real children, someone with authority needs to decide whether that wording is enough or whether a separate consent line is needed (a new column on `player_consents`, new form text, and parents re-confirming).
 
+> **Consent line added (migration 060, 2026-10-02).** Khaya decided a separate line is needed. `player_consents.ai_analysis_consent` (default false) is an optional fifth box on the consent form and the digital signing flow; the footage gate now needs it as well as photo and media consent. Every existing child starts without it, so parents opt in. **Buhle should read the wording in `document-definitions.ts` before parents see it, and parents need asking to re-sign or tick it.**
+
 `BACKLOG.md` is explicit that this is compliance infrastructure, not a feature
 session, and that it **starts with a person reading the academy's current
 consent form** to confirm what it actually permits. A model cannot do this step.
