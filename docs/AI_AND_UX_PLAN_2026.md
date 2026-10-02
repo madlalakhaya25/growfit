@@ -1562,7 +1562,9 @@ U11 group on a phone. `describePlay` and `speak-button.tsx` already exist; this
 times them to frames and adds per-frame text. Respect
 `prefers-reduced-motion` — already honoured globally.
 
-### Step 4.4 — Term periodisation
+### Step 4.4 — Term periodisation — DONE (this PR, no model)
+
+> **Shipped without a model.** Training, Term plan lays the term out week by week across Wednesday and Friday: a gentle first week, a lighter week every fourth, the four corners rotating with themes worded for the age group, and Friday turned into match prep when there is a Sunday fixture. Each planned session can be added to the training list as an ordinary session (never a second one on a day the team already trains), then edited like any other. It plans the running term, or the next one in the last week of a term. Training start time is not recorded, so added sessions start at 17:00 for the coach to change. Not done: storing the plan as an artefact or generating it with a model, which nothing here needs.
 
 Wed/Fri/Sun is a fixed microcycle. Plan the **term** across it — load, the five
 corners, the fixture list — not one session at a time. Model:
