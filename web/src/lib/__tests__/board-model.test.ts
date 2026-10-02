@@ -1,6 +1,6 @@
 import {
   interpolateFrames, totalDurationMs, DEFAULT_FRAME_DURATION_MS,
-  shapeColor, shapeWidth, dribblePath, polyPath, getPitch, PITCHES, resolveSpotlightCenter,
+  shapeColor, shapeWidth, dribblePath, polyPath, getPitch, pitchForAge, YOUNG_PITCH_SCALE, PITCHES, resolveSpotlightCenter,
   groupOf, assignToSlots, compress, mapNamedPositionsToSlots,
   type Frame, type Shape, type BoardPlayer,
 } from "@/lib/board-model";
@@ -267,5 +267,26 @@ describe("compress", () => {
   it("mirrors the away team into the top half, x flipped across the pitch", () => {
     expect(compress({ x: 50, y: 142 }, "away")).toEqual({ x: 50, y: 4 });
     expect(compress({ x: 30, y: 38 }, "away")).toEqual({ x: 70, y: 72 });
+  });
+});
+
+describe("pitchForAge", () => {
+  const full = getPitch("full");
+
+  it("shrinks the metre scale for U12 and below", () => {
+    expect(pitchForAge(full, "U11").metresPerUnit).toBeCloseTo(full.metresPerUnit * YOUNG_PITCH_SCALE);
+    expect(pitchForAge(full, "U12").metresPerUnit).toBeLessThan(full.metresPerUnit);
+  });
+
+  it("keeps full size for U13 and up, and for unknown groups", () => {
+    expect(pitchForAge(full, "U13")).toBe(full);
+    expect(pitchForAge(full, "U15")).toBe(full);
+    expect(pitchForAge(full, undefined)).toBe(full);
+    expect(pitchForAge(full, "Seniors")).toBe(full);
+  });
+
+  it("leaves training grids alone", () => {
+    const grid = getPitch("grid-small");
+    expect(pitchForAge(grid, "U11")).toBe(grid);
   });
 });
