@@ -42,3 +42,8 @@ export function buildScoutingBrief(input: {
 export function hasNoScoutingHistory(meetings: readonly Meeting[], formations: readonly FormationTally[]): boolean {
   return meetings.length === 0 && formations.length === 0;
 }
+
+/** Shown instead of a report when nothing is logged against the opponent. Lives here, not in the "use server" action file, which may export only async functions. */
+export const NO_SCOUTING_HISTORY =
+  "We have nothing logged against this opponent yet: no past result and no saved play. " +
+  "Log the result after the match, or draw their shape on the tactical board, and the report will have something to work from.";
