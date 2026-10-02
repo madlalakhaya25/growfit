@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FolderOpen, ListChecks, Save, Send, Sparkles, Swords, Trash2, Wand2 } from "lucide-react";
+import { FolderOpen, ListChecks, Loader2, Mic, Save, Square, Send, Sparkles, Swords, Trash2, Wand2 } from "lucide-react";
 import { useBoardStore } from "@/store/boardStore";
 import { useBoardSetupStore } from "@/store/boardSetupStore";
 import { useBoardPlaybackStore } from "@/store/boardPlaybackStore";
@@ -11,6 +11,8 @@ import { savePlay, listPlays, loadPlay, deletePlay, sharePlayToSquad, listLinkTa
 import { describePlay, analyseOpponent } from "@/app/actions/tactics";
 import { generateSessionFromBoard } from "@/app/actions/board-to-session";
 import { generateBoardFromSentence } from "@/app/actions/board-from-text";
+import { transcribeCoachNote } from "@/app/actions/coach-notes";
+import { useVoiceCapture } from "@/components/tactics/use-voice-capture";
 import { SessionProgression } from "@/components/tactics/session-progression";
 import { PlayRolesPanel } from "@/components/tactics/play-roles-panel";
 import type { SessionPlanStructured } from "@/app/actions/session-generator";
@@ -80,6 +82,21 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
   // "4-3-3, press high, left back overlapping": drawn as a NEW play, never
   // over the open board.
   const [sentence, setSentence] = useState("");
+  const [hearing, setHearing] = useState(false);
+  // Talk to the board: the words land in the box for the coach to read and fix
+  // before Draw. Nothing is drawn straight from speech, and the clip is never kept.
+  const voice = useVoiceCapture({
+    maxSeconds: 30,
+    onCaptured: async ({ blob, ext }) => {
+      setHearing(true);
+      const form = new FormData();
+      form.append("audio", new File([blob], `play.${ext}`, { type: blob.type }));
+      const res = await transcribeCoachNote(form);
+      setHearing(false);
+      if (res.error || !res.text) { setNotice(res.error ?? "Couldn't hear that. Try again."); return; }
+      setSentence(res.text.replaceAll("\n", " ").slice(0, 300));
+    },
+  });
   // The structured counter itself lives in the insights store, because the
   // board draws it; this panel only keeps the read-aloud prose above.
   const setAiCounter = useBoardInsightsStore((s) => s.setAiCounter);
@@ -352,6 +369,18 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
           className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
         />
         <button
+          type="button"
+          onClick={voice.recording ? voice.stop : voice.start}
+          disabled={hearing || busy !== null}
+          aria-label={voice.recording ? "Stop and write it out" : "Say the play"}
+          title={voice.recording ? `Recording ${voice.seconds}s: tap to stop` : "Say the play instead of typing it"}
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-background hover:bg-muted disabled:opacity-50"
+        >
+          {hearing && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
+          {!hearing && voice.recording && <Square className="size-3.5 text-destructive" aria-hidden="true" />}
+          {!hearing && !voice.recording && <Mic className="size-3.5" aria-hidden="true" />}
+        </button>
+        <button
           type="submit"
           disabled={busy !== null || !teamId}
           title="Draw this as a new play"
@@ -361,6 +390,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
           {busy === "draw" ? "Drawing…" : "Draw"}
         </button>
       </form>
+      {voice.error && <p role="alert" className="text-xs text-destructive">{voice.error}</p>}
       {/* Tag by tactical concept */}
       <details className="rounded-md border border-border bg-background">
         <summary className="cursor-pointer px-2 py-1.5 text-xs text-muted-foreground">
