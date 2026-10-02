@@ -13,11 +13,12 @@ import type { MilestoneCategory } from "@/lib/development-categories";
  * see growth since the previous term, in words, and never a score or a rank
  * against other children (`growthLine`).
  *
- * ## The descriptions are a DRAFT
+ * ## The descriptions are approved
  *
- * `BAND_DESCRIPTIONS` was written by Claude for Buhle (technical director) to
- * approve. Until `BAND_DESCRIPTIONS_APPROVED` is true the coach screen labels
- * them as a draft. Change the wording freely; nothing else depends on it.
+ * `BAND_DESCRIPTIONS` was written by Claude and approved by Buhle (technical
+ * director) on 2026-10-02. If the wording is changed, set
+ * `BAND_DESCRIPTIONS_APPROVED` back to false until it is approved again, and the
+ * coach screen labels the bands as a draft.
  */
 
 export type Band = 1 | 2 | 3 | 4;
@@ -45,8 +46,8 @@ export function ageBracket(ageGroup: string | null | undefined): AgeBracket {
   return "U15";
 }
 
-/** Set to true once Buhle has approved the wording below. */
-export const BAND_DESCRIPTIONS_APPROVED = false;
+/** Buhle (technical director) approved the wording below on 2026-10-02. */
+export const BAND_DESCRIPTIONS_APPROVED = true;
 
 type Descriptions = Record<MilestoneCategory, Record<AgeBracket, Record<Band, string>>>;
 

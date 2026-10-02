@@ -15,13 +15,14 @@
  *
  * ## Turning on a real tracker
  *
- * 1. `npm i @sentry/nextjs` in `web/`
- * 2. Set `SENTRY_DSN` (server) and `NEXT_PUBLIC_SENTRY_DSN` (browser)
- * 3. Replace the body of `deliver()` below with `Sentry.captureException`
- *
- * Nothing else in the app needs touching. Until step 2, `isErrorReportingConfigured()`
- * is false and this degrades to the console output it replaces.
+ * Set `SENTRY_DSN` (or `NEXT_PUBLIC_SENTRY_DSN`) in the host's environment and
+ * redeploy. Reports then go to Sentry over its HTTP API (lib/sentry-report.ts,
+ * no SDK, personal data scrubbed) as well as the console. Nothing else in the
+ * app needs touching. Until then, `isErrorReportingConfigured()` is false and
+ * this is only the console output.
  */
+
+import { sendToSentry, type ReportPayload } from "@/lib/sentry-report";
 
 export type ErrorSeverity = "error" | "warning";
 
@@ -83,10 +84,11 @@ function describe(error: unknown): { message: string; stack?: string } {
   return { message: String(error) };
 }
 
-function deliver(payload: Record<string, unknown>) {
-  // Replace with `Sentry.captureException` once a DSN exists — see the note
-  // at the top of this file.
+function deliver(payload: ReportPayload) {
+  // Always logged, so nothing is lost if the tracker is down, and sent to
+  // Sentry as well once a DSN is set.
   console.error("[growfit:error]", JSON.stringify(payload));
+  sendToSentry(payload);
 }
 
 /**

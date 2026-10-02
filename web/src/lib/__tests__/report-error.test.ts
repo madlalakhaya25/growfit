@@ -100,3 +100,35 @@ describe("reportError", () => {
     expect(logged).toContain("permission denied");
   });
 });
+
+describe("reportError sends to Sentry only when configured", () => {
+  const realFetch = globalThis.fetch;
+  const realDsn = process.env.SENTRY_DSN;
+  const realPublic = process.env.NEXT_PUBLIC_SENTRY_DSN;
+  beforeEach(() => { jest.spyOn(console, "error").mockImplementation(() => undefined); });
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    jest.restoreAllMocks();
+    if (realDsn === undefined) delete process.env.SENTRY_DSN; else process.env.SENTRY_DSN = realDsn;
+    if (realPublic === undefined) delete process.env.NEXT_PUBLIC_SENTRY_DSN; else process.env.NEXT_PUBLIC_SENTRY_DSN = realPublic;
+  });
+
+  it("only logs with no DSN", () => {
+    delete process.env.SENTRY_DSN; delete process.env.NEXT_PUBLIC_SENTRY_DSN;
+    const f = jest.fn().mockResolvedValue({});
+    globalThis.fetch = f as never;
+    reportError(new Error("boom"), { scope: "x" });
+    expect(f).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalled();
+  });
+
+  it("logs and sends once a DSN is set", () => {
+    process.env.SENTRY_DSN = "https://abc@o1.ingest.sentry.io/9";
+    const f = jest.fn().mockResolvedValue({});
+    globalThis.fetch = f as never;
+    reportError(new Error("boom"), { scope: "x", extra: { id_number: "0001015800086" } });
+    expect(f).toHaveBeenCalledTimes(1);
+    expect(f.mock.calls[0][1].body).not.toContain("0001015800086");
+    expect(console.error).toHaveBeenCalled();
+  });
+});
