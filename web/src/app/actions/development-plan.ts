@@ -472,7 +472,7 @@ export async function saveDevelopmentPlanEdits(
     const result = applyPlanEdits(row.data, edits);
     if ("error" in result) return { error: result.error };
 
-    const prose = renderDevelopmentPlanProse(result.plan).replace(/\*/g, "");
+    const prose = renderDevelopmentPlanProse(result.plan).replaceAll("*", "");
     const { error } = await supabase
       .from("ai_artefacts")
       .update({ data: result.plan, prose })

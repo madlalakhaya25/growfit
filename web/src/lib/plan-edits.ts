@@ -17,6 +17,33 @@ export interface PlanEdits {
 
 export type EditResult = { plan: DevelopmentPlanStructured } | { error: string };
 
+type Focus = DevelopmentPlanStructured["focusAreas"];
+type Actions = DevelopmentPlanStructured["actions"];
+
+function editFocusAreas(current: Focus, edits: NonNullable<PlanEdits["focusAreas"]>): { focusAreas: Focus } | { error: string } {
+  if (edits.length !== current.length) return { error: "The focus areas changed. Reload and try again." };
+  const next: Focus = [];
+  for (const [i, f] of current.entries()) {
+    const area = clean(edits[i].area, PLAN_LIMITS.area);
+    const why = clean(edits[i].why, PLAN_LIMITS.why);
+    if (!area || !why) return { error: "Each focus area needs a name and a reason." };
+    next.push({ ...f, area, why });
+  }
+  return { focusAreas: next };
+}
+
+function editActions(current: Actions, edits: NonNullable<PlanEdits["actions"]>): { actions: Actions } | { error: string } {
+  if (edits.length !== current.length) return { error: "The actions changed. Reload and try again." };
+  const next: Actions = [];
+  for (const [i, a] of current.entries()) {
+    const what = clean(edits[i].what, PLAN_LIMITS.what);
+    const how = clean(edits[i].how, PLAN_LIMITS.how);
+    if (!what || !how) return { error: "Each action needs a title and how to do it." };
+    next.push({ ...a, what, how, measure: clean(edits[i].measure, PLAN_LIMITS.measure) });
+  }
+  return { actions: next };
+}
+
 export function applyPlanEdits(plan: DevelopmentPlanStructured, edits: PlanEdits): EditResult {
   let playerNote = plan.playerNote;
   if (edits.playerNote !== undefined) {
@@ -24,33 +51,12 @@ export function applyPlanEdits(plan: DevelopmentPlanStructured, edits: PlanEdits
     if (!playerNote) return { error: "The note to the player can't be empty." };
   }
 
-  let focusAreas = plan.focusAreas;
-  if (edits.focusAreas !== undefined) {
-    if (edits.focusAreas.length !== plan.focusAreas.length) return { error: "The focus areas changed. Reload and try again." };
-    const next = [];
-    for (const [i, f] of plan.focusAreas.entries()) {
-      const area = clean(edits.focusAreas[i].area, PLAN_LIMITS.area);
-      const why = clean(edits.focusAreas[i].why, PLAN_LIMITS.why);
-      if (!area || !why) return { error: "Each focus area needs a name and a reason." };
-      next.push({ ...f, area, why });
-    }
-    focusAreas = next;
-  }
+  const focus = edits.focusAreas === undefined ? { focusAreas: plan.focusAreas } : editFocusAreas(plan.focusAreas, edits.focusAreas);
+  if ("error" in focus) return { error: focus.error };
+  const acts = edits.actions === undefined ? { actions: plan.actions } : editActions(plan.actions, edits.actions);
+  if ("error" in acts) return { error: acts.error };
 
-  let actions = plan.actions;
-  if (edits.actions !== undefined) {
-    if (edits.actions.length !== plan.actions.length) return { error: "The actions changed. Reload and try again." };
-    const next = [];
-    for (const [i, a] of plan.actions.entries()) {
-      const what = clean(edits.actions[i].what, PLAN_LIMITS.what);
-      const how = clean(edits.actions[i].how, PLAN_LIMITS.how);
-      if (!what || !how) return { error: "Each action needs a title and how to do it." };
-      next.push({ ...a, what, how, measure: clean(edits.actions[i].measure, PLAN_LIMITS.measure) });
-    }
-    actions = next;
-  }
-
-  return { plan: { ...plan, playerNote, focusAreas, actions } };
+  return { plan: { ...plan, playerNote, focusAreas: focus.focusAreas, actions: acts.actions } };
 }
 
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");

@@ -38,6 +38,8 @@ function PlanEditor({
     [draft.playerNote, ...draft.focusAreas.flatMap((f) => [f.area, f.why]), ...draft.actions.flatMap((a) => [a.what, a.how, a.measure])].join(" \n ")
   );
 
+  const quotedFlags = liveFlags.map((f) => '"' + f + '"').join(", ");
+
   function change(next: DevelopmentPlanStructured) {
     setDraft(next);
     setDirty(true);
@@ -114,7 +116,7 @@ function PlanEditor({
 
       {(flagged || liveFlags.length > 0) && (
         <p className="rounded-md bg-warning/10 p-2 text-xs">
-          {flagged ?? `Some wording may read as negative to a child (${liveFlags.map((f) => `"${f}"`).join(", ")}). Edit it, or approve it as it is.`}
+          {flagged ?? `Some wording may read as negative to a child (${quotedFlags}). Edit it, or approve it as it is.`}
         </p>
       )}
 

@@ -27,11 +27,11 @@ const FLAGGED: readonly string[] = [
 ];
 
 /** Escape a phrase for use inside a RegExp. */
-const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const esc = (s: string) => s.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 
 const PATTERNS = FLAGGED.map((phrase) => ({
   phrase,
-  re: new RegExp(`(?<![\\p{L}\\p{N}'])${esc(phrase)}(?![\\p{L}\\p{N}'])`, "iu"),
+  re: new RegExp(String.raw`(?<![\p{L}\p{N}'])` + esc(phrase) + String.raw`(?![\p{L}\p{N}'])`, "iu"),
 }));
 
 /** The flagged phrases found in one piece of text, each listed once. */
@@ -69,5 +69,6 @@ export function checkPlayerFacing(plan: PlayerSafeDevelopmentPlan): WordingFlag[
 
 /** One line for a toast or a message. */
 export function describeFlags(flags: WordingFlag[]): string {
-  return flags.map((f) => `${f.where}: ${f.phrases.map((p) => `"${p}"`).join(", ")}`).join("; ");
+  const quoted = (phrases: string[]) => phrases.map((p) => `"${p}"`).join(", ");
+  return flags.map((f) => `${f.where}: ${quoted(f.phrases)}`).join("; ");
 }
