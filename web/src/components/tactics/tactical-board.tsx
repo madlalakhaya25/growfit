@@ -16,6 +16,7 @@ import { shiftToBall, reachTimes, pressingPlan, playerJobs } from "@/lib/board-c
 import { counterExploits, counterRunShapes, type OpponentCounter } from "@/lib/opponent-counter";
 import { drawBoard, pickRecorderMime } from "@/lib/board-render";
 import { framesFromShapes } from "@/lib/play-motion";
+import { addOpponentReaction } from "@/lib/opponent-reaction";
 import {
   BOARD_W, BOARD_H, polyPath, interpolateFrames, totalDurationMs, zonePolygon, simplifyPath, type ZoneShape,
   getPitch, pitchForAge, PITCHES, toBoardSpace, EQUIPMENT_SPECS, RECORDABLE_SHAPE_KINDS,
@@ -312,6 +313,9 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const [tilted, setTilted] = useState(false);
   /** Auto-shift: which side slides with the ball, and where each of its
    *  players stood when it was switched on (the shape it shifts from). */
+  // Whether Play also moves the opposition in response to the ball. On by default;
+  // it only affects steps worked out from drawn arrows, never ones captured by hand.
+  const [opponentReacts, setOpponentReacts] = useState(true);
   const [autoShift, setAutoShift] = useState<{ side: "player" | "opponent"; anchors: Token[] } | null>(null);
 
   const { state, setState, draft, setDraft, reset: resetBoardState } = useBoardStore();
@@ -631,13 +635,19 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setAnim(null);
   }
 
+  /** The steps the drawn arrows describe, with the opposition reacting to the ball if that is on. */
+  function deriveFrames(): Frame[] {
+    const raw = framesFromShapes(state.tokens, state.shapes) as Frame[];
+    return opponentReacts ? addOpponentReaction(raw, state.tokens) : raw;
+  }
+
   /** Play the captured steps back, easing token positions between each pair. */
   function playAnimation(override?: Frame[]) {
     // Captured steps win; otherwise animate what the drawn arrows describe, so
     // drawing a play and pressing Play does the obvious thing.
     let seqFrames = override ?? frames;
     if (seqFrames.length < 2) {
-      const derived = framesFromShapes(state.tokens, state.shapes) as Frame[];
+      const derived = deriveFrames();
       if (derived.length >= 2) {
         seqFrames = derived;
         setFrames(derived);
@@ -906,7 +916,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     }
     let seqFrames = frames;
     if (seqFrames.length < 2) {
-      const derived = framesFromShapes(state.tokens, state.shapes) as Frame[];
+      const derived = deriveFrames();
       if (derived.length < 2) {
         setNotice("Draw runs and passes, or capture steps, before recording.");
         return;
@@ -1908,6 +1918,16 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       {/* Coach: tools that do something to the board for you. */}
       <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-card p-2">
         <span className="mr-1 px-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Coach</span>
+        <button
+          type="button"
+          onClick={() => setOpponentReacts((v) => !v)}
+          aria-pressed={opponentReacts}
+          disabled={!pitch.supportsFormations}
+          title="When you press Play on drawn arrows, the opposition slides and squeezes toward the ball at each step"
+          className={`inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border px-2.5 text-xs disabled:opacity-40 ${opponentReacts ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border hover:bg-muted"}`}
+        >
+          <Crosshair className="size-3.5" aria-hidden="true" /> Opponent reacts
+        </button>
         <div className="inline-flex items-center gap-0.5 rounded-md bg-muted p-0.5" role="group" aria-label="Auto-shift">
           <span className="px-1.5 text-[11px] font-medium text-muted-foreground" title="Drag the ball and the chosen side slides and squeezes as a zonal unit">
             <Magnet className="mr-1 inline size-3.5 align-[-2px]" aria-hidden="true" />Auto-shift
