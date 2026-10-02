@@ -46,6 +46,10 @@ const wholeYears = (dob: string | null, now: Date): number | null => {
   return Math.floor((now.getTime() - t) / 31_557_600_000);
 };
 
+/** Plain code-unit order, spelled out so every sort that feeds a fingerprint is
+ * locale-independent and keeps the order the default sort gave. */
+const byCodeUnit = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+
 /**
  * The players in this play who have something to do: a token tied to a real
  * player (placeholder tokens have nobody to write for) with at least one
@@ -72,14 +76,15 @@ export function collectRolePlayers(data: unknown, roster: RosterPlayer[], now: D
       jobs: job.steps,
     });
   }
-  return out.sort((a, b) => a.playerId.localeCompare(b.playerId)).slice(0, MAX_ROLE_PLAYERS);
+  out.sort((a, b) => byCodeUnit(a.playerId, b.playerId));
+  return out.slice(0, MAX_ROLE_PLAYERS);
 }
 
 /** Deterministic: nothing in it depends on the clock beyond whole-year ages. */
 export function buildPlayRolesBrief(play: { name: string; conceptLabels: string[] }, players: RolePlayer[]): string {
   const lines = [
     `PLAY: ${play.name}`,
-    `CONCEPTS: ${play.conceptLabels.length ? [...play.conceptLabels].sort().join(", ") : "none tagged"}`,
+    `CONCEPTS: ${play.conceptLabels.length ? [...play.conceptLabels].sort(byCodeUnit).join(", ") : "none tagged"}`,
     "PLAYERS (id | first name | age | position | what the coach drew for them):",
   ];
   for (const p of players) {
@@ -94,7 +99,7 @@ export function buildPlayRolesBrief(play: { name: string; conceptLabels: string[
 export function playRolesHash(play: { name: string; conceptIds: string[] }, players: RolePlayer[]): string {
   const material = JSON.stringify({
     n: play.name,
-    c: [...play.conceptIds].sort(),
+    c: [...play.conceptIds].sort(byCodeUnit),
     p: players.map((p) => [p.playerId, p.jobs]),
   });
   return createHash("sha256").update(material, "utf8").digest("hex");
@@ -110,7 +115,7 @@ export function validatePlayRoles(raw: Record<string, unknown> | null, allowedId
     if (!item || typeof item !== "object") continue;
     const { playerId, text } = item as Record<string, unknown>;
     if (typeof playerId !== "string" || !allowed.has(playerId) || seen.has(playerId)) continue;
-    const clean = typeof text === "string" ? text.replace(/\*/g, "").trim().slice(0, MAX_ROLE_CHARS) : "";
+    const clean = typeof text === "string" ? text.replaceAll("*", "").trim().slice(0, MAX_ROLE_CHARS) : "";
     if (!clean) continue;
     seen.add(playerId);
     out.push({ playerId, text: clean });

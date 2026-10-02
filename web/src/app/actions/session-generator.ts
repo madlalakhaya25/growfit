@@ -1,6 +1,6 @@
 "use server";
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
@@ -9,6 +9,7 @@ import { loadRecentSessions } from "@/lib/session-memory-data";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
 import { parseJsonObject } from "@/lib/ai-json";
 import { getLTPDPhase, specialistSystem } from "@/lib/ai-safeguards";
+import { SESSION_PLAN_SCHEMA } from "@/lib/session-plan-schema";
 import { renderSessionPlanProse } from "@/lib/session-plan";
 import { constraintLines, normaliseConstraints, type KitValue, type SpaceValue } from "@/lib/session-constraints";
 
@@ -123,29 +124,7 @@ Generate exactly 5 drills, the 5th a small-sided game of max 7v7. For each: a na
         thinkingConfig: { thinkingBudget: 0 },
         systemInstruction: specialistSystem({ focus: "training sessions" }),
         responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            drills: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  name: { type: Type.STRING },
-                  durationMinutes: { type: Type.NUMBER },
-                  ltpdFocus: { type: Type.STRING },
-                  fourCorner: { type: Type.STRING },
-                  setup: { type: Type.STRING },
-                  instructions: { type: Type.STRING },
-                  coachingPoints: { type: Type.STRING },
-                },
-                required: ["name", "durationMinutes", "ltpdFocus", "fourCorner", "setup", "instructions", "coachingPoints"],
-              },
-            },
-            coachReflection: { type: Type.STRING },
-          },
-          required: ["drills", "coachReflection"],
-        },
+        responseSchema: SESSION_PLAN_SCHEMA,
       },
     });
 
