@@ -63,12 +63,15 @@ export function NewSessionForm({
   teams,
   backHref,
   suggestedSquadSizes = {},
+  defaultFocus,
 }: {
   teamId: string;
   teams: { id: string; name: string; age_group: string | null }[];
   backHref: string;
   /** Typical turnout per team id, from recent registers; absent when none are marked. */
   suggestedSquadSizes?: Record<string, number>;
+  /** A focus to start the session generator on, e.g. what the squad's plans share. */
+  defaultFocus?: string;
 }) {
   const router = useRouter();
 
@@ -89,9 +92,9 @@ export function NewSessionForm({
   const [drills, setDrills] = useState<DrillItem[]>([]);
 
   // AI generator
-  const [showAI, setShowAI] = useState(false);
+  const [showAI, setShowAI] = useState(Boolean(defaultFocus));
   const [ageGroup, setAgeGroup] = useState("");
-  const [focusArea, setFocusArea] = useState("");
+  const [focusArea, setFocusArea] = useState(defaultFocus ?? "");
   const [duration, setDuration] = useState(90);
   const [squadSize, setSquadSize] = useState(suggestedSquadSizes[teamId] ?? 16);
   const [space, setSpace] = useState<SpaceValue | "">("");
@@ -362,7 +365,7 @@ export function NewSessionForm({
                     className={selectCls}
                   >
                     <option value="">Select…</option>
-                    {FOCUS_OPTIONS.map((f) => (
+                    {[...(defaultFocus && !FOCUS_OPTIONS.includes(defaultFocus) ? [defaultFocus] : []), ...FOCUS_OPTIONS].map((f) => (
                       <option key={f} value={f}>
                         {f}
                       </option>
