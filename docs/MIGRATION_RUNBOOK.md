@@ -329,6 +329,23 @@ column is added to an existing table and no existing row changes.
 Verify with the query at the foot of `051_privacy_and_rsvp.sql`. The tactics board
 and the player's "shared plays" page must still load for a coach and a player.
 
+### 052 — drill_details
+
+Adds a nullable `details JSONB` column to `training_drills` so a generated drill's
+whole plan (setup, instructions, coaching points, duration, pitch diagram) is
+kept instead of being cut to the 500-character description. Additive only: no
+row changes, no policy changes, no index.
+
+**Run it before the app version that reads the column is deployed.** The session
+page selects `details`; against a database without the column that query errors
+and the drill list comes back empty.
+
+```sql
+SELECT column_name, data_type FROM information_schema.columns
+ WHERE table_name = 'training_drills' AND column_name = 'details';
+SELECT count(*) FROM training_drills WHERE details IS NOT NULL; -- 0 right after
+```
+
 ### Idempotency
 
 `030`–`040` were re-run against the already-migrated database. **All eleven

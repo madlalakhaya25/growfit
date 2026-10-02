@@ -38,7 +38,7 @@ export function SessionProgression({
     setApplying(true);
     const res = await addDrills(
       sessionId,
-      plan.drills.map((d) => ({ title: d.name, description: packDrillDescription(d), video_url: "" }))
+      plan.drills.map((d) => ({ title: d.name, description: packDrillDescription(d), video_url: "", details: d }))
     );
     setApplying(false);
     if (res.error) { setError(res.error); return; }

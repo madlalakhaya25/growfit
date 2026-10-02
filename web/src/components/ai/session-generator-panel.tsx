@@ -65,6 +65,7 @@ export function SessionGeneratorPanel({ sessionId, teamId, suggestedSquadSize = 
         title: d.name,
         description: packDrillDescription(d),
         video_url: "",
+        details: d,
       }))
     );
     setApplying(false);

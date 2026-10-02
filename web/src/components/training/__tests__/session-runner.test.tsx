@@ -58,4 +58,16 @@ describe("SessionRunner", () => {
     expect(screen.getByRole("timer")).toHaveTextContent("0:00");
     expect(screen.getByText("Rondo 4v2")).toBeInTheDocument();
   });
+
+  it("shows a drill's saved plan in place of its cut-down description", () => {
+    const planned = [{
+      id: "d3", title: "Press trap", description: "cut down desc",
+      details: { durationMinutes: 12, ltpdFocus: "", fourCorner: "Tactical", setup: "Half pitch", instructions: "Full instructions here", coachingPoints: "Show them inside" },
+    }];
+    render(<SessionRunner drills={planned} />);
+    fireEvent.click(screen.getByRole("button", { name: /Run this session/ }));
+    expect(screen.getByText("Full instructions here")).toBeInTheDocument();
+    expect(screen.getByText("12 min")).toBeInTheDocument();
+    expect(screen.queryByText("cut down desc")).not.toBeInTheDocument();
+  });
 });
