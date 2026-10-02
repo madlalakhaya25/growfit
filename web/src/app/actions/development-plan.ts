@@ -42,6 +42,7 @@ import {
 import { renderDevelopmentPlanProse, renderPlayerPlanProse, toPlayerSafePlan } from "@/lib/development-plan-view";
 import { reportError } from "@/lib/report-error";
 import { formatInTimezone } from "@/lib/time";
+import { loadSelfView } from "@/lib/self-view-data";
 import { checkPlayerFacing, describeFlags } from "@/lib/child-safe-check";
 import { applyPlanEdits, type PlanEdits } from "@/lib/plan-edits";
 
@@ -198,6 +199,8 @@ export async function generateDevelopmentPlan(input: {
       };
     }
 
+    const selfView = await loadSelfView(supabase, playerId, staff.academy_id, now);
+
     const { worldBrief, fullBrief } = buildDevelopmentBrief(
       {
         player: { fullName: player.full_name, position: player.position ?? null, age: ageFromDob(player.date_of_birth, now) },
@@ -207,6 +210,7 @@ export async function generateDevelopmentPlan(input: {
         open: open.map((t) => ({ id: t.id, title: t.title, category: t.category, sortOrder: t.sort_order })),
         attendance,
         attendanceSince: bucketedAttendanceStart(now),
+        selfView,
       },
       previous
     );
@@ -243,7 +247,7 @@ How to write it:
 - focusAreas: 2 or 3. category must be one of ${MILESTONE_CATEGORIES.join(", ")}. area is short; why says what it will unlock for the player, kindly.
 - actions: 3 or 4 specific things to do, each with what, how (a concrete drill or habit a child can do), timesPerWeek (1-7), and measure (something observable). Set milestoneTemplateId to one of the ids in brackets under "Open milestones" when the action works toward it, otherwise null.
 ${previous ? "- previous (FOR THE COACH): judge the PREVIOUS PLAN using only the facts listed under \"WHAT HAS HAPPENED SINCE THAT PLAN\": verdict is worked, partly or not_yet; evidence cites those facts; carriedForward lists what still applies.\n" : ""}- coachNote (FOR THE COACH): one concern or watch-point worth knowing, or an empty string if there is none.
-- playerNote: one or two warm, forward-looking sentences addressed to the player ("you").`;
+${selfView.length ? "- The brief says where the player's own view differs from the coach's. Let it shape the coachNote and, kindly, the choice of focus; never mention it in focusAreas, actions or playerNote.\n" : ""}- playerNote: one or two warm, forward-looking sentences addressed to the player ("you").`;
 
     const planSchema = {
       type: Type.OBJECT,
