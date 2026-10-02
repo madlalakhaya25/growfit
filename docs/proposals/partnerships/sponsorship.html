@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Partner with Growfit – Sponsorship Pack</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4; margin: 18mm 17mm 20mm 17mm; }
+  :root {
+    --red: #AF2D35; --red-dark: #6B1B1F; --red-tint: #F7EAEB;
+    --ink: #16181D; --ink-2: #474C55; --ink-3: #7A808A;
+    --rule: #DADDE2; --panel: #F5F6F8;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: #fff; }
+  body { font-family: Inter, "Liberation Sans", Arial, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.5; margin: 0; }
+  h1, h2, h3 { line-height: 1.2; margin: 0; }
+  h2 { font-size: 17pt; font-weight: 800; color: var(--ink); margin: 0 0 4mm; padding-top: 1mm; }
+  h2 .num { color: var(--red); margin-right: 6px; }
+  h3 { font-size: 11pt; font-weight: 700; margin: 5mm 0 2mm; }
+  p { margin: 0 0 2.6mm; }
+  ul { margin: 0 0 3mm; padding-left: 5mm; }
+  li { margin-bottom: 1.2mm; }
+  .section { break-before: page; }
+  .avoid { break-inside: avoid; }
+  .muted { color: var(--ink-2); }
+  .small { font-size: 8.5pt; color: var(--ink-3); }
+  strong { font-weight: 700; }
+
+  /* cover */
+  .cover { height: 257mm; display: flex; flex-direction: column; }
+  .cover-top { display: flex; align-items: center; gap: 6mm; }
+  .cover-top img { width: 26mm; height: 26mm; }
+  .cover-org { font-weight: 700; font-size: 11pt; }
+  .cover-org span { display: block; font-weight: 400; color: var(--ink-2); font-size: 9.5pt; }
+  .cover-band { margin-top: 30mm; border-left: 3mm solid var(--red); padding-left: 7mm; }
+  .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: 8.5pt; font-weight: 700; color: var(--red); }
+  .cover h1 { font-size: 30pt; font-weight: 800; margin: 3mm 0 4mm; letter-spacing: -.01em; }
+  .cover .lede { font-size: 12pt; color: var(--ink-2); max-width: 150mm; }
+  .cover-ask { margin-top: 18mm; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+  .cover-foot { margin-top: auto; border-top: 1px solid var(--rule); padding-top: 4mm; display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; font-size: 9pt; color: var(--ink-2); }
+  .cover-foot b { color: var(--ink); }
+
+  /* tiles */
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 4mm 0 5mm; }
+  .tile { background: var(--panel); border-radius: 3mm; padding: 3.5mm 4mm; }
+  .tile .v { font-size: 16pt; font-weight: 800; color: var(--ink); line-height: 1.1; }
+  .tile .l { font-size: 8.3pt; color: var(--ink-2); margin-top: 1.2mm; line-height: 1.35; }
+  .tile.hero { background: var(--red); }
+  .tile.hero .v, .tile.hero .l { color: #fff; }
+
+  /* tables */
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 9pt; }
+  th { text-align: left; font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); border-bottom: 1.5px solid var(--ink); padding: 2mm 2mm; }
+  td { border-bottom: 1px solid var(--rule); padding: 2mm 2mm; vertical-align: top; }
+  td.n, th.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tr.sub td { background: var(--panel); font-weight: 600; }
+  tr.total td { border-top: 1.5px solid var(--ink); border-bottom: none; font-weight: 800; font-size: 10pt; }
+  tr.total td.n { color: var(--red); }
+
+  .callout { background: var(--red-tint); border-left: 1.2mm solid var(--red); padding: 3.5mm 4.5mm; border-radius: 0 2mm 2mm 0; margin: 3mm 0 4mm; }
+  .callout p:last-child { margin: 0; }
+  .note { background: var(--panel); padding: 3mm 4mm; border-radius: 2mm; font-size: 8.8pt; color: var(--ink-2); margin: 3mm 0; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+  .card { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; }
+  .card h3 { margin-top: 0; }
+
+  /* weekly cycle */
+  .cycle { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2mm; margin: 3mm 0 4mm; }
+  .step { border-top: 1.2mm solid var(--red); background: var(--panel); padding: 2.5mm 3mm; border-radius: 0 0 2mm 2mm; font-size: 8.5pt; }
+  .step b { display: block; font-size: 9pt; margin-bottom: .8mm; }
+  .step .d { color: var(--red); font-weight: 700; font-size: 7.8pt; text-transform: uppercase; letter-spacing: .06em; }
+
+  /* bar figure */
+  .fig { margin: 3mm 0 2mm; }
+  .bar-row { display: grid; grid-template-columns: 30mm 1fr 22mm; align-items: center; gap: 3mm; margin: 2.2mm 0; font-size: 9pt; }
+  .bar-track { position: relative; height: 7mm; }
+  .bar { height: 100%; background: var(--red); border-radius: 0 1.2mm 1.2mm 0; }
+  .ref { position: absolute; top: -2mm; bottom: -2mm; border-left: 1.5px dashed var(--ink); }
+  .ref-label { font-size: 7.8pt; color: var(--ink-2); position: absolute; top: -6mm; transform: translateX(-50%); white-space: nowrap; }
+  .fig-cap { font-size: 8.3pt; color: var(--ink-3); margin-top: 1mm; }
+
+  .compact table { font-size: 8.3pt; margin: 1.5mm 0 2.5mm; }
+  .compact td { padding: 1.3mm 2mm; }
+  .compact h3 { margin: 2.5mm 0 1mm; }
+  .compact li { margin-bottom: .6mm; font-size: 9pt; }
+  .compact .callout { margin: 2mm 0; padding: 2.5mm 4mm; }
+  .sig { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 10mm; }
+  .sig div { border-top: 1px solid var(--ink); padding-top: 2mm; font-size: 9pt; color: var(--ink-2); }
+  .src { font-size: 8pt; color: var(--ink-2); word-break: break-all; }
+  .src li { margin-bottom: .8mm; }
+  .tag { display: inline-block; border-radius: 1mm !important; font-size: 7.5pt; font-weight: 700; padding: .3mm 1.8mm; border-radius: 10mm; background: var(--panel); color: var(--ink-2); text-transform: uppercase; letter-spacing: .05em; }
+  .tag.r { background: var(--red-tint); color: var(--red-dark); }
+
+  .ph { background: #F7EAEB; color: #6B1B1F; padding: 0 1.2mm; border-radius: 1mm; font-weight: 600; }
+  .tpl-label { display:inline-block; font-size: 8pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #fff; background: var(--ink); padding: .8mm 2.5mm; border-radius: 1mm; margin-bottom: 3mm; }
+  .letter { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 7mm 8mm; font-size: 9.6pt; }
+  .letter p { margin-bottom: 2.8mm; }
+  .letter .lh { display:flex; justify-content: space-between; align-items:flex-start; border-bottom: 1.5px solid var(--red); padding-bottom: 3mm; margin-bottom: 5mm; }
+  .letter .lh img { width: 15mm; height: 15mm; }
+  .letter .lh .org { text-align:right; font-size: 8.3pt; color: var(--ink-2); line-height: 1.4; }
+  .letter .lh .org b { color: var(--ink); font-size: 9.5pt; }
+  .msg { background: var(--panel); border-radius: 3mm; padding: 4mm 5mm; font-size: 9.6pt; white-space: normal; }
+  .howto { font-size: 8.8pt; color: var(--ink-2); margin: 0 0 3mm; }
+  .form-row { display:grid; grid-template-columns: 45mm 1fr; border-bottom: 1px solid var(--rule); padding: 2.6mm 0; font-size: 9.3pt; }
+  .form-row span:last-child { border-bottom: 1px dotted var(--ink-3); }
+  .check { display:inline-block; width:3.2mm; height:3.2mm; border:1px solid var(--ink); margin-right:1.5mm; vertical-align:-0.4mm; }
+  .tier { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; break-inside: avoid; }
+  .tier .price { color: var(--red); font-weight: 800; font-size: 13pt; }
+  .tier h3 { margin: 0 0 1mm; }
+  .tiers { display:grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; }
+  .tiers ul { margin-bottom: 0; }
+  .toc { columns: 2; font-size: 9.5pt; }
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="cover-top">
+    <img src="../../../growfit.png" alt="Growfit Football Academy crest">
+    <div class="cover-org">Growfit Sports Academy NPC<span>Grassroots football · U11 · U13 · U15 · Greater Durban, KwaZulu-Natal</span></div>
+  </div>
+  <div class="cover-band">
+    <div class="eyebrow">Sponsorship proposal &amp; templates · October 2026</div>
+    <h1>Partner with Growfit</h1>
+    <p class="lede">Back grassroots football in Greater Durban. This pack has the partnership packages for businesses and organisations, and ready-to-use letters, emails and agreements for the Growfit team.</p>
+  </div>
+  <div class="cover-ask">
+    <div class="tile hero"><div class="v">From R1,500</div><div class="l">Sponsor a player for a season. Packages up to R60,000 a year</div></div>
+    <div class="tile"><div class="v">~60</div><div class="l">Young players across U11, U13 and U15</div></div>
+    <div class="tile"><div class="v">B-BBEE</div><div class="l">Support can count as socio-economic development (conditions apply)</div></div>
+  </div>
+  <div class="cover-foot">
+    <div><b>Contact</b><br>Khaya Madlala, Fundraising &amp; Registration<br>Buhle Madlala, Founder &amp; Academy Director<br><span class="ph">[email]</span> · <span class="ph">[phone]</span></div>
+    <div><b>Contents</b><br>Part A: Sponsorship proposal (for sponsors)<br>Part B: Templates S1–S8 (for the Growfit team)</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="eyebrow">Part A · Sponsorship proposal</div>
+  <h2 style="margin-top:2mm"><span class="num">1</span>Who we are</h2>
+  <p><strong>Growfit Sports Academy</strong> is a registered Non-Profit Company founded in 2023 in Greater Durban. We run U11, U13 and U15 teams in the Greater Durban Football League, training on Wednesdays and Fridays and playing on Sundays. The academy is run by three volunteer coaches. We develop players technically, tactically, physically, mentally and as leaders, and we keep children in sport through the years when many drop out.</p>
+  <div class="tiles">
+    <div class="tile hero"><div class="v">~60</div><div class="l">registered players <span class="ph">[confirm]</span></div></div>
+    <div class="tile"><div class="v">3</div><div class="l">competitive age groups in the GDFL</div></div>
+    <div class="tile"><div class="v">8</div><div class="l">adopted policies incl. child safeguarding</div></div>
+    <div class="tile"><div class="v">100%</div><div class="l">of players SAFA-registered</div></div>
+  </div>
+  <h3>What we stand for</h3>
+  <ul>
+    <li><strong>Every child plays.</strong> Development comes before results, and game time is shared fairly.</li>
+    <li><strong>Every child is safe.</strong> Child Protection &amp; Safeguarding policy under the Children's Act, police-cleared coaches, and POPIA-compliant handling of player information and images.</li>
+    <li><strong>School comes first.</strong> Our Attendance Policy and welfare check-ins mean a child who drops away gets a call, not a penalty.</li>
+    <li><strong>Football opens doors.</strong> We help players toward school sports programmes, scholarships and higher-level teams.</li>
+  </ul>
+
+  <h2 style="margin-top:6mm"><span class="num">2</span>What it costs to keep a child playing</h2>
+  <p>Families in our community often can't cover the full cost of a season. Sponsorship closes that gap so no child is turned away.</p>
+  <table class="avoid">
+    <thead><tr><th>Per player, per season (estimate)</th><th class="n">ZAR</th></tr></thead>
+    <tbody>
+      <tr><td>SAFA / league registration and affiliation share</td><td class="n"><span class="ph">[ ]</span></td></tr>
+      <tr><td>Match kit share (shirt, shorts, socks) and training top</td><td class="n"><span class="ph">[ ]</span></td></tr>
+      <tr><td>Transport to away matches</td><td class="n"><span class="ph">[ ]</span></td></tr>
+      <tr><td>Balls, bibs, cones, first-aid supplies (share)</td><td class="n"><span class="ph">[ ]</span></td></tr>
+      <tr class="total"><td>Total per player (used for "Sponsor a Player")</td><td class="n">R1,500</td></tr>
+    </tbody>
+  </table>
+  <p class="small">Line items to be completed from the academy's actual costs. The R1,500 total is the planning figure used in this pack.</p>
+</div>
+
+<div class="section">
+  <h2><span class="num">3</span>Partnership packages</h2>
+  <p>Every package can be tailored, and packages can be combined. In-kind support (goods or services) is welcome and is valued at fair market value.</p>
+  <div class="tiers">
+    <div class="tier"><h3>Headline Academy Partner</h3><div class="price">R60,000 / year · 1 available</div><ul>
+      <li>Logo on the front of all match shirts (U11–U15)</li>
+      <li>"Growfit Sports Academy, supported by <span class="ph">[Partner]</span>" on all communications</li>
+      <li>Naming of the Growfit Youth Cup, with trophy presentation</li>
+      <li>Staff volunteering day and a coaching clinic for staff's children</li>
+      <li>Quarterly impact updates and an annual impact report</li>
+    </ul></div>
+    <div class="tier"><h3>Kit Partner</h3><div class="price">R25,000 / season · 1 available</div><ul>
+      <li>Funds a full match kit set for all three age groups</li>
+      <li>Logo on the shirt sleeve or back, and on training tops</li>
+      <li>Kit launch photo and social media feature</li>
+      <li>Annual impact report</li>
+    </ul></div>
+    <div class="tier"><h3>Squad Partner</h3><div class="price">R8,000 / season · 3 available (one per age group)</div><ul>
+      <li>Funds one squad's balls, bibs, cones, first aid and away transport</li>
+      <li>"U13s supported by <span class="ph">[Partner]</span>": logo on the squad's training bibs and banner</li>
+      <li>Invitation to a home match and end-of-season function</li>
+    </ul></div>
+    <div class="tier"><h3>Youth Cup Partner</h3><div class="price">R15,000 per tournament</div><ul>
+      <li>"Growfit Youth Cup presented by <span class="ph">[Partner]</span>"</li>
+      <li>Branding on banners, medals ribbons and certificates</li>
+      <li>Presents the trophies; stall in the family zone</li>
+      <li>Smaller packages: Pitch Partner R3,000, Medals Partner R5,000</li>
+    </ul></div>
+    <div class="tier"><h3>Match Camera Partner</h3><div class="price">R6,000 / year</div><ul>
+      <li>"Growfit Match Cam, supported by <span class="ph">[Partner]</span>"</li>
+      <li>Logo on highlight reels, the tripod banner and video posts</li>
+      <li>Helps fund the academy's match video programme</li>
+    </ul></div>
+    <div class="tier"><h3>Sponsor a Player</h3><div class="price">R1,500 / season · unlimited</div><ul>
+      <li>Covers one player's registration, kit and transport for a season</li>
+      <li>A thank-you letter from the player's coach. For child-protection reasons we don't share the child's personal details</li>
+      <li>Ideal for small businesses, staff collections and individuals</li>
+    </ul></div>
+  </div>
+  <div class="note" style="margin-top:4mm"><strong>In-kind partners welcome:</strong> transport (taxi or bus to away games), water and snacks, printing and signage, first-aid supplies, kit laundering, and professional services such as accounting, legal, IT and design.</div>
+</div>
+
+<div class="section">
+  <h2><span class="num">4</span>What partners get</h2>
+  <table>
+    <thead><tr><th style="width:28%">Benefit</th><th>Detail</th></tr></thead>
+    <tbody>
+      <tr><td><strong>B-BBEE socio-economic development</strong></td><td>Under the B-BBEE Codes, monetary and non-monetary support for <strong>sports development programmes</strong> can count toward the Socio-Economic Development element (target: 1% of net profit after tax). It is recognised in full where at least 75% of beneficiaries are black people. Growfit provides a <strong>beneficiary confirmation letter</strong> (Template S6) and proof of contribution for your verification agency. <span class="small">Your verification agent confirms recognition.</span></td></tr>
+      <tr><td><strong>Brand visibility</strong></td><td>Logo placement as per package. Social media features. Recognition at matches, the Growfit Youth Cup and in the annual impact report.</td></tr>
+      <tr><td><strong>Community connection</strong></td><td>Grassroots football reaches families across Greater Durban every weekend. Partners are visibly part of that community.</td></tr>
+      <tr><td><strong>Staff engagement</strong></td><td>Volunteering days, a coaching clinic for staff's children, and match-day invitations.</td></tr>
+      <tr><td><strong>Transparent reporting</strong></td><td>Quarterly updates and an annual impact report: players supported, matches played, progress stories (with consent), and how funds were spent.</td></tr>
+      <tr><td><strong>Tax</strong></td><td>Growfit will confirm its SARS status (PBO approval and whether section 18A receipts can be issued for a specific purpose) before any tax benefit is offered. Sponsorship may also be deductible as a business marketing expense. Please check with your tax adviser.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:6mm"><span class="num">5</span>Our commitments to partners</h2>
+  <ul>
+    <li><strong>Child-appropriate partners only.</strong> We do not accept sponsorship from alcohol, tobacco/vaping, gambling or betting brands, or any brand unsuitable for children.</li>
+    <li><strong>Children's images are protected.</strong> Sponsors may share academy photos and video only where we have confirmed parent/guardian consent, and never with a child's full name. Children don't appear in a sponsor's own advertising without separate written consent.</li>
+    <li><strong>Money is accounted for.</strong> Funds go into the academy's bank account, are spent on what was agreed, and are reported back. Unused funds are carried forward with the partner's agreement.</li>
+    <li><strong>Agreed in writing.</strong> Every partnership is confirmed in a short agreement (Template S5).</li>
+  </ul>
+  <div class="callout"><p><strong>Next step:</strong> a 20-minute conversation to match a package to your goals. Contact <span class="ph">[name]</span> on <span class="ph">[phone]</span> or <span class="ph">[email]</span>.</p></div>
+</div>
+
+<div class="section">
+  <div class="eyebrow">Part B · Templates for the Growfit team</div>
+  <h2 style="margin-top:2mm">How to use these templates</h2>
+  <ul>
+    <li><strong>Research first.</strong> Personalise every message: name the person, mention something specific about the business (local branch, past community work, a parent who works there).</li>
+    <li><strong>Start warm.</strong> Begin with parents' employers, local businesses near our pitches, suppliers we already buy from and businesses with B-BBEE targets.</li>
+    <li><strong>Ask for something specific.</strong> Name one package and amount. Offer a smaller option (Squad Partner or Sponsor a Player) in the same message.</li>
+    <li><strong>Follow up once</strong> after 7–10 days (S4). Then move on politely, and keep a tracker of who was contacted, when and what they said.</li>
+    <li><strong>Thank and report.</strong> Send a thank-you within 48 hours (S7) and report on time. Happy sponsors renew.</li>
+  </ul>
+  <table class="avoid">
+    <thead><tr><th style="width:12%">#</th><th>Template</th><th>Use when</th></tr></thead>
+    <tbody>
+      <tr><td>S1</td><td>Cover email</td><td>Sending this proposal to a named contact</td></tr>
+      <tr><td>S2</td><td>Formal sponsorship request letter</td><td>Corporates, CSI departments, letters on letterhead</td></tr>
+      <tr><td>S3</td><td>Short intro (WhatsApp / LinkedIn / walk-in)</td><td>First contact with a local business owner</td></tr>
+      <tr><td>S4</td><td>Follow-up email</td><td>No reply after 7–10 days</td></tr>
+      <tr><td>S5</td><td>Sponsorship agreement</td><td>Confirming any package</td></tr>
+      <tr><td>S6</td><td>B-BBEE SED beneficiary letter</td><td>Sponsor needs SED evidence for verification</td></tr>
+      <tr><td>S7</td><td>Thank-you letter &amp; impact report outline</td><td>Within 48 hours of payment; report at season end</td></tr>
+      <tr><td>S8</td><td>In-kind support request</td><td>Asking for goods or services (transport, water, printing)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Template S1 · Cover email</span>
+  <div class="msg"><strong>Subject:</strong> Partnering with Growfit Sports Academy: grassroots football in <span class="ph">[area]</span><br><br>
+  Dear <span class="ph">[Name]</span>,<br><br>
+  I'm <span class="ph">[your name]</span> from Growfit Sports Academy, a non-profit academy in Greater Durban running U11, U13 and U15 teams in the Greater Durban Football League. <span class="ph">[Personal line, e.g. "Several of our players' families live near your <span>[branch]</span>," or "We admired your support for <span>[community project]</span>."]</span><br><br>
+  We're looking for a small number of local partners for the <span class="ph">[season]</span> season, and I believe <span class="ph">[Business]</span> would be a great fit as our <strong><span class="ph">[package, e.g. Squad Partner]</span></strong> at <strong><span class="ph">[R amount]</span></strong>. This would <span class="ph">[specific outcome, e.g. "equip our U13 squad and cover their away travel for the whole season"]</span>.<br><br>
+  In return, <span class="ph">[Business]</span> would receive <span class="ph">[2–3 key benefits]</span>. The support may also count toward your B-BBEE socio-economic development contribution, and we provide the supporting letter.<br><br>
+  Our sponsorship proposal is attached. Could we have a 20-minute chat in the next two weeks? I can come to you.<br><br>
+  Kind regards,<br><span class="ph">[Name]</span> · <span class="ph">[Role]</span>, Growfit Sports Academy NPC<br><span class="ph">[phone]</span> · <span class="ph">[email]</span></div>
+
+  <span class="tpl-label" style="margin-top:7mm">Template S3 · Short intro (WhatsApp / LinkedIn / walk-in)</span>
+  <div class="msg">Hi <span class="ph">[Name]</span>, I'm <span class="ph">[name]</span> from Growfit Sports Academy, a non-profit grassroots football academy in <span class="ph">[area]</span> with U11, U13 and U15 teams (~60 kids). We're looking for local businesses to back our players this season, from R1,500 to sponsor a child up to full squad partnerships. It can also count toward B-BBEE SED. Could I send you our one-page proposal? ⚽</div>
+
+  <span class="tpl-label" style="margin-top:7mm">Template S4 · Follow-up email</span>
+  <div class="msg"><strong>Subject:</strong> Re: Partnering with Growfit Sports Academy<br><br>
+  Dear <span class="ph">[Name]</span>,<br><br>
+  I'm following up on my email of <span class="ph">[date]</span> about <span class="ph">[Business]</span> partnering with Growfit Sports Academy. I know things get busy, so here's the short version: <span class="ph">[R amount]</span> would <span class="ph">[outcome]</span> for <span class="ph">[number]</span> young players this season, with <span class="ph">[key benefit]</span> for <span class="ph">[Business]</span>.<br><br>
+  If the timing isn't right, I'd be grateful for a quick note. Smaller options such as sponsoring a single player (R1,500) or in-kind support are also very welcome.<br><br>
+  Kind regards,<br><span class="ph">[Name]</span> · <span class="ph">[phone]</span></div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Template S2 · Formal sponsorship request letter</span>
+  <div class="letter">
+    <div class="lh"><img src="../../../growfit.png" alt=""><div class="org"><b>Growfit Sports Academy NPC</b><br>NPC Reg. No. <span class="ph">[ ]</span> · PBO No. <span class="ph">[if applicable]</span><br><span class="ph">[address]</span><br><span class="ph">[email]</span> · <span class="ph">[phone]</span></div></div>
+    <p><span class="ph">[Date]</span></p>
+    <p><span class="ph">[Name]</span><br><span class="ph">[Title, e.g. CSI / Marketing Manager]</span><br><span class="ph">[Company]</span><br><span class="ph">[Address]</span></p>
+    <p><strong>Request for sponsorship: <span class="ph">[package name]</span>, <span class="ph">[season/year]</span></strong></p>
+    <p>Dear <span class="ph">[Mr/Ms Surname]</span>,</p>
+    <p>Growfit Sports Academy NPC is a registered non-profit company, founded in 2023, that develops young footballers in Greater Durban. We run U11, U13 and U15 teams in the Greater Durban Football League, under eight adopted policies including Child Protection and Safeguarding. All our players are SAFA-registered, and all our coaches are police-cleared volunteers.</p>
+    <p>We respectfully request <span class="ph">[Company]</span>'s support as our <strong><span class="ph">[package]</span></strong> for <span class="ph">[period]</span>, at a value of <strong><span class="ph">[R amount]</span></strong>. Your support would fund <span class="ph">[specific use, e.g. "full match kits for all three age groups"]</span>, directly benefiting <span class="ph">[number]</span> young players from <span class="ph">[communities]</span>.</p>
+    <p>In recognition, <span class="ph">[Company]</span> would receive <span class="ph">[benefits list]</span>. Because sports development programmes are a recognised category of socio-economic development under the B-BBEE Codes, and at least 75% of our beneficiaries are black youth, this contribution may be recognised on your scorecard. We will provide a beneficiary confirmation letter and proof of contribution.</p>
+    <p>We will account fully for the funds and report to you <span class="ph">[quarterly]</span>, including an annual impact report. Our sponsorship proposal is enclosed, and we would welcome the opportunity to meet.</p>
+    <p>Thank you for considering this request.</p>
+    <p>Yours sincerely,</p>
+    <p><br>Buhle Madlala<br>Founder &amp; Academy Director, Growfit Sports Academy NPC</p>
+    <p class="small">Enclosures: Sponsorship proposal · NPC registration certificate · <span class="ph">[PBO letter, if applicable]</span> · Bank confirmation letter</p>
+  </div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Template S5 · Sponsorship agreement</span>
+  <div class="letter">
+    <p style="text-align:center"><strong>SPONSORSHIP AGREEMENT</strong></p>
+    <p><strong>Between</strong> Growfit Sports Academy NPC, Reg. No. <span class="ph">[ ]</span> ("Growfit") <strong>and</strong> <span class="ph">[Sponsor legal name]</span>, Reg. No. <span class="ph">[ ]</span> ("the Sponsor").</p>
+    <p><strong>1. Package &amp; term.</strong> The Sponsor will be Growfit's <span class="ph">[package]</span> from <span class="ph">[start date]</span> to <span class="ph">[end date]</span>.</p>
+    <p><strong>2. Contribution.</strong> The Sponsor will contribute <span class="ph">[R amount / description of goods or services and value]</span>, payable <span class="ph">[in full by date / in instalments of R… on …]</span> into Growfit's bank account: <span class="ph">[bank details]</span>.</p>
+    <p><strong>3. Use of funds.</strong> Growfit will use the contribution for <span class="ph">[purpose]</span>. Any material change in use will be agreed with the Sponsor in writing.</p>
+    <p><strong>4. Sponsor benefits.</strong> Growfit will provide: <span class="ph">[list of benefits, logo placements, events, reports]</span>.</p>
+    <p><strong>5. Logos &amp; approvals.</strong> Each party grants the other a non-exclusive right to use its name and logo only for this sponsorship, in forms approved in advance.</p>
+    <p><strong>6. Child protection &amp; POPIA.</strong> The Sponsor will use images or video of Growfit players only as supplied by Growfit, only where Growfit confirms parent/guardian consent, and never with a child's full name or in the Sponsor's own advertising without separate written consent. Growfit will not share players' personal information with the Sponsor.</p>
+    <p><strong>7. Reporting.</strong> Growfit will provide <span class="ph">[quarterly updates and an annual impact report]</span> and, on request, a B-BBEE beneficiary confirmation letter and proof of contribution.</p>
+    <p><strong>8. Suitability.</strong> The Sponsor confirms it is not an alcohol, tobacco/vaping, gambling or betting brand. Either party may end this agreement with 30 days' written notice, or immediately if the other party's conduct could bring it into disrepute. Unspent funds will be returned or reallocated as agreed.</p>
+    <p><strong>9. Renewal.</strong> The parties will discuss renewal at least <span class="ph">[60]</span> days before the end of the term.</p>
+    <div class="sig">
+      <div>For Growfit Sports Academy NPC<br><br>Name: ______________________<br>Role: ______________________<br>Date: ____ / ____ / ______</div>
+      <div>For <span class="ph">[Sponsor]</span><br><br>Name: ______________________<br>Role: ______________________<br>Date: ____ / ____ / ______</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Template S6 · B-BBEE SED beneficiary confirmation letter</span>
+  <p class="howto">The sponsor's verification agency will usually ask for this, together with proof of payment. Only sign it if the beneficiary figures are accurate.</p>
+  <div class="letter">
+    <div class="lh"><img src="../../../growfit.png" alt=""><div class="org"><b>Growfit Sports Academy NPC</b><br>NPC Reg. No. <span class="ph">[ ]</span><br><span class="ph">[address]</span><br><span class="ph">[email]</span> · <span class="ph">[phone]</span></div></div>
+    <p><span class="ph">[Date]</span></p>
+    <p><strong>TO WHOM IT MAY CONCERN: CONFIRMATION OF SOCIO-ECONOMIC DEVELOPMENT CONTRIBUTION</strong></p>
+    <p>We confirm that Growfit Sports Academy NPC (Reg. No. <span class="ph">[ ]</span>), a non-profit company that runs a youth football development programme in Greater Durban, KwaZulu-Natal, received the following contribution:</p>
+    <div class="form-row"><span>Contributor</span><span><span class="ph">[Company name, reg. no.]</span></span></div>
+    <div class="form-row"><span>Date(s) received</span><span><span class="ph">[ ]</span></span></div>
+    <div class="form-row"><span>Type &amp; value</span><span><span class="ph">[Cash R… / In-kind: description, value R…]</span></span></div>
+    <div class="form-row"><span>Purpose</span><span><span class="ph">[e.g. youth football development: kit, equipment, transport]</span></span></div>
+    <div class="form-row"><span>Number of beneficiaries</span><span><span class="ph">[ ]</span></span></div>
+    <div class="form-row"><span>Black beneficiaries</span><span><span class="ph">[ ]</span>% of beneficiaries are black people (African, Coloured and Indian South Africans)</span></div>
+    <p style="margin-top:4mm">The contribution is used for sports development of young people, and no goods or services were provided to the contributor in exchange other than recognition as described in our sponsorship agreement.</p>
+    <p>Yours faithfully,</p>
+    <p><br>______________________<br>Buhle Madlala, Founder &amp; Academy Director<br>Growfit Sports Academy NPC</p>
+  </div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Template S7 · Thank-you letter</span>
+  <div class="letter">
+    <p><span class="ph">[Date]</span></p>
+    <p>Dear <span class="ph">[Name]</span>,</p>
+    <p>On behalf of the players, parents and coaches of Growfit Sports Academy, thank you. <span class="ph">[Business]</span>'s support as our <span class="ph">[package]</span> means <span class="ph">[concrete outcome, e.g. "our U13s will walk out in their first proper match kit this Sunday"]</span>.</p>
+    <p>We'll keep you updated through the season, and you'll receive our impact report in <span class="ph">[month]</span>. We'd love to welcome you at <span class="ph">[upcoming match / event, date]</span>.</p>
+    <p>With gratitude,</p>
+    <p><br><span class="ph">[Name]</span>, Growfit Sports Academy NPC</p>
+  </div>
+
+  <h3>Annual impact report: outline (2–4 pages)</h3>
+  <table class="avoid">
+    <thead><tr><th style="width:30%">Section</th><th>Contents</th></tr></thead>
+    <tbody>
+      <tr><td>1. Season at a glance</td><td>Players registered, matches played, training sessions, attendance rate, tournaments entered or hosted</td></tr>
+      <tr><td>2. What your support did</td><td>Exactly what was funded, with photos (consented players only, no full names)</td></tr>
+      <tr><td>3. Player progress</td><td>Development highlights across the five areas; players moving to school or higher-level teams (with consent)</td></tr>
+      <tr><td>4. Your visibility</td><td>Where the logo appeared, social media reach, events attended</td></tr>
+      <tr><td>5. Finances</td><td>Amount received and how it was spent, line by line</td></tr>
+      <tr><td>6. Next season</td><td>Plans, and the renewal invitation</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Template S8 · In-kind support request</span>
+  <p class="howto">For local shops, taxi owners, printers, pharmacies, bakeries and service providers. Short and specific works best.</p>
+  <div class="letter">
+    <p><span class="ph">[Date]</span></p>
+    <p>Dear <span class="ph">[Name]</span>,</p>
+    <p>Growfit Sports Academy is a non-profit youth football academy in <span class="ph">[area]</span>, with U11, U13 and U15 teams in the Greater Durban Football League. We are asking local businesses for help with <span class="ph">[specific need]</span>:</p>
+    <ul>
+      <li><span class="ph">[e.g. transport for 15 players and 2 coaches to <span>[venue]</span> on <span>[date]</span>]</span></li>
+      <li><span class="ph">[e.g. 5 cases of water for our Sunday home matches this term]</span></li>
+      <li><span class="ph">[e.g. printing 200 programmes for the Growfit Youth Cup]</span></li>
+    </ul>
+    <p>In return, we would proudly thank <span class="ph">[Business]</span> on our social media and at our matches, and display your name as a <strong>Community Supporter</strong> <span class="ph">[in the tournament programme / on our banner]</span>. On request, we can provide a letter confirming the value of the support for your B-BBEE records.</p>
+    <p>Even a partial contribution would make a real difference to our players. Thank you for considering it.</p>
+    <p>Kind regards,</p>
+    <p><br><span class="ph">[Name]</span> · <span class="ph">[Role]</span><br>Growfit Sports Academy NPC · <span class="ph">[phone]</span></p>
+  </div>
+</div>
+
+</body>
+</html>

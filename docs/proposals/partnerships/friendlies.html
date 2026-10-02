@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Growfit Challenge Series – Friendly Fixtures Proposal</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4; margin: 18mm 17mm 20mm 17mm; }
+  :root {
+    --red: #AF2D35; --red-dark: #6B1B1F; --red-tint: #F7EAEB;
+    --ink: #16181D; --ink-2: #474C55; --ink-3: #7A808A;
+    --rule: #DADDE2; --panel: #F5F6F8;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: #fff; }
+  body { font-family: Inter, "Liberation Sans", Arial, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.5; margin: 0; }
+  h1, h2, h3 { line-height: 1.2; margin: 0; }
+  h2 { font-size: 17pt; font-weight: 800; color: var(--ink); margin: 0 0 4mm; padding-top: 1mm; }
+  h2 .num { color: var(--red); margin-right: 6px; }
+  h3 { font-size: 11pt; font-weight: 700; margin: 5mm 0 2mm; }
+  p { margin: 0 0 2.6mm; }
+  ul { margin: 0 0 3mm; padding-left: 5mm; }
+  li { margin-bottom: 1.2mm; }
+  .section { break-before: page; }
+  .avoid { break-inside: avoid; }
+  .muted { color: var(--ink-2); }
+  .small { font-size: 8.5pt; color: var(--ink-3); }
+  strong { font-weight: 700; }
+
+  /* cover */
+  .cover { height: 257mm; display: flex; flex-direction: column; }
+  .cover-top { display: flex; align-items: center; gap: 6mm; }
+  .cover-top img { width: 26mm; height: 26mm; }
+  .cover-org { font-weight: 700; font-size: 11pt; }
+  .cover-org span { display: block; font-weight: 400; color: var(--ink-2); font-size: 9.5pt; }
+  .cover-band { margin-top: 30mm; border-left: 3mm solid var(--red); padding-left: 7mm; }
+  .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: 8.5pt; font-weight: 700; color: var(--red); }
+  .cover h1 { font-size: 30pt; font-weight: 800; margin: 3mm 0 4mm; letter-spacing: -.01em; }
+  .cover .lede { font-size: 12pt; color: var(--ink-2); max-width: 150mm; }
+  .cover-ask { margin-top: 18mm; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+  .cover-foot { margin-top: auto; border-top: 1px solid var(--rule); padding-top: 4mm; display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; font-size: 9pt; color: var(--ink-2); }
+  .cover-foot b { color: var(--ink); }
+
+  /* tiles */
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 4mm 0 5mm; }
+  .tile { background: var(--panel); border-radius: 3mm; padding: 3.5mm 4mm; }
+  .tile .v { font-size: 16pt; font-weight: 800; color: var(--ink); line-height: 1.1; }
+  .tile .l { font-size: 8.3pt; color: var(--ink-2); margin-top: 1.2mm; line-height: 1.35; }
+  .tile.hero { background: var(--red); }
+  .tile.hero .v, .tile.hero .l { color: #fff; }
+
+  /* tables */
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 9pt; }
+  th { text-align: left; font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); border-bottom: 1.5px solid var(--ink); padding: 2mm 2mm; }
+  td { border-bottom: 1px solid var(--rule); padding: 2mm 2mm; vertical-align: top; }
+  td.n, th.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tr.sub td { background: var(--panel); font-weight: 600; }
+  tr.total td { border-top: 1.5px solid var(--ink); border-bottom: none; font-weight: 800; font-size: 10pt; }
+  tr.total td.n { color: var(--red); }
+
+  .callout { background: var(--red-tint); border-left: 1.2mm solid var(--red); padding: 3.5mm 4.5mm; border-radius: 0 2mm 2mm 0; margin: 3mm 0 4mm; }
+  .callout p:last-child { margin: 0; }
+  .note { background: var(--panel); padding: 3mm 4mm; border-radius: 2mm; font-size: 8.8pt; color: var(--ink-2); margin: 3mm 0; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+  .card { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; }
+  .card h3 { margin-top: 0; }
+
+  /* weekly cycle */
+  .cycle { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2mm; margin: 3mm 0 4mm; }
+  .step { border-top: 1.2mm solid var(--red); background: var(--panel); padding: 2.5mm 3mm; border-radius: 0 0 2mm 2mm; font-size: 8.5pt; }
+  .step b { display: block; font-size: 9pt; margin-bottom: .8mm; }
+  .step .d { color: var(--red); font-weight: 700; font-size: 7.8pt; text-transform: uppercase; letter-spacing: .06em; }
+
+  /* bar figure */
+  .fig { margin: 3mm 0 2mm; }
+  .bar-row { display: grid; grid-template-columns: 30mm 1fr 22mm; align-items: center; gap: 3mm; margin: 2.2mm 0; font-size: 9pt; }
+  .bar-track { position: relative; height: 7mm; }
+  .bar { height: 100%; background: var(--red); border-radius: 0 1.2mm 1.2mm 0; }
+  .ref { position: absolute; top: -2mm; bottom: -2mm; border-left: 1.5px dashed var(--ink); }
+  .ref-label { font-size: 7.8pt; color: var(--ink-2); position: absolute; top: -6mm; transform: translateX(-50%); white-space: nowrap; }
+  .fig-cap { font-size: 8.3pt; color: var(--ink-3); margin-top: 1mm; }
+
+  .compact table { font-size: 8.3pt; margin: 1.5mm 0 2.5mm; }
+  .compact td { padding: 1.3mm 2mm; }
+  .compact h3 { margin: 2.5mm 0 1mm; }
+  .compact li { margin-bottom: .6mm; font-size: 9pt; }
+  .compact .callout { margin: 2mm 0; padding: 2.5mm 4mm; }
+  .sig { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 10mm; }
+  .sig div { border-top: 1px solid var(--ink); padding-top: 2mm; font-size: 9pt; color: var(--ink-2); }
+  .src { font-size: 8pt; color: var(--ink-2); word-break: break-all; }
+  .src li { margin-bottom: .8mm; }
+  .tag { display: inline-block; border-radius: 1mm !important; font-size: 7.5pt; font-weight: 700; padding: .3mm 1.8mm; border-radius: 10mm; background: var(--panel); color: var(--ink-2); text-transform: uppercase; letter-spacing: .05em; }
+  .tag.r { background: var(--red-tint); color: var(--red-dark); }
+
+  .ph { background: #F7EAEB; color: #6B1B1F; padding: 0 1.2mm; border-radius: 1mm; font-weight: 600; }
+  .tpl-label { display:inline-block; font-size: 8pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #fff; background: var(--ink); padding: .8mm 2.5mm; border-radius: 1mm; margin-bottom: 3mm; }
+  .letter { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 7mm 8mm; font-size: 9.6pt; }
+  .letter p { margin-bottom: 2.8mm; }
+  .letter .lh { display:flex; justify-content: space-between; align-items:flex-start; border-bottom: 1.5px solid var(--red); padding-bottom: 3mm; margin-bottom: 5mm; }
+  .letter .lh img { width: 15mm; height: 15mm; }
+  .letter .lh .org { text-align:right; font-size: 8.3pt; color: var(--ink-2); line-height: 1.4; }
+  .letter .lh .org b { color: var(--ink); font-size: 9.5pt; }
+  .msg { background: var(--panel); border-radius: 3mm; padding: 4mm 5mm; font-size: 9.6pt; white-space: normal; }
+  .howto { font-size: 8.8pt; color: var(--ink-2); margin: 0 0 3mm; }
+  .form-row { display:grid; grid-template-columns: 45mm 1fr; border-bottom: 1px solid var(--rule); padding: 2.6mm 0; font-size: 9.3pt; }
+  .form-row span:last-child { border-bottom: 1px dotted var(--ink-3); }
+  .check { display:inline-block; width:3.2mm; height:3.2mm; border:1px solid var(--ink); margin-right:1.5mm; vertical-align:-0.4mm; }
+  .tier { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; break-inside: avoid; }
+  .tier .price { color: var(--red); font-weight: 800; font-size: 13pt; }
+  .tier h3 { margin: 0 0 1mm; }
+  .tiers { display:grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; }
+  .tiers ul { margin-bottom: 0; }
+  .toc { columns: 2; font-size: 9.5pt; }
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="cover-top">
+    <img src="../../../growfit.png" alt="Growfit Football Academy crest">
+    <div class="cover-org">Growfit Sports Academy NPC<span>Grassroots football · U11 · U13 · U15 · Greater Durban, KwaZulu-Natal</span></div>
+  </div>
+  <div class="cover-band">
+    <div class="eyebrow">Partnership proposal · October 2026</div>
+    <h1>Growfit Challenge Series</h1>
+    <p class="lede">An invitation to Durban's leading grassroots clubs and academies: home-and-away friendly fixtures across U11, U13 and U15, run to a shared standard and at no cost to either club.</p>
+  </div>
+  <div class="cover-ask">
+    <div class="tile hero"><div class="v">3 games</div><div class="l">One fixture day, three age groups: U11, U13 and U15</div></div>
+    <div class="tile"><div class="v">R0</div><div class="l">Cost to the visiting club. Hosting alternates</div></div>
+    <div class="tile"><div class="v">2–3</div><div class="l">Fixture days per partner each year</div></div>
+  </div>
+  <div class="cover-foot">
+    <div><b>Contact</b><br>Buhle Madlala, Founder &amp; Technical Director<br><span class="ph">[email]</span> · <span class="ph">[phone]</span></div>
+    <div><b>Prepared for</b><br><span class="ph">[Club / academy name]</span><br><span class="ph">[Contact person, role]</span></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2><span class="num">1</span>The invitation</h2>
+  <p>Growfit Sports Academy is a registered NPC founded in 2023, running U11, U13 and U15 teams in the Greater Durban Football League. We are inviting a small group of Durban's strongest grassroots clubs and academies to a <strong>Challenge Series</strong>: planned friendly fixtures between our clubs across all three age groups, played home and away during the season, in breaks between league rounds and in pre-season.</p>
+  <p>The idea is simple. Players improve fastest against strong, well-organised opposition. League fixtures don't always give that, and arranging good friendlies one at a time takes a lot of WhatsApp messages. A standing agreement makes it easy for both clubs.</p>
+
+  <h3>How it works</h3>
+  <table class="avoid">
+    <thead><tr><th style="width:26%">Element</th><th>Detail</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Fixture day</strong></td><td>One morning or afternoon, three matches back-to-back: U11, then U13, then U15. Each club travels once and all its squads play.</td></tr>
+      <tr><td><strong>Home and away</strong></td><td>Hosting alternates. The host provides the pitch, referees and first aid. The visitor only arranges its own transport.</td></tr>
+      <tr><td><strong>Frequency</strong></td><td>2–3 fixture days per partner per year, set at the start of the season around both clubs' league calendars.</td></tr>
+      <tr><td><strong>Match rules</strong></td><td>League age rules and pitch sizes. Rolling substitutions agreed in advance, so <strong>every player gets meaningful minutes</strong>. Results are recorded but the focus is development.</td></tr>
+      <tr><td><strong>After the match</strong></td><td>A 15-minute coaches' debrief between the two technical staffs. Optional joint cool-down and handshake line for players and parents.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h2><span class="num">2</span>What your club gets</h2>
+  <div class="two">
+    <div class="card"><h3>Quality, reliable fixtures</h3><p>Planned games against a committed, well-organised opponent in all three age groups. They are on the calendar months ahead, so you aren't hunting for a friendly the week before.</p></div>
+    <div class="card"><h3>No cost, less admin</h3><p>The host covers the pitch, referees and first aid, and hosting alternates, so costs even out. One agreement replaces many separate arrangements.</p></div>
+    <div class="card"><h3>Game time for the whole squad</h3><p>Agreed rolling substitutions let you give minutes to development players and try new positions and systems without league points at stake.</p></div>
+    <div class="card"><h3>Match footage</h3><p>Where Growfit's match camera is available, your club receives the <strong>full recording of your team's matches free of charge</strong> for coaching use. It is shared only with your club, under a simple consent agreement.</p></div>
+    <div class="card"><h3>Coach-to-coach exchange</h3><p>A debrief after every fixture day, and an optional joint coaching session each year (e.g. on session design or game-time management), so both technical staffs learn.</p></div>
+    <div class="card"><h3>Priority at the Growfit Youth Cup</h3><p>Partner clubs get guaranteed places and a <strong>reduced entry fee</strong> at our twice-yearly holiday tournament, plus first offer of any joint showcase or scouting day we arrange.</p></div>
+  </div>
+
+  <h3>What it gives Durban football</h3>
+  <p>When strong clubs play each other regularly, the level rises across the city. Players get used to tougher games, coaches share ideas, and parents see grassroots clubs working together. The series is open to clubs from any part of Greater Durban, and we'd welcome partners who want to grow it into a small invitational league over time.</p>
+
+</div>
+
+<div class="section">
+  <h2><span class="num">3</span>Shared standards</h2>
+  <table class="avoid">
+    <thead><tr><th style="width:26%">Standard</th><th>What both clubs commit to</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Registration &amp; age</strong></td><td>Only registered players within the age group. Team lists exchanged 48 hours before.</td></tr>
+      <tr><td><strong>Safety</strong></td><td>Host provides first aid on site and a referee for each match. Medical and emergency details are carried by each club for its own players.</td></tr>
+      <tr><td><strong>Safeguarding</strong></td><td>All coaches have police/CPR Part B clearance. No unaccompanied adults in player areas. Concerns reported through each club's safeguarding lead.</td></tr>
+      <tr><td><strong>Conduct</strong></td><td>Respect for referees, players and parents of both clubs. Both clubs' codes of conduct apply.</td></tr>
+      <tr><td><strong>Photos &amp; video (POPIA)</strong></td><td>Each club tells the other about any player who must not be filmed or photographed. Footage of a club's players is shared only with that club, and nothing is posted publicly without the other club's agreement.</td></tr>
+      <tr><td><strong>Reliability</strong></td><td>Cancellations at least 72 hours before (except weather or emergencies), with a replacement date offered.</td></tr>
+    </tbody>
+  </table>
+  <p>If this sounds useful, the next step is a short call or meeting between our technical directors to pick dates. Agreement and invitation templates are attached.</p>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Template F1 · Invitation letter</span>
+  <p class="howto">Send on letterhead by email, with this proposal attached. Personalise the highlighted fields and one sentence about the club you are inviting.</p>
+  <div class="letter">
+    <div class="lh"><img src="../../../growfit.png" alt=""><div class="org"><b>Growfit Sports Academy NPC</b><br>NPC Reg. No. <span class="ph">[ ]</span><br><span class="ph">[address]</span><br><span class="ph">[email]</span> · <span class="ph">[phone]</span></div></div>
+    <p><span class="ph">[Date]</span></p>
+    <p><span class="ph">[Name]</span><br><span class="ph">[Role, e.g. Technical Director]</span><br><span class="ph">[Club / academy name]</span></p>
+    <p><strong>Invitation: Growfit Challenge Series, friendly fixtures for U11, U13 and U15</strong></p>
+    <p>Dear <span class="ph">[Name]</span>,</p>
+    <p>I'm writing on behalf of Growfit Sports Academy, a non-profit academy running U11, U13 and U15 teams in the Greater Durban Football League. <span class="ph">[One sentence on why you admire their club, e.g. "Your U15s' style of play in the league this season has stood out to our coaches."]</span></p>
+    <p>We would like to invite <span class="ph">[Club name]</span> to be a founding partner in the <strong>Growfit Challenge Series</strong>: two or three planned fixture days a year, home and away, with all three of our age groups playing back-to-back on the same day.</p>
+    <p>Hosting alternates, and the host covers the pitch, referees and first aid, so there is no cost to either club beyond travel. Every player gets meaningful minutes, the coaches meet for a short debrief afterwards, and where our match camera is available your club receives the recording of your team's matches free of charge.</p>
+    <p>The attached proposal explains the format and the standards we would both commit to, including safeguarding and photo consent. I'd welcome a short call to see whether it fits your calendar. Possible first dates are <span class="ph">[date 1]</span> or <span class="ph">[date 2]</span>.</p>
+    <p>Thank you for considering it. We look forward to hearing from you.</p>
+    <p>Kind regards,</p>
+    <p><br>Buhle Madlala<br>Founder &amp; Technical Director, Growfit Sports Academy NPC<br><span class="ph">[phone]</span></p>
+  </div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Template F2 · WhatsApp / SMS intro</span>
+  <p class="howto">For a first contact by phone. Keep it short and ask permission before sending documents.</p>
+  <div class="msg">Hi <span class="ph">[Name]</span>, this is Buhle Madlala from Growfit Sports Academy (U11/U13/U15, GDFL). We'd love to set up regular friendlies with <span class="ph">[Club]</span>: all three age groups on one day, home and away, no cost to either club, and we share match video where we can. Could I email you a short proposal? 🙏⚽</div>
+
+  <span class="tpl-label" style="margin-top:7mm">Template F3 · Follow-up email</span>
+  <p class="howto">Send 7–10 days after the invitation if there is no reply.</p>
+  <div class="msg"><strong>Subject:</strong> Growfit Challenge Series: possible dates<br><br>Hi <span class="ph">[Name]</span>,<br><br>Just following up on my invitation for <span class="ph">[Club]</span> to join the Growfit Challenge Series. Our proposed first fixture days are <span class="ph">[date 1]</span> and <span class="ph">[date 2]</span>, and we're happy to host the first one. If a short call is easier, I'm available <span class="ph">[times]</span>.<br><br>Kind regards,<br>Buhle Madlala · <span class="ph">[phone]</span></div>
+
+  <span class="tpl-label" style="margin-top:7mm">Template F4 · Fixture confirmation (per fixture day)</span>
+  <div class="form-row"><span>Date &amp; kick-off times</span><span>U11 ____ · U13 ____ · U15 ____</span></div>
+  <div class="form-row"><span>Host club &amp; venue</span><span></span></div>
+  <div class="form-row"><span>Referees arranged by</span><span></span></div>
+  <div class="form-row"><span>First aid on site</span><span></span></div>
+  <div class="form-row"><span>Substitution rule</span><span><span class="check"></span>Rolling &nbsp;&nbsp;<span class="check"></span>Other: __________</span></div>
+  <div class="form-row"><span>Filming</span><span><span class="check"></span>Yes, footage shared with each club only &nbsp;&nbsp;<span class="check"></span>No</span></div>
+  <div class="form-row"><span>Players not to be filmed (initials)</span><span></span></div>
+  <div class="form-row"><span>Contacts on the day</span><span>Host: __________ · Visitor: __________</span></div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Template F5 · Partnership agreement</span>
+  <p class="howto">A one-page agreement for the season. It is not a legal contract. It records what both clubs have agreed.</p>
+  <div class="letter">
+    <p style="text-align:center"><strong>GROWFIT CHALLENGE SERIES: FRIENDLY FIXTURE AGREEMENT <span class="ph">[season]</span></strong></p>
+    <p><strong>Between</strong> Growfit Sports Academy NPC (<span class="ph">[reg. no.]</span>) <strong>and</strong> <span class="ph">[Club name]</span> (<span class="ph">[affiliation / reg. no.]</span>).</p>
+    <p><strong>1. Fixtures.</strong> The clubs will play <span class="ph">[2/3]</span> fixture days in the season, each with U11, U13 and U15 matches. Proposed dates: <span class="ph">[ ]</span>. Hosting alternates, with the first fixture hosted by <span class="ph">[club]</span>.</p>
+    <p><strong>2. Costs.</strong> The host club provides the pitch, a referee for each match and first aid on site. Each club pays its own travel. No fees are payable between the clubs.</p>
+    <p><strong>3. Players.</strong> Only registered players within the age group take part. Team lists are exchanged 48 hours before. Rolling substitutions are used unless agreed otherwise, and every available player receives meaningful playing time.</p>
+    <p><strong>4. Safeguarding &amp; safety.</strong> All coaches hold police/CPR Part B clearance. Each club carries medical and emergency details for its own players and follows its own safeguarding policy. Concerns are reported to both clubs' safeguarding leads.</p>
+    <p><strong>5. Photos &amp; video.</strong> Each club confirms it holds parent/guardian media consent for players who may be filmed, and tells the other club about any player who must not be filmed. Match footage of a club's players is shared only with that club, for coaching use, and is not published without that club's written agreement.</p>
+    <p><strong>6. Conduct &amp; cancellations.</strong> Both clubs' codes of conduct apply. Cancellations are given at least 72 hours before (except weather or emergencies), with a replacement date offered.</p>
+    <p><strong>7. Review.</strong> The technical directors review the series at the end of the season. Either club may withdraw with 30 days' notice.</p>
+    <div class="sig">
+      <div>For Growfit Sports Academy NPC<br><br>Name: ______________________<br>Role: ______________________<br>Date: ____ / ____ / ______</div>
+      <div>For <span class="ph">[Club name]</span><br><br>Name: ______________________<br>Role: ______________________<br>Date: ____ / ____ / ______</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

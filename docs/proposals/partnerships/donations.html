@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Growfit Donations & Grants Pack</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4; margin: 18mm 17mm 20mm 17mm; }
+  :root {
+    --red: #AF2D35; --red-dark: #6B1B1F; --red-tint: #F7EAEB;
+    --ink: #16181D; --ink-2: #474C55; --ink-3: #7A808A;
+    --rule: #DADDE2; --panel: #F5F6F8;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: #fff; }
+  body { font-family: Inter, "Liberation Sans", Arial, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.5; margin: 0; }
+  h1, h2, h3 { line-height: 1.2; margin: 0; }
+  h2 { font-size: 17pt; font-weight: 800; color: var(--ink); margin: 0 0 4mm; padding-top: 1mm; }
+  h2 .num { color: var(--red); margin-right: 6px; }
+  h3 { font-size: 11pt; font-weight: 700; margin: 5mm 0 2mm; }
+  p { margin: 0 0 2.6mm; }
+  ul { margin: 0 0 3mm; padding-left: 5mm; }
+  li { margin-bottom: 1.2mm; }
+  .section { break-before: page; }
+  .avoid { break-inside: avoid; }
+  .muted { color: var(--ink-2); }
+  .small { font-size: 8.5pt; color: var(--ink-3); }
+  strong { font-weight: 700; }
+
+  /* cover */
+  .cover { height: 257mm; display: flex; flex-direction: column; }
+  .cover-top { display: flex; align-items: center; gap: 6mm; }
+  .cover-top img { width: 26mm; height: 26mm; }
+  .cover-org { font-weight: 700; font-size: 11pt; }
+  .cover-org span { display: block; font-weight: 400; color: var(--ink-2); font-size: 9.5pt; }
+  .cover-band { margin-top: 30mm; border-left: 3mm solid var(--red); padding-left: 7mm; }
+  .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: 8.5pt; font-weight: 700; color: var(--red); }
+  .cover h1 { font-size: 30pt; font-weight: 800; margin: 3mm 0 4mm; letter-spacing: -.01em; }
+  .cover .lede { font-size: 12pt; color: var(--ink-2); max-width: 150mm; }
+  .cover-ask { margin-top: 18mm; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+  .cover-foot { margin-top: auto; border-top: 1px solid var(--rule); padding-top: 4mm; display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; font-size: 9pt; color: var(--ink-2); }
+  .cover-foot b { color: var(--ink); }
+
+  /* tiles */
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 4mm 0 5mm; }
+  .tile { background: var(--panel); border-radius: 3mm; padding: 3.5mm 4mm; }
+  .tile .v { font-size: 16pt; font-weight: 800; color: var(--ink); line-height: 1.1; }
+  .tile .l { font-size: 8.3pt; color: var(--ink-2); margin-top: 1.2mm; line-height: 1.35; }
+  .tile.hero { background: var(--red); }
+  .tile.hero .v, .tile.hero .l { color: #fff; }
+
+  /* tables */
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 9pt; }
+  th { text-align: left; font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); border-bottom: 1.5px solid var(--ink); padding: 2mm 2mm; }
+  td { border-bottom: 1px solid var(--rule); padding: 2mm 2mm; vertical-align: top; }
+  td.n, th.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tr.sub td { background: var(--panel); font-weight: 600; }
+  tr.total td { border-top: 1.5px solid var(--ink); border-bottom: none; font-weight: 800; font-size: 10pt; }
+  tr.total td.n { color: var(--red); }
+
+  .callout { background: var(--red-tint); border-left: 1.2mm solid var(--red); padding: 3.5mm 4.5mm; border-radius: 0 2mm 2mm 0; margin: 3mm 0 4mm; }
+  .callout p:last-child { margin: 0; }
+  .note { background: var(--panel); padding: 3mm 4mm; border-radius: 2mm; font-size: 8.8pt; color: var(--ink-2); margin: 3mm 0; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+  .card { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; }
+  .card h3 { margin-top: 0; }
+
+  /* weekly cycle */
+  .cycle { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2mm; margin: 3mm 0 4mm; }
+  .step { border-top: 1.2mm solid var(--red); background: var(--panel); padding: 2.5mm 3mm; border-radius: 0 0 2mm 2mm; font-size: 8.5pt; }
+  .step b { display: block; font-size: 9pt; margin-bottom: .8mm; }
+  .step .d { color: var(--red); font-weight: 700; font-size: 7.8pt; text-transform: uppercase; letter-spacing: .06em; }
+
+  /* bar figure */
+  .fig { margin: 3mm 0 2mm; }
+  .bar-row { display: grid; grid-template-columns: 30mm 1fr 22mm; align-items: center; gap: 3mm; margin: 2.2mm 0; font-size: 9pt; }
+  .bar-track { position: relative; height: 7mm; }
+  .bar { height: 100%; background: var(--red); border-radius: 0 1.2mm 1.2mm 0; }
+  .ref { position: absolute; top: -2mm; bottom: -2mm; border-left: 1.5px dashed var(--ink); }
+  .ref-label { font-size: 7.8pt; color: var(--ink-2); position: absolute; top: -6mm; transform: translateX(-50%); white-space: nowrap; }
+  .fig-cap { font-size: 8.3pt; color: var(--ink-3); margin-top: 1mm; }
+
+  .compact table { font-size: 8.3pt; margin: 1.5mm 0 2.5mm; }
+  .compact td { padding: 1.3mm 2mm; }
+  .compact h3 { margin: 2.5mm 0 1mm; }
+  .compact li { margin-bottom: .6mm; font-size: 9pt; }
+  .compact .callout { margin: 2mm 0; padding: 2.5mm 4mm; }
+  .sig { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 10mm; }
+  .sig div { border-top: 1px solid var(--ink); padding-top: 2mm; font-size: 9pt; color: var(--ink-2); }
+  .src { font-size: 8pt; color: var(--ink-2); word-break: break-all; }
+  .src li { margin-bottom: .8mm; }
+  .tag { display: inline-block; border-radius: 1mm !important; font-size: 7.5pt; font-weight: 700; padding: .3mm 1.8mm; border-radius: 10mm; background: var(--panel); color: var(--ink-2); text-transform: uppercase; letter-spacing: .05em; }
+  .tag.r { background: var(--red-tint); color: var(--red-dark); }
+
+  .ph { background: #F7EAEB; color: #6B1B1F; padding: 0 1.2mm; border-radius: 1mm; font-weight: 600; }
+  .tpl-label { display:inline-block; font-size: 8pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #fff; background: var(--ink); padding: .8mm 2.5mm; border-radius: 1mm; margin-bottom: 3mm; }
+  .letter { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 7mm 8mm; font-size: 9.6pt; }
+  .letter p { margin-bottom: 2.8mm; }
+  .letter .lh { display:flex; justify-content: space-between; align-items:flex-start; border-bottom: 1.5px solid var(--red); padding-bottom: 3mm; margin-bottom: 5mm; }
+  .letter .lh img { width: 15mm; height: 15mm; }
+  .letter .lh .org { text-align:right; font-size: 8.3pt; color: var(--ink-2); line-height: 1.4; }
+  .letter .lh .org b { color: var(--ink); font-size: 9.5pt; }
+  .msg { background: var(--panel); border-radius: 3mm; padding: 4mm 5mm; font-size: 9.6pt; white-space: normal; }
+  .howto { font-size: 8.8pt; color: var(--ink-2); margin: 0 0 3mm; }
+  .form-row { display:grid; grid-template-columns: 45mm 1fr; border-bottom: 1px solid var(--rule); padding: 2.6mm 0; font-size: 9.3pt; }
+  .form-row span:last-child { border-bottom: 1px dotted var(--ink-3); }
+  .check { display:inline-block; width:3.2mm; height:3.2mm; border:1px solid var(--ink); margin-right:1.5mm; vertical-align:-0.4mm; }
+  .tier { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; break-inside: avoid; }
+  .tier .price { color: var(--red); font-weight: 800; font-size: 13pt; }
+  .tier h3 { margin: 0 0 1mm; }
+  .tiers { display:grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; }
+  .tiers ul { margin-bottom: 0; }
+  .toc { columns: 2; font-size: 9.5pt; }
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="cover-top">
+    <img src="../../../growfit.png" alt="Growfit Football Academy crest">
+    <div class="cover-org">Growfit Sports Academy NPC<span>Grassroots football · U11 · U13 · U15 · Greater Durban, KwaZulu-Natal</span></div>
+  </div>
+  <div class="cover-band">
+    <div class="eyebrow">Fundraising toolkit · October 2026</div>
+    <h1>Donations &amp; Grants Pack</h1>
+    <p class="lede">Ready-to-use letters, forms, receipts and a 12-month fundraising calendar for individuals, community organisations, corporate foundations and grant funders.</p>
+  </div>
+  <div class="cover-ask">
+    <div class="tile hero"><div class="v">10</div><div class="l">Templates, D1–D10</div></div>
+    <div class="tile"><div class="v">5</div><div class="l">Ways to give: once-off, monthly, sponsor a player, in-kind, campaigns</div></div>
+    <div class="tile"><div class="v">12</div><div class="l">Month fundraising calendar</div></div>
+  </div>
+  <div class="cover-foot">
+    <div><b>Owner</b><br>Khaya Madlala, Fundraising &amp; Registration<br>Finance sign-off: Buhle Madlala</div>
+    <div><b>Before first use</b><br>Fill in bank details, NPC / PBO numbers and contact details once, in every template</div>
+  </div>
+</div>
+
+<div class="section">
+  <h2><span class="num">1</span>Ways to give</h2>
+  <table>
+    <thead><tr><th style="width:24%">Option</th><th>What it is</th><th style="width:22%">Template</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Once-off gift</strong></td><td>Any amount by EFT, card (crowdfunding page) or SnapScan.</td><td>D1, D2, D3, D4</td></tr>
+      <tr><td><strong>Friends of Growfit</strong></td><td>A monthly gift (R100, R250, R500 or any amount) by debit order or recurring EFT. This gives predictable income for training equipment and transport.</td><td>D5</td></tr>
+      <tr><td><strong>Sponsor a Player</strong></td><td>R1,500 covers one child's season: registration, kit and transport.</td><td>D1, D4</td></tr>
+      <tr><td><strong>In-kind</strong></td><td>Boots, balls, kit, water, transport, printing, first-aid supplies, professional services.</td><td>D6</td></tr>
+      <tr><td><strong>Campaigns</strong></td><td>Time-bound appeals, e.g. "Kit the U13s" or the Match Camera appeal, with a clear target and a progress update.</td><td>D4</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:6mm"><span class="num">2</span>Rules we follow</h2>
+  <table class="avoid">
+    <thead><tr><th style="width:24%">Topic</th><th>Practice</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Receipts</strong></td><td>Every gift gets an acknowledgement (D7) within 7 days, numbered in sequence and recorded in the donation register.</td></tr>
+      <tr><td><strong>Tax certificates</strong></td><td>A <strong>section 18A tax certificate is only issued if SARS has approved Growfit for 18A</strong> and the gift is used for an approved activity. Sport on its own generally doesn't qualify, so never promise a tax deduction until this is confirmed with our accountant.</td></tr>
+      <tr><td><strong>B-BBEE</strong></td><td>Corporate gifts for sports development may count as socio-economic development. Use the SED beneficiary letter (Sponsorship pack, Template S6).</td></tr>
+      <tr><td><strong>Donor data (POPIA)</strong></td><td>Donor details are kept only in the donation register, used only to receipt, thank and update donors, and never shared. Donors can ask to be removed at any time.</td></tr>
+      <tr><td><strong>Children's images</strong></td><td>Appeals use photos only of players with media consent, and never with full names. No child is singled out as "needy".</td></tr>
+      <tr><td><strong>Raffles &amp; lotteries</strong></td><td>Raffles and lucky draws fall under the Lotteries Act. Check the society-lottery rules with the National Lotteries Commission before running one.</td></tr>
+      <tr><td><strong>Restricted gifts</strong></td><td>If a donor names a purpose (e.g. "for the U11s' kit"), the money is used for that purpose and recorded separately.</td></tr>
+      <tr><td><strong>Who can accept</strong></td><td>Money only goes into the academy bank account. No cash collections by individuals, except at events with two people counting and signing.</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><strong>Fill in once:</strong> Bank: <span class="ph">[bank]</span> · Account name: <span class="ph">Growfit Sports Academy NPC</span> · Account no.: <span class="ph">[ ]</span> · Branch code: <span class="ph">[ ]</span> · Reference: <span class="ph">[donor surname]</span> · NPC Reg.: <span class="ph">[ ]</span> · PBO No.: <span class="ph">[if any]</span></div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Template D1 · Personal appeal (family, friends, community, diaspora)</span>
+  <p class="howto">Personal is best. Send by email or WhatsApp, or print and hand over. Change the story paragraph to something real from this season.</p>
+  <div class="letter">
+    <p>Dear <span class="ph">[Name]</span>,</p>
+    <p>I'm writing to ask for your help with something close to my heart. In 2023 we started <strong>Growfit Sports Academy</strong>, a non-profit football academy in Greater Durban. Today about <span class="ph">[60]</span> young people play for our U11, U13 and U15 teams in the Greater Durban Football League.</p>
+    <p><span class="ph">[Story: one real, consented, non-identifying moment, e.g. "Last month one of our U13s, who joined unable to play a full match, captained the team for the first time. His mother told us he now does his homework before training so he never misses a session."]</span></p>
+    <p>For many families, the cost of a season (registration, kit and transport) is out of reach. <strong>R1,500 keeps one child playing for a whole season.</strong> Any amount helps:</p>
+    <ul>
+      <li><strong>R150</strong> buys a size-4 match ball</li>
+      <li><strong>R500</strong> covers a squad's transport to an away match</li>
+      <li><strong>R1,500</strong> sponsors one player for a season</li>
+      <li><strong>R250 a month</strong> as a Friend of Growfit keeps training equipment stocked all year</li>
+    </ul>
+    <p>You can give by EFT to <span class="ph">[bank details]</span>, reference <span class="ph">[your surname]</span>, or online at <span class="ph">[crowdfunding link]</span>. Every gift is acknowledged, and I'll send you an update on what it made possible.</p>
+    <p>Thank you for thinking of our players.</p>
+    <p>Warm regards,<br><br><span class="ph">[Name]</span>, Growfit Sports Academy NPC · <span class="ph">[phone]</span></p>
+  </div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Template D2 · Corporate / foundation donation request</span>
+  <p class="howto">For CSI departments, family trusts and foundations. Check their funding focus and application window first. Many require their own form, so use this as the cover letter.</p>
+  <div class="letter">
+    <div class="lh"><img src="../../../growfit.png" alt=""><div class="org"><b>Growfit Sports Academy NPC</b><br>NPC Reg. No. <span class="ph">[ ]</span> · PBO No. <span class="ph">[if any]</span><br><span class="ph">[address]</span><br><span class="ph">[email]</span> · <span class="ph">[phone]</span></div></div>
+    <p><span class="ph">[Date]</span></p>
+    <p><span class="ph">[Name, title]</span><br><span class="ph">[Company / Foundation]</span></p>
+    <p><strong>Request for a donation of <span class="ph">[R amount]</span> toward <span class="ph">[project]</span></strong></p>
+    <p>Dear <span class="ph">[Mr/Ms Surname]</span>,</p>
+    <p>Growfit Sports Academy NPC develops young footballers aged <span class="ph">[9–15]</span> in Greater Durban through U11, U13 and U15 teams in the Greater Durban Football League. Founded in 2023 and run by volunteer coaches, the academy is governed by eight adopted policies, including Child Protection and Safeguarding, and every player is SAFA-registered.</p>
+    <p>We are requesting <strong><span class="ph">[R amount]</span></strong> toward <strong><span class="ph">[project, e.g. "the Growfit Match Video Programme" / "equipment and transport for the 2027 season"]</span></strong>. This will <span class="ph">[outcome, with numbers: players reached, matches, sessions]</span>. The total project cost is <span class="ph">[R ]</span>, of which <span class="ph">[R ]</span> is already raised or committed from <span class="ph">[sources]</span>.</p>
+    <p>This project aligns with <span class="ph">[Foundation]</span>'s focus on <span class="ph">[youth development / sport / community]</span>. We will report <span class="ph">[quarterly]</span> on outcomes and spending. At least 75% of our beneficiaries are black youth, which may support your B-BBEE socio-economic development reporting.</p>
+    <p>Our proposal, registration documents and budget are enclosed. We would welcome the chance to discuss the project with you.</p>
+    <p>Yours sincerely,<br><br><br>Buhle Madlala<br>Founder &amp; Academy Director, Growfit Sports Academy NPC</p>
+    <p class="small">Enclosures: Project proposal · Budget · NPC registration (CIPC) · Board / directors list · Bank confirmation letter · Latest financial statements · <span class="ph">[PBO / NPO certificate, if any]</span></p>
+  </div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Template D3 · Faith &amp; community organisations</span>
+  <p class="howto">For churches, mosques, temples, stokvels, rotary or lions clubs and residents' associations. Offer something back, such as a short talk or a players' visit.</p>
+  <div class="letter">
+    <p>Dear <span class="ph">[Pastor / Imam / Chairperson Name]</span> and members of <span class="ph">[organisation]</span>,</p>
+    <p>Growfit Sports Academy is a non-profit youth football academy serving families in <span class="ph">[area]</span>. Our <span class="ph">[60]</span> players, aged <span class="ph">[9–15]</span>, train twice a week and play in the Greater Durban Football League. We use football to keep young people active, disciplined, safe and committed to school.</p>
+    <p>We would be grateful if <span class="ph">[organisation]</span> would consider <span class="ph">[a special collection / a donation of R… / sponsoring one or more players at R1,500 each / help with <span>[need]</span>]</span> for the <span class="ph">[season]</span> season.</p>
+    <p>We would also be glad to <span class="ph">[visit with some of our coaches to share our work / run a free football morning for your youth group / thank your members at a home match]</span>.</p>
+    <p>Donations can be made to <span class="ph">[bank details]</span>, reference <span class="ph">[organisation name]</span>. Every gift is acknowledged and reported back.</p>
+    <p>With thanks and respect,<br><br><span class="ph">[Name]</span>, Growfit Sports Academy NPC · <span class="ph">[phone]</span></p>
+  </div>
+
+  <span class="tpl-label" style="margin-top:7mm">Template D4 · Crowdfunding page &amp; social posts</span>
+  <p class="howto">For BackaBuddy, GivenGain or similar. Use one campaign at a time, with a clear target and end date, and post updates weekly.</p>
+  <div class="msg"><strong>Title:</strong> Keep Durban's young footballers playing: <span class="ph">[campaign, e.g. Kit the Growfit U13s]</span><br><br>
+  <strong>Story:</strong> Growfit Sports Academy is a non-profit grassroots football academy in Greater Durban, with <span class="ph">[60]</span> players in our U11, U13 and U15 teams. We're run by volunteers, and we believe every child should get to play, learn and be safe. This season we need <strong><span class="ph">[R target]</span></strong> to <span class="ph">[specific goal]</span>. <span class="ph">[One short consented story.]</span><br><br>
+  <strong>What your gift does:</strong> R150 = a match ball · R500 = transport to an away game · R1,500 = one player's whole season.<br><br>
+  <strong>Our promise:</strong> every rand is accounted for, and we'll post updates and a final report here. Thank you for backing our players! ⚽</div>
+  <div class="msg" style="margin-top:3mm"><strong>Social post:</strong> 🔴⚪ We're raising <span class="ph">[R target]</span> to <span class="ph">[goal]</span> for our young players. Just R1,500 keeps a child playing for a whole season. Every share helps 👉 <span class="ph">[link]</span> #GrowfitFA #GrassrootsFootball #Durban</div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Template D5 · Friends of Growfit: monthly giving form</span>
+  <p class="howto">Keep completed forms securely (they contain personal and banking information). Capture the details in the donation register, then file or destroy the form.</p>
+  <div class="form-row"><span>Full name</span><span></span></div>
+  <div class="form-row"><span>Phone</span><span></span></div>
+  <div class="form-row"><span>Email</span><span></span></div>
+  <div class="form-row"><span>Monthly amount</span><span><span class="check"></span>R100 &nbsp;&nbsp;<span class="check"></span>R250 &nbsp;&nbsp;<span class="check"></span>R500 &nbsp;&nbsp;<span class="check"></span>Other: R______</span></div>
+  <div class="form-row"><span>Start month</span><span></span></div>
+  <div class="form-row"><span>How I'll give</span><span><span class="check"></span>Recurring EFT (stop order) to the academy account &nbsp;&nbsp;<span class="check"></span>Online monthly (crowdfunding page)</span></div>
+  <div class="form-row"><span>Use my gift for</span><span><span class="check"></span>Where most needed &nbsp;&nbsp;<span class="check"></span>Sponsor-a-Player fund &nbsp;&nbsp;<span class="check"></span>Specific: ________</span></div>
+  <div class="form-row"><span>Recognition</span><span><span class="check"></span>You may thank me by name &nbsp;&nbsp;<span class="check"></span>Please keep me anonymous</span></div>
+  <p style="margin-top:4mm"><span class="check"></span>I agree that Growfit Sports Academy NPC may keep my details to receipt, thank and update me about my giving. My details will not be shared, and I can withdraw at any time by contacting <span class="ph">[email]</span>.</p>
+  <p>Recurring EFT details: <span class="ph">[bank details]</span> · Reference: <span class="ph">FRIEND + surname</span></p>
+  <div class="sig"><div>Signature<br><br>______________________<br>Date: ____ / ____ / ______</div><div>Office use<br><br>Register no.: _______ · Captured by: _______<br>Date: ____ / ____ / ______</div></div>
+
+  <span class="tpl-label" style="margin-top:8mm">Template D6 · In-kind donation form</span>
+  <div class="form-row"><span>Donor / business name</span><span></span></div>
+  <div class="form-row"><span>Contact person &amp; phone</span><span></span></div>
+  <div class="form-row"><span>Description of goods / service</span><span></span></div>
+  <div class="form-row"><span>Quantity &amp; condition</span><span><span class="check"></span>New &nbsp;&nbsp;<span class="check"></span>Good used &nbsp;&nbsp;Qty: ______</span></div>
+  <div class="form-row"><span>Estimated value (donor's)</span><span>R</span></div>
+  <div class="form-row"><span>Date received / delivered</span><span></span></div>
+  <div class="form-row"><span>Received by (Growfit)</span><span></span></div>
+  <div class="form-row"><span>Acknowledgement sent</span><span><span class="check"></span>D7 receipt &nbsp;&nbsp;<span class="check"></span>B-BBEE letter requested</span></div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Template D7 · Donation acknowledgement (receipt)</span>
+  <p class="howto">This is <strong>not</strong> a section 18A tax certificate. Only issue an 18A certificate (with SARS's required fields) if Growfit has 18A approval and the gift qualifies.</p>
+  <div class="letter">
+    <div class="lh"><img src="../../../growfit.png" alt=""><div class="org"><b>Growfit Sports Academy NPC</b><br>NPC Reg. No. <span class="ph">[ ]</span><br><span class="ph">[address]</span><br><span class="ph">[email]</span> · <span class="ph">[phone]</span></div></div>
+    <p style="text-align:center"><strong>DONATION ACKNOWLEDGEMENT</strong> &nbsp;·&nbsp; No. <span class="ph">[GF-2026-0001]</span></p>
+    <div class="form-row"><span>Received from</span><span><span class="ph">[donor name]</span></span></div>
+    <div class="form-row"><span>Date received</span><span><span class="ph">[ ]</span></span></div>
+    <div class="form-row"><span>Amount / description</span><span><span class="ph">[R… cash/EFT, or in-kind: description and donor's stated value]</span></span></div>
+    <div class="form-row"><span>Method</span><span><span class="check"></span>EFT &nbsp;&nbsp;<span class="check"></span>Online &nbsp;&nbsp;<span class="check"></span>SnapScan &nbsp;&nbsp;<span class="check"></span>In-kind</span></div>
+    <div class="form-row"><span>Designated for</span><span><span class="ph">[general / specific purpose]</span></span></div>
+    <p style="margin-top:4mm">Growfit Sports Academy NPC gratefully acknowledges this donation, which will be used for youth football development. No goods or services were provided in exchange. <span class="ph">[Delete if not applicable: A section 18A tax certificate will be issued separately.]</span></p>
+    <p><br>______________________<br><span class="ph">[Name]</span>, <span class="ph">[Role]</span> · Date: ____ / ____ / ______</p>
+  </div>
+
+  <span class="tpl-label" style="margin-top:8mm">Template D8 · Thank-you letter</span>
+  <div class="letter">
+    <p>Dear <span class="ph">[Name]</span>,</p>
+    <p>Thank you for your generous <span class="ph">[gift of R… / donation of …]</span> to Growfit Sports Academy. Because of you, <span class="ph">[specific result, e.g. "two more players will start the season fully registered and kitted out"]</span>.</p>
+    <p><span class="ph">[One line from a coach or a consented, non-identifying player moment.]</span></p>
+    <p>We'll send you an update at the end of <span class="ph">[term/season]</span>. If you'd like to see the team play, you are welcome at any home match. Our next one is <span class="ph">[date, venue]</span>.</p>
+    <p>With heartfelt thanks,<br><br><span class="ph">[Name]</span> and the Growfit players, parents and coaches</p>
+  </div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Template D9 · Grant application cover letter</span>
+  <p class="howto">For the National Lotteries Commission (sport &amp; recreation), the KZN Department of Sport and Recreation, eThekwini Municipality grants-in-aid and corporate foundations. Apply only when a call is open, follow each funder's own form and guidelines, and <strong>never pay anyone for application forms</strong>. Note that the NLC does not fund the same organisation again within 12 months of a grant.</p>
+  <div class="letter">
+    <div class="lh"><img src="../../../growfit.png" alt=""><div class="org"><b>Growfit Sports Academy NPC</b><br>NPC Reg. No. <span class="ph">[ ]</span> · NPO No. <span class="ph">[if any]</span> · PBO No. <span class="ph">[if any]</span><br><span class="ph">[address]</span> · <span class="ph">[email]</span> · <span class="ph">[phone]</span></div></div>
+    <p><span class="ph">[Date]</span></p>
+    <p><span class="ph">[Funder name, programme / call reference]</span><br><span class="ph">[Address]</span></p>
+    <p><strong>Application for funding: <span class="ph">[project title]</span> (<span class="ph">[R amount]</span>)</strong></p>
+    <p>Dear <span class="ph">[Grants Committee / Name]</span>,</p>
+    <p>Growfit Sports Academy NPC submits the enclosed application under <span class="ph">[call / programme]</span>. Founded in 2023, the academy develops <span class="ph">[60]</span> young footballers in Greater Durban through U11, U13 and U15 teams in the Greater Durban Football League, affiliated to SAFA.</p>
+    <p><strong>The need:</strong> <span class="ph">[2–3 sentences with local facts]</span>. <strong>The project:</strong> <span class="ph">[what, where, when, who benefits]</span>. <strong>Outcomes:</strong> <span class="ph">[measurable: players, sessions, coaches trained, tournaments, % retention]</span>. <strong>Budget:</strong> total <span class="ph">[R ]</span>, requested <span class="ph">[R ]</span>, own and other contributions <span class="ph">[R ]</span>.</p>
+    <p>The academy is governed by eight adopted policies, including Child Protection &amp; Safeguarding, and keeps its CIPC returns current. We will meet all reporting requirements and welcome a site visit.</p>
+    <p>Yours faithfully,<br><br><br>Buhle Madlala, Founder &amp; Academy Director</p>
+  </div>
+  <h3>Typical supporting documents checklist</h3>
+  <p><span class="check"></span>CIPC registration (CoR 14.3) and MOI &nbsp; <span class="check"></span>Directors' IDs &nbsp; <span class="check"></span>Bank confirmation letter (not older than 3 months) &nbsp; <span class="check"></span>Latest annual financial statements &nbsp; <span class="check"></span>NPO / PBO certificates (if registered) &nbsp; <span class="check"></span>SAFA / LFA affiliation letter &nbsp; <span class="check"></span>Detailed budget with quotes &nbsp; <span class="check"></span>Project plan and timeline &nbsp; <span class="check"></span>Child protection policy &nbsp; <span class="check"></span>Letters of support (league, school, ward councillor)</p>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Template D10 · 12-month fundraising calendar &amp; tracker</span>
+  <p class="howto">A suggested rhythm built around the season. Adjust months to the GDFL calendar and school holidays.</p>
+  <table>
+    <thead><tr><th style="width:16%">Month</th><th>Focus</th><th style="width:30%">Templates</th></tr></thead>
+    <tbody>
+      <tr><td>Oct</td><td>Prepare: fill in templates, confirm PBO/18A status with the accountant, build the prospect list, set up the crowdfunding page</td><td>All</td></tr>
+      <tr><td>Nov</td><td>Sponsor approaches for next season (Headline, Kit, Squad partners). Youth Cup sponsors</td><td>S1–S4</td></tr>
+      <tr><td>Dec</td><td><strong>Growfit Youth Cup</strong> (holidays). Year-end giving appeal to family and diaspora</td><td>Tournament pack, D1, D4</td></tr>
+      <tr><td>Jan</td><td>"Sponsor a Player" campaign for registrations. Friends of Growfit drive at parent meeting</td><td>D1, D4, D5</td></tr>
+      <tr><td>Feb</td><td>Kit launch with Kit Partner. Thank-you letters and first sponsor updates</td><td>S7, D8</td></tr>
+      <tr><td>Mar</td><td>Grant applications (check NLC / KZN DSR / eThekwini calls)</td><td>D9</td></tr>
+      <tr><td>Apr</td><td>Faith and community organisation visits. Challenge Series fixtures</td><td>D3, F1</td></tr>
+      <tr><td>May</td><td>Corporate foundation requests (CSI budgets often set early in the financial year)</td><td>D2</td></tr>
+      <tr><td>Jun–Jul</td><td><strong>Growfit Youth Cup</strong> (winter holidays). Mid-year sponsor update</td><td>Tournament pack, S7</td></tr>
+      <tr><td>Aug</td><td>Match Camera or equipment campaign</td><td>D4</td></tr>
+      <tr><td>Sep</td><td>In-kind drive (boots, balls, kit). B-BBEE letters for sponsors' year-end</td><td>D6, S6, S8</td></tr>
+      <tr><td>Oct–Nov</td><td>Annual impact report to all partners. Renewal conversations</td><td>S7 outline</td></tr>
+    </tbody>
+  </table>
+  <h3>Donor &amp; sponsor tracker: suggested columns</h3>
+  <p class="small">Keep this in one spreadsheet with access limited to the fundraising lead and finance.</p>
+  <table class="avoid">
+    <thead><tr><th>Name / organisation</th><th>Type</th><th>Contact</th><th>Ask (R / package)</th><th>Date sent</th><th>Follow-up</th><th>Outcome</th><th>Received</th><th>Receipt no.</th><th>Thanked</th><th>Report due</th></tr></thead>
+    <tbody>
+      <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    </tbody>
+  </table>
+</div>
+
+</body>
+</html>
