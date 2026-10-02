@@ -56,23 +56,35 @@ export async function deletePlayerRecord(playerId: string, confirmName: string) 
     }
   }
 
-  // ai_artefacts.subject_id is polymorphic with no foreign key (migration 045),
-  // so the delete below does NOT cascade to it. An erased child's AI-written
-  // profile surviving would defeat the erasure, so this runs first and a
-  // failure stops the whole thing rather than leaving orphans behind.
-  const artefacts = await deleteAiArtefactsForSubject(supabase, { subjectType: "player", subjectId: playerId });
-  if (!artefacts.deleted) return { error: "Couldn't erase this player's saved AI output — nothing was deleted." };
-  // "My job in this play" sets are keyed by play, not by player, and carry the
-  // player's first name; the delete above does not reach them.
-  const playRoles = await deletePlayRolesForPlayer(supabase, playerId);
-  if (!playRoles.deleted) return { error: "Couldn't erase this player's saved AI output — nothing was deleted." };
-
-  // Coach notes are polymorphic too (migration 056): same reasoning, same stop.
-  const notes = await deleteCoachNotesForPlayer(supabase, playerId);
-  if (!notes.deleted) return { error: "Couldn't erase the coach notes about this player — nothing was deleted." };
+  const stuck = await eraseDataWithoutForeignKey(supabase, playerId);
+  if (stuck) return { error: stuck };
 
   const { error } = await supabase.from("players").delete().eq("id", playerId);
   if (error) return { error: friendlyError(error) };
 
   redirect("/dashboard/admin/players");
+}
+
+/**
+ * The tables that name a player without a foreign key, so deleting the player
+ * does not reach them (ai_artefacts, migration 045; coach_notes, migration
+ * 056). An erased child's AI-written profile or a coach's note about them
+ * surviving would defeat the erasure, so this runs first and a failure stops
+ * the whole thing rather than leaving orphans. Returns the message to show, or
+ * null when everything is gone.
+ */
+async function eraseDataWithoutForeignKey(
+  supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
+  playerId: string
+): Promise<string | null> {
+  const aiFailed = "Couldn't erase this player's saved AI output — nothing was deleted.";
+  const artefacts = await deleteAiArtefactsForSubject(supabase, { subjectType: "player", subjectId: playerId });
+  if (!artefacts.deleted) return aiFailed;
+  // "My job in this play" sets are keyed by play, not by player, and carry the
+  // player's first name; deleting the player does not reach them.
+  const playRoles = await deletePlayRolesForPlayer(supabase, playerId);
+  if (!playRoles.deleted) return aiFailed;
+  const notes = await deleteCoachNotesForPlayer(supabase, playerId);
+  if (!notes.deleted) return "Couldn't erase the coach notes about this player — nothing was deleted.";
+  return null;
 }
