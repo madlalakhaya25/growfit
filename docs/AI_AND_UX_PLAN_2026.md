@@ -1635,7 +1635,9 @@ their own child only — next fixture, outstanding documents, what my child is
 working on. The allowlist is what makes this safe to expose; it is a separate
 registry, not a flag on the coach one.
 
-### Step 4.9 — Compliance chase
+### Step 4.9 — Compliance chase — DONE (#91)
+
+> **Shipped without a model.** `lib/compliance-chase.ts` orders the week (a gap with a fixture inside seven days first, then no SAFA number, then documents outstanding, then age/duplicate checks for the admin) and words each parent message deterministically, so no player data leaves the app and the message is exactly what the admin sees. Shown as "Chase this week" on the documents page; copied, never sent.
 
 Documents, eligibility, duplicate IDs and consent checked weekly into a
 prioritised list with a pre-written WhatsApp message per parent. The funnel
