@@ -547,6 +547,21 @@ export function getPitch(id: string | undefined): Pitch {
   return PITCHES.find((p) => p.id === id) ?? PITCHES[0];
 }
 
+/** U12 and below play on half a full-size pitch (Khaya, 2026-10-02). Half the
+ * area is about 0.71 of each side, so every match-pitch metre shrinks by this.
+ * One constant, so it is easy to change if the league's real sizes differ. */
+export const YOUNG_PITCH_SCALE = 0.71;
+
+/** The pitch with its metre scale matched to the squad's age group. Only the
+ * match pitches change; a training grid has its own fixed size. Anything
+ * unrecognised is treated as full size. */
+export function pitchForAge(pitch: Pitch, ageGroup: string | null | undefined): Pitch {
+  const n = Number(/^U(\d{1,2})$/i.exec((ageGroup ?? "").trim())?.[1]);
+  const isMatchPitch = pitch.id === "full" || pitch.id === "half" || pitch.id === "third";
+  if (!isMatchPitch || !Number.isFinite(n) || n > 12) return pitch;
+  return { ...pitch, metresPerUnit: pitch.metresPerUnit * YOUNG_PITCH_SCALE };
+}
+
 // ── Measuring & team shape ──────────────────────────────────────
 
 /** Distance between two board points, in metres on the given pitch. */

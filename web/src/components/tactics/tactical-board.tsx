@@ -18,7 +18,7 @@ import { drawBoard, pickRecorderMime } from "@/lib/board-render";
 import { framesFromShapes } from "@/lib/play-motion";
 import {
   BOARD_W, BOARD_H, polyPath, interpolateFrames, totalDurationMs, zonePolygon, simplifyPath, type ZoneShape,
-  getPitch, PITCHES, toBoardSpace, EQUIPMENT_SPECS, RECORDABLE_SHAPE_KINDS,
+  getPitch, pitchForAge, PITCHES, toBoardSpace, EQUIPMENT_SPECS, RECORDABLE_SHAPE_KINDS,
   GROUP_COLOR, groupOf, shortLabel, uid, assignToSlots, compress,
   DRAW_COLORS, SHAPE_STROKE, distanceMetres, teamShape, mirrorPoint, type Pitch,
   type EquipmentKind, type Point, type BoardObject, type BoardPlayer, type BoardTeam,
@@ -392,7 +392,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   /** What the pitch renders: the animated snapshot while playing, else live state. */
   const view = anim ? { ...state, tokens: anim.tokens, shapes: anim.shapes } : state;
 
-  const pitch = getPitch(pitchId);
+  const pitch = useMemo(() => pitchForAge(getPitch(pitchId), team?.age_group), [pitchId, team?.age_group]);
 
   /** The opponent's lines and the spaces they leave, read live off whatever
    *  is showing — so it follows drags and playback. See board-analysis.ts. */
