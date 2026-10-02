@@ -5,7 +5,7 @@ import { useEffect } from "react";
 
 // Only renders when the root layout itself fails, so it cannot rely on the
 // app's styles or components.
-export default function GlobalError({ error }: { error: Error & { digest?: string } }) {
+export default function GlobalError({ error }: Readonly<{ error: Error & { digest?: string } }>) {
   useEffect(() => {
     Sentry.captureException(error);
   }, [error]);
