@@ -111,6 +111,13 @@ export interface Shape {
    * negative to the right. Unset (every play saved before curves existed)
    * draws straight. */
   curve?: number;
+  /** Arrows only: the token this arrow leaves from. While set (and the token
+   * exists), the arrow's start follows that token when it is moved, so a
+   * rearranged board keeps its runs and passes joined to their players. Unset
+   * on every play saved before this existed, which stay exactly as drawn. */
+  fromTokenId?: string;
+  /** Pass arrows only: the token the ball is played to; the end follows it. */
+  toTokenId?: string;
   /** Zones only: "hatch" draws diagonal stripes instead of a flat tint —
    * reads as "no-go"/"press here" rather than "space". Unset = solid. */
   fill?: "solid" | "hatch";
@@ -291,6 +298,68 @@ export function resolveSpotlightCenter(
     if (tok) return { x: tok.x, y: tok.y };
   }
   return sh.pts[0];
+}
+
+/** How close (board units) an arrow's end must be to a token to attach to it. */
+export const ATTACH_RADIUS = 4;
+
+/** The token nearest to `p` within `maxDist`, ignoring `exceptId`. Ties go to the earlier token. */
+export function nearestToken<T extends { id: string; x: number; y: number }>(
+  tokens: T[],
+  p: Point,
+  maxDist = ATTACH_RADIUS,
+  exceptId?: string
+): T | null {
+  let best: T | null = null;
+  let bestD = maxDist;
+  for (const t of tokens) {
+    if (t.id === exceptId) continue;
+    const d = Math.hypot(t.x - p.x, t.y - p.y);
+    if (d <= bestD && (best === null || d < bestD)) {
+      best = t;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+/**
+ * Join a freshly drawn arrow to the players at its ends: the start to the
+ * token it begins on, and, for a pass, the end to the token it is played to.
+ * An arrow that starts in open space stays free, exactly as before.
+ */
+export function attachArrow(shape: Shape, tokens: { id: string; x: number; y: number }[]): Shape {
+  if (!ARROW_SHAPE_KINDS.has(shape.kind) || shape.pts.length < 2) return shape;
+  const from = nearestToken(tokens, shape.pts[0]);
+  const to = shape.kind === "pass" ? nearestToken(tokens, shape.pts[1], ATTACH_RADIUS, from?.id) : null;
+  if (!from && !to) return shape;
+  return {
+    ...shape,
+    ...(from ? { fromTokenId: from.id, pts: [{ x: from.x, y: from.y }, shape.pts[1]] } : {}),
+    ...(to ? { toTokenId: to.id } : {}),
+  };
+}
+
+/**
+ * Re-point every attached arrow's ends at where its tokens are now. A shape
+ * whose token is gone (deleted, or swapped for a substitute) keeps the end it
+ * had, so nothing jumps or disappears. Returns the same array when nothing
+ * moved, so it is cheap to call on every drag step.
+ */
+export function followAttached(shapes: Shape[], tokens: { id: string; x: number; y: number }[]): Shape[] {
+  const at = new Map(tokens.map((t) => [t.id, t]));
+  let changed = false;
+  const out = shapes.map((sh) => {
+    if ((!sh.fromTokenId && !sh.toTokenId) || sh.pts.length < 2) return sh;
+    const a = (sh.fromTokenId && at.get(sh.fromTokenId)) || null;
+    const b = (sh.toTokenId && at.get(sh.toTokenId)) || null;
+    const start = a ? { x: a.x, y: a.y } : sh.pts[0];
+    const end = b ? { x: b.x, y: b.y } : sh.pts.at(-1)!;
+    if (start.x === sh.pts[0].x && start.y === sh.pts[0].y && end.x === sh.pts[1].x && end.y === sh.pts[1].y) return sh;
+    changed = true;
+    return { ...sh, pts: [start, end] };
+  });
+  return changed ? out : shapes;
 }
 
 /** A coach's note about one player, optionally pinned to a specific step of

@@ -19,7 +19,7 @@ import { framesFromShapes } from "@/lib/play-motion";
 import {
   BOARD_W, BOARD_H, polyPath, interpolateFrames, totalDurationMs, zonePolygon, simplifyPath, type ZoneShape,
   getPitch, pitchForAge, PITCHES, toBoardSpace, EQUIPMENT_SPECS, RECORDABLE_SHAPE_KINDS,
-  GROUP_COLOR, groupOf, shortLabel, uid, assignToSlots, compress,
+  GROUP_COLOR, attachArrow, followAttached, groupOf, shortLabel, uid, assignToSlots, compress,
   DRAW_COLORS, SHAPE_STROKE, distanceMetres, teamShape, mirrorPoint, type Pitch,
   type EquipmentKind, type Point, type BoardObject, type BoardPlayer, type BoardTeam,
   type Token, type Shape, type Frame as ModelFrame,
@@ -1334,14 +1334,12 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
         // from its resting shape — so the same ball spot always gives the
         // same shape, and dragging the ball back restores it.
         const shifted = moved?.kind === "ball" && autoShift ? shiftToBall(autoShift.anchors, next, autoShift.side) : null;
-        return {
-          ...st,
-          tokens: st.tokens.map((t) => {
-            if (t.id === d.id) return { ...t, ...next };
-            const p = shifted?.get(t.id);
-            return p ? { ...t, ...p } : t;
-          }),
-        };
+        const tokens = st.tokens.map((t) => {
+          if (t.id === d.id) return { ...t, ...next };
+          const p = shifted?.get(t.id);
+          return p ? { ...t, ...p } : t;
+        });
+        return { ...st, tokens, shapes: followAttached(st.shapes, tokens) };
       });
     } else if (dragObj.current) {
       const { x, y } = toBoard(e.clientX, e.clientY);
@@ -1417,7 +1415,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
         }
       } else if (dist > 3) {
         snapshot();
-        const shape = { ...draft, id: uid("s") };
+        // A run or pass that starts on a player stays joined to them.
+        const shape = attachArrow({ ...draft, id: uid("s") }, state.tokens);
         setState((st) => ({ ...st, shapes: [...st.shapes, shape] }));
       }
     }
