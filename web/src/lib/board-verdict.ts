@@ -58,8 +58,8 @@ function nearestOf(pool: T[], p: Point, maxDist: number, exceptId?: string): T |
   return best;
 }
 
-const worst = (a: VerdictLevel, b: VerdictLevel): VerdictLevel =>
-  a === "poor" || b === "poor" ? "poor" : a === "risky" || b === "risky" ? "risky" : "good";
+const RANK: Record<VerdictLevel, number> = { good: 0, risky: 1, poor: 2 };
+const worst = (a: VerdictLevel, b: VerdictLevel): VerdictLevel => (RANK[a] >= RANK[b] ? a : b);
 
 function readPass(sh: Shape, tokens: T[], pitch: Pick<Pitch, "metresPerUnit">, ageGroup: string, offsideIds: Set<string>): Verdict | null {
   const byId = new Map(tokens.map((t) => [t.id, t]));
@@ -102,6 +102,15 @@ function readPass(sh: Shape, tokens: T[], pitch: Pick<Pitch, "metresPerUnit">, a
   return { shapeId: sh.id, level, text: notes.length ? `${head}: ${notes.join(", ")}.` : `${head}: clear lane, onside.` };
 }
 
+function readRun(sh: Shape, label: string, r: ReturnType<typeof reachTimes>[number] | undefined): Verdict | null {
+  if (!r) return null;
+  const verb = sh.kind === "press" ? "press" : "run";
+  if (!r.rival) return { shapeId: sh.id, level: "good", text: `${label}'s ${verb}: nobody to beat to the spot.` };
+  if (r.verdict === "first") return { shapeId: sh.id, level: "good", text: `${label}'s ${verb} gets there first (${r.seconds.toFixed(1)}s).` };
+  if (r.verdict === "contest") return { shapeId: sh.id, level: "risky", text: `${label}'s ${verb} is a close race with ${r.rival.label}.` };
+  return { shapeId: sh.id, level: "poor", text: `${r.rival.label} gets to the spot before ${label}'s ${verb}.` };
+}
+
 /** Every pass and run on the board, read for whether it is likely to come off. */
 export function willItWork(
   tokens: T[],
@@ -119,14 +128,9 @@ export function willItWork(
       const v = readPass(sh, tokens, pitch, ageGroup, offsideIds);
       if (v) items.push(v);
     } else if (sh.kind === "run" || sh.kind === "dribble" || sh.kind === "press") {
-      const r = times.get(sh.id);
       const mover = nearestOf(people, sh.pts[0], 10);
-      if (!r || !mover) continue;
-      const verb = sh.kind === "press" ? "press" : "run";
-      if (!r.rival) items.push({ shapeId: sh.id, level: "good", text: `${mover.label}'s ${verb}: nobody to beat to the spot.` });
-      else if (r.verdict === "first") items.push({ shapeId: sh.id, level: "good", text: `${mover.label}'s ${verb} gets there first (${r.seconds.toFixed(1)}s).` });
-      else if (r.verdict === "contest") items.push({ shapeId: sh.id, level: "risky", text: `${mover.label}'s ${verb} is a close race with ${r.rival.label}.` });
-      else items.push({ shapeId: sh.id, level: "poor", text: `${r.rival.label} gets to the spot before ${mover.label}'s ${verb}.` });
+      const v = mover ? readRun(sh, mover.label, times.get(sh.id)) : null;
+      if (v) items.push(v);
     }
   }
   return {
