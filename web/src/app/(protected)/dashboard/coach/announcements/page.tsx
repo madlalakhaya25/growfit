@@ -15,7 +15,7 @@ export default async function CoachAnnouncementsPage() {
 
   const { data: allTeams } = await supabase
     .from("teams")
-    .select("id, name")
+    .select("id, name, age_group")
     .in("id", await getCoachedTeamIds(supabase, user.id))
     .eq("active", true)
     .order("created_at");
