@@ -7,7 +7,7 @@ jest.mock("@/lib/session-memory-data", () => ({ loadRecentSessions: (...a: unkno
 jest.mock("@/lib/ai-guard", () => ({ checkAiBudget: async () => null, aiError: () => "friendly" }));
 const mockGenerate = jest.fn();
 jest.mock("@google/genai", () => ({
-  Type: { OBJECT: "OBJECT", ARRAY: "ARRAY", STRING: "STRING", NUMBER: "NUMBER" },
+  Type: { OBJECT: "OBJECT", ARRAY: "ARRAY", STRING: "STRING", NUMBER: "NUMBER", BOOLEAN: "BOOLEAN" },
   GoogleGenAI: class { models = { generateContent: (...a: unknown[]) => mockGenerate(...a) }; },
 }));
 
@@ -88,5 +88,54 @@ describe("generateSessionPlan memory", () => {
     expect(await generateSessionPlan({ ...base, teamId: "t1" })).toEqual({ error: "You don't coach this team." });
     expect(mockRecent).not.toHaveBeenCalled();
     expect(mockGenerate).not.toHaveBeenCalled();
+  });
+});
+
+describe("generateSessionPlan diagrams", () => {
+  const rondo = {
+    pitch: "grid-small",
+    tokens: [
+      { role: "team", x: 10, y: 10 }, { role: "team", x: 50, y: 10 }, { role: "opponent", x: 30, y: 30 }, { role: "ball", x: 14, y: 10 },
+    ],
+    equipment: [{ kind: "cone", x: 6, y: 6 }],
+    moves: [{ kind: "pass", from: 0, toToken: 1 }],
+  };
+  const reply = (diagram: unknown) =>
+    mockGenerate.mockResolvedValue({ text: JSON.stringify({ drills: [{ ...drill(1), diagram }, drill(2)], coachReflection: "Q?" }) });
+
+  it("asks the model for a diagram on each drill, with room to answer", async () => {
+    await generateSessionPlan(base);
+    const call = mockGenerate.mock.calls[0][0];
+    expect(call.contents).toContain("DIAGRAMS:");
+    expect(call.config.maxOutputTokens).toBeGreaterThanOrEqual(4000);
+    expect(call.config.responseSchema.properties.drills.items.properties.diagram).toBeDefined();
+    // optional: a drill the model cannot draw must still be a valid drill
+    expect(call.config.responseSchema.properties.drills.items.required).not.toContain("diagram");
+  });
+  it("returns a validated diagram on the drill it describes, and none on the others", async () => {
+    reply(rondo);
+    const res = await generateSessionPlan(base);
+    expect(res.structured?.drills[0].diagram).toMatchObject({ pitchId: "grid-small" });
+    expect(res.structured?.drills[0].diagram?.tokens).toHaveLength(4);
+    expect(res.structured?.drills[1].diagram).toBeUndefined();
+  });
+  it("never passes raw model geometry through: an off-pitch player comes back on it", async () => {
+    reply({ ...rondo, tokens: [{ role: "team", x: 900, y: -40 }, ...rondo.tokens.slice(1)], moves: [] });
+    const res = await generateSessionPlan(base);
+    const first = res.structured!.drills[0].diagram!.tokens[0];
+    expect(first.x).toBeLessThan(60);
+    expect(first.y).toBeGreaterThan(0);
+  });
+  it("drops a diagram that doesn't hold together, but keeps the drill and the plan", async () => {
+    reply({ pitch: "the moon", tokens: "lots" });
+    const res = await generateSessionPlan(base);
+    expect(res.error).toBeUndefined();
+    expect(res.structured?.drills[0]).not.toHaveProperty("diagram");
+    expect(res.structured?.drills[0].name).toBe("Drill 1");
+    expect(res.plan).toContain("DRILL 1: Drill 1");
+  });
+  it("keeps the diagram out of the prose", async () => {
+    reply(rondo);
+    expect((await generateSessionPlan(base)).plan).not.toMatch(/grid-small|"role"/);
   });
 });

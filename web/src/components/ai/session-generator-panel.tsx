@@ -8,6 +8,7 @@ import { generateSessionPlan, type SessionPlanStructured } from "@/app/actions/s
 import { addDrills } from "@/app/actions/training";
 import { packDrillDescription } from "@/lib/drill-description";
 import { AiProse } from "@/components/ai/ai-prose";
+import { DrillDiagramView } from "@/components/tactics/drill-diagram";
 import { SessionConstraintFields } from "@/components/ai/session-constraint-fields";
 import type { KitValue, SpaceValue } from "@/lib/session-constraints";
 
@@ -214,10 +215,12 @@ export function SessionGeneratorPanel({ sessionId, teamId, suggestedSquadSize = 
             const lines = drill.trim().split("\n");
             const header = lines[0];
             const rest = lines.slice(1);
+            const diagram = structured?.drills[i]?.diagram;
             return (
-              <div key={i} className="space-y-1">
+              <div key={header} className="space-y-1">
                 <p className="font-semibold text-sm text-foreground">{header}</p>
                 <AiProse text={rest.join("\n")} />
+                {diagram && <DrillDiagramView diagram={diagram} />}
               </div>
             );
           })}
