@@ -23,7 +23,7 @@ commit.
 | # | Item | What it needs | Source |
 |---|---|---|---|
 | 0.1 | **Apply migrations 030–045** (`045` added 2026-10-01; 038–044 shipped since this row was written) | Someone with Supabase SQL-editor or CLI access | IP Step 0 — **verified, see `MIGRATION_RUNBOOK.md`** |
-| 0.2 | Error reporting (Sentry or equivalent) | An account and a DSN | IP-6 — **seam built, see below** |
+| 0.2 | Error reporting (Sentry or equivalent) | An account and a DSN | IP-6 — **Done 2026-10-02: Sentry SDK on server, edge and browser (EU project), personal data scrubbed in `beforeSend`, DSN set in Vercel. Optional: `SENTRY_AUTH_TOKEN` for readable production stack traces** |
 | 0.3 | Seed a test Supabase project + Playwright auth states | A real test project and credentials | RM — **`supabase/seed.sql` written and verified, see below** |
 | 0.4 | Move rate limiting off in-memory | A shared store (Upstash Redis) and credentials | RM — **seam built, see below** |
 

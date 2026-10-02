@@ -350,7 +350,7 @@ project. Nothing below matters until `035` is applied; without it every read of
 | 3 | AI answer typography | U-3 | CSS | **Done** |
 | 4 | Squad brief reads all 30 attributes; never print a defaulted 50 | AI-1 | ~30 lines | **Done** |
 | 5 | Keyboard shortcuts on the board | T-2 | small | **Done** |
-| 6 | Error reporting (Sentry) | U-4 | setup | Not started — needs an account and a DSN |
+| 6 | Error reporting (Sentry) | U-4 | setup | **Done** (2026-10-02, SDK with scrubbing; see `BACKLOG.md` 0.2) |
 | 7 | `getPlayerAttributeSnapshot()` — one attribute-read policy | AI-2 | refactor | **Done** (as `buildAttributeSnapshot`) |
 | 8 | Squad search + filter chips | S-1 | small | **Done** |
 | 9 | Attendance %, Overall and doc badge on the squad card | S-2/S-3 | small | **Done** |
