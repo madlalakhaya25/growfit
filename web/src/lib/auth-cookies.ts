@@ -12,11 +12,13 @@
 
 import type { UserRole } from "@/lib/types";
 
+type RoleLike = UserRole | string | null | undefined;
+
 export const KEEP_SIGNED_IN_COOKIE = "gf-keep-signed-in";
 /** About 30 days. */
 export const KEEP_SIGNED_IN_SECONDS = 30 * 24 * 60 * 60;
 
-export function keepsSignedIn(role: UserRole | string | null | undefined): boolean {
+export function keepsSignedIn(role: RoleLike): boolean {
   return role === "admin" || role === "coach" || role === "parent";
 }
 
@@ -29,13 +31,14 @@ export function authCookieOptions(options: CookieOptions | undefined, keep: bool
 }
 
 /** The marker cookie for `document.cookie`, set on sign-in. */
-export function keepSignedInCookieString(role: UserRole | string | null | undefined): string {
+export function keepSignedInCookieString(role: RoleLike): string {
   const keep = keepsSignedIn(role);
-  return `${KEEP_SIGNED_IN_COOKIE}=${keep ? "1" : "0"}; path=/; samesite=lax${keep ? `; max-age=${KEEP_SIGNED_IN_SECONDS}` : ""}`;
+  const base = `${KEEP_SIGNED_IN_COOKIE}=${keep ? "1" : "0"}; path=/; samesite=lax`;
+  return keep ? `${base}; max-age=${KEEP_SIGNED_IN_SECONDS}` : base;
 }
 
 /** Browser only: record on this device whether the person who just signed in keeps their sign-in. */
-export function rememberSignIn(role: UserRole | string | null | undefined): void {
+export function rememberSignIn(role: RoleLike): void {
   document.cookie = keepSignedInCookieString(role);
 }
 
