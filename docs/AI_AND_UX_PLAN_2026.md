@@ -1568,7 +1568,9 @@ corners, the fixture list — not one session at a time. Model:
 Structured output, stored as an artefact, with each planned session applicable
 into a draft `training_session`.
 
-### Step 4.5 — Readiness score
+### Step 4.5 — Readiness score — DONE (#92)
+
+> **Shipped.** Migration `057` adds nullable `training_attendance.rpe`. The coach taps Easy, Okay, Hard or Very hard once per session ("How hard was it?"), which rates everyone who came. `lib/readiness.ts` turns that, matches played and ratings into a squad badge ("Keep an eye" or "Check in") with a plain reason, shown on the squad page. No model is involved. Session length and match minutes are not recorded, so they are documented constants (60 min, and 50/60/70 by age group). Without enough rated sessions no load ratio is shown at all.
 
 **Coordinate with `BACKLOG.md` 5.4, which already reserves migration `047` for
 `training_attendance.rpe`.** If 5.4 has shipped, reuse that column; if not, this

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { loadReadiness } from "@/lib/readiness-data";
 import { redirect } from "next/navigation";
 import { Upload, Plus, ShieldAlert, ClipboardCheck, Target } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -202,6 +203,18 @@ export default async function SquadPage({
     }
   }
 
+  // Readiness: load, attendance and rating trend in one flag per child. The
+  // attendance figure is the one computed just above, not a second one.
+  const readinessResult = await loadReadiness(
+    supabase,
+    team.id,
+    team.age_group,
+    playerIds.map((id) => {
+      const pct = summariseAttendance(marksByPlayer.get(id) ?? []).pct;
+      return { id, attendancePct: pct === null ? null : pct / 100 };
+    }),
+  );
+
   const squad = basePlayers.map(({ player: p, joinedAt }) => {
     const ratings = p.player_ratings.map((r) => r.rating);
     const avg = ratings.length
@@ -234,6 +247,7 @@ export default async function SquadPage({
       belowThreshold,
       docsOutstanding,
       availability,
+      readiness: readinessResult.byPlayer.get(p.id) ?? null,
     };
   });
 
@@ -430,7 +444,15 @@ export default async function SquadPage({
                             {!player.assessed && (
                               <Badge variant="neutral" className="text-xs">Not assessed</Badge>
                             )}
+                            {player.readiness && player.readiness.level !== "steady" && (
+                              <Badge variant={player.readiness.level === "check-in" ? "danger" : "warning"} className="text-xs">
+                                {player.readiness.level === "check-in" ? "Check in" : "Keep an eye"}
+                              </Badge>
+                            )}
                           </div>
+                          {player.readiness?.reasons.map((r) => (
+                            <p key={r} className="mt-1 text-xs text-amber-700 dark:text-amber-400">{r}</p>
+                          ))}
                           <p className="mt-1 text-xs text-muted-foreground">
                             {player.avg ? `★ ${player.avg} avg · ${player.ratingsCount}` : "No match ratings"}
                             {player.attendance !== null && !player.belowThreshold
