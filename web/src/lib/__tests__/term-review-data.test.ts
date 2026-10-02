@@ -86,3 +86,18 @@ describe("loadSquadReview", () => {
     expect(s.players).toEqual([]);
   });
 });
+
+import { loadSelfRatings } from "@/lib/term-review-data";
+
+describe("loadSelfRatings", () => {
+  it("returns the valid answers only", async () => {
+    const f = fakeSupabase(() => ({ data: [
+      { category: "mental", rating: 4 }, { category: "bogus", rating: 3 }, { category: "technical", rating: 9 },
+    ] }));
+    expect(await loadSelfRatings(f.client as never, "p1", "t1")).toEqual({ mental: 4 });
+  });
+  it("is empty, not an error, when the table is missing", async () => {
+    const f = fakeSupabase(() => ({ error: { code: "42P01" } }));
+    expect(await loadSelfRatings(f.client as never, "p1", "t1")).toEqual({});
+  });
+});

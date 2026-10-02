@@ -45,7 +45,7 @@ import { ProfileTabs } from "./profile-tabs";
 import { reportError } from "@/lib/report-error";
 import { formatDayMonth, todayIso } from "@/lib/time";
 import { signPlayerPhotoUrl } from "@/lib/player-photo";
-import { loadTermReview } from "@/lib/term-review-data";
+import { loadTermReview, loadSelfRatings } from "@/lib/term-review-data";
 import { TermReviewCard } from "@/components/development/term-review-card";
 
 
@@ -216,6 +216,7 @@ export default async function PlayerDetailPage({
   const termReview = profile?.academy_id
     ? await loadTermReview(supabase, playerId, profile.academy_id as string, todayIso())
     : null;
+  const selfRatings = termReview?.term ? await loadSelfRatings(supabase, playerId, termReview.term.id) : {};
   const { data: reviewTeam } = teamId
     ? await supabase.from("teams").select("age_group").eq("id", teamId).single()
     : { data: null };
@@ -499,6 +500,7 @@ export default async function PlayerDetailPage({
                       initial={termReview.current}
                       last={termReview.last}
                       lastTermName={termReview.previous?.name ?? null}
+                      selfRatings={selfRatings}
                     />
                   )}
                   {/* Ability attributes */}

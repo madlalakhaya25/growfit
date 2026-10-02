@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { saveTermReview } from "@/app/actions/term-review";
 import { MILESTONE_CATEGORIES, MILESTONE_CATEGORY_META, type MilestoneCategory } from "@/lib/development-categories";
+import { gapPrompt, SELF_RATING_LABELS, type SelfRating } from "@/lib/self-assessment";
 import {
   BANDS, BAND_LABELS, BAND_DESCRIPTIONS_APPROVED, describeBand, type Band,
 } from "@/lib/term-review";
@@ -18,11 +19,13 @@ interface Props {
   initial: BandMap;
   last: BandMap;
   lastTermName: string | null;
+  /** What the player said about themself this term. Coach-only; shown as a question, never a number. */
+  selfRatings?: Partial<Record<MilestoneCategory, SelfRating>>;
   /** Fired once a band is saved, so a surrounding screen can keep its own progress. */
   onSaved?: (category: MilestoneCategory, band: Band | null) => void;
 }
 
-export function TermReviewCard({ playerId, termId, termName, ageGroup, initial, last, lastTermName, onSaved }: Readonly<Props>) {
+export function TermReviewCard({ playerId, termId, termName, ageGroup, initial, last, lastTermName, selfRatings, onSaved }: Readonly<Props>) {
   const [bands, setBands] = useState<BandMap>(initial);
   const [, startTransition] = useTransition();
 
@@ -101,6 +104,12 @@ export function TermReviewCard({ playerId, termId, termName, ageGroup, initial, 
               </fieldset>
               {chosen && (
                 <p className="text-sm text-muted-foreground">{describeBand(category, ageGroup, chosen)}</p>
+              )}
+              {selfRatings?.[category] && (
+                <p className="rounded-md bg-muted px-2.5 py-1.5 text-sm">
+                  <span className="font-medium">Player says: {SELF_RATING_LABELS[selfRatings[category] as SelfRating]}.</span>{" "}
+                  {chosen ? gapPrompt(meta.label, selfRatings[category] as SelfRating, chosen) : "Pick a band to compare."}
+                </p>
               )}
             </div>
           );

@@ -11,6 +11,9 @@ import { loadDevelopmentSnapshot } from "@/lib/development-data";
 import { HomeChallengeCard } from "@/components/development/home-challenge-card";
 import { pickHomeChallenge } from "@/lib/home-challenge";
 import { loadSharedDevelopmentPlan } from "@/lib/shared-development-plan";
+import { loadTermReview, loadSelfRatings } from "@/lib/term-review-data";
+import { SelfRatingCard } from "@/components/development/self-rating-card";
+import { todayIso } from "@/lib/time";
 
 /**
  * Milestones and the development plan, split out of the passport page.
@@ -49,6 +52,21 @@ export default async function PlayerDevelopmentPage() {
     position: player.position ?? null,
   });
 
+  // The player's own rating of themself. Nothing appears until terms exist.
+  const termReview = playerProfile?.academy_id
+    ? await loadTermReview(supabase, player.id, playerProfile.academy_id as string, todayIso())
+    : null;
+  const selfRatings = termReview?.term ? await loadSelfRatings(supabase, player.id, termReview.term.id) : {};
+  const { data: teamRow } = await supabase
+    .from("team_members")
+    .select("teams ( age_group )")
+    .eq("player_id", player.id)
+    .eq("active", true)
+    .limit(1)
+    .maybeSingle();
+  const teams = (teamRow as { teams: { age_group: string | null } | { age_group: string | null }[] | null } | null)?.teams;
+  const ageGroup = (Array.isArray(teams) ? teams[0] : teams)?.age_group ?? null;
+
   const shared = await loadSharedDevelopmentPlan(supabase, player.id);
   const challenge = shared ? pickHomeChallenge(shared.plan) : null;
 
@@ -62,6 +80,15 @@ export default async function PlayerDevelopmentPage() {
         title="My Development"
         description={`What you're working on this ${snapshot.currentSeason} season, across the five development categories.`}
       />
+
+      {termReview?.term && (
+        <SelfRatingCard
+          termId={termReview.term.id}
+          termName={termReview.term.name}
+          ageGroup={ageGroup}
+          initial={selfRatings}
+        />
+      )}
 
       <DevelopmentOverview snapshot={snapshot} audience="player" />
 
