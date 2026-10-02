@@ -416,6 +416,17 @@ are never visible to a family. Erasing a player erases their messages (real
 foreign key). Safe to re-run. Until it is run, the coach's "Match stories" panel
 shows but explains, and families see nothing extra.
 
+## 059: footage consent check
+
+Adds one function, `clip_consent_gaps(player_ids, season)`, which returns the
+children who do NOT have photo and media consent for the season (no consent row,
+consent not given, not in the caller's academy, or the caller is not staff). It
+is the database half of the consent gate for footage of children, in the same
+style as the public passport check in 023. Additive: one function, no table
+changes. Safe to re-run. Nothing calls it until a video feature exists, so
+running it changes nothing for coaches or families; until it is run, any future
+footage feature is blocked with a message naming this migration.
+
 ---
 
 ## How to apply
