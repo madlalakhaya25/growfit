@@ -20,10 +20,12 @@ type GenerateParams = Parameters<GoogleGenAI["models"]["generateContent"]>[0];
 const BACKOFF_MS = [800, 2000];
 
 export function isModelBusy(err: unknown): boolean {
-  const text = (err instanceof Error ? err.message : String(err ?? "")).toLowerCase();
   const status = (err as { status?: unknown } | null)?.status;
+  if (status === 503) return true;
+  let text = "";
+  if (err instanceof Error) text = err.message.toLowerCase();
+  else if (typeof err === "string") text = err.toLowerCase();
   return (
-    status === 503 ||
     text.includes("unavailable") ||
     text.includes("high demand") ||
     text.includes("overloaded") ||
@@ -33,25 +35,30 @@ export function isModelBusy(err: unknown): boolean {
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-export async function generateWithRetry(ai: GoogleGenAI, params: GenerateParams) {
-  let lastErr: unknown;
-  for (let attempt = 0; attempt <= BACKOFF_MS.length; attempt++) {
-    try {
-      return await ai.models.generateContent(params);
-    } catch (err) {
-      if (!isModelBusy(err)) throw err;
-      lastErr = err;
-      if (attempt < BACKOFF_MS.length) await sleep(BACKOFF_MS[attempt]);
-    }
-  }
+type Response = Awaited<ReturnType<GoogleGenAI["models"]["generateContent"]>>;
 
-  const fallback = process.env.GEMINI_MODEL_FALLBACK;
-  if (fallback && fallback !== params.model) {
-    try {
-      return await ai.models.generateContent({ ...params, model: fallback });
-    } catch (err) {
-      lastErr = err;
+// Recursion rather than a loop: each retry has to wait for the one before it.
+async function attempt(ai: GoogleGenAI, params: GenerateParams, tryNo: number): Promise<Response> {
+  try {
+    return await ai.models.generateContent(params);
+  } catch (err) {
+    if (!isModelBusy(err)) throw err;
+    if (tryNo < BACKOFF_MS.length) {
+      await sleep(BACKOFF_MS[tryNo]);
+      return attempt(ai, params, tryNo + 1);
     }
+    const fallback = process.env.GEMINI_MODEL_FALLBACK;
+    if (fallback && fallback !== params.model) {
+      try {
+        return await ai.models.generateContent({ ...params, model: fallback });
+      } catch {
+        // Fallback busy or failing too: report the original model's answer.
+      }
+    }
+    throw err;
   }
-  throw lastErr;
+}
+
+export function generateWithRetry(ai: GoogleGenAI, params: GenerateParams) {
+  return attempt(ai, params, 0);
 }
