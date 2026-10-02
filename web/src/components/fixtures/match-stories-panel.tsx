@@ -14,6 +14,11 @@ export interface StoryRow {
   message: { id: string; body: string; status: "draft" | "approved"; approvedByName: string | null } | null;
 }
 
+function wroteMessage(created: number): string {
+  if (created === 0) return "Every child already has a story.";
+  return `Wrote ${created} ${created === 1 ? "story" : "stories"}.`;
+}
+
 /**
  * A short story about the match for each child's family. Drafts are written for
  * the coach to read, change and share one at a time; a family sees a story only
@@ -31,7 +36,7 @@ export function MatchStoriesPanel({ fixtureId, rows: initial, available }: Reado
     start(async () => {
       const res = await draftMatchStories(fixtureId);
       if (res.error) { toast.error(res.error); return; }
-      toast.success(res.created ? `Wrote ${res.created} ${res.created === 1 ? "story" : "stories"}.` : "Every child already has a story.");
+      toast.success(wroteMessage(res.created ?? 0));
       if (res.created) router.refresh();
     });
   }
@@ -86,8 +91,13 @@ function StoryItem({ row, onChange }: Readonly<{ row: StoryRow; onChange: (playe
         if (saved.error) { toast.error(saved.error); return; }
       }
       let res = await approveFamilyMessage(m.id);
-      if (res.flagged && window.confirm(`${res.error}\n\nShare it anyway?`)) res = await approveFamilyMessage(m.id, { acknowledgeWording: true });
-      if (res.error) { if (!res.flagged) toast.error(res.error); return; }
+      if (res.flagged && window.confirm(`${res.error}\n\nShare it anyway?`)) {
+        res = await approveFamilyMessage(m.id, { acknowledgeWording: true });
+      }
+      if (res.error) {
+        if (!res.flagged) toast.error(res.error);
+        return;
+      }
       onChange(row.playerId, { body: text.trim(), status: "approved" });
       toast.success(`Shared with ${row.name.split(" ")[0]}'s family.`);
     });

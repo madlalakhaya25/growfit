@@ -66,7 +66,6 @@ CREATE POLICY "family_messages_parent_read" ON family_messages
 
 COMMIT;
 
--- Safe to re-run. Verify with:
---   SELECT policyname, cmd FROM pg_policies WHERE tablename = 'family_messages';
---   -- expect 3: staff_all (ALL), player_read (SELECT), parent_read (SELECT)
---   SELECT relrowsecurity FROM pg_class WHERE relname = 'family_messages';  -- true
+-- Safe to re-run. To verify: pg_policies for family_messages should list three
+-- policies (staff_all for ALL, player_read and parent_read for SELECT), and
+-- pg_class.relrowsecurity for family_messages should be true.

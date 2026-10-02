@@ -30,7 +30,8 @@ export function outcomeOf(team: number | null, opp: number | null): Outcome {
 }
 
 function resultLine(i: StoryInput): string {
-  const where = i.isHome === null ? "" : i.isHome ? " at home" : " away";
+  let where = "";
+  if (i.isHome !== null) where = i.isHome ? " at home" : " away";
   const o = outcomeOf(i.teamScore, i.opponentScore);
   const score = i.teamScore === null || i.opponentScore === null ? "" : ` ${i.teamScore}-${i.opponentScore}`;
   switch (o) {
@@ -102,7 +103,7 @@ export function planStoryDrafts(fixture: FixtureFacts, squad: SquadFact[], haveM
     .map((s) => {
       const rated = s.ratings.map((r) => r.rating);
       const rating = rated.length ? Math.round(rated.reduce((a, b) => a + b, 0) / rated.length) : null;
-      const coachNote = s.ratings.map((r) => r.note?.trim()).find((n) => n) ?? null;
+      const coachNote = s.ratings.map((r) => r.note?.trim()).find(Boolean) ?? null;
       return {
         playerId: s.playerId,
         body: buildMatchStory({ firstName: firstNameOf(s.fullName), ...fixture, rating, coachNote, played: s.played }),
