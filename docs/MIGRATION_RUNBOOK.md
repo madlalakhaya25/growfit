@@ -398,6 +398,14 @@ their own notes; admins of the academy read and delete any (erasing a player
 needs this). Other coaches, players and parents cannot read them. Safe to
 re-run. Until it is run, the note box shows but saving gives a friendly error.
 
+## 057: training effort
+
+Adds a nullable `rpe` (1 to 10) to `training_attendance`: how hard a child found
+a session, set by the coach after training. Feeds the squad readiness figure.
+Additive: one column and a range check, no policy changes. Safe to re-run. Until
+it is run, the "How hard was it?" row shows but saving gives a friendly error,
+and readiness runs on attendance and ratings only.
+
 ---
 
 ## How to apply
