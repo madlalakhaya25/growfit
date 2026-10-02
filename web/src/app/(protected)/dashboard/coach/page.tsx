@@ -12,6 +12,7 @@ import { CreateTeamForm } from "@/components/create-team-form";
 import { JoinTeamForm } from "@/components/join-team-form";
 import { CopyButton } from "@/components/copy-button";
 import { daysFromNow } from "@/lib/utils";
+import { isHappeningNow, sessionWindowStart } from "@/lib/session-window";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { getWelfareAlerts } from "@/app/actions/welfare";
 import { reportError } from "@/lib/report-error";
@@ -102,7 +103,9 @@ export default async function CoachDashboardPage() {
           .from("training_sessions")
           .select("id, title, session_date, location, session_type, team_id, teams(name)")
           .in("team_id", teamIds)
-          .gte("session_date", now)
+          // From the start of the window, not from now: a session that has
+          // begun stays on Today while it is on (lib/session-window.ts).
+          .gte("session_date", sessionWindowStart(new Date(now).getTime()))
           .order("session_date")
           .limit(1)
       : Promise.resolve({ data: null, error: null }),
@@ -303,6 +306,7 @@ export default async function CoachDashboardPage() {
             const teamName = multiTeam
               ? (Array.isArray(nextSession.teams) ? nextSession.teams[0]?.name : (nextSession.teams as { name: string } | null)?.name)
               : null;
+            const onNow = isHappeningNow(nextSession.session_date, new Date(now).getTime());
             const daysLabel = days <= 0 ? "Today" : days === 1 ? "Tomorrow" : `In ${days} days`;
             return (
               <Link href={`/dashboard/coach/training/${nextSession.id}`}>
@@ -312,7 +316,7 @@ export default async function CoachDashboardPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                      Next training · {daysLabel}
+                      {onNow ? "Training now" : `Next training · ${daysLabel}`}
                     </p>
                     <p className="mt-1 font-semibold leading-snug">{nextSession.title}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
