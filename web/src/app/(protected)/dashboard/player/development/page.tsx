@@ -6,7 +6,9 @@ import { DevelopmentOverview } from "@/components/development/development-overvi
 import { MilestoneTimeline } from "@/components/development/milestone-timeline";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { DevelopmentPlanReadonly } from "@/components/development/development-plan-readonly";
 import { loadDevelopmentSnapshot } from "@/lib/development-data";
+import { loadSharedDevelopmentPlan } from "@/lib/shared-development-plan";
 
 /**
  * Milestones and the development plan, split out of the passport page.
@@ -45,6 +47,8 @@ export default async function PlayerDevelopmentPage() {
     position: player.position ?? null,
   });
 
+  const shared = await loadSharedDevelopmentPlan(supabase, player.id);
+
   return (
     <div className="space-y-6">
       <Link href="/dashboard/player" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
@@ -63,15 +67,18 @@ export default async function PlayerDevelopmentPage() {
         <MilestoneTimeline snapshot={snapshot} audience="player" />
       </section>
 
-      {/* The AI plan generator used to be mounted here, callable by the player.
-          It's a coach-grade critique, so it is coach-only now (Phase 0 of
-          docs/AI_AND_UX_PLAN_2026.md); a coach-approved, player-safe version
-          arrives with Phase 1. */}
-      <section>
-        <EmptyState
-          icon={Target}
-          message="Your coach shares your personal development plan with you once it's ready."
-        />
+      {/* Only a plan a coach has approved is ever shown here; the generator is
+          coach-only (Phase 0 of docs/AI_AND_UX_PLAN_2026.md). */}
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold">My plan</h2>
+        {shared ? (
+          <DevelopmentPlanReadonly plan={shared.plan} approvedByName={shared.approvedByName} audience="player" />
+        ) : (
+          <EmptyState
+            icon={Target}
+            message="Your coach shares your personal development plan with you once it's ready."
+          />
+        )}
       </section>
     </div>
   );

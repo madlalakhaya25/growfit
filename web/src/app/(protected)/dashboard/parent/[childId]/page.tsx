@@ -15,6 +15,8 @@ import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
 import { ParentReportPanel } from "@/components/ai/parent-report-panel";
 import { AttributeSummary } from "@/components/player/attribute-summary";
+import { DevelopmentPlanReadonly } from "@/components/development/development-plan-readonly";
+import { loadSharedDevelopmentPlan } from "@/lib/shared-development-plan";
 import { PlayerPassportCard } from "@/components/player/player-passport-card";
 import {
   ALL_ATTR_SELECT,
@@ -71,6 +73,8 @@ export default async function ChildDetailPage({
   ]);
 
   if (!player) notFound();
+
+  const sharedPlan = await loadSharedDevelopmentPlan(supabase, player.id);
 
   type Rating = {
     id: string;
@@ -217,6 +221,7 @@ export default async function ChildDetailPage({
           {[
             { href: "#ratings", label: "Ratings" },
             { href: "#fixtures", label: "Fixtures" },
+            { href: "#development", label: "Development" },
             { href: "#documents", label: "Documents" },
           ].map(({ href, label }) => (
             <a
@@ -385,6 +390,22 @@ export default async function ChildDetailPage({
       </div>
 
       <ParentReportPanel playerId={player.id} playerName={player.full_name} />
+
+      <section id="development" className="space-y-3">
+        <h2 className="text-lg font-semibold">Development plan</h2>
+        {sharedPlan ? (
+          <DevelopmentPlanReadonly
+            plan={sharedPlan.plan}
+            approvedByName={sharedPlan.approvedByName}
+            audience="parent"
+            childName={player.full_name}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            The coach shares {player.full_name}&apos;s development plan here once it&apos;s ready.
+          </p>
+        )}
+      </section>
 
       <section id="documents" className="space-y-4 mt-8">
         <div className="flex items-center justify-between">
