@@ -16,6 +16,8 @@ import { DocumentHub } from "@/components/records/document-hub";
 import { ParentReportPanel } from "@/components/ai/parent-report-panel";
 import { AttributeSummary } from "@/components/player/attribute-summary";
 import { DevelopmentPlanReadonly } from "@/components/development/development-plan-readonly";
+import { HomeChallengeCard } from "@/components/development/home-challenge-card";
+import { pickHomeChallenge } from "@/lib/home-challenge";
 import { loadSharedDevelopmentPlan } from "@/lib/shared-development-plan";
 import { PlayerPassportCard } from "@/components/player/player-passport-card";
 import {
@@ -75,6 +77,7 @@ export default async function ChildDetailPage({
   if (!player) notFound();
 
   const sharedPlan = await loadSharedDevelopmentPlan(supabase, player.id);
+  const homeChallenge = sharedPlan ? pickHomeChallenge(sharedPlan.plan) : null;
 
   type Rating = {
     id: string;
@@ -393,6 +396,7 @@ export default async function ChildDetailPage({
 
       <section id="development" className="space-y-3">
         <h2 className="text-lg font-semibold">Development plan</h2>
+        {homeChallenge && <HomeChallengeCard challenge={homeChallenge} audience="parent" childName={player.full_name} />}
         {sharedPlan ? (
           <DevelopmentPlanReadonly
             plan={sharedPlan.plan}
