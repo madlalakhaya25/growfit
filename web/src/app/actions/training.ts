@@ -6,7 +6,6 @@ import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { friendlyError } from "@/lib/friendly-error";
-import type { AttendanceStatus } from "@/lib/attendance";
 
 const sessionSchema = z.object({
   team_id: z.string().uuid("Invalid team"),
