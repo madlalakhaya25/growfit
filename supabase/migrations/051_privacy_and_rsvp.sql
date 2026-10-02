@@ -134,12 +134,11 @@ CREATE POLICY "players_read_own_attendance" ON training_attendance
 
 COMMIT;
 
--- To verify after running:
---   SELECT tablename, policyname, cmd FROM pg_policies
---    WHERE tablename IN ('tactic_plays','player_milestone_completions','training_rsvps','training_attendance')
---    ORDER BY 1, 2;
---   -- tactic_plays: staff_read, player_read_shared, staff_write, staff_update, staff_delete (no read_academy)
---   -- player_milestone_completions: completions_staff_read / _player_read / _parent_read (+ any write policies)
---   -- training_attendance: coaches_*, players_read_own_attendance (no players_manage_own_attendance)
---   SELECT count(*) FROM training_attendance WHERE marked_by IS NULL;   -- rows left to clean up
---   SELECT count(*) FROM training_rsvps;                                 -- copied RSVPs
+-- To verify after running, list the policies on tactic_plays,
+-- player_milestone_completions, training_rsvps and training_attendance
+-- (pg_policies), then count training_attendance rows with no marked_by
+-- (old RSVP-origin rows left to clean up) and training_rsvps rows (copied RSVPs).
+-- Expected: tactic_plays has staff_read, player_read_shared, staff_write,
+-- staff_update and staff_delete, with no read_academy. Milestone completions
+-- have staff, player and parent read policies. Attendance has the coach
+-- policies plus players_read_own_attendance, and no players_manage_own_attendance.

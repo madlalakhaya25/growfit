@@ -123,7 +123,7 @@ function PlayerRow({
   );
 }
 
-export function TrainingAttendanceForm({ sessionId, players, existing, rsvps, lastMarkedBy }: Props) {
+export function TrainingAttendanceForm({ sessionId, players, existing, rsvps, lastMarkedBy }: Readonly<Props>) {
   const router = useRouter();
   const [statusMap, setStatusMap] = useState<Record<string, AttendanceStatus>>(() =>
     Object.fromEntries(

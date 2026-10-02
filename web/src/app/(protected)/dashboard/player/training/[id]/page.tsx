@@ -15,6 +15,20 @@ const TYPE_STYLES: Record<string, { label: string; chip: string; header: string 
   recovery:   { label: "Recovery",   chip: "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300",     header: "bg-green-500/10" },
 };
 
+type Rsvp = "going" | "cant" | undefined;
+
+function rsvpToButton(response: Rsvp) {
+  if (response === "going") return "attending";
+  if (response === "cant") return "unavailable";
+  return null;
+}
+
+function rsvpSummary(response: Rsvp) {
+  if (response === "going") return "You said you were coming.";
+  if (response === "cant") return "You said you couldn't make it.";
+  return "Your coach marks who was there.";
+}
+
 export default async function PlayerTrainingSessionPage({
   params,
 }: {
@@ -111,12 +125,12 @@ export default async function PlayerTrainingSessionPage({
             <p className="text-sm font-medium mb-3">Are you coming?</p>
             <AttendanceButton
               sessionId={id}
-              current={rsvp?.response === "going" ? "attending" : rsvp?.response === "cant" ? "unavailable" : null}
+              current={rsvpToButton(rsvp?.response)}
             />
           </>
         ) : (
           <p className="text-sm text-muted-foreground">
-            {rsvp?.response === "going" ? "You said you were coming." : rsvp?.response === "cant" ? "You said you couldn't make it." : "Your coach marks who was there."}
+            {rsvpSummary(rsvp?.response)}
           </p>
         )}
       </div>
