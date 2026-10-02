@@ -406,6 +406,16 @@ Additive: one column and a range check, no policy changes. Safe to re-run. Until
 it is run, the "How hard was it?" row shows but saving gives a friendly error,
 and readiness runs on attendance and ratings only.
 
+## 058: family messages
+
+Adds `family_messages`: a coach-approved short message for a child and their
+family, used for match stories now and the weekly digest next. Additive: a new
+table. Staff of the academy read and write; a player reads only their own and a
+parent only their linked child's, and only once a coach has approved it. Drafts
+are never visible to a family. Erasing a player erases their messages (real
+foreign key). Safe to re-run. Until it is run, the coach's "Match stories" panel
+shows but explains, and families see nothing extra.
+
 ---
 
 ## How to apply

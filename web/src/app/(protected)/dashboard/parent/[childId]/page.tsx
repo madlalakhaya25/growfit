@@ -1,3 +1,5 @@
+import { FamilyMessagesList } from "@/components/development/family-messages-list";
+import { loadApprovedMessages } from "@/lib/family-messages";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ChevronRight, Star, FileText } from "lucide-react";
@@ -210,6 +212,8 @@ export default async function ChildDetailPage({
     );
   }
 
+  const familyMessages = await loadApprovedMessages(supabase, childId);
+
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}
@@ -400,6 +404,8 @@ export default async function ChildDetailPage({
       {termReview?.term && (
         <TermGrowthCard termName={termReview.term.name} current={termReview.current} last={termReview.last} />
       )}
+
+      <FamilyMessagesList messages={familyMessages} />
 
       <section id="development" className="space-y-3">
         <h2 className="text-lg font-semibold">Development plan</h2>

@@ -1595,7 +1595,9 @@ documented constant for match load from `minutes_played`. Reuse
 > pending confirmation that the medical consent form covers routine growth
 > measurement. Do not build the table or the UI.
 
-### Step 4.6 — Match story
+### Step 4.6 — Match story — DONE (#94)
+
+> **Shipped as a story, not a timeline, and without a model.** The platform records a score, notes and a rating per child but no scorers or minutes, so a timeline would have to invent events. Migration `058` adds `family_messages` (shared with the weekly digest, 4.8). On a completed match the coach taps "Write the stories", reads and edits one warm paragraph per child (`lib/match-story.ts`: first name only, nothing negative, no rating number, a coach note quoted only if it passes the wording check), then shares each. Families see approved stories only, on the parent and player pages; the coach can take one back.
 
 The match as a timeline with a narrative, shared to players and parents. Built
 from `match_results` / `match_appearances` and the ratings already logged by
