@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { currentTerm, previousTerm } from "@/lib/school-terms";
 import { isBand, type Band } from "@/lib/term-review";
 import { MILESTONE_CATEGORIES, type MilestoneCategory } from "@/lib/development-categories";
+import { isSelfRating, type SelfRating } from "@/lib/self-assessment";
 
 export interface ReviewTerm {
   id: string;
@@ -86,6 +87,7 @@ export interface SquadReviewPlayer {
   name: string;
   current: BandMap;
   last: BandMap;
+  self: SelfRatingMap;
 }
 
 export interface SquadReviewSnapshot {
@@ -138,13 +140,57 @@ export async function loadSquadReview(
   }
   const rows = (reviewsRes.data ?? []) as { player_id: string; term_id: string; category: string; band: number }[];
 
+  // Their own answers, for the coach's conversation. Absent until migration 055: no error.
+  const selfRes = roster.length
+    ? await supabase
+        .from("player_self_assessments")
+        .select("player_id, category, rating")
+        .in("player_id", roster.map((p) => p.id))
+        .eq("term_id", term.id)
+    : { data: [], error: null };
+  const selfRows = selfRes.error ? [] : ((selfRes.data ?? []) as { player_id: string; category: string; rating: number }[]);
+
   return {
     available: true,
     term,
     previous,
     players: roster.map((p) => {
       const mine = rows.filter((r) => r.player_id === p.id);
-      return { id: p.id, name: p.full_name, current: toBandMap(mine, term.id), last: toBandMap(mine, previous?.id) };
+      return {
+        id: p.id,
+        name: p.full_name,
+        current: toBandMap(mine, term.id),
+        last: toBandMap(mine, previous?.id),
+        self: toSelfMap(selfRows.filter((r) => r.player_id === p.id)),
+      };
     }),
   };
+}
+
+export type SelfRatingMap = Partial<Record<MilestoneCategory, SelfRating>>;
+
+function toSelfMap(rows: { category: string; rating: number }[]): SelfRatingMap {
+  const out: SelfRatingMap = {};
+  for (const r of rows) {
+    if ((MILESTONE_CATEGORIES as readonly string[]).includes(r.category) && isSelfRating(r.rating)) {
+      out[r.category as MilestoneCategory] = r.rating;
+    }
+  }
+  return out;
+}
+
+/** A player's own ratings for one term. Empty (not an error) until migration 055 is run. */
+export async function loadSelfRatings(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any, any, any>,
+  playerId: string,
+  termId: string
+): Promise<SelfRatingMap> {
+  const { data, error } = await supabase
+    .from("player_self_assessments")
+    .select("category, rating")
+    .eq("player_id", playerId)
+    .eq("term_id", termId);
+  if (error) return {};
+  return toSelfMap((data ?? []) as { category: string; rating: number }[]);
 }

@@ -67,6 +67,7 @@ export function SquadReview({ termId, termName, lastTermName, ageGroup, players 
         ageGroup={ageGroup}
         initial={bands[player.id] ?? {}}
         last={player.last}
+        selfRatings={player.self}
         lastTermName={lastTermName}
         onSaved={(category, band) => saved(player.id, category, band)}
       />

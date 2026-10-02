@@ -6,9 +6,9 @@ import { SquadReview } from "../squad-review";
 import { saveTermReview } from "@/app/actions/term-review";
 
 const players = [
-  { id: "p1", name: "Ayanda", current: { technical: 3 as const }, last: {} },
-  { id: "p2", name: "Bheki", current: {}, last: { technical: 2 as const } },
-  { id: "p3", name: "Cebo", current: {}, last: {} },
+  { id: "p1", name: "Ayanda", current: { technical: 3 as const }, last: {}, self: { technical: 5 as const } },
+  { id: "p2", name: "Bheki", current: {}, last: { technical: 2 as const }, self: {} },
+  { id: "p3", name: "Cebo", current: {}, last: {}, self: {} },
 ];
 
 function view() {
@@ -32,6 +32,12 @@ describe("SquadReview", () => {
     view();
     fireEvent.click(screen.getByRole("button", { name: /^Next$/ }));
     expect(screen.getByText("Term 1 2026: Developing")).toBeInTheDocument();
+  });
+
+  it("shows what the player said, as a question for the coach", () => {
+    view();
+    expect(screen.getByText(/Player says: Really good\./)).toBeInTheDocument();
+    expect(screen.getByText(/they feel really good, you see Secure/)).toBeInTheDocument();
   });
 
   it("jumps to the next unfinished child", () => {

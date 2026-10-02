@@ -381,6 +381,16 @@ parent page simply show no term review.
 
 ---
 
+## 055: player self-assessments
+
+Adds `player_self_assessments`: a player's own 1 to 5 rating per category per
+term. Needs 053. Additive: a new table. The player reads and writes only their
+own rows; staff of the academy read. Parents and other players cannot see it.
+Safe to re-run. Until it is run, the player's rating card still renders but
+saving gives a friendly error, and coaches see no "Player says" lines.
+
+---
+
 ## How to apply
 
 Either route works. Take a backup first regardless.
