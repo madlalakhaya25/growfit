@@ -40,7 +40,7 @@ const RISK_DIST = 6;
 /** Distance from p to segment a–b, or null when p's projection falls
  * outside the segment (an opponent behind the passer or beyond the
  * receiver isn't in the lane). */
-function distToSegment(p: Point, a: Point, b: Point): number | null {
+export function distToSegment(p: Point, a: Point, b: Point): number | null {
   const dx = b.x - a.x, dy = b.y - a.y;
   const len2 = dx * dx + dy * dy;
   if (len2 === 0) return null;
