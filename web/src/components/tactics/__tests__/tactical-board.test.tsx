@@ -25,6 +25,12 @@ jest.mock("@/app/actions/tactics", () => ({
 jest.mock("@/app/actions/board-to-session", () => ({ generateSessionFromBoard: jest.fn() }));
 jest.mock("@/app/actions/training", () => ({ addDrills: jest.fn() }));
 jest.mock("@/app/actions/board-from-text", () => ({ generateBoardFromSentence: jest.fn() }));
+jest.mock("@/app/actions/tactic-plays", () => ({
+  getOpponentScouting: jest.fn().mockResolvedValue(null),
+  savePlay: jest.fn(), loadPlay: jest.fn(), deletePlay: jest.fn(), sharePlayToSquad: jest.fn(),
+  listPlays: jest.fn().mockResolvedValue({ plays: [] }),
+  listLinkTargets: jest.fn().mockResolvedValue({ fixtures: [], sessions: [] }),
+}));
 jest.mock("@/app/actions/play-roles", () => ({ generatePlayRoles: jest.fn(), approvePlayRoles: jest.fn() }));
 
 import { TacticalBoard } from "@/components/tactics/tactical-board";
@@ -112,6 +118,18 @@ describe("TacticalBoard", () => {
       });
     });
     expect(screen.getByText("Set up teams and pitch").closest("details")).toHaveProperty("open", false);
+  });
+
+  it("starts a U11 team in nine-a-side shapes and a U15 team in eleven-a-side", async () => {
+    const team = (age: string) => ({ id: "t1", name: "Team", age_group: age, players: [] });
+    const { unmount } = render(<TacticalBoard teams={[team("U11")]} />);
+    await act(async () => { await Promise.resolve(); });
+    expect((screen.getAllByLabelText("Formation")[0] as HTMLSelectElement).value).toMatch(/^9-/);
+    expect((screen.getAllByLabelText("Formation")[1] as HTMLSelectElement).value).toMatch(/^9-/);
+    unmount();
+    render(<TacticalBoard teams={[team("U15")]} />);
+    await act(async () => { await Promise.resolve(); });
+    expect((screen.getAllByLabelText("Formation")[0] as HTMLSelectElement).value).toMatch(/^11-/);
   });
 
   it("draws passing lanes from the player on the ball", async () => {

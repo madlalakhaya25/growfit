@@ -8,7 +8,7 @@ import {
   Target, MessageSquare, Type, Ruler,
   FlipHorizontal2, Maximize2, Minimize2, Hexagon, Video, Magnet, Timer, ListChecks, Crosshair, Share2, Map as MapIcon, AlignVerticalSpaceAround, Hash,
 } from "lucide-react";
-import { FORMATIONS, FORMATION_SIZES, type Formation } from "@/lib/formations";
+import { FORMATIONS, FORMATION_SIZES, firstFormationOfSize, formatSizeForAge, type Formation } from "@/lib/formations";
 import { readOpponent } from "@/lib/board-analysis";
 import { PITCH_THEME_LIST } from "@/lib/pitch-themes";
 import { passingLanes, spaceControl, offsideLines, zoneCounts } from "@/lib/board-overlays";
@@ -407,6 +407,26 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const lineReading = useMemo(() => (analysisOn && layers.lines ? offsideLines(view.tokens, pitch) : null), [analysisOn, layers.lines, view.tokens, pitch]);
   const counts = useMemo(() => (analysisOn && layers.numbers ? zoneCounts(view.tokens) : null), [analysisOn, layers.numbers, view.tokens]);
   const ageGroup = team?.age_group ?? "U15";
+
+  // Start each side in the shape for this age group's format (a U11 team
+  // plays nine-a-side, so "Set up my XI" should not drop eleven on the
+  // board). Only replaces a formation of a different size, so a shape the
+  // coach picked, or a restored draft, for the same format is left alone.
+  useEffect(() => {
+    const size = formatSizeForAge(team?.age_group);
+    // Read the store directly: the mount-time reset above lands in the same
+    // commit, so this render's closed-over ids may already be stale.
+    const current = useBoardSetupStore.getState();
+    const ofSize = FORMATIONS.filter((f) => f.size === size);
+    if (FORMATIONS.find((f) => f.id === current.homeFormationId)?.size !== size) {
+      setHomeFormationId((ofSize[0] ?? firstFormationOfSize(size)).id);
+    }
+    if (FORMATIONS.find((f) => f.id === current.awayFormationId)?.size !== size) {
+      setAwayFormationId((ofSize[1] ?? ofSize[0] ?? firstFormationOfSize(size)).id);
+    }
+    // Deliberately only when the team's age group changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [team?.age_group]);
   const times = useMemo(
     () => (layers.times ? reachTimes(view.tokens, view.shapes, pitch, ageGroup) : null),
     [layers.times, view.tokens, view.shapes, pitch, ageGroup]

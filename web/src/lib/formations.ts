@@ -100,3 +100,22 @@ export const FORMATIONS: Formation[] = [
 ];
 
 export const FORMATION_SIZES: Formation["size"][] = [5, 7, 9, 11];
+
+/**
+ * The match format a team plays, from its age group label ("U11", "U13"...).
+ * Follows the `format` hints above: U7-U8 five-a-side, U9-U10 seven, U11-U12
+ * nine, U13 and up eleven. Anything unrecognised is treated as eleven, the
+ * board's long-standing default.
+ */
+export function formatSizeForAge(ageGroup: string | null | undefined): Formation["size"] {
+  const n = Number(/^U(\d{1,2})$/i.exec((ageGroup ?? "").trim())?.[1]);
+  if (!Number.isFinite(n) || n >= 13) return 11;
+  if (n >= 11) return 9;
+  if (n >= 9) return 7;
+  return 5;
+}
+
+/** First preset of a format, used as the starting shape for that age group. */
+export function firstFormationOfSize(size: Formation["size"]): Formation {
+  return FORMATIONS.find((f) => f.size === size) ?? FORMATIONS[FORMATIONS.length - 1];
+}
