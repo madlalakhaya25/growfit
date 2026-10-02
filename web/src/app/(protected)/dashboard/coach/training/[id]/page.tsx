@@ -16,6 +16,7 @@ import { TrainingAttendanceForm } from "@/components/attendance/training-attenda
 import { formatInTimezone, formatTime } from "@/lib/time";
 import { SessionGeneratorPanel } from "@/components/ai/session-generator-panel";
 import { recentTurnout } from "@/lib/recent-turnout";
+import { SessionRunner } from "@/components/training/session-runner";
 
 const TYPE_STYLES: Record<string, { label: string; chip: string; header: string }> = {
   general:    { label: "General",    chip: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",       header: "bg-slate-500/10" },
@@ -197,6 +198,9 @@ export default async function CoachTrainingSessionPage({
         )}
 
       </div>
+
+      {/* Pitch-side view: one drill at a time with a stopwatch. */}
+      <SessionRunner drills={(drills ?? []).map((d) => ({ id: d.id, title: d.title, description: d.description }))} />
 
       {/* Coach attendance marking — its own header already shows the real
           P/A/L/E summary (attended/assessed/pct/unmarked); a duplicate

@@ -108,7 +108,7 @@ function PlayerRow({
               aria-pressed={isActive}
               onClick={() => startTransition(() => onMark(player.id, status))}
               className={cn(
-                "flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
+                "flex min-h-11 items-center gap-1 rounded-md border px-3 text-sm font-medium transition-colors sm:min-h-9 sm:px-2.5 sm:text-xs",
                 isActive ? active : idle,
                 pending && "cursor-wait opacity-50"
               )}
