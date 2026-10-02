@@ -388,7 +388,7 @@ export function NewSessionForm({
                     max={40}
                     className={inputCls}
                   />
-                  {suggestedSquadSizes[selectedTeamId] && (
+                  {!!suggestedSquadSizes[selectedTeamId] && (
                     <p className="text-[11px] text-muted-foreground">
                       Usually {suggestedSquadSizes[selectedTeamId]} turn up, from recent registers.
                     </p>
