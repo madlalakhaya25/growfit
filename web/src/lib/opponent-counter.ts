@@ -143,6 +143,12 @@ export interface FormationTally {
   count: number;
 }
 
+/** Plain code-unit order: locale-independent, so the same ids always sort the same way. */
+function byCodeUnit(a: string, b: string): number {
+  if (a === b) return 0;
+  return a < b ? -1 : 1;
+}
+
 /**
  * Which shapes a coach has set this opponent up in before, most used first,
  * from plays linked to fixtures against them. A play only counts if an
@@ -161,7 +167,10 @@ export function tallyOpponentFormations(
     counts.set(p.awayFormationId, (counts.get(p.awayFormationId) ?? 0) + 1);
   }
   return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
+    // Ties broken on the formation id: the plays arrive in whatever order the
+    // database returned them, and this list feeds a cache fingerprint, so equal
+    // counts in a different order would be a different key for the same data.
+    .sort((a, b) => b[1] - a[1] || byCodeUnit(a[0], b[0]))
     .map(([formationId, count]) => ({
       formationId, count, label: FORMATIONS.find((f) => f.id === formationId)!.label,
     }));

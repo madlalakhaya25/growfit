@@ -1,6 +1,7 @@
 import {
   AI_ARTEFACT_TTL,
   deleteAiArtefactsForSubject,
+  deletePlayRolesForPlayer,
   fingerprintBrief,
   getLatestAiArtefact,
   isCacheHit,
@@ -193,5 +194,35 @@ describe("summariseAiUsage aggregation", () => {
     const client = stubClient({ data: [{ kind: "academy_health", total_tokens: null, feedback: null }] });
     const { summary } = await summariseAiUsage(client, { academyId: "a", since: "2026-10-01" });
     expect(summary?.totalTokens).toBeNull();
+  });
+});
+
+describe("deletePlayRolesForPlayer", () => {
+  function recording(reply: { error?: { code?: string; message?: string } | null } = {}) {
+    const calls: [string, ...unknown[]][] = [];
+    const chain: Record<string, unknown> = new Proxy({}, {
+      get(_t, prop: string) {
+        if (prop === "then") return (resolve: (v: unknown) => void) => resolve({ data: null, error: reply.error ?? null });
+        return (...args: unknown[]) => { calls.push([prop, ...args]); return chain; };
+      },
+    });
+    return { calls, client: { from: (t: string) => { calls.push(["from", t]); return chain; } } as never };
+  }
+
+  it("deletes only the play_roles sets whose entries include the player", async () => {
+    const r = recording();
+    await expect(deletePlayRolesForPlayer(r.client, "p-1")).resolves.toEqual({ deleted: true });
+    expect(r.calls).toEqual([
+      ["from", "ai_artefacts"],
+      ["delete"],
+      ["eq", "kind", "play_roles"],
+      ["contains", "data", { roles: [{ playerId: "p-1" }] }],
+    ]);
+  });
+  it("is not blocked by the missing table, and surfaces any other error", async () => {
+    await expect(deletePlayRolesForPlayer(recording({ error: { code: "PGRST205", message: "no table" } }).client, "p")).resolves.toEqual({ deleted: true });
+    await expect(deletePlayRolesForPlayer(recording({ error: { code: "42501", message: "denied" } }).client, "p")).resolves.toEqual({
+      deleted: false, error: "denied",
+    });
   });
 });

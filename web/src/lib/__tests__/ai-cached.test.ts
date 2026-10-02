@@ -76,6 +76,25 @@ describe("generateOrServeText", () => {
     expect(generate).toHaveBeenCalledTimes(1);
   });
 
+  it("a blank answer is an error to retry, and is NOT saved", async () => {
+    const s = store();
+    for (const text of ["", "   \n"]) {
+      const r = await generateOrServeText(s.client as never, { ...base, generate: async () => ({ text }) });
+      expect(r).toEqual({ error: "The AI didn't return an answer. Try again." });
+    }
+    expect(s.inserted).toHaveLength(0);
+  });
+
+  it("a blank answer already in the store is not a hit: the model is asked again", async () => {
+    const first = store();
+    await generateOrServeText(first.client as never, { ...base, generate: async () => ({ text: "Real." }) });
+    const poisoned = { ...first.inserted[0], prose: "", data: { text: "" } };
+    const generate = jest.fn().mockResolvedValue({ text: "Fresh." });
+    const r = await generateOrServeText(store({ live: () => [poisoned] }).client as never, { ...base, generate });
+    expect(r).toMatchObject({ text: "Fresh.", cached: false });
+    expect(generate).toHaveBeenCalledTimes(1);
+  });
+
   it("a refusal from beforeGenerate (over budget) stops before the model and returns the message", async () => {
     const generate = jest.fn();
     const s = store();

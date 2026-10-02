@@ -146,9 +146,9 @@ describe("approvePlayRoles", () => {
 
 describe("getMyPlayRole", () => {
   const me = { id: "p-lb", full_name: "Sipho Dlamini", date_of_birth: null, position: null };
-  function setupPlayer(artefact: unknown, player: unknown = me) {
+  function setupPlayer(artefact: unknown, player: unknown = me, data: unknown = playData) {
     const f2 = fakeSupabase((op) => {
-      if (op.table === "tactic_plays") return { data: { id: "pl1", name: "Overlap", data: playData, concept_ids: [], team_id: "t1" } };
+      if (op.table === "tactic_plays") return { data: { id: "pl1", name: "Overlap", data, concept_ids: [], team_id: "t1" } };
       if (op.table === "players") return { data: player };
       if (op.table === "ai_artefacts") return { data: artefact ? [artefact] : [] };
       return { data: null };
@@ -175,6 +175,27 @@ describe("getMyPlayRole", () => {
     expect(await getMyPlayRole("t")).toEqual({ text: null });
     setupPlayer(artefact(hash()), null);
     expect(await getMyPlayRole("t")).toEqual({ text: null });
+  });
+  it("still shows the job when the board has a token for someone who isn't on the team any more", async () => {
+    // A second named token with a drawn run, for a player who is not an active
+    // member: generation never saw them, so the hash must not either.
+    const other = (lb + 1) % f.slots.length;
+    const withGone = {
+      tokens: playData.tokens.map((t, i) => (i === other ? { ...t, playerId: "p-gone" } : t)),
+      shapes: [...playData.shapes, { id: "s2", kind: "run", pts: [{ x: f.slots[other].x, y: f.slots[other].y }, { x: 50, y: 40 }] }],
+    };
+    const generatedFor = collectRolePlayers(withGone, [member.players]);
+    expect(generatedFor.map((p) => p.playerId)).toEqual(["p-lb"]);
+    const art = {
+      ...artefact(""),
+      data: {
+        roles: [{ playerId: "p-lb", text: "Run down the left." }],
+        playHash: playRolesHash({ name: "Overlap", conceptIds: [] }, generatedFor),
+        playerIds: generatedFor.map((p) => p.playerId),
+      },
+    };
+    setupPlayer(art, me, withGone);
+    expect(await getMyPlayRole("t")).toEqual({ text: "Run down the left." });
   });
   it("shows a player with no entry of their own nothing", async () => {
     setupPlayer(artefact(hash()), { ...me, id: "someone-else" });

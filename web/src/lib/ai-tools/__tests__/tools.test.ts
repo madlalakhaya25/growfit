@@ -11,7 +11,7 @@ import { DOCUMENTS } from "@/lib/document-definitions";
 
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 const mockWelfare = jest.fn();
-jest.mock("@/app/actions/welfare", () => ({ getWelfareAlerts: (...a: unknown[]) => mockWelfare(...a) }));
+jest.mock("@/lib/welfare-alerts", () => ({ loadWelfareAlerts: (...a: unknown[]) => mockWelfare(...a) }));
 const mockSnapshot = jest.fn();
 jest.mock("@/lib/development-data", () => ({ loadDevelopmentSnapshot: (...a: unknown[]) => mockSnapshot(...a) }));
 
@@ -211,9 +211,17 @@ describe("getWelfareAlerts", () => {
     expect(out).toMatchObject({ alerts: [{ attendancePct: 60, lastCheckInAt: "2026-09-20T00:00:00Z" }] });
   });
   it("turns an action error into a fixed message, not the raw error", async () => {
-    mockWelfare.mockResolvedValue({ error: "relation welfare_checkins does not exist" });
+    mockWelfare.mockRejectedValue(new Error("relation welfare_checkins does not exist"));
     const { ctx } = makeCtx(() => ({ data: [] }));
-    expect(JSON.stringify(await getWelfareAlerts.run(ctx, {}))).not.toContain("relation");
+    const out = await getWelfareAlerts.run(ctx, {});
+    expect(out).toEqual({ error: "Welfare alerts couldn't be loaded right now." });
+    expect(JSON.stringify(out)).not.toContain("relation");
+  });
+  it("looks across the agent's own teams, so an admin who coaches nothing still gets alerts", async () => {
+    mockWelfare.mockResolvedValue({ alerts: [] });
+    const { ctx } = makeCtx(() => ({ data: [] }), { teamIds: [MY_TEAM, OTHER_TEAM] });
+    await getWelfareAlerts.run(ctx, {});
+    expect(mockWelfare).toHaveBeenLastCalledWith(ctx.supabase, [MY_TEAM, OTHER_TEAM]);
   });
 });
 

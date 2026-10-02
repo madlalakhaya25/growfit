@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { friendlyError } from "@/lib/friendly-error";
-import { deleteAiArtefactsForSubject } from "@/lib/ai-artefacts";
+import { deleteAiArtefactsForSubject, deletePlayRolesForPlayer } from "@/lib/ai-artefacts";
 
 /**
  * Full erasure of a player's record — POPIA's right to erasure needs an
@@ -61,6 +61,10 @@ export async function deletePlayerRecord(playerId: string, confirmName: string) 
   // failure stops the whole thing rather than leaving orphans behind.
   const artefacts = await deleteAiArtefactsForSubject(supabase, { subjectType: "player", subjectId: playerId });
   if (!artefacts.deleted) return { error: "Couldn't erase this player's saved AI output — nothing was deleted." };
+  // "My job in this play" sets are keyed by play, not by player, and carry the
+  // player's first name; the delete above does not reach them.
+  const playRoles = await deletePlayRolesForPlayer(supabase, playerId);
+  if (!playRoles.deleted) return { error: "Couldn't erase this player's saved AI output — nothing was deleted." };
 
   const { error } = await supabase.from("players").delete().eq("id", playerId);
   if (error) return { error: friendlyError(error) };

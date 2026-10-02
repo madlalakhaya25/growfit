@@ -8,6 +8,13 @@ reach, and with what changed in the market since.*
 implementation spec and are ready to build.** Phase 0 is a live defect and
 ships regardless of whether the rest is agreed.
 
+> **Update (2026-10-02): 1.7 and 3.7 have shipped** (PRs #63 and #64), merged
+> after the product owner reviewed them. The human check on real model output
+> (a child with falling ratings and ~40% attendance) has **not** been done, so
+> the coach's Approve click is the only gate on what a child or parent reads:
+> every plan must be read before it is approved. Phases 2 and 3 are merged;
+> step 3.4's diagrams were built after the go/no-go render (see 3.4).
+>
 > **Implementation status (2026-10-01).** Phase 0 and Phase 1 steps 1.1-1.6, 1.8
 > and 1.9 are built and pushed on `claude/gracious-brown-lz6zo7`, one commit per
 > step. **1.7 is held** on the human check this document specifies. Two things in
@@ -361,7 +368,7 @@ here.**
 | Phase | What | Why here |
 |---|---|---|
 | **0** | The authorization fix | Live safeguarding defect. Ships alone, first. **Done** |
-| **1** | Development Engine: `ai_artefacts`, the Develop rebuild, persistent plans with memory, parents included | Everything later needs persistence, provenance and a coach-approval gate. Build it once. **Done except 1.7 (held)** |
+| **1** | Development Engine: `ai_artefacts`, the Develop rebuild, persistent plans with memory, parents included | Everything later needs persistence, provenance and a coach-approval gate. Build it once. **Done** — 1.7 shipped 2026-10-02; the real-output safety check is still outstanding |
 | **2** | The Growfit Agent: tools, streaming, context caching, opponent scouting, drill search | Replaces scattered panels rather than adding to them; the tool registry is what P3–P5 call. **Spec: Part 6B** |
 | **3** | Board → session, board from a sentence, my job in this play, constraint-aware sessions with diagrams, session loop, voice capture, home challenge, age-appropriate rewrite | The training/tactics loop closes. All reuse P2's tools. **Spec: Part 6C** |
 | **4** | Reactive opponent, set pieces, narrated walkthrough, term periodisation, readiness, match story, performance curves, family layer, compliance chase, self-assessment, coach CPD | The depth that makes the winning sections win. **Spec: Part 6D** |
@@ -1142,7 +1149,7 @@ contains **no** `coachNote` and **no** `previous`; determinism test building the
 same brief twice from shuffled arrays and asserting one fingerprint; both
 `generateDevelopmentPlan` call sites updated.
 
-### Step 1.7 — Player and parent read-only views — **HELD** — needs a human to read real model output first; see the gate below
+### Step 1.7 — Player and parent read-only views — **Done** (2026-10-02, PR #63) — the real-output human check below is still outstanding
 
 **Files**: `player/development/page.tsx`,
 `web/src/components/development/development-plan-readonly.tsx` (new),
@@ -1466,6 +1473,14 @@ kind keyed on the play id + player id.
 
 ### Step 3.4 — Constraint-aware sessions, with a diagram go/no-go
 
+> **Done (2026-10-02).** Constraints shipped earlier. The go/no-go render of 20
+> hand-drawn layouts through the real board components read well, with these
+> fixes needed (all done in the diagram PR): a layout validator that clamps to
+> the pitch, separates overlapping players and drops unreadable layouts; one
+> label per goalkeeper. **Not proven against real model output** (no Gemini key
+> in the build environment) and diagrams are **not saved with the drill** (its
+> description column is text only).
+
 `BACKLOG.md` 5.6, approved. Real constraints into `SessionParams` — player
 count, space, kit, minutes — prefilled from the most recent register via
 `summariseAttendance`.
@@ -1503,8 +1518,9 @@ imported at line 6 and called at 86). Extract the capture half.
 One drill a week drawn from the player's own **approved** development plan.
 Text-only — no video, so no consent gate, so it ships now. Reuse
 `PlayerSafeDevelopmentPlan` (`lib/development-plan-view.ts`) as the only input,
-and gate on `approved_at` exactly as 1.7 does. **Blocked on 1.7**, which is held
-on the human check.
+and gate on `approved_at` exactly as 1.7 does. **Done** (PR #64): a plain weekly
+rotation over the approved actions, no model call, no focus-area label (an
+action carries no link to a focus area, so any pairing would be a guess).
 
 ### Step 3.8 — Age-appropriate rewrite
 
