@@ -1,18 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Mic, Square, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { uploadPlayVoiceNote, deletePlayVoiceNote } from "@/app/actions/tactic-plays";
+import { useVoiceCapture, type CapturedAudio } from "@/components/tactics/use-voice-capture";
 
 const MAX_SECONDS = 120;
-
-/** Pick an audio mime type the browser can actually record. */
-function pickAudioMime(): string | null {
-  if (typeof MediaRecorder === "undefined") return null;
-  return ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"]
-    .find((m) => MediaRecorder.isTypeSupported(m)) ?? null;
-}
 
 /**
  * Lets a coach record a short spoken explanation and attach it to a saved play.
@@ -37,79 +31,38 @@ export function VoiceNoteRecorder({
   // film-board.tsx), which resets every piece of state here at once -- the
   // correct fix, not just the one that satisfied the linter.
   const [url, setUrl] = useState<string | null>(initialUrl);
-  const [recording, setRecording] = useState(false);
-  const [seconds, setSeconds] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const recRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-  }, []);
-
-  async function start() {
-    setError(null);
-    const mime = pickAudioMime();
-    if (!mime) { setError("This browser can't record audio. Try Chrome."); return; }
-    if (!playId) { setError("Save the play first, then record."); return; }
-
-    let stream: MediaStream;
+  // Recording itself lives in useVoiceCapture; this component only decides
+  // what to do with a finished clip (upload it to the play).
+  async function upload({ blob, mime, ext }: CapturedAudio) {
+    if (!playId) return;
+    setBusy(true);
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
-      setError("Microphone permission was declined.");
-      return;
+      const fd = new FormData();
+      fd.append("play_id", playId);
+      fd.append("file", new File([blob], `voice-note.${ext}`, { type: mime }));
+      const res = await uploadPlayVoiceNote(fd);
+      if (res.error) { setError(res.error); toast.error(res.error); return; }
+      setUrl(res.url ?? null);
+      onChange?.(res.url ?? null);
+    } catch (err) {
+      const message = err instanceof Error ? `Could not save the recording: ${err.message}` : "Could not save the recording.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setBusy(false);
     }
-    streamRef.current = stream;
-
-    const rec = new MediaRecorder(stream, { mimeType: mime });
-    const chunks: BlobPart[] = [];
-    rec.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-    rec.onstop = async () => {
-      stream.getTracks().forEach((t) => t.stop());
-      if (timerRef.current) clearInterval(timerRef.current);
-      setRecording(false);
-
-      const blob = new Blob(chunks, { type: mime });
-      if (blob.size === 0) { setError("Nothing was recorded."); return; }
-
-      setBusy(true);
-      try {
-        const ext = mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : "webm";
-        const fd = new FormData();
-        fd.append("play_id", playId);
-        fd.append("file", new File([blob], `voice-note.${ext}`, { type: mime }));
-        const res = await uploadPlayVoiceNote(fd);
-        if (res.error) { setError(res.error); toast.error(res.error); return; }
-        setUrl(res.url ?? null);
-        onChange?.(res.url ?? null);
-      } catch (err) {
-        const message = err instanceof Error ? `Could not save the recording: ${err.message}` : "Could not save the recording.";
-        setError(message);
-        toast.error(message);
-      } finally {
-        setBusy(false);
-      }
-    };
-
-    recRef.current = rec;
-    rec.start();
-    setRecording(true);
-    setSeconds(0);
-    timerRef.current = setInterval(() => {
-      setSeconds((s) => {
-        if (s + 1 >= MAX_SECONDS) stop();
-        return s + 1;
-      });
-    }, 1000);
   }
 
-  function stop() {
-    if (recRef.current && recRef.current.state !== "inactive") recRef.current.stop();
+  const { recording, seconds, error, setError, start: startCapture, stop } = useVoiceCapture({
+    maxSeconds: MAX_SECONDS,
+    onCaptured: upload,
+  });
+
+  function start() {
+    if (!playId) { setError("Save the play first, then record."); return; }
+    void startCapture();
   }
 
   async function remove() {
