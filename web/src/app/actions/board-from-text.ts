@@ -13,6 +13,7 @@ import {
   MAX_SENTENCE_CHARS, MAX_SKETCH_SHAPES, MAX_ZONE_POINTS, buildBoard, formationMenu, validateBoardSketch,
 } from "@/lib/board-from-text";
 import { savePlay } from "./tactic-plays";
+import { generateWithRetry } from "@/lib/ai-resilient";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -72,7 +73,7 @@ Answer with:
 - shapes: at most ${MAX_SKETCH_SHAPES} drawings of what the sentence asks for, nothing else. Kinds: "run" (a player runs), "pass", "dribble", "shot", "press" (a pressing run), "zone" (a shaded area; set hatch true for "press here" areas). An arrow has fromSlot (the slot index of the player who does it, in YOUR chosen formation) and either toSlot (a teammate's slot, for a pass) or to {x,y}. A zone has pts, 3 to ${MAX_ZONE_POINTS} {x,y} corners. "Overlapping" is a run by the full back up the flank past the winger or midfielder in front of them. "Press high" is press arrows from the forwards and wide players toward the opposition's end, and/or a hatched zone in the final third.
 Do not invent players or movements the sentence doesn't ask for.`;
 
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry(ai, {
       model: AI_MODEL,
       contents: prompt,
       config: {

@@ -16,6 +16,7 @@ import {
   isNoteSubject,
 } from "@/lib/coach-notes";
 import { reportError } from "@/lib/report-error";
+import { generateWithRetry } from "@/lib/ai-resilient";
 
 const NOT_STAFF = "This is available to coaches and admins only.";
 
@@ -109,7 +110,7 @@ export async function transcribeCoachNote(formData: FormData): Promise<{ text?: 
 
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
     const data = Buffer.from(await file.arrayBuffer()).toString("base64");
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry(ai, {
       model: AI_MODEL,
       contents: [{ role: "user", parts: [{ inlineData: { mimeType: mime, data } }, { text: TRANSCRIBE }] }],
       config: { maxOutputTokens: 900, thinkingConfig: { thinkingBudget: 0 } },

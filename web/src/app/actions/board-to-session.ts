@@ -10,6 +10,7 @@ import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { SESSION_PLAN_SCHEMA } from "@/lib/session-plan-schema";
 import { PROGRESSION_STAGES, renderSessionPlanProse, validateProgression } from "@/lib/session-plan";
 import type { SessionPlanStructured } from "./session-generator";
+import { generateWithRetry } from "@/lib/ai-resilient";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -74,7 +75,7 @@ Write exactly 3 drills, in this order, each building on the one before:
 
 Work only from the board description; do not invent players or movements that are not listed. Name each drill so the stage is clear. For each drill give its duration in minutes (summing to roughly ${minutes}), the LTPD competency it builds at this age phase, its primary 4-Corner focus (Technical / Tactical / Physical / Social), the setup (pitch size, cones, groups, equipment; South African grassroots, so assume little kit), clear numbered-step instructions, and 2 precise age-appropriate coaching points. Finish with one question the coach should ask the squad afterwards.`;
 
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry(ai, {
       model: AI_MODEL,
       contents: prompt,
       config: {

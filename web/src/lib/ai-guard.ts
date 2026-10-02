@@ -43,6 +43,10 @@ export function aiError(err: unknown, fallback = "The AI service is unavailable 
   if (text.includes("quota") || text.includes("resource_exhausted") || text.includes("429") || text.includes("rate limit")) {
     return "The academy's AI quota is used up for now. Try again later.";
   }
+  if (text.includes("high demand") || text.includes("unavailable") || text.includes("overloaded")) {
+    // Google shedding load (503). generateWithRetry has already tried again.
+    return "Google's AI is very busy right now. Wait a minute and try again.";
+  }
   if (text.includes("safety") || text.includes("blocked") || text.includes("recitation")) {
     return "The AI declined to answer that one. Try rephrasing it.";
   }

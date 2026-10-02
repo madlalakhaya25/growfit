@@ -4,6 +4,7 @@ import { GoogleGenAI } from "@google/genai";
 import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
+import { generateWithRetry } from "@/lib/ai-resilient";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -98,7 +99,7 @@ Use these exact section headers:
 4. TRAINING FOCUS THIS WEEK: (2-3 specific drill or session themes aligned to the match observations)
 5. DEVELOPMENT ALIGNMENT: (one sentence on how today's performance reflects age-appropriate SAFA/FIFA development targets for this squad)`;
 
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry(ai, {
       model: AI_MODEL,
       contents: prompt,
       config: {

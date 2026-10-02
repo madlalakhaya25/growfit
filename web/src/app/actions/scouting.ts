@@ -9,6 +9,7 @@ import { requireUser } from "@/lib/auth";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { loadOpponentMemory } from "@/lib/opponent-memory-data";
 import { buildScoutingBrief, hasNoScoutingHistory, NO_SCOUTING_HISTORY } from "@/lib/scouting-brief";
+import { generateWithRetry } from "@/lib/ai-resilient";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -74,7 +75,7 @@ export async function generateScoutingReport(params: {
       force: params.force,
       beforeGenerate: () => checkAiBudget(user.id),
       generate: async () => {
-        const response = await ai.models.generateContent({
+        const response = await generateWithRetry(ai, {
           model: AI_MODEL,
           contents:
             `Write a short scouting report on this opponent for our next fixture.\n\n${brief}\n\n` +

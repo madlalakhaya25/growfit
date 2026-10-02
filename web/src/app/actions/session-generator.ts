@@ -14,6 +14,7 @@ import { validateDiagram, type DrillDiagram } from "@/lib/drill-diagram";
 import { buildDiagramPrompt } from "@/lib/drill-diagram-prompt";
 import { renderSessionPlanProse, validateSessionPlan } from "@/lib/session-plan";
 import { constraintLines, normaliseConstraints, type KitValue, type SessionConstraints, type SpaceValue } from "@/lib/session-constraints";
+import { generateWithRetry } from "@/lib/ai-resilient";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -119,7 +120,7 @@ DESIGN REQUIREMENTS:
 
 Generate exactly 5 drills, the 5th a small-sided game of max 7v7. For each: a name, its duration in minutes (summing to roughly ${durationMinutes} minutes across all 5), the specific LTPD competency it builds at this age phase, its primary 4-Corner focus (Technical / Tactical / Physical / Social), the setup (pitch dimensions, cones, groups, equipment needed), clear numbered-step instructions for how to run it, and 2 precise age-appropriate coaching points. Finish with one question the coach should ask the squad after the session to reinforce the learning.`;
 
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry(ai, {
       model: AI_MODEL,
       contents: prompt,
       config: {
@@ -154,7 +155,7 @@ Generate exactly 5 drills, the 5th a small-sided game of max 7v7. For each: a na
  */
 async function withDiagrams(plan: SessionPlanStructured, constraints: SessionConstraints): Promise<SessionPlanStructured> {
   try {
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry(ai, {
       model: AI_MODEL,
       contents: buildDiagramPrompt({ drills: plan.drills, constraints }),
       config: {

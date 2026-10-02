@@ -16,6 +16,7 @@ import { aiError, checkAiBudget } from "@/lib/ai-guard";
 import { generateOrServeText } from "@/lib/ai-cached";
 import type { AiFeedback } from "@/lib/ai-artefacts";
 import { ltpdPhaseForAge } from "@/lib/ai-safeguards";
+import { generateWithRetry } from "@/lib/ai-resilient";
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY!,
@@ -207,7 +208,7 @@ Output using these exact plain text headers:
       // it succeeds.
       beforeGenerate: () => checkAiBudget(user.id),
       generate: async () => {
-        const response = await ai.models.generateContent({
+        const response = await generateWithRetry(ai, {
           model: AI_MODEL,
           contents: prompt,
           config: {

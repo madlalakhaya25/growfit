@@ -6,6 +6,7 @@ import { requireStaff } from "@/lib/auth";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
 import { generateOrServeText } from "@/lib/ai-cached";
 import type { AiFeedback } from "@/lib/ai-artefacts";
+import { generateWithRetry } from "@/lib/ai-resilient";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -199,7 +200,7 @@ Output format (plain text, no markdown, no asterisks):
       // After the free cache check (see ai-insights.ts).
       beforeGenerate: () => checkAiBudget(user.id),
       generate: async () => {
-        const response = await ai.models.generateContent({
+        const response = await generateWithRetry(ai, {
           model: AI_MODEL,
           contents: prompt,
           config: {
