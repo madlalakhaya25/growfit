@@ -12,6 +12,10 @@ jest.mock("@/app/actions/tactics", () => ({
   describePlay: jest.fn(),
   analyseOpponent: jest.fn(),
 }));
+// Same build-graph workaround for the session-from-board action (it pulls in
+// @google/genai) and the session page's addDrills; neither runs on mount.
+jest.mock("@/app/actions/board-to-session", () => ({ generateSessionFromBoard: jest.fn() }));
+jest.mock("@/app/actions/training", () => ({ addDrills: jest.fn() }));
 
 import { SavedPlaysPanel } from "@/components/tactics/saved-plays-panel";
 
