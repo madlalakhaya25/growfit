@@ -1,4 +1,5 @@
 "use client";
+import { forgetSignIn } from "@/lib/auth-cookies";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
@@ -200,6 +201,8 @@ export function DashboardShell({ profile, teams = [], features, children }: Prop
   function handleSignOut() {
     startSignOut(async () => {
       await supabase.auth.signOut();
+      // Forget that this device keeps its sign-in (lib/auth-cookies.ts).
+      forgetSignIn();
       clearAuth();
       router.push("/auth/login");
     });

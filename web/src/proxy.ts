@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { authCookieOptions, KEEP_SIGNED_IN_COOKIE } from "@/lib/auth-cookies";
 
 // Every top-level route not listed here is treated as protected by default
 // (see the redirect below) — the one way this list causes a real bug is a
@@ -45,8 +46,8 @@ export async function proxy(request: NextRequest) {
           );
           supabaseResponse = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) => {
-            const { maxAge: _, ...sessionOnlyOptions } = options ?? {};
-            supabaseResponse.cookies.set(name, value, sessionOnlyOptions);
+            const keep = request.cookies.get(KEEP_SIGNED_IN_COOKIE)?.value === "1";
+            supabaseResponse.cookies.set(name, value, authCookieOptions(options, keep));
           });
         },
       },

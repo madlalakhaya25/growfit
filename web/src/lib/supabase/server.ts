@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { authCookieOptions, KEEP_SIGNED_IN_COOKIE } from "@/lib/auth-cookies";
 
 /**
  * Cached per request (React `cache()`, deduplicated the same way
@@ -27,9 +28,10 @@ export const createClient = cache(async function createClient() {
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) => {
-              // Strip maxAge so cookies are session-only (cleared on browser close)
-              const { maxAge: _, ...sessionOnlyOptions } = options ?? {};
-              cookieStore.set(name, value, sessionOnlyOptions);
+              // 30 days for coaches and parents, session-only for players
+              // (lib/auth-cookies.ts).
+              const keep = cookieStore.get(KEEP_SIGNED_IN_COOKIE)?.value === "1";
+              cookieStore.set(name, value, authCookieOptions(options, keep));
             });
           } catch {
             // setAll called from a Server Component — middleware handles refresh
