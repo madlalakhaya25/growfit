@@ -55,6 +55,28 @@ async function requireCoachTeam(teamId: string) {
   return { supabase, user, team };
 }
 
+const NOT_YOUR_PLAY = "Play not found, or you don't coach its team.";
+
+/**
+ * The play, only if the caller coaches its team. Same boundary as
+ * requireCoachTeam, for actions that start from a play id: tactic_plays is
+ * readable academy-wide at the database (015) and its write policies only
+ * check "is a coach", so without this a player could load a play's raw data
+ * (per-child coach notes included) and one coach could change or delete
+ * another team's plays.
+ */
+async function requireCoachOfPlay(playId: string, columns: string) {
+  const { supabase, user } = await requireUser();
+  const teamIds = await getCoachedTeamIds(supabase, user.id);
+  const { data } = await supabase
+    .from("tactic_plays")
+    .select(columns)
+    .eq("id", playId)
+    .in("team_id", teamIds)
+    .maybeSingle();
+  return { supabase, play: (data ?? null) as Record<string, unknown> | null };
+}
+
 export async function savePlay(input: {
   playId?: string;
   teamId: string;
@@ -98,11 +120,15 @@ export async function savePlay(input: {
   };
 
   if (input.playId) {
-    const { error } = await supabase
+    // Only a play on this (coached) team: the id comes from the client.
+    const { data: updated, error } = await supabase
       .from("tactic_plays")
       .update({ ...fields, updated_at: new Date().toISOString() })
-      .eq("id", input.playId);
+      .eq("id", input.playId)
+      .eq("team_id", team.id)
+      .select("id");
     if (error) return { error: friendlyError(error) };
+    if (!updated?.length) return { error: NOT_YOUR_PLAY };
     revalidatePath("/dashboard/coach/tactics/board");
     return { id: input.playId };
   }
@@ -124,7 +150,8 @@ export async function savePlay(input: {
 }
 
 export async function listPlays(teamId: string, surface?: "pitch" | "film"): Promise<{ plays?: SavedPlaySummary[]; error?: string }> {
-  const { supabase } = await requireUser();
+  const { supabase, team } = await requireCoachTeam(teamId);
+  if (!team) return { error: "You don't coach this team." };
   let query = supabase
     .from("tactic_plays")
     .select("id, name, notes, team_id, updated_at, concept_ids, session_id, fixture_id, shared, share_token, voice_url, surface")
@@ -239,18 +266,14 @@ export async function getOpponentScouting(teamId: string, fixtureId: string): Pr
 }
 
 export async function loadPlay(playId: string): Promise<{ data?: unknown; name?: string; notes?: string | null; error?: string }> {
-  const { supabase } = await requireUser();
-  const { data, error } = await supabase
-    .from("tactic_plays")
-    .select("name, notes, data")
-    .eq("id", playId)
-    .single();
-  if (error || !data) return { error: error?.message ?? "Play not found." };
-  return { data: data.data, name: data.name, notes: data.notes };
+  const { play } = await requireCoachOfPlay(playId, "name, notes, data");
+  if (!play) return { error: NOT_YOUR_PLAY };
+  return { data: play.data, name: play.name as string, notes: (play.notes as string | null) ?? null };
 }
 
 export async function deletePlay(playId: string): Promise<{ success?: boolean; error?: string }> {
-  const { supabase } = await requireUser();
+  const { supabase, play } = await requireCoachOfPlay(playId, "id");
+  if (!play) return { error: NOT_YOUR_PLAY };
   const { error } = await supabase.from("tactic_plays").delete().eq("id", playId);
   if (error) return { error: friendlyError(error) };
   revalidatePath("/dashboard/coach/tactics/board");
@@ -273,6 +296,7 @@ export async function sharePlayToSquad(input: {
     .from("tactic_plays")
     .update({ shared: true })
     .eq("id", input.playId)
+    .eq("team_id", team.id) // never another team's play, shared to this squad
     .select("share_token")
     .single();
 
@@ -314,8 +338,6 @@ export async function getSharedPlay(token: string): Promise<{
 
 /** Attach a recorded voice note to a play. Audio lives in the academy-media bucket. */
 export async function uploadPlayVoiceNote(formData: FormData): Promise<{ url?: string; error?: string }> {
-  const { supabase } = await requireUser();
-
   const playId = formData.get("play_id") as string;
   const file = formData.get("file") as File | null;
   if (!playId) return { error: "Save the play before recording a voice note." };
@@ -323,13 +345,9 @@ export async function uploadPlayVoiceNote(formData: FormData): Promise<{ url?: s
   if (file.size > 10 * 1024 * 1024) return { error: "Voice note must be under 10 MB." };
   if (!file.type.startsWith("audio/")) return { error: "Only audio recordings are allowed." };
 
-  // Confirm the caller may write this play, and pick up any previous recording.
-  const { data: play } = await supabase
-    .from("tactic_plays")
-    .select("id, academy_id, voice_path")
-    .eq("id", playId)
-    .single();
-  if (!play) return { error: "Play not found." };
+  // Confirm the caller coaches this play's team, and pick up any previous recording.
+  const { supabase, play } = await requireCoachOfPlay(playId, "id, academy_id, voice_path");
+  if (!play) return { error: NOT_YOUR_PLAY };
 
   const ext = file.type.includes("mp4") ? "mp4" : file.type.includes("ogg") ? "ogg" : "webm";
   const path = `${play.academy_id}/voice/${playId}-${Date.now()}.${ext}`;
@@ -349,7 +367,7 @@ export async function uploadPlayVoiceNote(formData: FormData): Promise<{ url?: s
 
   // Only remove the old file once the new one is safely recorded.
   if (play.voice_path) {
-    await supabase.storage.from("academy-media").remove([play.voice_path]);
+    await supabase.storage.from("academy-media").remove([play.voice_path as string]);
   }
 
   revalidatePath("/dashboard/coach/tactics/board");
@@ -357,13 +375,8 @@ export async function uploadPlayVoiceNote(formData: FormData): Promise<{ url?: s
 }
 
 export async function deletePlayVoiceNote(playId: string): Promise<{ success?: boolean; error?: string }> {
-  const { supabase } = await requireUser();
-
-  const { data: play } = await supabase
-    .from("tactic_plays")
-    .select("voice_path")
-    .eq("id", playId)
-    .single();
+  const { supabase, play } = await requireCoachOfPlay(playId, "voice_path");
+  if (!play) return { error: NOT_YOUR_PLAY };
 
   const { error } = await supabase
     .from("tactic_plays")
@@ -371,8 +384,8 @@ export async function deletePlayVoiceNote(playId: string): Promise<{ success?: b
     .eq("id", playId);
   if (error) return { error: friendlyError(error) };
 
-  if (play?.voice_path) {
-    await supabase.storage.from("academy-media").remove([play.voice_path]);
+  if (play.voice_path) {
+    await supabase.storage.from("academy-media").remove([play.voice_path as string]);
   }
   revalidatePath("/dashboard/coach/tactics/board");
   return { success: true };

@@ -11,7 +11,10 @@ import { DOCUMENTS } from "@/lib/document-definitions";
 
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 const mockWelfare = jest.fn();
-jest.mock("@/lib/welfare-alerts", () => ({ loadWelfareAlerts: (...a: unknown[]) => mockWelfare(...a) }));
+jest.mock("@/lib/welfare-alerts", () => ({
+  ...jest.requireActual("@/lib/welfare-alerts"),
+  loadWelfareAlerts: (...a: unknown[]) => mockWelfare(...a),
+}));
 const mockSnapshot = jest.fn();
 jest.mock("@/lib/development-data", () => ({ loadDevelopmentSnapshot: (...a: unknown[]) => mockSnapshot(...a) }));
 
@@ -216,6 +219,11 @@ describe("getWelfareAlerts", () => {
     const out = await getWelfareAlerts.run(ctx, {});
     expect(out).toEqual({ error: "Welfare alerts couldn't be loaded right now." });
     expect(JSON.stringify(out)).not.toContain("relation");
+  });
+  it("passes on a load failure as the same fixed message, never as an empty list", async () => {
+    mockWelfare.mockResolvedValue({ error: "Welfare alerts couldn't be loaded right now." });
+    const { ctx } = makeCtx(() => ({ data: [] }));
+    expect(await getWelfareAlerts.run(ctx, {})).toEqual({ error: "Welfare alerts couldn't be loaded right now." });
   });
   it("looks across the agent's own teams, so an admin who coaches nothing still gets alerts", async () => {
     mockWelfare.mockResolvedValue({ alerts: [] });

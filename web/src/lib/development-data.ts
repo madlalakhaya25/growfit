@@ -121,6 +121,26 @@ export function buildDevelopmentSnapshot(input: {
   };
 }
 
+/**
+ * The milestones that apply to this player's age group. A template with no
+ * age group applies to everyone. `age_group` was stored from migration 012 but
+ * never filtered on, so an U11 was shown -- and planned against -- U15
+ * milestones. Kept regardless: anything the player has already completed, so a
+ * child who moved up an age group keeps their history. With no known age group
+ * (no active team, or a team with none set) nothing is hidden. Pure.
+ */
+export function templatesForAgeGroups(
+  templates: MilestoneTemplate[],
+  ageGroups: string[],
+  completedTemplateIds: ReadonlySet<string>
+): MilestoneTemplate[] {
+  if (!ageGroups.length) return templates;
+  const wanted = new Set(ageGroups.map((g) => g.trim().toUpperCase()));
+  return templates.filter(
+    (t) => !t.age_group || wanted.has(t.age_group.trim().toUpperCase()) || completedTemplateIds.has(t.id)
+  );
+}
+
 export const MILESTONES_LOAD_ERROR = "Couldn't load development milestones.";
 export const MILESTONES_NO_ACADEMY =
   "Milestones can't be shown yet -- this account isn't linked to an academy.";
@@ -147,7 +167,7 @@ export async function loadDevelopmentSnapshot(
     return buildDevelopmentSnapshot({ templates: [], completions: [], loadError: MILESTONES_NO_ACADEMY, now });
   }
 
-  const [templatesResult, completionsResult] = await Promise.all([
+  const [templatesResult, completionsResult, teamsResult] = await Promise.all([
     supabase
       .from("development_milestone_templates")
       .select("id, title, description, category, position, age_group, sort_order")
@@ -160,6 +180,11 @@ export async function loadDevelopmentSnapshot(
       .select("template_id, season, completed_at, completed_by, note")
       .eq("player_id", input.playerId)
       .order("completed_at", { ascending: false }),
+    supabase
+      .from("team_members")
+      .select("teams ( age_group )")
+      .eq("player_id", input.playerId)
+      .eq("active", true),
   ]);
 
   if (templatesResult.error || completionsResult.error) {
@@ -171,6 +196,17 @@ export async function loadDevelopmentSnapshot(
   }
 
   const rows = (completionsResult.data ?? []) as CompletionRow[];
+
+  // Narrowing only: if the teams can't be read, show every milestone rather
+  // than fail the load -- too many is a nuisance, an empty pathway is wrong.
+  if (teamsResult.error) {
+    reportError(teamsResult.error, { scope: "loadDevelopmentSnapshot", severity: "warning", extra: { query: "team_members" } });
+  }
+  type TeamRow = { teams: { age_group: string | null } | { age_group: string | null }[] | null };
+  const ageGroups = ((teamsResult.data ?? []) as TeamRow[])
+    .flatMap((m) => (Array.isArray(m.teams) ? m.teams : m.teams ? [m.teams] : []))
+    .map((t) => t.age_group)
+    .filter((g): g is string => !!g && !!g.trim());
 
   // Cosmetic, so a failure here is reported but does not fail the load: the
   // rows render with "your coach" instead of a name.
@@ -187,7 +223,11 @@ export async function loadDevelopmentSnapshot(
   }
 
   return buildDevelopmentSnapshot({
-    templates: (templatesResult.data ?? []) as MilestoneTemplate[],
+    templates: templatesForAgeGroups(
+      (templatesResult.data ?? []) as MilestoneTemplate[],
+      ageGroups,
+      new Set(rows.map((r) => r.template_id))
+    ),
     completions: rows.map((r) => ({
       templateId: r.template_id,
       season: r.season,

@@ -21,6 +21,10 @@ export function RatingRing({
   label = "Overall",
   className,
 }: RatingRingProps) {
+  // 0 is never a real overall (attributes are 1-99, match stars 1-5 x 20):
+  // it means nobody has assessed this player yet. A child seeing "0 Overall"
+  // on their own page reads it as a score, so say "not yet" instead.
+  const assessed = value > 0;
   const clamped = Math.max(0, Math.min(100, value));
   const stroke = Math.max(4, Math.round(size * 0.08));
   const radius = (size - stroke) / 2;
@@ -33,11 +37,9 @@ export function RatingRing({
     <div
       className={cn("relative grid place-items-center", className)}
       style={{ width: size, height: size }}
-      role="meter"
-      aria-valuenow={clamped}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-label={`${label}: ${clamped} out of 100`}
+      {...(assessed
+        ? { role: "meter", "aria-valuenow": clamped, "aria-valuemin": 0, "aria-valuemax": 100, "aria-label": `${label}: ${clamped} out of 100` }
+        : { role: "img", "aria-label": `${label}: not assessed yet` })}
     >
       <svg width={size} height={size} className="-rotate-90">
         <circle
@@ -48,7 +50,7 @@ export function RatingRing({
           stroke="var(--color-secondary)"
           strokeWidth={stroke}
         />
-        <circle
+        {assessed && <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
@@ -59,13 +61,23 @@ export function RatingRing({
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           className="transition-[stroke-dashoffset] duration-700 ease-out"
-        />
+        />}
       </svg>
       <div className="absolute flex flex-col items-center leading-none">
-        <span className="font-bold tabular-nums" style={{ fontSize: valueFontSize }}>{clamped}</span>
-        <span className="mt-0.5 uppercase tracking-wide text-muted-foreground" style={{ fontSize: labelFontSize }}>
-          {label}
-        </span>
+        {assessed ? (
+          <>
+            <span className="font-bold tabular-nums" style={{ fontSize: valueFontSize }}>{clamped}</span>
+            <span className="mt-0.5 uppercase tracking-wide text-muted-foreground" style={{ fontSize: labelFontSize }}>
+              {label}
+            </span>
+          </>
+        ) : (
+          <span className="text-center text-muted-foreground" style={{ fontSize: labelFontSize }}>
+            Not yet
+            <br />
+            rated
+          </span>
+        )}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { loadWelfareAlerts } from "../welfare-alerts";
+import { loadWelfareAlerts, WELFARE_LOAD_ERROR } from "../welfare-alerts";
 import { fakeSupabase } from "@/test-utils/fake-supabase";
 
 const asClient = (c: unknown) => c as never;
@@ -26,6 +26,7 @@ describe("loadWelfareAlerts", () => {
       return { data: [] };
     });
     const res = await loadWelfareAlerts(asClient(f.client), ["t1"]);
+    if (!("alerts" in res)) throw new Error(res.error);
     expect(res.alerts).toHaveLength(1);
     expect(res.alerts[0]).toMatchObject({
       playerId: "a", fullName: "Low", teamName: "U13", attendancePct: 25, sessionsAssessed: 4,
@@ -40,4 +41,20 @@ describe("loadWelfareAlerts", () => {
     });
     expect(await loadWelfareAlerts(asClient(f.client), ["t1"])).toEqual({ alerts: [] });
   });
+
+  // A safeguarding list that fails quietly reads as "nobody is below 75%".
+  it.each(["teams", "team_members", "training_sessions", "training_attendance", "welfare_checkins"])(
+    "reports an error instead of an empty list when %s fails to load",
+    async (failing) => {
+      const f = fakeSupabase((op) => {
+        if (op.table === failing) return { data: null, error: { message: "boom" } };
+        if (op.table === "teams") return { data: [{ id: "t1", name: "U13" }] };
+        if (op.table === "team_members") return { data: [{ team_id: "t1", players: { id: "a", full_name: "A" } }] };
+        if (op.table === "training_sessions") return { data: [{ id: "s1" }] };
+        if (op.table === "training_attendance") return { data: [{ player_id: "a", status: "absent" }] };
+        return { data: [] };
+      });
+      expect(await loadWelfareAlerts(asClient(f.client), ["t1"])).toEqual({ error: WELFARE_LOAD_ERROR });
+    }
+  );
 });

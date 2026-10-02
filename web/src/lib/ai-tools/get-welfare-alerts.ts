@@ -1,4 +1,4 @@
-import { loadWelfareAlerts } from "@/lib/welfare-alerts";
+import { loadWelfareAlerts, WELFARE_LOAD_ERROR } from "@/lib/welfare-alerts";
 import { DEFAULT_MAX_ROWS, playerHref } from "./shared";
 import type { AgentTool } from "./types";
 
@@ -25,7 +25,7 @@ export const getWelfareAlerts: AgentTool<Record<string, never>, Output> = {
     // list the welfare page uses: otherwise an admin who coaches nothing is
     // told there are no alerts.
     const res = await loadWelfareAlerts(ctx.supabase, ctx.teamIds).catch(() => null);
-    if (!res) return { error: "Welfare alerts couldn't be loaded right now." };
+    if (!res || "error" in res) return { error: WELFARE_LOAD_ERROR };
     const rows: Row[] = res.alerts.map((a) => ({
       playerId: a.playerId,
       name: a.fullName,

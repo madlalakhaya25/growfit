@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils";
 interface Props {
   playerId: string;
   initial: Partial<Record<AttrKey, number | null>> | null;
+  /** This coach's own saved note, so a save doesn't silently wipe it. */
+  initialNotes?: string | null;
   position?: string | null;
   /**
    * The squad's median rating for each of this position's quick-assess
@@ -42,9 +44,9 @@ function buildDefaults(
 const SLIDER_MIN = 1;
 const SLIDER_MAX = 99;
 
-export function PlayerAttributesForm({ playerId, initial, position, squadMedians }: Props) {
+export function PlayerAttributesForm({ playerId, initial, initialNotes, position, squadMedians }: Props) {
   const [values, setValues] = useState<Record<AttrKey, number>>(() => buildDefaults(initial));
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes] = useState(initialNotes ?? "");
   const [rating, setRating] = useState(0);
   const [ratingHovered, setRatingHovered] = useState(0);
   const [error, setError] = useState("");
@@ -86,7 +88,9 @@ export function PlayerAttributesForm({ playerId, initial, position, squadMedians
 
       const [attrsResult, ratingResult] = await Promise.all([
         upsertPlayerAttributes(playerId, { ...assessed, notes: notes || undefined }),
-        rating > 0 ? addStandaloneRating(playerId, { rating, note: notes || undefined }) : Promise.resolve(null),
+        // The star rating carries no note. Rating notes are shown word for word
+        // on the parent's page; this box is the coach's private assessment note.
+        rating > 0 ? addStandaloneRating(playerId, { rating }) : Promise.resolve(null),
       ]);
       const err = attrsResult?.error ?? ratingResult?.error;
       if (err) {
@@ -251,7 +255,8 @@ export function PlayerAttributesForm({ playerId, initial, position, squadMedians
         onChange={(e) => setNotes(e.target.value)}
         maxLength={300}
         rows={2}
-        placeholder="Assessment notes (optional)"
+        aria-label="Private assessment notes"
+        placeholder="Private assessment notes for coaches (optional)"
         className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
       />
 

@@ -6,6 +6,8 @@ import {
   type AttendanceStatus,
 } from "@/lib/attendance";
 
+export const WELFARE_LOAD_ERROR = "Welfare alerts couldn't be loaded right now.";
+
 export interface WelfareAlert {
   playerId: string;
   fullName: string;
@@ -32,17 +34,21 @@ export async function loadWelfareAlerts(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient<any, any, any>,
   teamIds: string[]
-): Promise<{ alerts: WelfareAlert[] }> {
+): Promise<{ alerts: WelfareAlert[] } | { error: string }> {
   if (!teamIds.length) return { alerts: [] };
 
-  const { data: teams } = await supabase.from("teams").select("id, name").in("id", teamIds);
+  // Every query below fails loudly. On a safeguarding screen a failed load
+  // that reads as "no players below 75%" is the worst possible answer.
+  const { data: teams, error: teamsError } = await supabase.from("teams").select("id, name").in("id", teamIds);
+  if (teamsError) return { error: WELFARE_LOAD_ERROR };
   const teamNameById = new Map((teams ?? []).map((t: { id: string; name: string }) => [t.id, t.name]));
 
-  const { data: members } = await supabase
+  const { data: members, error: membersError } = await supabase
     .from("team_members")
     .select("team_id, players ( id, full_name )")
     .in("team_id", teamIds)
     .eq("active", true);
+  if (membersError) return { error: WELFARE_LOAD_ERROR };
 
   type MemberPlayer = { id: string; full_name: string };
   type MemberRow = { team_id: string; players: MemberPlayer | MemberPlayer[] | null };
@@ -56,20 +62,22 @@ export async function loadWelfareAlerts(
   const playerIds = players.map((p) => p.id);
 
   const since = new Date(Date.now() - ATTENDANCE_WINDOW_DAYS * 24 * 3600 * 1000).toISOString();
-  const { data: sessions } = await supabase
+  const { data: sessions, error: sessionsError } = await supabase
     .from("training_sessions")
     .select("id")
     .in("team_id", teamIds)
     .gte("session_date", since);
+  if (sessionsError) return { error: WELFARE_LOAD_ERROR };
   const sessionCount = (sessions ?? []).length;
   if (sessionCount === 0) return { alerts: [] };
 
   const sessionIds = (sessions ?? []).map((s: { id: string }) => s.id);
-  const { data: attendance } = await supabase
+  const { data: attendance, error: attendanceError } = await supabase
     .from("training_attendance")
     .select("player_id, status")
     .in("session_id", sessionIds)
     .in("player_id", playerIds);
+  if (attendanceError) return { error: WELFARE_LOAD_ERROR };
 
   // Collect each player's marks and let summariseAttendance apply the policy
   // (late counts as attending, excused is left out of the total). This used
@@ -88,11 +96,13 @@ export async function loadWelfareAlerts(
   // table two or more coaches on the same team can both write to
   // (docs/BACKLOG.md 2.9). Without it, one coach sees "last checked in 12
   // Sept" with no way to tell whether that was them or a colleague.
-  const { data: checkins } = await supabase
+  const { data: checkins, error: checkinsError } = await supabase
     .from("welfare_checkins")
     .select("player_id, note, created_at, noted_by, profiles ( full_name )")
     .in("player_id", playerIds)
     .order("created_at", { ascending: false });
+  // A missing check-in would read as "never checked in" — also a wrong answer.
+  if (checkinsError) return { error: WELFARE_LOAD_ERROR };
 
   type CheckinRow = {
     player_id: string; note: string | null; created_at: string;

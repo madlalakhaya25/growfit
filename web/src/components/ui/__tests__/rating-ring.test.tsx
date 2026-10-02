@@ -17,9 +17,11 @@ describe("RatingRing", () => {
     expect(screen.getByRole("meter")).toHaveAttribute("aria-valuenow", "90");
   });
 
-  it("shows 0 when value is 0", () => {
+  it("says 'not yet rated' instead of a 0 score when nobody has assessed the player", () => {
     render(<RatingRing value={0} size={84} />);
-    expect(screen.getByText("0")).toBeInTheDocument();
+    expect(screen.queryByText("0")).not.toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Overall: not assessed yet" })).toBeInTheDocument();
+    expect(screen.queryByRole("meter")).not.toBeInTheDocument();
   });
 
   it("renders an SVG element", () => {

@@ -13,7 +13,6 @@ import { RemovePlayerPhotoButton } from "@/components/remove-player-photo-button
 import { signPlayerPhotoUrl } from "@/lib/player-photo";
 import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
-import { ParentReportPanel } from "@/components/ai/parent-report-panel";
 import { AttributeSummary } from "@/components/player/attribute-summary";
 import { DevelopmentPlanReadonly } from "@/components/development/development-plan-readonly";
 import { HomeChallengeCard } from "@/components/development/home-challenge-card";
@@ -391,8 +390,6 @@ export default async function ChildDetailPage({
           </section>
         </div>
       </div>
-
-      <ParentReportPanel playerId={player.id} playerName={player.full_name} />
 
       <section id="development" className="space-y-3">
         <h2 className="text-lg font-semibold">Development plan</h2>

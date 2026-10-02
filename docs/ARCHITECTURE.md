@@ -282,7 +282,7 @@ National Development Programme, and CAF youth development principles:
 | `session-generator.ts` | 5-drill training session generator |
 | `ai-insights.ts` | Player coaching insights |
 | `development-plan.ts` | Personal development plan (player or coach) |
-| `match-report.ts` / `parent-report.ts` | Post-match report, parent-facing report card |
+| `match-report.ts` | Post-match report (the parent AI report card was retired 2026-10-02 in favour of the family digest, plan 4.8) |
 | `academy-health.ts` | Academy-wide health report for the admin analytics page |
 
 All thirteen share `squad-context.ts`, which assembles one team's real
