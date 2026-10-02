@@ -3,6 +3,9 @@
 import { GoogleGenAI } from "@google/genai";
 import { AI_MODEL } from "@/lib/ai-models";
 import { requireUser } from "@/lib/auth";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { SESSION_MEMORY_RULES, buildSessionMemory } from "@/lib/session-memory";
+import { loadRecentSessions } from "@/lib/session-memory-data";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
 import { parseJsonObject } from "@/lib/ai-json";
 import { getLTPDPhase, specialistSystem } from "@/lib/ai-safeguards";
@@ -18,6 +21,9 @@ interface SessionParams {
   focusArea: string;
   durationMinutes: number;
   squadSize: number;
+  /** With `teamId`, the plan builds on the team's recent sessions. For an
+   * existing session, only sessions before it count, and it is not its own past. */
+  teamId?: string;
   sessionId?: string;
   /** Real-world limits (docs/BACKLOG.md 5.6). Validated against the lists in
    * lib/session-constraints.ts; anything else is ignored. */
@@ -41,9 +47,33 @@ export interface SessionPlanStructured {
 
 export async function generateSessionPlan(
   params: SessionParams
-): Promise<{ plan?: string; structured?: SessionPlanStructured; error?: string }> {
+): Promise<{ plan?: string; structured?: SessionPlanStructured; builtOn?: number; error?: string }> {
   try {
-    const { user } = await requireUser();
+    const { supabase, user } = await requireUser();
+
+    // Memory of the last few sessions, for a team the caller coaches (RLS is
+    // academy-wide, so this check is ours). Read before the budget is spent.
+    let memory: string | null = null;
+    let builtOn = 0;
+    if (params.teamId) {
+      if (!(await getCoachedTeamIds(supabase, user.id)).includes(params.teamId)) {
+        return { error: "You don't coach this team." };
+      }
+      let before = new Date();
+      if (params.sessionId) {
+        const { data: current } = await supabase
+          .from("training_sessions")
+          .select("session_date")
+          .eq("id", params.sessionId)
+          .eq("team_id", params.teamId)
+          .single();
+        if (current?.session_date) before = new Date(current.session_date as string);
+      }
+      const past = await loadRecentSessions(supabase, params.teamId, before, params.sessionId);
+      memory = buildSessionMemory(past);
+      builtOn = Math.min(past.length, 3);
+    }
+
     // One AI call against this user's hourly budget. Counts attempts, not
     // successes: a failed call still costs a request to the provider.
     const overBudget = await checkAiBudget(user.id);
@@ -61,7 +91,11 @@ SESSION PARAMETERS:
 - Age Group: ${ageGroup} | LTPD Phase: ${ltpdPhase}
 - Session Type: ${sessionType}
 - Focus Area: ${focusArea}
-
+${memory ? `
+WHAT THE TEAM HAS BEEN DOING:
+${memory}
+${SESSION_MEMORY_RULES}
+` : ""}
 CONSTRAINTS (the session must fit these, they are not suggestions):
 ${constraintLines(constraints).join("\n")}
 
@@ -99,7 +133,7 @@ Generate exactly 5 drills, the 5th a small-sided game of max 7v7. For each: a na
     const structured = parsed as unknown as SessionPlanStructured;
     const plan = renderSessionPlanProse(structured).replace(/\*/g, "");
 
-    return { plan, structured };
+    return { plan, structured, builtOn };
   } catch (err) {
     return { error: aiError(err) };
   }
