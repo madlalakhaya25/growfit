@@ -1634,7 +1634,7 @@ reading underneath. `rating-chart.tsx` covers most of the chart half.
 
 ### Step 4.8 — The family layer
 
-> **Weekly digest shipped without a model (this PR).** `lib/weekly-digest.ts` builds one note per child from the week's training and match, the next fixture and one action from the child's own approved plan; attendance is only ever good news and an absence is never mentioned. Coaches write, edit and share each note from Squad, Weekly notes; families read shared notes under "From the coaches"; a shared note can be copied for WhatsApp. It reuses `family_messages` (058). There was no parent AI report card left to retire. **Parent Q&A is not built yet.**
+> **Weekly digest shipped without a model (this PR).** `lib/weekly-digest.ts` builds one note per child from the week's training and match, the next fixture and one action from the child's own approved plan; attendance is only ever good news and an absence is never mentioned. Coaches write, edit and share each note from Squad, Weekly notes; families read shared notes under "From the coaches"; a shared note can be copied for WhatsApp. It reuses `family_messages` (058). There was no parent AI report card left to retire. **Parent Q&A was skipped by decision (2026-10-02):** a free-text assistant would put a child's data through a model and reach a parent unreviewed, and the child page already shows the next fixture, documents and the weekly home challenge.
 
 **Weekly digest**: one batch generation per team per week (overnight, lite
 tier), warm, first names only, nothing negative, with the child's approved plan
