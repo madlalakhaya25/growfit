@@ -21,12 +21,12 @@ export function SessionProgression({
   sessions,
   defaultSessionId = "",
   onApplied,
-}: {
+}: Readonly<{
   plan: SessionPlanStructured;
   sessions: ProgressionSession[];
   defaultSessionId?: string;
   onApplied?: (message: string) => void;
-}) {
+}>) {
   const [sessionId, setSessionId] = useState(sessions.some((s) => s.id === defaultSessionId) ? defaultSessionId : "");
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
@@ -51,10 +51,10 @@ export function SessionProgression({
   return (
     <div className="rounded-md border border-primary/40 bg-primary/5 p-2 space-y-2 max-h-72 overflow-y-auto">
       <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Session from this play</p>
-      {drills.map((drill, i) => {
+      {drills.map((drill) => {
         const [header, ...rest] = drill.trim().split("\n");
         return (
-          <div key={i} className="space-y-0.5">
+          <div key={header} className="space-y-0.5">
             <p className="text-xs font-semibold">{header}</p>
             <AiProse text={rest.join("\n")} className="text-xs" />
           </div>
