@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 
 // Same two narrow workarounds as tactical-board.test.tsx: next/cache's
 // revalidatePath (via tactic-plays.ts) needs Web-platform globals jsdom
@@ -20,6 +20,13 @@ jest.mock("@/app/actions/board-from-text", () => ({ generateBoardFromSentence: j
 jest.mock("@/app/actions/play-roles", () => ({ generatePlayRoles: jest.fn(), approvePlayRoles: jest.fn() }));
 
 jest.mock("@/app/actions/coach-notes", () => ({ transcribeCoachNote: jest.fn() }));
+jest.mock("@/app/actions/tactic-plays", () => ({
+  getOpponentScouting: jest.fn().mockResolvedValue(null),
+  savePlay: jest.fn(), deletePlay: jest.fn(), sharePlayToSquad: jest.fn(),
+  loadPlay: jest.fn().mockResolvedValue({ name: "P1", data: { tokens: [], shapes: [] } }),
+  listPlays: jest.fn().mockResolvedValue({ plays: [{ id: "p1", name: "P1", notes: null, team_id: "t", updated_at: "", concept_ids: [], session_id: null, fixture_id: null, shared: false, share_token: null, voice_url: null }] }),
+  listLinkTargets: jest.fn().mockResolvedValue({ fixtures: [], sessions: [] }),
+}));
 // The play voice note uses the same hook, so pick out the sentence box by its 30s limit.
 let captured: ((a: { blob: Blob; mime: string; ext: "webm" }) => Promise<void>) | undefined;
 jest.mock("@/components/tactics/use-voice-capture", () => ({
@@ -29,6 +36,7 @@ jest.mock("@/components/tactics/use-voice-capture", () => ({
 import { transcribeCoachNote } from "@/app/actions/coach-notes";
 import { generateBoardFromSentence } from "@/app/actions/board-from-text";
 import { SavedPlaysPanel } from "@/components/tactics/saved-plays-panel";
+import { useBoardSetupStore } from "@/store/boardSetupStore";
 
 describe("SavedPlaysPanel", () => {
   it("renders the plays card with no team selected, with no network calls needed", async () => {
@@ -75,5 +83,22 @@ describe("SavedPlaysPanel", () => {
     await act(async () => { await captured!({ blob: new Blob(["x"], { type: "audio/webm" }), mime: "audio/webm", ext: "webm" }); });
     expect(setNotice).toHaveBeenCalledWith("Couldn't hear anything");
     expect(screen.getByLabelText("Describe a play to draw")).toHaveValue("");
+  });
+
+  it("loading a play gives every sibling its own React key, so the voice note button is not duplicated", async () => {
+    // The voice note recorder and the roles panel both used key={playId}. Two
+    // siblings with the same key make React duplicate or drop children, which
+    // showed up on a phone as a column of Voice note buttons after loading a play.
+    const errors = jest.spyOn(console, "error").mockImplementation(() => {});
+    useBoardSetupStore.setState({ teamId: "t" });
+    render(<SavedPlaysPanel ageGroup="U15" busy={null} setBusy={jest.fn()} notice={null} setNotice={jest.fn()} snapshot={jest.fn()} clearDraft={jest.fn()} />);
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => { fireEvent.click(screen.getByText("P1")); });
+    await act(async () => { await Promise.resolve(); });
+    expect(screen.getAllByText("Voice note")).toHaveLength(1);
+    expect(errors.mock.calls.filter((c) => String(c[0]).includes("same key"))).toHaveLength(0);
+    errors.mockRestore();
+    useBoardSetupStore.setState({ teamId: "" });
   });
 });

@@ -480,7 +480,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
       </div>
       {/* Voice note — the coach's own explanation, heard by players */}
       <VoiceNoteRecorder
-        key={currentPlayId ?? "new"}
+        key={`voice-${currentPlayId ?? "new"}`}
         playId={currentPlayId}
         initialUrl={voiceUrl}
         onChange={setVoiceUrl}
@@ -506,7 +506,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
         </div>
       )}
 
-      {currentPlayId && <PlayRolesPanel key={currentPlayId} playId={currentPlayId} onNotice={setNotice} />}
+      {currentPlayId && <PlayRolesPanel key={`roles-${currentPlayId}`} playId={currentPlayId} onNotice={setNotice} />}
 
       {progression && (
         <SessionProgression
