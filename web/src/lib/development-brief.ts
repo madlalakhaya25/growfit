@@ -41,6 +41,12 @@ export interface BriefInput {
   attendance: { attended: number; assessed: number; pct: number | null } | null;
   /** First day of the attendance window -- see bucketedAttendanceStart(). */
   attendanceSince: string;
+  /**
+   * Categories where the child's own rating and the coach's band this term
+   * differ by a whole band. Absent or empty adds NOTHING to the brief, so a
+   * player with no self-rating keeps the cache key they had before this field.
+   */
+  selfView?: { category: MilestoneCategory; feels: string; coachSees: string }[];
 }
 
 export interface PreviousPlanContext {
@@ -97,6 +103,15 @@ export function ageFromDob(dateOfBirth: string | null, now: Date): number | null
   return Math.floor((now.getTime() - dob) / (365.25 * 24 * 3600 * 1000));
 }
 
+function selfViewLines(selfView: BriefInput["selfView"]): string[] {
+  if (!selfView?.length) return [];
+  const rows = [...selfView].sort((a, b) => categoryRank(a.category) - categoryRank(b.category));
+  return [
+    "How the player sees themself this term, where it differs from the coach (FOR THE COACH ONLY; never repeat or hint at it in anything the player or parent reads):",
+    ...rows.map((r) => `- ${label(r.category)}: player feels ${r.feels}, coach sees ${r.coachSees}`),
+  ];
+}
+
 export function buildDevelopmentBrief(input: BriefInput, previous: PreviousPlanContext | null): {
   /** The fingerprinted part. */
   worldBrief: string;
@@ -140,6 +155,7 @@ export function buildDevelopmentBrief(input: BriefInput, previous: PreviousPlanC
     "Open milestones (use the id in brackets as milestoneTemplateId when an action works toward one):",
     ...(open.length ? open.map((m) => `- [${m.id}] ${label(m.category)}: ${m.title}`) : ["- none open"]),
     `Training attendance: ${attendanceLine}`,
+    ...selfViewLines(input.selfView),
   ].join("\n");
 
   if (!previous) return { worldBrief: world, fullBrief: world };

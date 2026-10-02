@@ -183,3 +183,31 @@ describe("ageFromDob", () => {
     expect(ageFromDob("garbage", new Date())).toBeNull();
   });
 });
+
+describe("selfView in the brief", () => {
+  const withGap: BriefInput = {
+    ...input,
+    selfView: [
+      { category: "tactical", feels: "really good", coachSees: "Developing" },
+      { category: "technical", feels: "just starting", coachSees: "Secure" },
+    ],
+  };
+
+  it("adds nothing when there is no gap, so the cache key is the one it was before", () => {
+    const before = buildDevelopmentBrief(input, null).worldBrief;
+    expect(buildDevelopmentBrief({ ...input, selfView: [] }, null).worldBrief).toBe(before);
+    expect(before).not.toMatch(/sees themself/);
+  });
+
+  it("lists each gap in category order, marked for the coach only", () => {
+    const { worldBrief } = buildDevelopmentBrief(withGap, null);
+    expect(worldBrief).toMatch(/FOR THE COACH ONLY/);
+    expect(worldBrief.indexOf("Technical: player feels just starting")).toBeLessThan(worldBrief.indexOf("Tactical: player feels really good"));
+  });
+
+  it("changes the fingerprint when a gap appears, and not when the order of gaps does", () => {
+    const key = (i: BriefInput) => fingerprintBrief(buildDevelopmentBrief(i, null).worldBrief);
+    expect(key(withGap)).not.toBe(key(input));
+    expect(key({ ...withGap, selfView: [...withGap.selfView!].reverse() })).toBe(key(withGap));
+  });
+});
