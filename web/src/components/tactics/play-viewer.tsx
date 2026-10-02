@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Play, Square, RotateCcw, MessageSquare } from "lucide-react";
+import { Play, Square, RotateCcw, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   interpolateFrames, totalDurationMs, getPitch,
   type Shape as ModelShape, type Frame as ModelFrame, type Token as ModelToken,
@@ -14,6 +14,7 @@ import { EquipmentLayer } from "@/components/tactics/equipment-layer";
 import { framesFromShapes } from "@/lib/play-motion";
 import { playerJobs } from "@/lib/board-coaching";
 import { PlayerJobsList } from "@/components/tactics/player-jobs";
+import { describeStep, poseAtStep } from "@/lib/play-steps";
 
 // Read-only mirror of the board's data shape (see components/tactics/tactical-board).
 type VToken = ModelToken;
@@ -56,6 +57,8 @@ export function PlayViewer({ data }: { data: PlayData }) {
   const [tokens, setTokens] = useState<VToken[]>(baseTokens);
   const [shapes, setShapes] = useState<VShape[]>(baseShapes);
   const [playing, setPlaying] = useState(false);
+  // Step mode: one move at a time, for learning a play at your own pace. null = the free animation.
+  const [step, setStep] = useState<number | null>(null);
   const raf = useRef<number | null>(null);
 
   useEffect(() => () => { if (raf.current !== null) cancelAnimationFrame(raf.current); }, []);
@@ -64,8 +67,20 @@ export function PlayViewer({ data }: { data: PlayData }) {
     if (raf.current !== null) cancelAnimationFrame(raf.current);
     raf.current = null;
     setPlaying(false);
+    setStep(null);
     setTokens(baseTokens);
     setShapes(baseShapes);
+  }
+
+  function goToStep(index: number) {
+    if (raf.current !== null) cancelAnimationFrame(raf.current);
+    raf.current = null;
+    setPlaying(false);
+    const clamped = Math.max(0, Math.min(index, frames.length - 1));
+    const pose = poseAtStep(baseTokens, frames, clamped);
+    setStep(clamped);
+    setTokens(pose.tokens);
+    setShapes(pose.shapes);
   }
 
   /**
@@ -77,6 +92,7 @@ export function PlayViewer({ data }: { data: PlayData }) {
   function play() {
     if (frames.length < 2) return;
     if (raf.current !== null) cancelAnimationFrame(raf.current);
+    setStep(null);
     setPlaying(true);
 
     const total = totalDurationMs(frames);
@@ -146,6 +162,21 @@ export function PlayViewer({ data }: { data: PlayData }) {
 
       {jobs.length > 0 && <PlayerJobsList jobs={jobs} />}
 
+      {step !== null && (
+        <div className="space-y-2 rounded-lg border border-border bg-card p-3" data-testid="play-step">
+          <div className="flex items-center justify-between gap-2">
+            <button type="button" onClick={() => goToStep(step - 1)} disabled={step === 0} aria-label="Previous step" className="inline-flex h-10 items-center gap-1 rounded-md border border-border bg-background px-3 text-sm hover:bg-muted disabled:opacity-40">
+              <ChevronLeft className="size-4" aria-hidden="true" /> Back
+            </button>
+            <p className="text-sm font-semibold">Step {step + 1} of {frames.length}</p>
+            <button type="button" onClick={() => goToStep(step + 1)} disabled={step === frames.length - 1} aria-label="Next step" className="inline-flex h-10 items-center gap-1 rounded-md border border-border bg-background px-3 text-sm hover:bg-muted disabled:opacity-40">
+              Next <ChevronRight className="size-4" aria-hidden="true" />
+            </button>
+          </div>
+          <p className="text-sm text-muted-foreground">{describeStep(baseTokens, frames, step).join(" ")}</p>
+        </div>
+      )}
+
       {frames.length >= 2 ? (
         <div className="flex justify-center gap-2">
           {playing ? (
@@ -157,6 +188,9 @@ export function PlayViewer({ data }: { data: PlayData }) {
               <Play className="size-4" aria-hidden="true" /> Play the move
             </button>
           )}
+          <button type="button" onClick={() => goToStep(step === null ? 1 : step)} disabled={playing} className="inline-flex h-10 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm hover:bg-muted disabled:opacity-40">
+            Step by step
+          </button>
           <button type="button" onClick={reset} className="inline-flex h-10 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm hover:bg-muted">
             <RotateCcw className="size-4" aria-hidden="true" /> Reset
           </button>
