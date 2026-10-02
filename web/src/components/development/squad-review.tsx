@@ -6,6 +6,8 @@ import { TermReviewCard } from "@/components/development/term-review-card";
 import { MILESTONE_CATEGORIES, type MilestoneCategory } from "@/lib/development-categories";
 import type { Band } from "@/lib/term-review";
 import { clampIndex, nextIncomplete, reviewProgress } from "@/lib/squad-review";
+import { CoachNotesBox } from "@/components/development/coach-notes-box";
+import type { CoachNote } from "@/lib/coach-notes";
 import type { SquadReviewPlayer } from "@/lib/term-review-data";
 
 interface Props {
@@ -14,6 +16,9 @@ interface Props {
   lastTermName: string | null;
   ageGroup: string | null;
   players: SquadReviewPlayer[];
+  /** Each child's private notes, by player id. */
+  notes: Record<string, CoachNote[]>;
+  notesAvailable: boolean;
 }
 
 type BandsByPlayer = Record<string, SquadReviewPlayer["current"]>;
@@ -21,7 +26,7 @@ type BandsByPlayer = Record<string, SquadReviewPlayer["current"]>;
 const COUNT = MILESTONE_CATEGORIES.length;
 
 /** One child at a time, with next and previous, until the squad's term review is done. */
-export function SquadReview({ termId, termName, lastTermName, ageGroup, players }: Readonly<Props>) {
+export function SquadReview({ termId, termName, lastTermName, ageGroup, players, notes, notesAvailable }: Readonly<Props>) {
   const [index, setIndex] = useState(0);
   // The bands as the coach has them now. The card inside owns the picking;
   // this keeps the progress, and what a child shows when the coach comes back.
@@ -70,6 +75,16 @@ export function SquadReview({ termId, termName, lastTermName, ageGroup, players 
         selfRatings={player.self}
         lastTermName={lastTermName}
         onSaved={(category, band) => saved(player.id, category, band)}
+      />
+
+      <CoachNotesBox
+        key={`notes-${player.id}`}
+        subjectType="player"
+        subjectId={player.id}
+        initialNotes={notes[player.id] ?? []}
+        available={notesAvailable}
+        label={`Note about ${player.name}`}
+        placeholder="Anything to remember from this conversation."
       />
 
       <div className="flex flex-wrap items-center justify-between gap-2">

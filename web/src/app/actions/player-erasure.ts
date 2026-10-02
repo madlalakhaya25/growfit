@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { friendlyError } from "@/lib/friendly-error";
 import { deleteAiArtefactsForSubject, deletePlayRolesForPlayer } from "@/lib/ai-artefacts";
+import { deleteCoachNotesForPlayer } from "@/lib/coach-notes";
 
 /**
  * Full erasure of a player's record — POPIA's right to erasure needs an
@@ -65,6 +66,10 @@ export async function deletePlayerRecord(playerId: string, confirmName: string) 
   // player's first name; the delete above does not reach them.
   const playRoles = await deletePlayRolesForPlayer(supabase, playerId);
   if (!playRoles.deleted) return { error: "Couldn't erase this player's saved AI output — nothing was deleted." };
+
+  // Coach notes are polymorphic too (migration 056): same reasoning, same stop.
+  const notes = await deleteCoachNotesForPlayer(supabase, playerId);
+  if (!notes.deleted) return { error: "Couldn't erase the coach notes about this player — nothing was deleted." };
 
   const { error } = await supabase.from("players").delete().eq("id", playerId);
   if (error) return { error: friendlyError(error) };

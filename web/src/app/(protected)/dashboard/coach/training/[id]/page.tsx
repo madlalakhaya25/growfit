@@ -19,6 +19,8 @@ import { recentTurnout } from "@/lib/recent-turnout";
 import { SessionRunner } from "@/components/training/session-runner";
 import { DrillDetailsView } from "@/components/training/drill-details-view";
 import { sanitiseDrillDetails } from "@/lib/drill-details";
+import { loadCoachNotes } from "@/lib/coach-notes";
+import { CoachNotesBox } from "@/components/development/coach-notes-box";
 
 const TYPE_STYLES: Record<string, { label: string; chip: string; header: string }> = {
   general:    { label: "General",    chip: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",       header: "bg-slate-500/10" },
@@ -138,6 +140,8 @@ export default async function CoachTrainingSessionPage({
     }),
   }));
 
+  const sessionNotes = await loadCoachNotes(supabase, user.id, "session", [id]);
+
   return (
     <div className="space-y-6 max-w-2xl">
       {/* Back link */}
@@ -232,6 +236,16 @@ export default async function CoachTrainingSessionPage({
           const profile = Array.isArray(latest.profiles) ? latest.profiles[0] : latest.profiles;
           return profile?.full_name ? { name: profile.full_name, at: latest.marked_at! } : null;
         })()}
+      />
+
+      {/* Debrief: how it went, typed or spoken. Private to this coach and admins. */}
+      <CoachNotesBox
+        subjectType="session"
+        subjectId={id}
+        initialNotes={sessionNotes.bySubject[id] ?? []}
+        available={sessionNotes.available}
+        label="Session debrief"
+        placeholder="How did it go? What worked, what to change next time."
       />
 
       {/* Photos & Videos */}

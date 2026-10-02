@@ -389,6 +389,15 @@ own rows; staff of the academy read. Parents and other players cannot see it.
 Safe to re-run. Until it is run, the player's rating card still renders but
 saving gives a friendly error, and coaches see no "Player says" lines.
 
+## 056: coach notes
+
+Adds `coach_notes`: a short typed or dictated note about one player or one
+training session. Text only; dictated audio is sent to the model to be written
+out and is never stored. Additive: a new table. The author reads and deletes
+their own notes; admins of the academy read and delete any (erasing a player
+needs this). Other coaches, players and parents cannot read them. Safe to
+re-run. Until it is run, the note box shows but saving gives a friendly error.
+
 ---
 
 ## How to apply

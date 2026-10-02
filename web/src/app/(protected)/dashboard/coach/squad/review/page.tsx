@@ -6,6 +6,7 @@ import { resolveCurrentTeamFromCookies } from "@/lib/current-team-server";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { loadSquadReview } from "@/lib/term-review-data";
 import { todayIso } from "@/lib/time";
+import { loadCoachNotes } from "@/lib/coach-notes";
 import { SquadReview } from "@/components/development/squad-review";
 
 export default async function SquadReviewPage({ searchParams }: Readonly<{ searchParams: Promise<{ team?: string }> }>) {
@@ -27,6 +28,8 @@ export default async function SquadReviewPage({ searchParams }: Readonly<{ searc
 
   const team = (await resolveCurrentTeamFromCookies(allTeams, teamParam)) ?? allTeams[0];
   const snapshot = await loadSquadReview(supabase, team.id, profile.academy_id as string, todayIso());
+
+  const notes = await loadCoachNotes(supabase, user.id, "player", snapshot.players.map((p) => p.id));
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -52,6 +55,8 @@ export default async function SquadReviewPage({ searchParams }: Readonly<{ searc
           lastTermName={snapshot.previous?.name ?? null}
           ageGroup={team.age_group}
           players={snapshot.players}
+          notes={notes.bySubject}
+          notesAvailable={notes.available}
         />
       )}
     </div>
