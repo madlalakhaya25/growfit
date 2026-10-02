@@ -8,13 +8,9 @@ import { COACH_SYSTEM } from "@/lib/ai-safeguards";
 import { requireUser } from "@/lib/auth";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { loadOpponentMemory } from "@/lib/opponent-memory-data";
-import { buildScoutingBrief, hasNoScoutingHistory } from "@/lib/scouting-brief";
+import { buildScoutingBrief, hasNoScoutingHistory, NO_SCOUTING_HISTORY } from "@/lib/scouting-brief";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-
-export const NO_SCOUTING_HISTORY =
-  "We have nothing logged against this opponent yet: no past result and no saved play. " +
-  "Log the result after the match, or draw their shape on the tactical board, and the report will have something to work from.";
 
 /**
  * An opponent report built ONLY from what the academy has itself logged

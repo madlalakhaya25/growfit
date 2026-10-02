@@ -11,7 +11,8 @@ jest.mock("@google/genai", () => ({
   GoogleGenAI: class { models = { generateContent: (...a: unknown[]) => mockGenerate(...a) }; },
 }));
 
-import { generateScoutingReport, NO_SCOUTING_HISTORY } from "../scouting";
+import { generateScoutingReport } from "../scouting";
+import { NO_SCOUTING_HISTORY } from "@/lib/scouting-brief";
 import { fakeSupabase } from "@/test-utils/fake-supabase";
 
 const meeting = { fixtureId: "f0", date: "2026-03-01T10:00:00Z", isHome: true, score: { team: 2, opponent: 1 }, notes: null };
