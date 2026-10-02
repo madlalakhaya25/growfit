@@ -47,9 +47,9 @@ export default async function PlayerTrainingSessionPage({
     .eq("session_id", id)
     .order("sort_order");
 
-  const { data: attendance } = await supabase
-    .from("training_attendance")
-    .select("status")
+  const { data: rsvp } = await supabase
+    .from("training_rsvps")
+    .select("response")
     .eq("session_id", id)
     .eq("player_id", player.id)
     .maybeSingle();
@@ -102,24 +102,22 @@ export default async function PlayerTrainingSessionPage({
         )}
       </div>
 
-      {/* Attendance */}
+      {/* RSVP: the player's own intention, kept apart from the coach's register
+          (migration 051) and only open until the session starts. */}
       <div className="rounded-xl border border-border bg-card px-4 py-3.5">
-        <p className="text-sm font-medium mb-3">Are you attending?</p>
-        <AttendanceButton
-          sessionId={id}
-          // The column holds the shared P/A/L/E vocabulary (migration 036);
-          // setAttendance() writes 'present'/'excused' for this RSVP, so
-          // translate back rather than comparing against values it can
-          // never actually contain. A coach-marked 'late'/'absent' (set
-          // after the session, not by this button) shows as neither button
-          // active — this control is asking about the player's own RSVP,
-          // not overriding the coach's final register.
-          current={
-            attendance?.status === "present" ? "attending" :
-            attendance?.status === "excused" ? "unavailable" :
-            null
-          }
-        />
+        {date.getTime() > Date.now() ? (
+          <>
+            <p className="text-sm font-medium mb-3">Are you coming?</p>
+            <AttendanceButton
+              sessionId={id}
+              current={rsvp?.response === "going" ? "attending" : rsvp?.response === "cant" ? "unavailable" : null}
+            />
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {rsvp?.response === "going" ? "You said you were coming." : rsvp?.response === "cant" ? "You said you couldn't make it." : "Your coach marks who was there."}
+          </p>
+        )}
       </div>
 
       {/* Drills */}

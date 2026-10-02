@@ -310,6 +310,25 @@ SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint
  WHERE conname IN ('ai_artefacts_kind_check','ai_artefacts_subject_type_check');
 ```
 
+### 051 — privacy_and_rsvp
+
+Three read/write narrowings (stage 1 of the 2026-10-02 world-class plan). No
+column is added to an existing table and no existing row changes.
+
+- `tactic_plays`: read is staff (academy-wide) or, for a player, only plays
+  `shared` with a team they are an active member of. Was: any academy member.
+- `player_milestone_completions`: read is academy staff, the player, or a linked
+  parent. Was: any academy member, notes included.
+- `training_rsvps` (new): the player's own "going / can't" before a session
+  starts. `players_manage_own_attendance` on `training_attendance` is dropped
+  (the register is the coach's); players keep `players_read_own_attendance`.
+  Attendance rows with `marked_by IS NULL` (written by the old RSVP tap) are
+  COPIED to `training_rsvps` and left in place; the app ignores them in the
+  register. Delete them only after looking at the count.
+
+Verify with the query at the foot of `051_privacy_and_rsvp.sql`. The tactics board
+and the player's "shared plays" page must still load for a coach and a player.
+
 ### Idempotency
 
 `030`–`040` were re-run against the already-migrated database. **All eleven

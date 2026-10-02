@@ -51,6 +51,7 @@ export default async function CoachTrainingSessionPage({
   const [
     { data: drills },
     { data: attendanceRows },
+    { data: rsvpRows },
     { data: media },
     { data: squadMembersRaw },
     { data: profile },
@@ -67,6 +68,7 @@ export default async function CoachTrainingSessionPage({
       .from("training_attendance")
       .select("player_id, status, marked_by, marked_at, profiles ( full_name )")
       .eq("session_id", id),
+    supabase.from("training_rsvps").select("player_id, response").eq("session_id", id),
     supabase
       .from("media_uploads")
       .select("id, url, media_type, caption, created_at, uploaded_by, media_tags ( player_id, players ( full_name ) )")
@@ -206,7 +208,11 @@ export default async function CoachTrainingSessionPage({
       <TrainingAttendanceForm
         sessionId={id}
         players={flattenedSquadPlayers}
-        existing={(attendanceRows ?? []) as { player_id: string; status: string }[]}
+        // Rows with no marked_by pre-date migration 051 and were written by the
+        // player's own RSVP tap, not by a coach: they are not register marks.
+        existing={((attendanceRows ?? []) as { player_id: string; status: string; marked_by: string | null }[])
+          .filter((r) => r.marked_by !== null)}
+        rsvps={Object.fromEntries(((rsvpRows ?? []) as { player_id: string; response: "going" | "cant" }[]).map((r) => [r.player_id, r.response]))}
         lastMarkedBy={(() => {
           type MarkRow = {
             marked_by: string | null; marked_at: string | null;
