@@ -30,27 +30,34 @@ export interface DigestFacts {
   homeChallenge: { what: string; how: string; timesPerWeek: number } | null;
 }
 
+function trainingPhrase(held: number, attended: number): string {
+  if (attended === held) return held === 1 ? "was at training" : `was at all ${held} training sessions`;
+  const noun = attended === 1 ? "session" : "sessions";
+  return `came to ${attended} training ${noun}`;
+}
+
 function weekLine(f: DigestFacts): string | null {
   // Attendance is only ever good news here: a child who missed everything gets no line.
   if (f.sessionsAttended === 0 && f.matchesPlayed === 0) return null;
   const parts: string[] = [];
-  if (f.sessionsAttended > 0) {
-    parts.push(
-      f.sessionsAttended === f.sessionsHeld
-        ? `was at ${f.sessionsHeld === 1 ? "training" : `all ${f.sessionsHeld} training sessions`}`
-        : `came to ${f.sessionsAttended} training ${f.sessionsAttended === 1 ? "session" : "sessions"}`,
-    );
-  }
-  if (f.matchesPlayed > 0) parts.push(f.matchesPlayed === 1 ? "played in the match" : `played in ${f.matchesPlayed} matches`);
+  if (f.sessionsAttended > 0) parts.push(trainingPhrase(f.sessionsHeld, f.sessionsAttended));
+  if (f.matchesPlayed === 1) parts.push("played in the match");
+  else if (f.matchesPlayed > 1) parts.push(`played in ${f.matchesPlayed} matches`);
   return `This week ${f.firstName} ${parts.join(" and ")}. Well done.`;
+}
+
+function sentence(text: string): string {
+  const t = text.trim();
+  return /[.!?]$/.test(t) ? t : `${t}.`;
 }
 
 function homeLine(f: DigestFacts): string | null {
   const c = f.homeChallenge;
   if (!c) return null;
   const times = c.timesPerWeek > 1 ? `, ${c.timesPerWeek} times this week` : "";
-  const how = c.how.trim();
-  return `One thing to try at home${times}: ${c.what.trim().replace(/[.!?]$/, "")}.${how ? ` ${how.replace(/([^.!?])$/, "$1.")}` : ""}`;
+  const what = sentence(c.what);
+  const how = c.how.trim() ? ` ${sentence(c.how)}` : "";
+  return `One thing to try at home${times}: ${what}${how}`;
 }
 
 /** Null when there is nothing kind and true to say, so no empty note is ever written. */
