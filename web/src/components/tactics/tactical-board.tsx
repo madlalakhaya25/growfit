@@ -1573,7 +1573,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           the fold. Open on a blank board, where setting up is the first job. */}
       <details open={!state.tokens.some((t) => t.kind === "player")} className="group space-y-4">
         <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between rounded-xl border border-border bg-card px-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
-          Set up teams and pitch
+          <span>Set up teams and pitch</span>
           <span className="text-xs font-normal text-muted-foreground group-open:hidden">Show</span>
           <span className="hidden text-xs font-normal text-muted-foreground group-open:inline">Hide</span>
         </summary>
