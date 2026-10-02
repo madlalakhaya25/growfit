@@ -429,6 +429,17 @@ footage feature is blocked with a message naming this migration.
 
 ---
 
+## 060: video analysis consent
+
+Adds `player_consents.ai_analysis_consent` (boolean, default false) and replaces
+`clip_consent_gaps` so the footage gate needs it as well as photo and media
+consent. Additive and safe to re-run. Every existing child starts without it, so
+parents opt in on the consent form (an optional fifth box); declining changes
+nothing else. Until it is run, saving the consent form still works for the four
+required consents and the box is simply not stored.
+
+---
+
 ## How to apply
 
 Either route works. Take a backup first regardless.

@@ -48,13 +48,13 @@ describe("consentBlockMessage", () => {
   const names = new Map([["a", "Sipho Dlamini"], ["b", "Bheki Zulu"], ["c", "Ayanda Nkosi"], ["d", "Thabo Mokoena"]]);
   it("uses first names only and shortens a long list", () => {
     expect(consentBlockMessage({ ok: false, reason: "missing_consent", blockedPlayerIds: ["a", "b"] }, names)).toBe(
-      "Photo and media consent is missing for Sipho, Bheki this season. Ask their parents to confirm it before using this clip.",
+      "Photo and media consent, or video analysis consent, is missing for Sipho, Bheki this season. Ask their parents to confirm it before using this clip.",
     );
     expect(consentBlockMessage({ ok: false, reason: "missing_consent", blockedPlayerIds: ["a", "b", "c", "d"] }, names)).toContain("Sipho, Bheki, Ayanda and 1 more");
     expect(consentBlockMessage({ ok: false, reason: "missing_consent", blockedPlayerIds: ["zz"] }, names)).toContain("A player");
   });
   it("names the migration when it is not installed, and never says consent was found", () => {
-    expect(consentBlockMessage({ ok: false, reason: "not_installed", blockedPlayerIds: [] }, names)).toMatch(/migration 059/);
+    expect(consentBlockMessage({ ok: false, reason: "not_installed", blockedPlayerIds: [] }, names)).toMatch(/migration 060/);
     expect(consentBlockMessage({ ok: false, reason: "unreadable", blockedPlayerIds: [] }, names)).toMatch(/nothing was sent/);
     expect(consentBlockMessage({ ok: false, reason: "no_players", blockedPlayerIds: [] }, names)).toMatch(/which players/);
   });

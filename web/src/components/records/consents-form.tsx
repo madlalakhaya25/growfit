@@ -23,6 +23,7 @@ async function formAction(
     photo_consent: formData.get("photo_consent") === "on",
     transport_consent: formData.get("transport_consent") === "on",
     risk_acknowledged: formData.get("risk_acknowledged") === "on",
+    ai_analysis_consent: formData.get("ai_analysis_consent") === "on",
     signed_by: formData.get("signed_by") as string,
   };
   return savePlayerConsents(playerId, season, data);
@@ -107,6 +108,21 @@ export function ConsentsForm({ playerId, season, initial }: Props) {
               <label htmlFor="risk_acknowledged" className="text-sm font-medium">Risk acknowledgement</label>
               <p className="text-xs text-muted-foreground mt-0.5">
                 I acknowledge the inherent physical risks of participation and the academy&apos;s safety procedures.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              id="ai_analysis_consent"
+              name="ai_analysis_consent"
+              defaultChecked={!!(initial?.ai_analysis_consent)}
+              className="mt-0.5 h-4 w-4 rounded border-input"
+            />
+            <div>
+              <label htmlFor="ai_analysis_consent" className="text-sm font-medium">Video analysis (optional)</label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                I consent to footage of my child being analysed by an automated tool to help coaches review matches. Coaches check every result, nothing is published, and I can withdraw at any time.
               </p>
             </div>
           </div>
