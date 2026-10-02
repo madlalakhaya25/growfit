@@ -32,8 +32,8 @@ const MAX_TEXT = 500;
 export function scrubText(text: string): string {
   return text
     .replace(/Key \([^)]*\)=\([^)]*\)/gi, "Key [redacted]")
-    .replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, "[email]")
-    .replace(/\+?\d[\d\s-]{5,}\d/g, "[number]")
+    .replace(/[\w.+-]{1,64}@[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63}){1,5}/g, "[email]")
+    .replace(/\+?\d(?:[ -]?\d){5,}/g, "[number]")
     .slice(0, MAX_TEXT);
 }
 

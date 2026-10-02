@@ -34,9 +34,9 @@ export async function checkClipConsent(
   if (error) return { ok: false, reason: missingFunction(error) ? "not_installed" : "unreadable", blockedPlayerIds: ids };
   if (!Array.isArray(data)) return { ok: false, reason: "unreadable", blockedPlayerIds: ids };
 
-  const gaps = (data as unknown[]).filter((v): v is string => typeof v === "string");
+  const gaps = new Set((data as unknown[]).filter((v): v is string => typeof v === "string"));
   // Only ids we asked about count, and a gap list shorter than expected is no proof of consent.
-  const blocked = ids.filter((id) => gaps.includes(id));
+  const blocked = ids.filter((id) => gaps.has(id));
   return blocked.length === 0 ? { ok: true } : { ok: false, reason: "missing_consent", blockedPlayerIds: blocked };
 }
 
