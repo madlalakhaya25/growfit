@@ -84,6 +84,28 @@ export function chaseMessage(
   );
 }
 
+function reasonsFor(p: ChasePlayer, missingDocs: string[], flags: ChaseFlags): ChaseReason[] {
+  const reasons: ChaseReason[] = [];
+  if (!p.safaNumber?.trim()) reasons.push("no-safa");
+  if (missingDocs.length > 0) reasons.push("documents");
+  if (flags.overage.has(p.id)) reasons.push("age");
+  if (flags.duplicate.has(p.id)) reasons.push("duplicate");
+  return reasons;
+}
+
+/** Whether a parent can fix it (as against a check only the admin can make). */
+const isParentGap = (reasons: ChaseReason[]) => reasons.includes("no-safa") || reasons.includes("documents");
+
+function scoreOf(reasons: ChaseReason[], missingCount: number, fixtureInDays: number | null): number {
+  const weights: [boolean, number][] = [
+    [fixtureInDays !== null, 1000 - (fixtureInDays ?? 0)],
+    [reasons.includes("no-safa"), 100],
+    [reasons.includes("age"), 5],
+    [reasons.includes("duplicate"), 5],
+  ];
+  return weights.reduce((sum, [on, w]) => sum + (on ? w : 0), missingCount * 10);
+}
+
 /**
  * Everyone who needs chasing, most urgent first. Urgency is, in order: a gap with
  * a fixture inside the week (a forfeit), then no SAFA number, then the number of
@@ -101,25 +123,15 @@ export function buildChase(
   const items: ChaseItem[] = [];
   for (const p of players) {
     const missingDocs = DOCUMENTS.filter((d) => !isDocComplete(d, p.docStatus.get(d.type))).map((d) => d.label);
-    const reasons: ChaseReason[] = [];
-    if (!p.safaNumber?.trim()) reasons.push("no-safa");
-    if (missingDocs.length > 0) reasons.push("documents");
-    if (flags.overage.has(p.id)) reasons.push("age");
-    if (flags.duplicate.has(p.id)) reasons.push("duplicate");
+    const reasons = reasonsFor(p, missingDocs, flags);
     if (reasons.length === 0) continue;
-
-    const parentGap = reasons.includes("no-safa") || reasons.includes("documents");
+    const parentGap = isParentGap(reasons);
     const fixtureInDays = parentGap ? daysToFixture(p.nextFixture, now) : null;
-    const score =
-      (fixtureInDays !== null ? 1000 - fixtureInDays : 0) +
-      (reasons.includes("no-safa") ? 100 : 0) +
-      missingDocs.length * 10 +
-      (reasons.includes("age") ? 5 : 0) +
-      (reasons.includes("duplicate") ? 5 : 0);
     const item: ChaseItem = {
-      playerId: p.id, name: p.name, ageGroup: p.ageGroup, reasons, missingDocs, fixtureInDays, score, message: "",
+      playerId: p.id, name: p.name, ageGroup: p.ageGroup, reasons, missingDocs, fixtureInDays,
+      score: scoreOf(reasons, missingDocs.length, fixtureInDays), message: "",
     };
-    item.message = parentGap ? chaseMessage(item, academyName, season) : "";
+    if (parentGap) item.message = chaseMessage(item, academyName, season);
     items.push(item);
   }
   return items.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
