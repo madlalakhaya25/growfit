@@ -5,14 +5,17 @@ import type { Curves, CurvePoint } from "@/lib/curves";
 
 type Pick = "rating" | "attendancePct" | "milestones";
 
+/** How many points a chart has to draw. A milestone count is 0, never missing, so "nothing yet" there means all zeros. */
+function pointsWithData(data: { value: number | null }[], field: Pick): number {
+  if (field === "milestones") return data.some((d) => (d.value ?? 0) > 0) ? data.length : 0;
+  return data.filter((d) => d.value !== null).length;
+}
+
 function Mini({ title, points, field, domain, unit }: Readonly<{
   title: string; points: CurvePoint[]; field: Pick; domain: [number, number | "auto"]; unit: string;
 }>) {
   const data = points.map((p) => ({ label: p.label, value: p[field] }));
-  // A milestone count is 0, never missing, so "nothing yet" means all zeros.
-  const has = field === "milestones"
-    ? (data.some((d) => (d.value ?? 0) > 0) ? data.length : 0)
-    : data.filter((d) => d.value !== null).length;
+  const has = pointsWithData(data, field);
   return (
     <div className="space-y-1">
       <p className="text-xs font-semibold text-muted-foreground">{title}</p>
