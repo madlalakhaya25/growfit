@@ -17,6 +17,8 @@ import { LogResultForm } from "./log/log-result-form";
 import { MediaUploadForm } from "@/components/media/media-upload-form";
 import { MediaGallery } from "@/components/media/media-gallery";
 import { MatchAttendanceForm } from "@/components/attendance/match-attendance-form";
+import { MatchStoriesPanel, type StoryRow } from "@/components/fixtures/match-stories-panel";
+import { loadFixtureStories } from "@/lib/family-messages";
 import { MatchReportPanel } from "@/components/ai/match-report-panel";
 import { fixtureStatusLabel, fixtureStatusVariant, isFixturePast, type FixtureBadgeVariant } from "@/lib/fixtures";
 import { signPlayerPhotoUrls } from "@/lib/player-photo";
@@ -106,6 +108,14 @@ export default async function FixtureDetailPage({
     supabase,
     appearances.map((a) => (Array.isArray(a.players) ? a.players[0] : a.players)?.photo_url ?? null)
   );
+
+  const stories = await loadFixtureStories(supabase, id);
+  const storyRows: StoryRow[] = appearances.flatMap((a) => {
+    const p = Array.isArray(a.players) ? a.players[0] : a.players;
+    if (!p) return [];
+    const m = stories.byPlayer.get(p.id);
+    return [{ playerId: p.id, name: p.full_name, message: m ? { id: m.id, body: m.body, status: m.status, approvedByName: m.approvedByName } : null }];
+  });
 
   const ratingsMap = new Map(ratings.map((r) => {
     const p = Array.isArray(r.players) ? r.players[0] : r.players;
@@ -323,6 +333,18 @@ export default async function FixtureDetailPage({
             fixtureId={id}
             players={flattenedSquadPlayers}
             existing={existingAttendance}
+          />
+        </section>
+      )}
+
+      {/* Stories for each child's family, shared only after the coach approves. */}
+      {fixture.status === "completed" && appearances.length > 0 && (
+        <section className="max-w-2xl">
+          <MatchStoriesPanel
+            key={storyRows.map((r) => `${r.message?.id}${r.message?.status}`).join()}
+            fixtureId={id}
+            rows={storyRows}
+            available={stories.available}
           />
         </section>
       )}

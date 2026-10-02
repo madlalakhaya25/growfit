@@ -1,3 +1,5 @@
+import { FamilyMessagesList } from "@/components/development/family-messages-list";
+import { loadApprovedMessages } from "@/lib/family-messages";
 import Link from "next/link";
 import { ExternalLink, FileText, ChevronRight, Target, Download } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -240,6 +242,8 @@ export default async function PlayerDashboardPage() {
   })();
   const milestonePct = milestoneTotal > 0 ? Math.round((milestoneDone / milestoneTotal) * 100) : 0;
 
+  const familyMessages = await loadApprovedMessages(supabase, player.id);
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">My Passport</h1>
@@ -371,6 +375,8 @@ export default async function PlayerDashboardPage() {
           />
         </section>
       )}
+
+      <FamilyMessagesList messages={familyMessages} />
 
       {chartData.length >= 2 ? (
         <section className="rounded-xl border border-border bg-card p-4 space-y-2">
