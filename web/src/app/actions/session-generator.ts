@@ -9,11 +9,11 @@ import { loadRecentSessions } from "@/lib/session-memory-data";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
 import { parseJsonObject } from "@/lib/ai-json";
 import { getLTPDPhase, specialistSystem } from "@/lib/ai-safeguards";
-import { SESSION_PLAN_WITH_DIAGRAMS_SCHEMA } from "@/lib/session-plan-schema";
+import { DRILL_DIAGRAMS_SCHEMA, SESSION_PLAN_SCHEMA } from "@/lib/session-plan-schema";
 import { validateDiagram, type DrillDiagram } from "@/lib/drill-diagram";
-import { DIAGRAM_PROMPT } from "@/lib/drill-diagram-prompt";
-import { renderSessionPlanProse } from "@/lib/session-plan";
-import { constraintLines, normaliseConstraints, type KitValue, type SpaceValue } from "@/lib/session-constraints";
+import { buildDiagramPrompt } from "@/lib/drill-diagram-prompt";
+import { renderSessionPlanProse, validateSessionPlan } from "@/lib/session-plan";
+import { constraintLines, normaliseConstraints, type KitValue, type SessionConstraints, type SpaceValue } from "@/lib/session-constraints";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -117,30 +117,26 @@ DESIGN REQUIREMENTS:
 - Align drills with SAFA NDP competency standards for the age group
 - Reflect South African grassroots context (limited equipment, mixed ability squads are common)
 
-Generate exactly 5 drills, the 5th a small-sided game of max 7v7. For each: a name, its duration in minutes (summing to roughly ${durationMinutes} minutes across all 5), the specific LTPD competency it builds at this age phase, its primary 4-Corner focus (Technical / Tactical / Physical / Social), the setup (pitch dimensions, cones, groups, equipment needed), clear numbered-step instructions for how to run it, and 2 precise age-appropriate coaching points. Finish with one question the coach should ask the squad after the session to reinforce the learning.
-
-${DIAGRAM_PROMPT}`;
+Generate exactly 5 drills, the 5th a small-sided game of max 7v7. For each: a name, its duration in minutes (summing to roughly ${durationMinutes} minutes across all 5), the specific LTPD competency it builds at this age phase, its primary 4-Corner focus (Technical / Tactical / Physical / Social), the setup (pitch dimensions, cones, groups, equipment needed), clear numbered-step instructions for how to run it, and 2 precise age-appropriate coaching points. Finish with one question the coach should ask the squad after the session to reinforce the learning.`;
 
     const response = await ai.models.generateContent({
       model: AI_MODEL,
       contents: prompt,
       config: {
-        // Room for five drills and a diagram on each; a diagram the model
-        // cannot finish is dropped by validateDiagram, not shown half-drawn.
-        maxOutputTokens: 5000,
+        maxOutputTokens: 1800,
         // Disable thinking: this is a direct-answer task, and unbudgeted
         // thinking tokens were silently eating the whole visible-output budget,
         // truncating the answer before the reader ever saw it end.
         thinkingConfig: { thinkingBudget: 0 },
         systemInstruction: specialistSystem({ focus: "training sessions" }),
         responseMimeType: "application/json",
-        responseSchema: SESSION_PLAN_WITH_DIAGRAMS_SCHEMA,
+        responseSchema: SESSION_PLAN_SCHEMA,
       },
     });
 
-    const parsed = parseJsonObject(response.text ?? "");
-    if (!parsed) return { error: "Could not read the AI's session plan. Try again." };
-    const structured = withValidatedDiagrams(parsed as unknown as SessionPlanStructured);
+    const base = validateSessionPlan(parseJsonObject(response.text ?? ""));
+    if (!base) return { error: "Could not read the AI's session plan. Try again." };
+    const structured = await withDiagrams(base, constraints);
     const plan = renderSessionPlanProse(structured).replace(/\*/g, "");
 
     return { plan, structured, builtOn };
@@ -149,16 +145,39 @@ ${DIAGRAM_PROMPT}`;
   }
 }
 
-/** Replace whatever diagram the model wrote on each drill with its validated
- * form, or none: raw model geometry never reaches the page. */
-function withValidatedDiagrams(s: SessionPlanStructured): SessionPlanStructured {
-  if (!Array.isArray(s.drills)) return s;
-  return {
-    ...s,
-    drills: s.drills.map((d) => {
-      const { diagram: raw, ...rest } = d as SessionDrill & { diagram?: unknown };
+/**
+ * Draw the drills of a finished plan, in a second call of their own. A plan
+ * is worth having without diagrams, so nothing here can fail the request: a
+ * model error, an answer cut off at the token limit, or a layout that does not
+ * validate each just leave that drill (or all of them) undrawn. Raw model
+ * geometry never reaches the page: every diagram goes through validateDiagram.
+ */
+async function withDiagrams(plan: SessionPlanStructured, constraints: SessionConstraints): Promise<SessionPlanStructured> {
+  try {
+    const response = await ai.models.generateContent({
+      model: AI_MODEL,
+      contents: buildDiagramPrompt({ drills: plan.drills, constraints }),
+      config: {
+        // Room for a diagram on each of up to eight drills; an answer cut off
+        // here is unreadable JSON and simply means no diagrams.
+        maxOutputTokens: 6000,
+        thinkingConfig: { thinkingBudget: 0 },
+        systemInstruction: specialistSystem({ focus: "training sessions" }),
+        responseMimeType: "application/json",
+        responseSchema: DRILL_DIAGRAMS_SCHEMA,
+      },
+    });
+    const parsed = parseJsonObject(response.text ?? "");
+    const entries: unknown[] = Array.isArray(parsed?.diagrams) ? parsed.diagrams : [];
+    const byDrill = new Map<number, DrillDiagram>();
+    for (const e of entries) {
+      if (!e || typeof e !== "object") continue;
+      const { drill, diagram: raw } = e as { drill?: unknown; diagram?: unknown };
       const diagram = validateDiagram(raw);
-      return diagram ? { ...rest, diagram } : rest;
-    }),
-  };
+      if (typeof drill === "number" && Number.isInteger(drill) && diagram && !byDrill.has(drill)) byDrill.set(drill, diagram);
+    }
+    return { ...plan, drills: plan.drills.map((d, i) => (byDrill.has(i) ? { ...d, diagram: byDrill.get(i) } : d)) };
+  } catch {
+    return plan;
+  }
 }

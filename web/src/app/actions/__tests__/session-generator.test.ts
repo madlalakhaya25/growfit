@@ -4,7 +4,8 @@ const mockCoached = jest.fn();
 jest.mock("@/lib/coached-teams", () => ({ getCoachedTeamIds: (...a: unknown[]) => mockCoached(...a) }));
 const mockRecent = jest.fn();
 jest.mock("@/lib/session-memory-data", () => ({ loadRecentSessions: (...a: unknown[]) => mockRecent(...a) }));
-jest.mock("@/lib/ai-guard", () => ({ checkAiBudget: async () => null, aiError: () => "friendly" }));
+const mockBudget = jest.fn(async () => null);
+jest.mock("@/lib/ai-guard", () => ({ checkAiBudget: () => mockBudget(), aiError: () => "friendly" }));
 const mockGenerate = jest.fn();
 jest.mock("@google/genai", () => ({
   Type: { OBJECT: "OBJECT", ARRAY: "ARRAY", STRING: "STRING", NUMBER: "NUMBER", BOOLEAN: "BOOLEAN" },
@@ -100,42 +101,86 @@ describe("generateSessionPlan diagrams", () => {
     equipment: [{ kind: "cone", x: 6, y: 6 }],
     moves: [{ kind: "pass", from: 0, toToken: 1 }],
   };
-  const reply = (diagram: unknown) =>
-    mockGenerate.mockResolvedValue({ text: JSON.stringify({ drills: [{ ...drill(1), diagram }, drill(2)], coachReflection: "Q?" }) });
+  const plan = JSON.stringify({ drills: [drill(1), drill(2)], coachReflection: "Q?" });
+  /** The first call writes the plan, the second draws it. */
+  const answers = (second: unknown) =>
+    mockGenerate.mockResolvedValueOnce({ text: plan }).mockResolvedValueOnce(second);
+  const drawn = (diagrams: unknown) => answers({ text: JSON.stringify({ diagrams }) });
 
-  it("asks the model for a diagram on each drill, with room to answer", async () => {
-    await generateSessionPlan(base);
-    const call = mockGenerate.mock.calls[0][0];
-    expect(call.contents).toContain("DIAGRAMS:");
-    expect(call.config.maxOutputTokens).toBeGreaterThanOrEqual(4000);
-    expect(call.config.responseSchema.properties.drills.items.properties.diagram).toBeDefined();
-    // optional: a drill the model cannot draw must still be a valid drill
-    expect(call.config.responseSchema.properties.drills.items.required).not.toContain("diagram");
+  it("writes the plan in one call and draws it in a second, with the drills and limits in the brief", async () => {
+    drawn([]);
+    await generateSessionPlan({ ...base, space: "half", kit: ["cones"] });
+    expect(mockGenerate).toHaveBeenCalledTimes(2);
+    const [planCall, drawCall] = mockGenerate.mock.calls.map((c) => c[0]);
+    expect(planCall.config.maxOutputTokens).toBe(1800);
+    expect(planCall.config.responseSchema.properties).not.toHaveProperty("diagrams");
+    expect(drawCall.contents).toContain("DRILL 0: Drill 1");
+    expect(drawCall.contents).toContain("DRILL 1: Drill 2");
+    expect(drawCall.contents).toContain("Players available: 14");
+    expect(drawCall.contents).toContain("Kit available: cones");
+    expect(drawCall.config.responseSchema.properties.diagrams).toBeDefined();
   });
-  it("returns a validated diagram on the drill it describes, and none on the others", async () => {
-    reply(rondo);
+  it("puts each validated diagram on the drill it was drawn for, and none on the others", async () => {
+    drawn([{ drill: 1, diagram: rondo }]);
     const res = await generateSessionPlan(base);
-    expect(res.structured?.drills[0].diagram).toMatchObject({ pitchId: "grid-small" });
-    expect(res.structured?.drills[0].diagram?.tokens).toHaveLength(4);
-    expect(res.structured?.drills[1].diagram).toBeUndefined();
+    expect(res.structured?.drills[0].diagram).toBeUndefined();
+    expect(res.structured?.drills[1].diagram).toMatchObject({ pitchId: "grid-small" });
+    expect(res.structured?.drills[1].diagram?.tokens).toHaveLength(4);
   });
   it("never passes raw model geometry through: an off-pitch player comes back on it", async () => {
-    reply({ ...rondo, tokens: [{ role: "team", x: 900, y: -40 }, ...rondo.tokens.slice(1)], moves: [] });
-    const res = await generateSessionPlan(base);
-    const first = res.structured!.drills[0].diagram!.tokens[0];
+    drawn([{ drill: 0, diagram: { ...rondo, tokens: [{ role: "team", x: 900, y: -40 }, ...rondo.tokens.slice(1)], moves: [] } }]);
+    const first = (await generateSessionPlan(base)).structured!.drills[0].diagram!.tokens[0];
     expect(first.x).toBeLessThan(60);
     expect(first.y).toBeGreaterThan(0);
   });
-  it("drops a diagram that doesn't hold together, but keeps the drill and the plan", async () => {
-    reply({ pitch: "the moon", tokens: "lots" });
+  it("ignores a diagram for a drill that doesn't exist, a repeat, and one that doesn't validate", async () => {
+    drawn([{ drill: 7, diagram: rondo }, { drill: 0, diagram: { pitch: "moon" } }, { drill: 0, diagram: rondo }, { drill: 0, diagram: { ...rondo, equipment: [] } }, { drill: "1", diagram: rondo }]);
+    const res = await generateSessionPlan(base);
+    expect(res.structured?.drills[0].diagram?.objects).toHaveLength(1);
+    expect(res.structured?.drills[1].diagram).toBeUndefined();
+  });
+  it("keeps the whole plan when the drawing call fails", async () => {
+    answers(Promise.reject(new Error("503")));
     const res = await generateSessionPlan(base);
     expect(res.error).toBeUndefined();
+    expect(res.structured?.drills).toHaveLength(2);
     expect(res.structured?.drills[0]).not.toHaveProperty("diagram");
-    expect(res.structured?.drills[0].name).toBe("Drill 1");
-    expect(res.plan).toContain("DRILL 1: Drill 1");
+    expect(res.plan).toContain("DRILL 2: Drill 2");
+  });
+  it("keeps the whole plan when the drawing answer is cut off or is not JSON", async () => {
+    answers({ text: '{"diagrams":[{"drill":0,"diagram":{"pitch":"half","tokens":[{"role":"te' });
+    const res = await generateSessionPlan(base);
+    expect(res.error).toBeUndefined();
+    expect(res.structured?.drills).toHaveLength(2);
+    mockGenerate.mockResolvedValueOnce({ text: plan }).mockResolvedValueOnce({ text: undefined });
+    expect((await generateSessionPlan(base)).structured?.drills).toHaveLength(2);
   });
   it("keeps the diagram out of the prose", async () => {
-    reply(rondo);
+    drawn([{ drill: 0, diagram: rondo }]);
     expect((await generateSessionPlan(base)).plan).not.toMatch(/grid-small|"role"/);
+  });
+  it("spends one budget unit for the plan and its diagrams together", async () => {
+    drawn([]);
+    await generateSessionPlan(base);
+    expect(mockGenerate).toHaveBeenCalledTimes(2);
+    expect(mockBudget).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("generateSessionPlan validates the plan", () => {
+  it("refuses a reply with no usable drills, rather than showing an empty plan", async () => {
+    mockGenerate.mockResolvedValue({ text: JSON.stringify({ drills: [{ name: "", instructions: "" }], coachReflection: "Q" }) });
+    expect(await generateSessionPlan(base)).toEqual({ error: "Could not read the AI's session plan. Try again." });
+    mockGenerate.mockResolvedValue({ text: JSON.stringify({ coachReflection: "Q" }) });
+    expect(await generateSessionPlan(base)).toEqual({ error: "Could not read the AI's session plan. Try again." });
+  });
+  it("cleans fields and drops a half-empty drill but keeps the rest", async () => {
+    mockGenerate.mockResolvedValue({
+      text: JSON.stringify({ drills: [{ ...drill(1), name: "**Rondo**", durationMinutes: 900 }, { name: "No steps" }, { ...drill(2), setup: undefined }], coachReflection: "Q" }),
+    });
+    const res = await generateSessionPlan(base);
+    expect(res.structured?.drills.map((d) => d.name)).toEqual(["Rondo", "Drill 2"]);
+    expect(res.structured?.drills[0].durationMinutes).toBe(30);
+    expect(res.structured?.drills[1].setup).toBe("");
   });
 });
