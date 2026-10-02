@@ -71,24 +71,29 @@ function readToken(v: unknown): RawToken | null {
   return { role, x: v.x, y: v.y };
 }
 
-/** Push overlapping discs apart along the line between them, then back inside
- * the pitch. Deterministic: the same input always settles the same way. */
+/** Move two discs that sit closer than MIN_GAP apart along the line between
+ * them. Returns whether it moved them. Exactly stacked discs split sideways. */
+function pushApart(a: Point, b: Point): boolean {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const d = Math.hypot(dx, dy);
+  if (d >= MIN_GAP) return false;
+  const ux = d === 0 ? 1 : dx / d;
+  const uy = d === 0 ? 0 : dy / d;
+  const push = (MIN_GAP - d) / 2 + 0.05;
+  a.x -= ux * push; a.y -= uy * push;
+  b.x += ux * push; b.y += uy * push;
+  return true;
+}
+
+/** Push overlapping discs apart, then back inside the pitch. Deterministic:
+ * the same input always settles the same way. */
 function relax(points: Point[], w: number, h: number): void {
   for (let pass = 0; pass < RELAX_PASSES; pass++) {
     let moved = false;
     for (let i = 0; i < points.length; i++) {
       for (let j = i + 1; j < points.length; j++) {
-        const dx = points[j].x - points[i].x;
-        const dy = points[j].y - points[i].y;
-        const d = Math.hypot(dx, dy);
-        if (d >= MIN_GAP) continue;
-        // Exactly stacked: split sideways, in a direction fixed by the pair.
-        const ux = d === 0 ? 1 : dx / d;
-        const uy = d === 0 ? 0 : dy / d;
-        const push = (MIN_GAP - d) / 2 + 0.05;
-        points[i].x -= ux * push; points[i].y -= uy * push;
-        points[j].x += ux * push; points[j].y += uy * push;
-        moved = true;
+        if (pushApart(points[i], points[j])) moved = true;
       }
     }
     for (const p of points) {
