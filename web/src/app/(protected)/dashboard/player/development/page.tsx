@@ -8,6 +8,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { DevelopmentPlanReadonly } from "@/components/development/development-plan-readonly";
 import { loadDevelopmentSnapshot } from "@/lib/development-data";
+import { HomeChallengeCard } from "@/components/development/home-challenge-card";
+import { pickHomeChallenge } from "@/lib/home-challenge";
 import { loadSharedDevelopmentPlan } from "@/lib/shared-development-plan";
 
 /**
@@ -48,6 +50,7 @@ export default async function PlayerDevelopmentPage() {
   });
 
   const shared = await loadSharedDevelopmentPlan(supabase, player.id);
+  const challenge = shared ? pickHomeChallenge(shared.plan) : null;
 
   return (
     <div className="space-y-6">
@@ -69,6 +72,8 @@ export default async function PlayerDevelopmentPage() {
 
       {/* Only a plan a coach has approved is ever shown here; the generator is
           coach-only (Phase 0 of docs/AI_AND_UX_PLAN_2026.md). */}
+      {challenge && <HomeChallengeCard challenge={challenge} audience="player" />}
+
       <section className="space-y-3">
         <h2 className="text-base font-semibold">My plan</h2>
         {shared ? (
