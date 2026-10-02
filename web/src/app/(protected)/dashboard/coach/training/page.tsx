@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Plus, Dumbbell } from "lucide-react";
+import { Plus, Dumbbell, CalendarRange } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -126,12 +126,20 @@ export default async function CoachTrainingPage({
 
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Training</h1>
-        <Button asChild>
-          <Link href={`/dashboard/coach/training/new?team=${team.id}`}>
-            <Plus className="size-4" aria-hidden="true" />
-            New session
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link href={`/dashboard/coach/training/term?team=${team.id}`}>
+              <CalendarRange className="size-4" aria-hidden="true" />
+              Term plan
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href={`/dashboard/coach/training/new?team=${team.id}`}>
+              <Plus className="size-4" aria-hidden="true" />
+              New session
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <WeekBriefCard teamId={team.id} brief={weekBrief} focus={squadFocus} />
