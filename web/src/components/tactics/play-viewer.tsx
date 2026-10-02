@@ -7,10 +7,7 @@ import {
   type Shape as ModelShape, type Frame as ModelFrame, type Token as ModelToken,
   type BoardObject, type PlayerNote,
 } from "@/lib/board-model";
-import { PitchLayer } from "@/components/tactics/pitch-layer";
-import { TokenDefs, TokenGlyph } from "@/components/tactics/token-glyph";
-import { ShapeDefs, ShapeGlyph } from "@/components/tactics/shape-glyph";
-import { EquipmentLayer } from "@/components/tactics/equipment-layer";
+import { BoardScene } from "@/components/tactics/board-scene";
 import { framesFromShapes } from "@/lib/play-motion";
 import { playerJobs } from "@/lib/board-coaching";
 import { PlayerJobsList } from "@/components/tactics/player-jobs";
@@ -122,22 +119,7 @@ export function PlayViewer({ data }: { data: PlayData }) {
             viewBox fills this box exactly) is the kind of mismatch that
             also throws off coordinates, not just the visual frame. */}
         <div className="w-full overflow-hidden rounded-xl border border-border" style={{ aspectRatio: `${pitch.w} / ${pitch.h}` }}>
-          <svg viewBox={`0 0 ${pitch.w} ${pitch.h}`} className="h-full w-full select-none">
-            <ShapeDefs prefix="pv" />
-
-            <PitchLayer pitch={pitch} stripeId="pv-stripe" themeId={data.pitchThemeId} />
-            <TokenDefs prefix="pv-tok" />
-
-            {shapes.map((sh) => <ShapeGlyph key={sh.id} sh={sh} prefix="pv" tokens={tokens} />)}
-
-            <EquipmentLayer objects={objects} />
-
-            {tokens.map((tok) => (
-              <g key={tok.id} transform={`translate(${tok.x} ${tok.y})`}>
-                <TokenGlyph tok={tok} prefix="pv-tok" />
-              </g>
-            ))}
-          </svg>
+          <BoardScene pitch={pitch} tokens={tokens} shapes={shapes} objects={objects} prefix="pv" themeId={data.pitchThemeId} />
         </div>
       </div>
 
