@@ -30,6 +30,8 @@ interface Props {
   sessionId: string;
   players: Player[];
   existing: ExistingRecord[];
+  /** What each player said before the session (their RSVP). Shown beside the name, never counted. */
+  rsvps?: Record<string, "going" | "cant">;
   /**
    * Who most recently marked this register, and when — surfaced so a
    * co-coach opening a session they didn't create can tell whether the
@@ -70,17 +72,26 @@ const STATUS_STYLE: Record<AttendanceStatus, { active: string; idle: string; Ico
 function PlayerRow({
   player,
   currentStatus,
+  rsvp,
   onMark,
 }: {
   player: Player;
   currentStatus: AttendanceStatus | null;
+  rsvp?: "going" | "cant";
   onMark: (playerId: string, status: AttendanceStatus) => void;
 }) {
   const [pending, startTransition] = useTransition();
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
-      <span className="text-sm font-medium">{player.full_name}</span>
+      <span className="text-sm font-medium">
+        {player.full_name}
+        {rsvp && (
+          <span className={cn("ml-2 rounded-full px-1.5 py-0.5 text-[11px] font-normal", rsvp === "going" ? "bg-green-500/10 text-green-700 dark:text-green-400" : "bg-muted text-muted-foreground")}>
+            {rsvp === "going" ? "Said going" : "Said can't"}
+          </span>
+        )}
+      </span>
       <div
         role="group"
         aria-label={`Attendance for ${player.full_name}`}
@@ -112,7 +123,7 @@ function PlayerRow({
   );
 }
 
-export function TrainingAttendanceForm({ sessionId, players, existing, lastMarkedBy }: Props) {
+export function TrainingAttendanceForm({ sessionId, players, existing, rsvps, lastMarkedBy }: Readonly<Props>) {
   const router = useRouter();
   const [statusMap, setStatusMap] = useState<Record<string, AttendanceStatus>>(() =>
     Object.fromEntries(
@@ -240,6 +251,7 @@ export function TrainingAttendanceForm({ sessionId, players, existing, lastMarke
             key={p.id}
             player={p}
             currentStatus={statusMap[p.id] ?? null}
+            rsvp={rsvps?.[p.id]}
             onMark={handleMark}
           />
         ))}

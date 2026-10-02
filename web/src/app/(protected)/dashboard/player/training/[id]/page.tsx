@@ -15,6 +15,20 @@ const TYPE_STYLES: Record<string, { label: string; chip: string; header: string 
   recovery:   { label: "Recovery",   chip: "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300",     header: "bg-green-500/10" },
 };
 
+type Rsvp = "going" | "cant" | undefined;
+
+function rsvpToButton(response: Rsvp) {
+  if (response === "going") return "attending";
+  if (response === "cant") return "unavailable";
+  return null;
+}
+
+function rsvpSummary(response: Rsvp) {
+  if (response === "going") return "You said you were coming.";
+  if (response === "cant") return "You said you couldn't make it.";
+  return "Your coach marks who was there.";
+}
+
 export default async function PlayerTrainingSessionPage({
   params,
 }: {
@@ -47,14 +61,15 @@ export default async function PlayerTrainingSessionPage({
     .eq("session_id", id)
     .order("sort_order");
 
-  const { data: attendance } = await supabase
-    .from("training_attendance")
-    .select("status")
+  const { data: rsvp } = await supabase
+    .from("training_rsvps")
+    .select("response")
     .eq("session_id", id)
     .eq("player_id", player.id)
     .maybeSingle();
 
   const date = new Date(session.session_date);
+  const rsvpOpen = date.getTime() > new Date().getTime();
   const teamName = Array.isArray(session.teams)
     ? session.teams[0]?.name
     : (session.teams as { name: string } | null)?.name;
@@ -102,24 +117,22 @@ export default async function PlayerTrainingSessionPage({
         )}
       </div>
 
-      {/* Attendance */}
+      {/* RSVP: the player's own intention, kept apart from the coach's register
+          (migration 051) and only open until the session starts. */}
       <div className="rounded-xl border border-border bg-card px-4 py-3.5">
-        <p className="text-sm font-medium mb-3">Are you attending?</p>
-        <AttendanceButton
-          sessionId={id}
-          // The column holds the shared P/A/L/E vocabulary (migration 036);
-          // setAttendance() writes 'present'/'excused' for this RSVP, so
-          // translate back rather than comparing against values it can
-          // never actually contain. A coach-marked 'late'/'absent' (set
-          // after the session, not by this button) shows as neither button
-          // active — this control is asking about the player's own RSVP,
-          // not overriding the coach's final register.
-          current={
-            attendance?.status === "present" ? "attending" :
-            attendance?.status === "excused" ? "unavailable" :
-            null
-          }
-        />
+        {rsvpOpen ? (
+          <>
+            <p className="text-sm font-medium mb-3">Are you coming?</p>
+            <AttendanceButton
+              sessionId={id}
+              current={rsvpToButton(rsvp?.response)}
+            />
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {rsvpSummary(rsvp?.response)}
+          </p>
+        )}
       </div>
 
       {/* Drills */}

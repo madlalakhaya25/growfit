@@ -6,7 +6,6 @@ import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { friendlyError } from "@/lib/friendly-error";
-import type { AttendanceStatus } from "@/lib/attendance";
 
 const sessionSchema = z.object({
   team_id: z.string().uuid("Invalid team"),
@@ -379,19 +378,29 @@ export async function setAttendance(sessionId: string, status: "attending" | "un
 
   if (!player) return { error: "Player profile not found." };
 
-  // `training_attendance.status` has taken the shared P/A/L/E vocabulary
-  // since migration 036 — writing this function's own "attending" /
-  // "unavailable" RSVP values straight through violates the CHECK
-  // constraint on every call (23514), which is exactly the bug 036 fixed
-  // for the coach-marking path but missed here, on this older player RSVP
-  // path into the same column. Translated the same way 036 itself
-  // translated the historical rows: an RSVP to attend is the closest thing
-  // to a present mark; "I can't make it" is an absence the coach knows
-  // about in advance, i.e. excused rather than a plain absence.
-  const dbStatus: AttendanceStatus = status === "attending" ? "present" : "excused";
+  // An RSVP is the player's intention, not the register. It used to be written
+  // into training_attendance as present/excused, which let a no-show who tapped
+  // "Going" stay present, let a player excuse themselves out of the 75% welfare
+  // count, and let them overwrite the coach's mark after the session. It now has
+  // its own table (migration 051), writable only until the session starts; the
+  // coach's register is the coach's alone.
+  const { data: session } = await supabase
+    .from("training_sessions")
+    .select("session_date")
+    .eq("id", sessionId)
+    .single();
+  if (!session) return { error: "Session not found." };
+  if (Date.parse(session.session_date as string) <= Date.now()) {
+    return { error: "This session has started, so your coach takes it from here." };
+  }
 
-  const { error } = await supabase.from("training_attendance").upsert(
-    { session_id: sessionId, player_id: player.id, status: dbStatus },
+  const { error } = await supabase.from("training_rsvps").upsert(
+    {
+      session_id: sessionId,
+      player_id: player.id,
+      response: status === "attending" ? "going" : "cant",
+      responded_at: new Date().toISOString(),
+    },
     { onConflict: "session_id,player_id" }
   );
 
