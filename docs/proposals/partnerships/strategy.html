@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Growfit 2027 Strategy Plan</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4; margin: 18mm 17mm 20mm 17mm; }
+  :root {
+    --red: #AF2D35; --red-dark: #6B1B1F; --red-tint: #F7EAEB;
+    --ink: #16181D; --ink-2: #474C55; --ink-3: #7A808A;
+    --rule: #DADDE2; --panel: #F5F6F8;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: #fff; }
+  body { font-family: Inter, "Liberation Sans", Arial, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.5; margin: 0; }
+  h1, h2, h3 { line-height: 1.2; margin: 0; }
+  h2 { font-size: 17pt; font-weight: 800; color: var(--ink); margin: 0 0 4mm; padding-top: 1mm; }
+  h2 .num { color: var(--red); margin-right: 6px; }
+  h3 { font-size: 11pt; font-weight: 700; margin: 5mm 0 2mm; }
+  p { margin: 0 0 2.6mm; }
+  ul { margin: 0 0 3mm; padding-left: 5mm; }
+  li { margin-bottom: 1.2mm; }
+  .section { break-before: page; }
+  .avoid { break-inside: avoid; }
+  .muted { color: var(--ink-2); }
+  .small { font-size: 8.5pt; color: var(--ink-3); }
+  strong { font-weight: 700; }
+
+  /* cover */
+  .cover { height: 257mm; display: flex; flex-direction: column; }
+  .cover-top { display: flex; align-items: center; gap: 6mm; }
+  .cover-top img { width: 26mm; height: 26mm; }
+  .cover-org { font-weight: 700; font-size: 11pt; }
+  .cover-org span { display: block; font-weight: 400; color: var(--ink-2); font-size: 9.5pt; }
+  .cover-band { margin-top: 30mm; border-left: 3mm solid var(--red); padding-left: 7mm; }
+  .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: 8.5pt; font-weight: 700; color: var(--red); }
+  .cover h1 { font-size: 30pt; font-weight: 800; margin: 3mm 0 4mm; letter-spacing: -.01em; }
+  .cover .lede { font-size: 12pt; color: var(--ink-2); max-width: 150mm; }
+  .cover-ask { margin-top: 18mm; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+  .cover-foot { margin-top: auto; border-top: 1px solid var(--rule); padding-top: 4mm; display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; font-size: 9pt; color: var(--ink-2); }
+  .cover-foot b { color: var(--ink); }
+
+  /* tiles */
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 4mm 0 5mm; }
+  .tile { background: var(--panel); border-radius: 3mm; padding: 3.5mm 4mm; }
+  .tile .v { font-size: 16pt; font-weight: 800; color: var(--ink); line-height: 1.1; }
+  .tile .l { font-size: 8.3pt; color: var(--ink-2); margin-top: 1.2mm; line-height: 1.35; }
+  .tile.hero { background: var(--red); }
+  .tile.hero .v, .tile.hero .l { color: #fff; }
+
+  /* tables */
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 9pt; }
+  th { text-align: left; font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); border-bottom: 1.5px solid var(--ink); padding: 2mm 2mm; }
+  td { border-bottom: 1px solid var(--rule); padding: 2mm 2mm; vertical-align: top; }
+  td.n, th.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tr.sub td { background: var(--panel); font-weight: 600; }
+  tr.total td { border-top: 1.5px solid var(--ink); border-bottom: none; font-weight: 800; font-size: 10pt; }
+  tr.total td.n { color: var(--red); }
+
+  .callout { background: var(--red-tint); border-left: 1.2mm solid var(--red); padding: 3.5mm 4.5mm; border-radius: 0 2mm 2mm 0; margin: 3mm 0 4mm; }
+  .callout p:last-child { margin: 0; }
+  .note { background: var(--panel); padding: 3mm 4mm; border-radius: 2mm; font-size: 8.8pt; color: var(--ink-2); margin: 3mm 0; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+  .card { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; }
+  .card h3 { margin-top: 0; }
+
+  /* weekly cycle */
+  .cycle { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2mm; margin: 3mm 0 4mm; }
+  .step { border-top: 1.2mm solid var(--red); background: var(--panel); padding: 2.5mm 3mm; border-radius: 0 0 2mm 2mm; font-size: 8.5pt; }
+  .step b { display: block; font-size: 9pt; margin-bottom: .8mm; }
+  .step .d { color: var(--red); font-weight: 700; font-size: 7.8pt; text-transform: uppercase; letter-spacing: .06em; }
+
+  /* bar figure */
+  .fig { margin: 3mm 0 2mm; }
+  .bar-row { display: grid; grid-template-columns: 30mm 1fr 22mm; align-items: center; gap: 3mm; margin: 2.2mm 0; font-size: 9pt; }
+  .bar-track { position: relative; height: 7mm; }
+  .bar { height: 100%; background: var(--red); border-radius: 0 1.2mm 1.2mm 0; }
+  .ref { position: absolute; top: -2mm; bottom: -2mm; border-left: 1.5px dashed var(--ink); }
+  .ref-label { font-size: 7.8pt; color: var(--ink-2); position: absolute; top: -6mm; transform: translateX(-50%); white-space: nowrap; }
+  .fig-cap { font-size: 8.3pt; color: var(--ink-3); margin-top: 1mm; }
+
+  .compact table { font-size: 8.3pt; margin: 1.5mm 0 2.5mm; }
+  .compact td { padding: 1.3mm 2mm; }
+  .compact h3 { margin: 2.5mm 0 1mm; }
+  .compact li { margin-bottom: .6mm; font-size: 9pt; }
+  .compact .callout { margin: 2mm 0; padding: 2.5mm 4mm; }
+  .sig { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 10mm; }
+  .sig div { border-top: 1px solid var(--ink); padding-top: 2mm; font-size: 9pt; color: var(--ink-2); }
+  .src { font-size: 8pt; color: var(--ink-2); word-break: break-all; }
+  .src li { margin-bottom: .8mm; }
+  .tag { display: inline-block; border-radius: 1mm !important; font-size: 7.5pt; font-weight: 700; padding: .3mm 1.8mm; border-radius: 10mm; background: var(--panel); color: var(--ink-2); text-transform: uppercase; letter-spacing: .05em; }
+  .tag.r { background: var(--red-tint); color: var(--red-dark); }
+
+  .ph { background: #F7EAEB; color: #6B1B1F; padding: 0 1.2mm; border-radius: 1mm; font-weight: 600; }
+  .tpl-label { display:inline-block; font-size: 8pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #fff; background: var(--ink); padding: .8mm 2.5mm; border-radius: 1mm; margin-bottom: 3mm; }
+  .letter { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 7mm 8mm; font-size: 9.6pt; }
+  .letter p { margin-bottom: 2.8mm; }
+  .letter .lh { display:flex; justify-content: space-between; align-items:flex-start; border-bottom: 1.5px solid var(--red); padding-bottom: 3mm; margin-bottom: 5mm; }
+  .letter .lh img { width: 15mm; height: 15mm; }
+  .letter .lh .org { text-align:right; font-size: 8.3pt; color: var(--ink-2); line-height: 1.4; }
+  .letter .lh .org b { color: var(--ink); font-size: 9.5pt; }
+  .msg { background: var(--panel); border-radius: 3mm; padding: 4mm 5mm; font-size: 9.6pt; white-space: normal; }
+  .howto { font-size: 8.8pt; color: var(--ink-2); margin: 0 0 3mm; }
+  .form-row { display:grid; grid-template-columns: 45mm 1fr; border-bottom: 1px solid var(--rule); padding: 2.6mm 0; font-size: 9.3pt; }
+  .form-row span:last-child { border-bottom: 1px dotted var(--ink-3); }
+  .check { display:inline-block; width:3.2mm; height:3.2mm; border:1px solid var(--ink); margin-right:1.5mm; vertical-align:-0.4mm; }
+  .tier { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; break-inside: avoid; }
+  .tier .price { color: var(--red); font-weight: 800; font-size: 13pt; }
+  .tier h3 { margin: 0 0 1mm; }
+  .tiers { display:grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; }
+  .tiers ul { margin-bottom: 0; }
+  .toc { columns: 2; font-size: 9.5pt; }
+</style>
+</head>
+<body>
+<style>
+  .three { display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 3.5mm; }
+  .four { display:grid; grid-template-columns: repeat(4,1fr); gap: 3mm; }
+  .check-list li { list-style:none; position:relative; padding-left:5mm; margin-bottom:1.1mm; }
+  .check-list li::before { content:"✓"; position:absolute; left:0; color: var(--red); font-weight:800; }
+  .q { border-top: 1.2mm solid var(--red); background: var(--panel); border-radius: 0 0 2mm 2mm; padding: 2.5mm 3mm; font-size: 8.6pt; }
+  .q b { display:block; font-size: 9.5pt; margin-bottom: 1mm; }
+  .big-quote { font-size: 14pt; font-weight: 800; line-height: 1.3; border-left: 2mm solid var(--red); padding-left: 5mm; margin: 3mm 0 5mm; }
+</style>
+
+<div class="cover">
+  <div class="cover-top">
+    <img src="../../../growfit.png" alt="Growfit Football Academy crest">
+    <div class="cover-org">Growfit Sports Academy NPC<span>In partnership with North Crest Primary School · Greater Durban</span></div>
+  </div>
+  <div class="cover-band">
+    <div class="eyebrow">Internal strategy · 2027 season</div>
+    <h1>Growfit 2027: Brand, Partnerships &amp; Finance Plan</h1>
+    <p class="lede">One plan that connects every proposal, event and letter to a single goal: make the Growfit name known and trusted across Durban football, so that when people hear it, teams, businesses and funders already want to work with us.</p>
+  </div>
+  <div class="cover-ask">
+    <div class="tile hero"><div class="v">1 goal</div><div class="l">Visibility that builds trust, and trust that brings partners</div></div>
+    <div class="tile"><div class="v">R76,900</div><div class="l">Core 2027 running cost, coverable from our own events</div></div>
+    <div class="tile"><div class="v">~R120,000</div><div class="l">Sponsorship target to fund growth projects</div></div>
+  </div>
+  <div class="cover-foot">
+    <div><b>For</b><br>Buhle Madlala · Sphe Mlotshwa · Khaya Madlala<br>and incoming committee members</div>
+    <div><b>How to use</b><br>Read this first. Every other document is a tool for one part of this plan (Section 9 lists them). Figures are planning estimates, marked <span class="ph">[confirm]</span> where we need real numbers.</div>
+  </div>
+</div>
+
+<div class="section">
+  <h2><span class="num">1</span>The objective, and how we get there</h2>
+  <div class="big-quote">"When someone in Durban football hears 'Growfit', they should think: well run, good for kids, and worth partnering with."</div>
+  <p>Our strategy is to <strong>put the Growfit brand in front of as many of the right people as possible, consistently, and to back it up with real standards</strong>. Visibility alone fades. Visibility plus proof (well-run events, safe children, prizes paid on time, partners thanked in public) builds a reputation. A reputation makes every future conversation easier.</p>
+
+  <svg viewBox="0 0 640 250" width="100%" role="img" aria-label="Growth flywheel: visibility leads to credibility, credibility to partnerships, partnerships to resources, resources to better football and events, which lead back to more visibility.">
+    <g font-family="Inter, Liberation Sans, Arial" text-anchor="middle">
+      <circle cx="320" cy="125" r="46" fill="#16181D"/><text x="320" y="121" fill="#fff" font-size="12" font-weight="800">GROWFIT</text><text x="320" y="137" fill="#C9CDD3" font-size="9">flywheel</text>
+      <g fill="none" stroke="#C9CDD3" stroke-width="2"><circle cx="320" cy="125" r="95"/></g>
+      <g font-size="10.5" font-weight="700">
+        <rect x="255" y="8" width="130" height="34" rx="8" fill="#AF2D35"/><text x="320" y="29" fill="#fff">1 · Visibility</text>
+        <rect x="430" y="70" width="150" height="34" rx="8" fill="#F5F6F8" stroke="#DADDE2"/><text x="505" y="91" fill="#16181D">2 · Credibility</text>
+        <rect x="395" y="180" width="150" height="34" rx="8" fill="#F5F6F8" stroke="#DADDE2"/><text x="470" y="201" fill="#16181D">3 · Partnerships</text>
+        <rect x="95" y="180" width="150" height="34" rx="8" fill="#F5F6F8" stroke="#DADDE2"/><text x="170" y="201" fill="#16181D">4 · Resources</text>
+        <rect x="45" y="70" width="170" height="34" rx="8" fill="#F5F6F8" stroke="#DADDE2"/><text x="130" y="91" fill="#16181D">5 · Better football &amp; events</text>
+      </g>
+      <g font-size="8.5" fill="#474C55">
+        <text x="505" y="118">standards on show</text><text x="470" y="228">teams · businesses · funders</text><text x="170" y="228">money · kit · venues · people</text><text x="130" y="60">tournaments · camps · content</text><text x="320" y="56">kit · events · media · online</text>
+      </g>
+    </g>
+  </svg>
+
+  <h3>Five rules that decide everything else</h3>
+  <ol>
+    <li><strong>The Growfit name goes on everything</strong>: kit, banners, posts, posters, letters, prizes, certificates.</li>
+    <li><strong>Show up consistently</strong>: every match, every tournament, every week online. A modest presence every week builds more reputation than one big splash.</li>
+    <li><strong>Prove our standards in public</strong>: safeguarding, consent, organised events, prizes paid on time, money reported.</li>
+    <li><strong>Make every partner look good</strong>: thank them publicly, report to them on time, and connect them with each other.</li>
+    <li><strong>Sponsors fund growth, not survival.</strong> Our own events cover the basics (Section 6), so no partner ever has to rescue us. That makes us more attractive to them.</li>
+  </ol>
+</div>
+
+<div class="section">
+  <h2><span class="num">2</span>Positioning: who we are, in one breath</h2>
+  <div class="callout"><p><strong>Positioning statement.</strong> Growfit Sports Academy is a Durban non-profit football academy, run in partnership with North Crest Primary School, that develops U12–U17 players on and off the pitch to a professional standard: every child plays, every child is safe, and every partner is seen.</p></div>
+  <h3>Tagline</h3>
+  <table class="avoid">
+    <tbody>
+      <tr><td style="width:40%"><strong>"Growing players. Growing people."</strong> <span class="tag r">Recommended</span></td><td>Uses our name, says development on and off the pitch, and works in English and as a short isiZulu line <span class="ph">[e.g. "Sikhulisa abadlali. Sikhulisa abantu." Confirm with a first-language speaker]</span>.</td></tr>
+      <tr><td><strong>"Grow with Growfit."</strong></td><td>Short and catchy. Good for social posts and sponsor messages ("Grow with Growfit, partner with us").</td></tr>
+      <tr><td><strong>"Every child plays. Every child grows."</strong></td><td>Strong for parents and schools. Puts fairness first.</td></tr>
+    </tbody>
+  </table>
+  <h3>Our story (use in every document, speech and post)</h3>
+  <p>Founded in 2023 by <strong>Buhle Madlala</strong> with coaches <strong>Sphe Mlotshwa</strong> and <strong>Khaya Madlala</strong>, Growfit started with a simple belief: children from any background deserve football coached properly, safely and with ambition. Three years on, we run U12, U15 and U17 teams in the Greater Durban Football League, work with North Crest Primary School, and are building events (the Growfit Youth Cup, holiday camps and a national tour) that open doors for our players and our community.</p>
+  <h3>Four message pillars</h3>
+  <div class="four avoid">
+    <div class="q"><b>Development</b>Every child plays. Five development areas. School comes first.</div>
+    <div class="q"><b>Standards</b>Safeguarding, consent, SAFA registration, police-cleared coaches, transparent money.</div>
+    <div class="q"><b>Community</b>North Crest, families, local businesses, partner clubs. We bring people together.</div>
+    <div class="q"><b>Opportunity</b>Tournaments, scouts, a national tour. Football that opens doors.</div>
+  </div>
+  <h3>How we sound</h3>
+  <p>Warm, confident, proud of Durban and honest. We never exaggerate numbers, never single out a child as "needy", and always use first names only with consent.</p>
+</div>
+
+<div class="section compact">
+  <h2><span class="num">3</span>Audiences: what each needs to hear</h2>
+  <table>
+    <thead><tr><th style="width:18%">Audience</th><th style="width:30%">What they care about</th><th>Our message</th><th style="width:20%">Where they see us</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Parents &amp; players</strong></td><td>Safety, game time, development, cost, a path forward</td><td>"Every child plays and grows, in a club run properly."</td><td>WhatsApp channel, Facebook, matches, North Crest</td></tr>
+      <tr><td><strong>Other clubs</strong></td><td>Good fixtures, fair tournaments, respect</td><td>"Growfit events are organised, fair and worth entering."</td><td>League, Youth Cup, Challenge Series, coach WhatsApp</td></tr>
+      <tr><td><strong>Businesses</strong></td><td>Local customers, brand recall, B-BBEE, staff pride</td><td>"Your name where Durban's families look every week, and we prove it."</td><td>Partnership summary, prospectus, Youth Cup, LinkedIn</td></tr>
+      <tr><td><strong>Schools &amp; LFA</strong></td><td>Safe programmes, participation, standards</td><td>"A reliable partner that lifts youth football in the area."</td><td>North Crest, school visits, GDLFA meetings</td></tr>
+      <tr><td><strong>Funders &amp; government</strong></td><td>Impact, governance, accountability</td><td>"Measurable impact, clean books, real reach."</td><td>Grant applications, impact report</td></tr>
+      <tr><td><strong>Media</strong></td><td>Local stories, faces, results</td><td>"Durban kids making it happen."</td><td>Press releases, event invites</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:4mm"><span class="num">4</span>What we offer: the Growfit line-up</h2>
+  <table class="avoid">
+    <thead><tr><th style="width:26%">Product</th><th>What it does for the brand</th><th style="width:22%">Tool (document)</th></tr></thead>
+    <tbody>
+      <tr><td><strong>League teams</strong> (U12, U15, U17)</td><td>Weekly visibility in front of the same families and clubs, and the base of everything else.</td><td>Media kit</td></tr>
+      <tr><td><strong>Growfit Youth Cup</strong> (×2 a year)</td><td>Our flagship. Brings 24 clubs, ~1,100 people and businesses to <em>our</em> event. Pays for itself.</td><td>Youth Cup editions, posters</td></tr>
+      <tr><td><strong>Outside tournaments</strong> (~9 entries)</td><td>Our badge on new stages every month. Funded by the Tournament Entry Partner.</td><td>Prospectus</td></tr>
+      <tr><td><strong>Challenge Series</strong></td><td>Relationships with top Durban clubs, so Growfit is seen as a peer.</td><td>Friendlies proposal</td></tr>
+      <tr><td><strong>Holiday camps</strong> (×3–4)</td><td>New families, recruitment and income. Puts the brand on T-shirts across Durban.</td><td>Camps proposal</td></tr>
+      <tr><td><strong>Gauteng Tour</strong></td><td>National stage and a great story for sponsors and media. Only goes ahead if funded.</td><td>Tour proposal</td></tr>
+      <tr><td><strong>Content &amp; media</strong></td><td>Makes everything above visible to people who weren't there.</td><td>Section 5, match camera proposals</td></tr>
+      <tr><td><strong>Partner network</strong></td><td>Directory, breakfasts, family offers. Partners gain from each other, which keeps them with us.</td><td>Prospectus, playbook</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h2><span class="num">5</span>Marketing plan</h2>
+  <h3>A. Brand toolkit (build once, use everywhere)</h3>
+  <div class="two">
+    <ul class="check-list">
+      <li>Logo files (PNG, transparent, vector), colours (red, black, white), one font family</li>
+      <li>Canva templates: match day, result, player of the match, partner spotlight, event poster</li>
+      <li>Pull-up banner + a 2 × 3 m <strong>photo-wall backdrop</strong> with partner logos</li>
+      <li>Gazebo and flags in Growfit colours for every match and tournament</li>
+    </ul>
+    <ul class="check-list">
+      <li>Email signature, letterhead, WhatsApp business profile</li>
+      <li>Google Business profile ("Growfit Sports Academy, Durban North") with photos and reviews</li>
+      <li>One link-in-bio page: registration, partner info, events, donate</li>
+      <li>Kit and team wear: the Growfit crest always more prominent than any partner logo</li>
+    </ul>
+  </div>
+  <h3>B. Social media: focus beats spread</h3>
+  <p>For grassroots clubs the proven approach is <strong>two main platforms</strong>, posting <strong>3–5 times a week, consistently</strong>. A slightly blurry photo every week beats a perfect graphic once a month. <strong>Facebook</strong> reaches parents and the community. <strong>Instagram, with reels cross-posted to TikTok</strong>, reaches players and the wider public. A <strong>WhatsApp channel</strong> reaches every family directly.</p>
+  <table class="avoid">
+    <thead><tr><th style="width:16%">Day</th><th>Content</th></tr></thead>
+    <tbody>
+      <tr><td>Sunday</td><td>Match day: line-ups, live score updates, final result graphic</td></tr>
+      <tr><td>Monday</td><td>Player of the Match (consented, first name only) and a highlight clip</td></tr>
+      <tr><td>Wednesday</td><td>Training clip or skill of the week. Coach tip</td></tr>
+      <tr><td>Friday</td><td>Partner Spotlight, or the countdown to the next event</td></tr>
+      <tr><td>Monthly</td><td>Behind the scenes, a North Crest moment, a thank-you to all partners, a recruitment post</td></tr>
+    </tbody>
+  </table>
+  <p class="small">Best times: 08:00–10:00 and 18:00–21:00. Small targeted adverts (about R300 a month, people within 10 km of North Crest) around registration, camps and the Youth Cup. Children appear only with media consent and never with full names. Realistic year-1 target: about 200 posts and about 150,000 impressions, measured monthly.</p>
+</div>
+
+<div class="section">
+  <h3 style="margin-top:0">C. Local media &amp; PR</h3>
+  <table class="avoid">
+    <thead><tr><th style="width:26%">Outlet</th><th>Why</th><th style="width:28%">Pitch</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Northglen News</strong></td><td>Durban North's community paper: ~27,700 copies weekly, covers local sport and schools</td><td>Youth Cup, North Crest partnership, player profiles</td></tr>
+      <tr><td><strong>Berea Mail</strong> and other local papers</td><td>Have covered the GDLFA and its sponsors</td><td>Results, tour send-off</td></tr>
+      <tr><td><strong>Ukhozi FM</strong> (90.8)</td><td>South Africa's biggest radio station, Durban-based, isiZulu, with sport and community content</td><td>Tour story, Youth Cup, community impact</td></tr>
+      <tr><td><strong>Gagasi FM</strong> (99.5) · <strong>DYR</strong> (105.1)</td><td>Durban youth-focused commercial and community radio</td><td>Event plugs, youth voices</td></tr>
+    </tbody>
+  </table>
+  <p><strong>Five press moments a year:</strong> season launch and kit reveal · Youth Cup announcement and results (×2) · Gauteng Tour send-off and return · end-of-season awards and impact numbers.</p>
+
+  <h3>D. Community &amp; word of mouth</h3>
+  <ul class="check-list">
+    <li><strong>North Crest:</strong> free skills sessions at school, a presence at sports day, and Growfit news in the school newsletter (subject to approval)</li>
+    <li><strong>Open trials and camp taster days</strong> to bring in new families</li>
+    <li><strong>Parents as ambassadors:</strong> share-ready posts, a referral thank-you, and parents' businesses in the directory</li>
+    <li><strong>Every opponent leaves with a good impression:</strong> handshake line, a thank-you post that tags their club, fair play</li>
+  </ul>
+
+  <h3>E. What we measure every month</h3>
+  <div class="four avoid">
+    <div class="tile"><div class="v"><span class="ph">[ ]</span></div><div class="l">Followers (FB + IG) and WhatsApp channel members</div></div>
+    <div class="tile"><div class="v"><span class="ph">[ ]</span></div><div class="l">Monthly reach and best-performing post</div></div>
+    <div class="tile"><div class="v"><span class="ph">[ ]</span></div><div class="l">Media mentions and event attendance</div></div>
+    <div class="tile"><div class="v"><span class="ph">[ ]</span></div><div class="l">Partner prospects contacted, met, signed</div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2><span class="num">6</span>Finance: the whole 2027 picture</h2>
+  <p>This puts every proposal into one budget. Separating <strong>core running costs</strong> (which our own activities should cover) from <strong>growth projects</strong> (which go ahead only when a partner funds them) keeps the academy safe and makes our sponsor pitch honest.</p>
+  <div class="two">
+    <div>
+      <h3>Core running costs (estimate)</h3>
+      <table>
+        <tbody>
+          <tr><td>SAFA / LFA registration &amp; league affiliation</td><td class="n">9,000 <span class="ph">[confirm]</span></td></tr>
+          <tr><td>Transport to away league matches (~18 × R800)</td><td class="n">14,400</td></tr>
+          <tr><td>Outside tournaments: ~7 regional entries incl. travel</td><td class="n">28,000</td></tr>
+          <tr><td>Equipment: balls, bibs, cones, nets</td><td class="n">8,000</td></tr>
+          <tr><td>Coach education &amp; police clearances</td><td class="n">6,000</td></tr>
+          <tr><td>Admin, data, printing, bank fees</td><td class="n">6,000</td></tr>
+          <tr><td>Insurance</td><td class="n">3,000</td></tr>
+          <tr><td>First aid &amp; medical supplies</td><td class="n">2,500</td></tr>
+          <tr class="total"><td>Core total</td><td class="n">R76,900</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h3>Own income (base case)</h3>
+      <table>
+        <tbody>
+          <tr><td>Growfit Youth Cup × 2 (Championship, ~20 teams each)</td><td class="n">8,800</td></tr>
+          <tr><td>Holiday camps × 3 (~R6,600 each)</td><td class="n">19,800</td></tr>
+          <tr><td>Community fundraising (playbook, ~half of potential)</td><td class="n">40,000</td></tr>
+          <tr><td>Donations &amp; crowdfunding (not tour)</td><td class="n">15,000</td></tr>
+          <tr><td>Member contributions (with hardship waivers)</td><td class="n"><span class="ph">[confirm]</span></td></tr>
+          <tr class="total"><td>Own income total</td><td class="n">R83,600+</td></tr>
+        </tbody>
+      </table>
+      <div class="callout"><p><strong>The core is covered by our own work</strong> (about +R6,700 before member contributions). Sponsorship therefore funds growth, which is a stronger story to tell partners.</p></div>
+    </div>
+  </div>
+  <h3>Growth projects: only when funded</h3>
+  <table class="avoid">
+    <thead><tr><th>Project</th><th class="n">Cost</th><th>Funded by</th><th style="width:16%">Trigger</th></tr></thead>
+    <tbody>
+      <tr><td>Team wear (tracksuits, training tops, bags)</td><td class="n">30,000</td><td>Team Wear Partner</td><td>Partner signed</td></tr>
+      <tr><td>Social media &amp; content manager (part-time, 12 months)</td><td class="n">60,000</td><td>Digital &amp; Content Partner</td><td>Partner signed</td></tr>
+      <tr><td>Match camera (XbotGo option)</td><td class="n">29,700</td><td>Grant or Match Camera / Digital Partner</td><td>Funds in bank</td></tr>
+      <tr><td>Gauteng Tour 2027 (U15 + U17, by bus)</td><td class="n">293,200</td><td>Tour sponsors, donations, families, events</td><td>85% raised by 8 weeks before</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h3 style="margin-top:0">Three scenarios for 2027</h3>
+  <table class="avoid">
+    <thead><tr><th style="width:18%">Scenario</th><th>What we do</th><th class="n" style="width:18%">Sponsorship needed</th><th style="width:22%">Brand result</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Lean</strong></td><td>League, outside tournaments, 2 Youth Cups, camps, volunteer social media</td><td class="n">R0 (in-kind welcome)</td><td>Steady local visibility</td></tr>
+      <tr><td><strong>Base</strong> <span class="tag r">Target</span></td><td>Lean + team wear + content manager + match camera</td><td class="n">~R120,000</td><td>Professional, visible every week</td></tr>
+      <tr><td><strong>Growth</strong></td><td>Base + Gauteng Tour</td><td class="n">~R120,000 + ~R190,000 tour</td><td>Regional and national profile</td></tr>
+    </tbody>
+  </table>
+  <h3>Money rules</h3>
+  <ul class="check-list">
+    <li>Separate tracking per project (tour, Youth Cup, camps), using a reference code on every payment</li>
+    <li>Build a <strong>reserve of 3 months' core costs (~R19,000)</strong> before committing to new projects</li>
+    <li>Two people approve every payment over R2,000. Two people count all cash</li>
+    <li>Every partner gets a report showing how their money was spent. We publish a simple annual summary</li>
+    <li>Tax status confirmed with an accountant (NPC/PBO, section 18A) before promising any tax benefit</li>
+  </ul>
+
+  <h2 style="margin-top:6mm"><span class="num">7</span>Partnership pipeline</h2>
+  <p>To raise about R120,000 at an average of about R20,000 per partner, we need <strong>6 partners</strong>. Typical conversion means about <strong>70 contacts → 24 meetings → 6 partners</strong>, plus in-kind supporters along the way.</p>
+  <table class="avoid">
+    <thead><tr><th>Priority</th><th>Package</th><th>Best-fit prospects</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Tournament Entry Partner (R28,000)</td><td>Hollywood Foundation (renewal / upgrade), parents' employers, Toyota SA</td></tr>
+      <tr><td>2</td><td>Team Wear Partner (R30,000)</td><td>Mr Price Sport (via GDLFA), Totalsports, a local kit maker</td></tr>
+      <tr><td>3</td><td>Digital &amp; Content Partner (R60,000)</td><td>Telecoms, banks and insurers, local media groups</td></tr>
+      <tr><td>4</td><td>Youth Cup Partner / Prize Partners</td><td>SPAR owners, drinks brands, car dealers, local businesses</td></tr>
+      <tr><td>5</td><td>Squad Partners and Sponsor a Player</td><td>Small businesses, parents' businesses, staff collections</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h2><span class="num">8</span>2027 roadmap</h2>
+  <div class="four avoid">
+    <div class="q"><b>Q4 2026 · Prepare</b>Brand toolkit and templates · Google profile · WhatsApp channel · Hollywoodbets thank-you and next ask · venue booked for the December Youth Cup · first 20 sponsor contacts · Youth Cup #1 (Dec)</div>
+    <div class="q"><b>Q1 2027 · Launch</b>Season launch and kit reveal (press) · registrations and open trials · Founding Partner deadline · Gauteng Tour go/no-go · camp (Mar/Apr) · Northglen News feature</div>
+    <div class="q"><b>Q2 2027 · Build</b>League and outside tournaments · Challenge Series fixtures · quiz or braai night · grant applications · first quarterly partner reports</div>
+    <div class="q"><b>Q3 2027 · Peak</b>Winter Youth Cup #2 (Jul) and camp · corporate 5-a-side · mid-year impact post · renewals open for 2028</div>
+  </div>
+  <p class="small" style="margin-top:3mm">Q4 2027: summer Youth Cup, camp, end-of-season awards, annual impact report, 2028 partner renewals. Exact dates follow the GDFL and KZN school calendars.</p>
+
+  <h3>Who owns what</h3>
+  <table class="avoid">
+    <thead><tr><th>Area</th><th>Owner</th></tr></thead>
+    <tbody>
+      <tr><td>Strategy, partnerships (lead), finance sign-off, football standards</td><td>Buhle Madlala</td></tr>
+      <tr><td>Fundraising, registration, partner pipeline and reports</td><td>Khaya Madlala</td></tr>
+      <tr><td>Operations, equipment, event logistics, admin</td><td>Sphe Mlotshwa</td></tr>
+      <tr><td>Safeguarding lead · Programmes &amp; Camps · Logistics</td><td>Open seats: recruit in Q4 2026</td></tr>
+      <tr><td>Social media &amp; content</td><td>Volunteer parent now. Paid manager once the Digital Partner signs</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:6mm"><span class="num">9</span>Your toolkit</h2>
+  <table class="avoid">
+    <thead><tr><th>Need</th><th>Use</th></tr></thead>
+    <tbody>
+      <tr><td>First contact with a business</td><td>Partnership Summary (2 pages) + cold email O1 from the Prospectus</td></tr>
+      <tr><td>Sponsor meeting</td><td>Prospectus + Media Kit + meeting plan O5 and objection answers O6</td></tr>
+      <tr><td>Who to approach, letters by type</td><td>Sponsor Prospects &amp; Letters (L1–L11)</td></tr>
+      <tr><td>Closing and after-care</td><td>Commitment form O7 → agreement S5 → B-BBEE letter S6 → thank-you S7</td></tr>
+      <tr><td>Hosting the Youth Cup</td><td>Community / Championship / High Stakes edition + posters</td></tr>
+      <tr><td>Other events and funds</td><td>Tour, Friendlies, Camps, Playbook, Donations &amp; Grants</td></tr>
+      <tr><td>Match video</td><td>XbotGo (affordable) or Veo proposals</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h2><span class="num">10</span>Risks to the brand, and how we protect it</h2>
+  <table class="avoid">
+    <tbody>
+      <tr><td style="width:28%"><strong>Over-promising</strong></td><td>We use honest, measured numbers, label targets as targets, and only offer what we can deliver every week.</td></tr>
+      <tr><td><strong>A badly run event</strong></td><td>Go/no-go checks, run of show, volunteer roster and the standards in the Youth Cup plans. Better to postpone than run a poor event.</td></tr>
+      <tr><td><strong>Safeguarding incident</strong></td><td>Appoint the Safeguarding Officer before the first Youth Cup. Consent register, police-cleared adults, a clear reporting route.</td></tr>
+      <tr><td><strong>Money questions</strong></td><td>Separate project tracking, two signatures, reports to partners, an annual summary.</td></tr>
+      <tr><td><strong>Volunteer burnout</strong></td><td>Fill the three open seats, recruit a parents' committee, and pay stipends for camps and filming jobs.</td></tr>
+      <tr><td><strong>Betting partner perception</strong></td><td>Name and logo only on children's kit, nothing at school, adult-only activations. Explain this calmly when asked.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:6mm"><span class="num">11</span>The next 30 days</h2>
+  <ol>
+    <li>Agree the tagline and story (Section 2). Make the Canva templates and photo-wall backdrop.</li>
+    <li>Set up the Google Business profile, WhatsApp channel and link-in-bio page. Start posting 3–5 times a week.</li>
+    <li>Thank Hollywoodbets publicly. Ask permission to name them, and submit the next Hollywood Foundation request (L1).</li>
+    <li>Confirm the North Crest partnership scope with the principal.</li>
+    <li>Choose the Youth Cup edition (Championship recommended). Book the venue (Northwood Crusaders or Siripat) and open entries.</li>
+    <li>Build a list of 70 prospects, starting with parents' employers. Send the first 20 summaries.</li>
+    <li>Fill in placeholders: bank details, NPC/PBO numbers, real costs, coach roles.</li>
+    <li>Pitch Northglen News on the Youth Cup and the North Crest partnership.</li>
+  </ol>
+  <p class="small">Sources for marketing practice and media: grassroots social media guidance (Kent FA, TeamSnap, Pembee), Northglen News (Caxton), Ukhozi FM, Gagasi FM, DYR 105.1. Venue cost reference: eThekwini Chatsworth Stadium tariff (IOL, 2024).</p>
+</div>
+
+</body>
+</html>
