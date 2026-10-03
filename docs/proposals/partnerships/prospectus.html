@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Growfit Partnership Prospectus 2027</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4; margin: 18mm 17mm 20mm 17mm; }
+  :root {
+    --red: #AF2D35; --red-dark: #6B1B1F; --red-tint: #F7EAEB;
+    --ink: #16181D; --ink-2: #474C55; --ink-3: #7A808A;
+    --rule: #DADDE2; --panel: #F5F6F8;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: #fff; }
+  body { font-family: Inter, "Liberation Sans", Arial, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.5; margin: 0; }
+  h1, h2, h3 { line-height: 1.2; margin: 0; }
+  h2 { font-size: 17pt; font-weight: 800; color: var(--ink); margin: 0 0 4mm; padding-top: 1mm; }
+  h2 .num { color: var(--red); margin-right: 6px; }
+  h3 { font-size: 11pt; font-weight: 700; margin: 5mm 0 2mm; }
+  p { margin: 0 0 2.6mm; }
+  ul { margin: 0 0 3mm; padding-left: 5mm; }
+  li { margin-bottom: 1.2mm; }
+  .section { break-before: page; }
+  .avoid { break-inside: avoid; }
+  .muted { color: var(--ink-2); }
+  .small { font-size: 8.5pt; color: var(--ink-3); }
+  strong { font-weight: 700; }
+
+  /* cover */
+  .cover { height: 257mm; display: flex; flex-direction: column; }
+  .cover-top { display: flex; align-items: center; gap: 6mm; }
+  .cover-top img { width: 26mm; height: 26mm; }
+  .cover-org { font-weight: 700; font-size: 11pt; }
+  .cover-org span { display: block; font-weight: 400; color: var(--ink-2); font-size: 9.5pt; }
+  .cover-band { margin-top: 30mm; border-left: 3mm solid var(--red); padding-left: 7mm; }
+  .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: 8.5pt; font-weight: 700; color: var(--red); }
+  .cover h1 { font-size: 30pt; font-weight: 800; margin: 3mm 0 4mm; letter-spacing: -.01em; }
+  .cover .lede { font-size: 12pt; color: var(--ink-2); max-width: 150mm; }
+  .cover-ask { margin-top: 18mm; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+  .cover-foot { margin-top: auto; border-top: 1px solid var(--rule); padding-top: 4mm; display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; font-size: 9pt; color: var(--ink-2); }
+  .cover-foot b { color: var(--ink); }
+
+  /* tiles */
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 4mm 0 5mm; }
+  .tile { background: var(--panel); border-radius: 3mm; padding: 3.5mm 4mm; }
+  .tile .v { font-size: 16pt; font-weight: 800; color: var(--ink); line-height: 1.1; }
+  .tile .l { font-size: 8.3pt; color: var(--ink-2); margin-top: 1.2mm; line-height: 1.35; }
+  .tile.hero { background: var(--red); }
+  .tile.hero .v, .tile.hero .l { color: #fff; }
+
+  /* tables */
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 9pt; }
+  th { text-align: left; font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); border-bottom: 1.5px solid var(--ink); padding: 2mm 2mm; }
+  td { border-bottom: 1px solid var(--rule); padding: 2mm 2mm; vertical-align: top; }
+  td.n, th.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tr.sub td { background: var(--panel); font-weight: 600; }
+  tr.total td { border-top: 1.5px solid var(--ink); border-bottom: none; font-weight: 800; font-size: 10pt; }
+  tr.total td.n { color: var(--red); }
+
+  .callout { background: var(--red-tint); border-left: 1.2mm solid var(--red); padding: 3.5mm 4.5mm; border-radius: 0 2mm 2mm 0; margin: 3mm 0 4mm; }
+  .callout p:last-child { margin: 0; }
+  .note { background: var(--panel); padding: 3mm 4mm; border-radius: 2mm; font-size: 8.8pt; color: var(--ink-2); margin: 3mm 0; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+  .card { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; }
+  .card h3 { margin-top: 0; }
+
+  /* weekly cycle */
+  .cycle { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2mm; margin: 3mm 0 4mm; }
+  .step { border-top: 1.2mm solid var(--red); background: var(--panel); padding: 2.5mm 3mm; border-radius: 0 0 2mm 2mm; font-size: 8.5pt; }
+  .step b { display: block; font-size: 9pt; margin-bottom: .8mm; }
+  .step .d { color: var(--red); font-weight: 700; font-size: 7.8pt; text-transform: uppercase; letter-spacing: .06em; }
+
+  /* bar figure */
+  .fig { margin: 3mm 0 2mm; }
+  .bar-row { display: grid; grid-template-columns: 30mm 1fr 22mm; align-items: center; gap: 3mm; margin: 2.2mm 0; font-size: 9pt; }
+  .bar-track { position: relative; height: 7mm; }
+  .bar { height: 100%; background: var(--red); border-radius: 0 1.2mm 1.2mm 0; }
+  .ref { position: absolute; top: -2mm; bottom: -2mm; border-left: 1.5px dashed var(--ink); }
+  .ref-label { font-size: 7.8pt; color: var(--ink-2); position: absolute; top: -6mm; transform: translateX(-50%); white-space: nowrap; }
+  .fig-cap { font-size: 8.3pt; color: var(--ink-3); margin-top: 1mm; }
+
+  .compact table { font-size: 8.3pt; margin: 1.5mm 0 2.5mm; }
+  .compact td { padding: 1.3mm 2mm; }
+  .compact h3 { margin: 2.5mm 0 1mm; }
+  .compact li { margin-bottom: .6mm; font-size: 9pt; }
+  .compact .callout { margin: 2mm 0; padding: 2.5mm 4mm; }
+  .sig { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 10mm; }
+  .sig div { border-top: 1px solid var(--ink); padding-top: 2mm; font-size: 9pt; color: var(--ink-2); }
+  .src { font-size: 8pt; color: var(--ink-2); word-break: break-all; }
+  .src li { margin-bottom: .8mm; }
+  .tag { display: inline-block; border-radius: 1mm !important; font-size: 7.5pt; font-weight: 700; padding: .3mm 1.8mm; border-radius: 10mm; background: var(--panel); color: var(--ink-2); text-transform: uppercase; letter-spacing: .05em; }
+  .tag.r { background: var(--red-tint); color: var(--red-dark); }
+
+  .ph { background: #F7EAEB; color: #6B1B1F; padding: 0 1.2mm; border-radius: 1mm; font-weight: 600; }
+  .tpl-label { display:inline-block; font-size: 8pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #fff; background: var(--ink); padding: .8mm 2.5mm; border-radius: 1mm; margin-bottom: 3mm; }
+  .letter { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 7mm 8mm; font-size: 9.6pt; }
+  .letter p { margin-bottom: 2.8mm; }
+  .letter .lh { display:flex; justify-content: space-between; align-items:flex-start; border-bottom: 1.5px solid var(--red); padding-bottom: 3mm; margin-bottom: 5mm; }
+  .letter .lh img { width: 15mm; height: 15mm; }
+  .letter .lh .org { text-align:right; font-size: 8.3pt; color: var(--ink-2); line-height: 1.4; }
+  .letter .lh .org b { color: var(--ink); font-size: 9.5pt; }
+  .msg { background: var(--panel); border-radius: 3mm; padding: 4mm 5mm; font-size: 9.6pt; white-space: normal; }
+  .howto { font-size: 8.8pt; color: var(--ink-2); margin: 0 0 3mm; }
+  .form-row { display:grid; grid-template-columns: 45mm 1fr; border-bottom: 1px solid var(--rule); padding: 2.6mm 0; font-size: 9.3pt; }
+  .form-row span:last-child { border-bottom: 1px dotted var(--ink-3); }
+  .check { display:inline-block; width:3.2mm; height:3.2mm; border:1px solid var(--ink); margin-right:1.5mm; vertical-align:-0.4mm; }
+  .tier { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; break-inside: avoid; }
+  .tier .price { color: var(--red); font-weight: 800; font-size: 13pt; }
+  .tier h3 { margin: 0 0 1mm; }
+  .tiers { display:grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; }
+  .tiers ul { margin-bottom: 0; }
+  .toc { columns: 2; font-size: 9.5pt; }
+</style>
+</head>
+<body>
+<style>
+  .big-quote { font-size: 15pt; font-weight: 800; line-height: 1.25; color: var(--ink); border-left: 2mm solid var(--red); padding-left: 5mm; margin: 4mm 0 5mm; }
+  .pill { display:inline-block; background: var(--red); color:#fff; font-weight:700; font-size:8pt; padding:.6mm 2.4mm; border-radius: 10mm; letter-spacing:.04em; margin-right:1.5mm; }
+  .pill.dark { background: var(--ink); }
+  .quote { background: var(--panel); border-radius: 2.5mm; padding: 3.5mm 4.5mm; font-size: 9.5pt; }
+  .quote b { display:block; margin-top: 1.5mm; font-size: 8.5pt; color: var(--ink-2); font-weight: 600; }
+  .perday { font-size: 8.5pt; color: var(--ink-2); font-weight: 600; }
+  .tier.feature { border: 2px solid var(--red); }
+  .check-list li { list-style: none; position: relative; padding-left: 5mm; }
+  .check-list li::before { content: "✓"; position: absolute; left: 0; color: var(--red); font-weight: 800; }
+  .pkg .tiers { gap: 2.6mm; }
+  .pkg .tier { padding: 2.4mm 3.4mm; }
+  .pkg .tier li { font-size: 8.7pt; margin-bottom: .3mm; line-height: 1.35; }
+  .pkg .tier .price { font-size: 11.5pt; }
+  .pkg .tier ul { margin-top: 1mm; }
+  .three { display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 4mm; }
+</style>
+
+<div class="cover">
+  <div class="cover-top">
+    <img src="../../../growfit.png" alt="Growfit Football Academy crest">
+    <div class="cover-org">Growfit Sports Academy NPC<span>In partnership with North Crest Primary School · Greater Durban</span></div>
+  </div>
+  <div class="cover-band">
+    <div class="eyebrow">Partnership prospectus · 2027 season</div>
+    <h1>Put Your Name Where Durban's Families Look Every Week</h1>
+    <p class="lede">On the shirts of young footballers, on the touchline every Sunday, across a primary school community, and in the social media feeds of the families who decide where their households spend.</p>
+  </div>
+  <div class="cover-ask">
+    <div class="tile hero"><div class="v">Up to ~350,000</div><div class="l">Brand impressions a year, with our new content programme (target)</div></div>
+    <div class="tile"><div class="v">~735</div><div class="l">Learners and their families at North Crest Primary, our partner school <span class="ph">[confirm]</span></div></div>
+    <div class="tile"><div class="v">From R4 a day</div><div class="l">Packages from R1,500 to R60,000 a year</div></div>
+  </div>
+  <div class="cover-foot">
+    <div><b>Talk to us</b><br>Khaya Madlala, Partnerships<br>Buhle Madlala, Founder &amp; Academy Director<br><span class="ph">[phone]</span> · <span class="ph">[email]</span></div>
+    <div><b>Already backed by</b><br>Hollywoodbets: founding kit partner <span class="ph">[confirm permission to name]</span><br>A member club of the Greater Durban LFA (SAFA eThekwini)</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="big-quote">"Every Sunday, hundreds of Durban parents stand on a touchline for 90 minutes looking at one thing: their child's shirt."</div>
+  <h2><span class="num">1</span>The opportunity in one page</h2>
+  <p><strong>Growfit Sports Academy</strong> is a registered non-profit football academy in Greater Durban, founded in 2023 and run in partnership with <strong>North Crest Primary School</strong>. We develop young players from U11 to U17 in the Greater Durban Football League, under eight adopted policies including child safeguarding. Families trust us with their children every week.</p>
+  <p>Now we're building something bigger: a year-round calendar of league football, holiday camps, the Growfit Youth Cup, a national tour to Gauteng, and a professional <strong>social media and content programme</strong> that puts our partners in front of thousands of local households every month.</p>
+
+  <div class="three avoid">
+    <div class="card"><h3>Reach</h3><p>Players, families, a 700-plus-learner school community, 108 clubs in our LFA, tournament crowds and online followers. <strong>Up to ~350,000 impressions a year</strong> (target).</p></div>
+    <div class="card"><h3>Trust</h3><p>Parents remember who backed their children. Your brand sits next to something families care about deeply, and they see it every week.</p></div>
+    <div class="card"><h3>Return</h3><p>Trackable family offers, business introductions, content for your channels, staff engagement and B-BBEE socio-economic development, all reported quarterly.</p></div>
+  </div>
+
+  <h3>Proof that it works</h3>
+  <ul class="check-list">
+    <li><strong>Hollywoodbets</strong> already backs our players with match kit <span class="ph">[confirm permission to name]</span>.</li>
+    <li>Similar Durban grassroots events, like the <strong>Siyakhula U15 Cup</strong> (AmaZulu Community Trust and Hollywoodbets), and our own LFA's partnership with <strong>Mr Price Sport</strong>, show that local brands see value in grassroots football.</li>
+    <li>Our operations are run to a written standard: SAFA-registered players, police-cleared coaches, consent and POPIA compliance, and separate accounts for every project.</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h2><span class="num">2</span>Three ways your brand reaches people</h2>
+  <div class="tiers">
+    <div class="tier"><h3><span class="pill">1</span>On the pitch</h3>
+      <p>Match kit, tracksuits, banners and medals at league Sundays, training, the Youth Cup (about 1,100 people a day), holiday camps, friendlies and the Gauteng Tour.</p>
+      <p><strong>~16,400</strong> in-person sightings a season, plus <strong>~72,000</strong> everyday sightings of tracksuits and bags at school, in taxis and in shops.</p></div>
+    <div class="tier"><h3><span class="pill">2</span>Through North Crest Primary</h3>
+      <p>As our partner school, North Crest Primary connects us to about <strong>735 learners</strong>, their families and staff in Redhill / Park Hill, Durban North <span class="ph">[confirm]</span>.</p>
+      <p>Subject to the school's approval: recognition in school newsletters and notices, at sports days and football programmes, and at prize-givings. That's about <strong>~15,000</strong> impressions a year.</p>
+      <p class="small">School channels carry family-appropriate brands only. Under gambling-advertising rules, no betting branding appears at or through the school.</p></div>
+    <div class="tier feature" style="grid-column: span 2"><h3><span class="pill">3</span>Online: the Growfit content programme <span class="pill dark">NEW</span></h3>
+      <p>Partner funding lets us hire a <strong>part-time social media &amp; content manager</strong>. A professional runs our channels every week, instead of volunteers posting when they can. Every partner gets their own content, every month.</p>
+      <table>
+        <thead><tr><th>Every week</th><th>Every month</th><th>Every season</th></tr></thead>
+        <tbody><tr>
+          <td>Match-day graphics: line-ups, results, "Player of the Match presented by <span class="ph">[Partner]</span>" (consented players only)<br>Highlight clips from our match camera<br>Training and behind-the-scenes stories</td>
+          <td>A <strong>Partner Spotlight</strong> video or post for each partner<br>Family-offer reminders with your code<br>A WhatsApp channel update to all families</td>
+          <td>Youth Cup live coverage<br>Gauteng Tour daily diary<br>End-of-season awards video with partner credits<br>Content shared with you for your own channels</td>
+        </tr></tbody>
+      </table>
+      <p><strong>Targets for year 1:</strong> <span class="ph">[e.g. 5,000]</span> combined followers across Facebook, Instagram, TikTok and a WhatsApp channel, and about <strong>250,000 impressions</strong>, up from about 48,000 with volunteer posting. These are targets, and we report the actual figures every quarter.</p></div>
+  </div>
+</div>
+
+<div class="section pkg">
+  <h2><span class="num">3</span>Choose your partnership</h2>
+  <p>One partner per category: <strong>only one bank, one supermarket, one water brand, one sports retailer</strong>, and so on. If you're first in your category, it's yours.</p>
+  <p class="small" style="margin-top:-1mm">Every package also includes a featured directory listing, partner breakfasts, a B-BBEE letter, a quarterly report and a trackable family-offer code. Monthly payment is available on annual packages.</p>
+  <div class="tiers">
+    <div class="tier feature"><h3>Headline Academy Partner</h3><div class="price">R60,000 / year</div><div class="perday">≈ R164 a day · 1 available</div><ul>
+      <li>Logo on the <strong>front of every match shirt</strong></li>
+      <li>"Growfit, supported by <span class="ph">[You]</span>" on everything we publish</li>
+      <li>Naming rights to the Growfit Youth Cup</li>
+      <li>Monthly spotlight content, staff day, coaching clinic for staff's children</li></ul></div>
+    <div class="tier feature"><h3>Digital &amp; Content Partner</h3><div class="price">R60,000 / year</div><div class="perday">≈ R164 a day · 1 available · funds our content manager</div><ul>
+      <li>Your logo on <strong>every post and video end-card</strong> all year</li>
+      <li>"Growfit Media, powered by <span class="ph">[You]</span>"</li>
+      <li>Monthly video for your channels, shot with our players and families (consented)</li>
+      <li>Quarterly social media report</li></ul></div>
+    <div class="tier"><h3>Team Wear Partner</h3><div class="price">R30,000 / year</div><div class="perday">≈ R82 a day</div><ul>
+      <li>Logo on tracksuits, training tops and kit bags, worn in public every day</li>
+      <li>Kit launch shoot and feature</li></ul></div>
+    <div class="tier"><h3>Kit Partner</h3><div class="price">R25,000 / season</div><div class="perday">≈ R68 a day</div><ul>
+      <li>Sleeve or back-of-shirt logo on match kits</li>
+      <li>In every match photo and highlight clip</li></ul></div>
+    <div class="tier"><h3>North Crest Schools Programme Partner</h3><div class="price">R20,000 / year</div><div class="perday">≈ R55 a day · subject to school approval</div><ul>
+      <li>Funds school football equipment and coaching at North Crest</li>
+      <li>Recognition to the school community: newsletters, sports days, prize-giving</li>
+      <li>Family-appropriate brands only</li></ul></div>
+    <div class="tier"><h3>Youth Cup Partner</h3><div class="price">R15,000 / tournament</div><div class="perday">Twice a year · ~1,100 people on the day</div><ul>
+      <li>"Growfit Youth Cup, presented by <span class="ph">[You]</span>"</li>
+      <li>Banners, medals, certificates, family-zone stall, live coverage</li></ul></div>
+    <div class="tier"><h3>Squad Partner</h3><div class="price">R8,000 / season</div><div class="perday">≈ R22 a day · one per age group</div><ul>
+      <li>One squad's equipment and travel</li>
+      <li>Logo on that squad's bibs and banner, plus spotlight posts</li></ul></div>
+    <div class="tier"><h3>Match Camera · Hydration · Sponsor a Player</h3><div class="price">R1,500 – R6,000</div><div class="perday">From ≈ R4 a day</div><ul>
+      <li>Match Camera Partner R6,000: logo on every highlight clip</li>
+      <li>Hydration Partner (in kind): official water points</li>
+      <li>Sponsor a Player R1,500: one child's season</li></ul></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2><span class="num">4</span>Ideas for your industry</h2>
+  <p>Each partnership comes with an activation plan built around your business, not just a logo.</p>
+  <table>
+    <thead><tr><th style="width:24%">If you are…</th><th>Ideas that work</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Supermarket / food</strong></td><td>"Full-time fruit by <span class="ph">[You]</span>" at home matches · sampling at the Youth Cup · a family-offer voucher redeemable in store · camp snack partner</td></tr>
+      <tr><td><strong>Bank / insurer / telecom</strong></td><td>"Player of the Match presented by <span class="ph">[You]</span>" · a money-skills talk for parents at a home match · data bundles for the parents' WhatsApp channel · a staff team in the corporate 5-a-side cup</td></tr>
+      <tr><td><strong>Car dealer / transport</strong></td><td>"Away-day transport partner" · display vehicles at the Youth Cup · branded team transport to the Gauteng Tour</td></tr>
+      <tr><td><strong>Sports retailer / apparel</strong></td><td>Kit and team-wear partner · "Boot bank powered by <span class="ph">[You]</span>" · in-store signing day with the squad · family discount days</td></tr>
+      <tr><td><strong>Water / beverage</strong></td><td>Official water points at every home match and tournament · "Hydration hero" content series · camp partner</td></tr>
+      <tr><td><strong>Betting operator</strong></td><td>Name and logo on kit (as today) · <strong>adult-only</strong> activations at parent and corporate events (18+), such as the corporate 5-a-side cup · CSI storytelling through your foundation. Never aimed at children, and never at school premises.</td></tr>
+      <tr><td><strong>Local services</strong> (trades, salons, caterers, clinics)</td><td>Featured directory listing · family offers · Squad Partner or Sponsor a Player · stall at the Youth Cup</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:6mm"><span class="num">5</span>What families and coaches say</h2>
+  <div class="three avoid">
+    <div class="quote">"<span class="ph">[Parent quote: what Growfit has done for their child, e.g. confidence, school attendance, discipline.]</span>"<b><span class="ph">[First name]</span>, parent of a U13 player</b></div>
+    <div class="quote">"<span class="ph">[Coach / North Crest teacher quote about the partnership and the children.]</span>"<b><span class="ph">[Name]</span>, <span class="ph">[role]</span></b></div>
+    <div class="quote">"<span class="ph">[Partner quote, e.g. from Hollywoodbets, about why they support Growfit, with permission.]</span>"<b><span class="ph">[Name]</span>, <span class="ph">[company]</span></b></div>
+  </div>
+  <p class="small">Collect these with permission. Real quotes from real parents are the most persuasive part of this document.</p>
+</div>
+
+<div class="section">
+  <h2><span class="num">6</span>Why now: founding partners 2027</h2>
+  <p>We're building our 2027 partner family now. The first <strong>six partners</strong> to sign before <span class="ph">[date]</span> become <strong>Founding Partners</strong>:</p>
+  <ul class="check-list">
+    <li><strong>Founding Partner</strong> recognition for life: on our website, our annual report and our honours board at North Crest <span class="ph">[if approved]</span></li>
+    <li><strong>2027 price locked for 2028</strong></li>
+    <li><strong>First choice of category</strong>, and first refusal on renewal</li>
+    <li>A <strong>free Pitch Partner naming</strong> at the next Growfit Youth Cup (worth R3,000)</li>
+    <li><strong>Double Partner Spotlight</strong> content in your first quarter</li>
+  </ul>
+
+  <h3>Our delivery promise</h3>
+  <div class="callout"><p>We put every placement, post and report in writing. If we miss an agreed placement or a quarterly report, <strong>we add an extra month of partnership exposure at no cost</strong>, and we tell you before you have to ask.</p></div>
+
+  <h3>Your first 90 days as a partner</h3>
+  <table class="avoid">
+    <thead><tr><th style="width:20%">When</th><th>What happens</th></tr></thead>
+    <tbody>
+      <tr><td>Week 1</td><td>Welcome call · agreement signed · logo and brand guidelines received · your family-offer code set up</td></tr>
+      <tr><td>Weeks 2–3</td><td><strong>Announcement</strong> across all our channels, the school community and partner WhatsApp groups · photo or video shoot with the squad (consented players)</td></tr>
+      <tr><td>Weeks 3–6</td><td>Logo live on kit, team wear or banners · first Partner Spotlight · invitation to a home match</td></tr>
+      <tr><td>Month 2</td><td>Staff engagement: volunteering slot, coaching clinic or corporate 5-a-side invite</td></tr>
+      <tr><td>Month 3</td><td><strong>First quarterly report</strong>: sightings, posts, reach, offer redemptions, photos and how your money was spent · B-BBEE letter</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <div class="eyebrow">Outreach kit · for the Growfit team</div>
+  <h2 style="margin-top:2mm">How to win a partner</h2>
+  <ol>
+    <li><strong>Warm first.</strong> A parent, teacher or friend who knows the decision-maker beats any cold email. Ask: "Who do you know at…?"</li>
+    <li><strong>Lead with them, not us.</strong> Open with their customers, their community and their goals. Then the children.</li>
+    <li><strong>One clear ask, one smaller option.</strong> "Kit Partner at R25,000, or Squad Partner at R8,000."</li>
+    <li><strong>Show, don't tell.</strong> Bring the kit, a photo book, the media kit and a 30-second video of the kids.</li>
+    <li><strong>Follow up three times</strong> (day 3, 7 and 14), each time with something new, then close politely.</li>
+    <li><strong>Make yes easy.</strong> Leave the one-page commitment form (O7). Offer monthly payments.</li>
+  </ol>
+  <table class="avoid">
+    <thead><tr><th style="width:8%">#</th><th>Tool</th><th>Use</th></tr></thead>
+    <tbody>
+      <tr><td>O1</td><td>Cold email (short)</td><td>First contact by email or LinkedIn</td></tr>
+      <tr><td>O2</td><td>Formal letter</td><td>Corporate CSI, letterhead submissions</td></tr>
+      <tr><td>O3</td><td>Phone and voice-note script</td><td>First call or WhatsApp voice note</td></tr>
+      <tr><td>O4</td><td>Follow-up sequence (day 3, 7, 14)</td><td>When there's no reply</td></tr>
+      <tr><td>O5</td><td>20-minute meeting plan</td><td>The pitch meeting</td></tr>
+      <tr><td>O6</td><td>Objection answers</td><td>"No budget", "We already sponsor", "Why you?"</td></tr>
+      <tr><td>O7</td><td>One-page commitment form</td><td>Closing the deal</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <span class="tpl-label">O1 · Cold email (under 150 words)</span>
+  <div class="msg"><strong>Subject options:</strong> "<span class="ph">[First name]</span>, your brand on 60 Durban kids' shirts?" · "A local idea for <span class="ph">[Company]</span>'s 2027 marketing" · "<span class="ph">[Mutual contact]</span> suggested I contact you"<br><br>
+  Hi <span class="ph">[First name]</span>,<br><br>
+  Every Sunday, hundreds of Durban parents watch their children play for Growfit Sports Academy, our non-profit academy run in partnership with North Crest Primary School. <span class="ph">[Personal line: why them, e.g. "Many of our families shop at your Durban North store."]</span><br><br>
+  We're choosing our 2027 partners, with <strong>one brand per category</strong>. For <span class="ph">[Company]</span>, that would mean <span class="ph">[specific benefit, e.g. "your name on the shirts, in every post our new content manager publishes, and in front of a 700-plus-family school community"]</span>, from <span class="ph">[R amount]</span>. Hollywoodbets already backs our kit.<br><br>
+  Could I show you the 2-page summary in a 20-minute coffee next week? <span class="ph">[Tuesday or Thursday?]</span><br><br>
+  <span class="ph">[Name]</span> · Growfit Sports Academy · <span class="ph">[phone]</span></div>
+
+  <span class="tpl-label" style="margin-top:6mm">O3 · Phone and voice-note script (about 30 seconds)</span>
+  <div class="msg">"Hi <span class="ph">[Name]</span>, it's <span class="ph">[name]</span> from Growfit Sports Academy, the youth football academy that works with North Crest Primary. I'll be quick. We're picking one <span class="ph">[industry]</span> brand to partner with for 2027. That's your name on our kids' kit, at our tournaments and across our new social media programme, which reaches thousands of local families. <span class="ph">[Mutual contact / Hollywoodbets]</span> already backs us. I'd love 20 minutes to show you what <span class="ph">[Company]</span> would get. Would <span class="ph">[day]</span> work?"</div>
+
+  <span class="tpl-label" style="margin-top:6mm">O4 · Follow-up sequence</span>
+  <table>
+    <thead><tr><th style="width:14%">When</th><th>Message</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Day 3</strong></td><td>"Hi <span class="ph">[Name]</span>, here's a 30-second clip of our U13s from Sunday ⚽ <span class="ph">[link]</span>. This is where <span class="ph">[Company]</span>'s name would be. Happy to share the media kit too."</td></tr>
+      <tr><td><strong>Day 7</strong></td><td>"Quick update: <span class="ph">[news, e.g. 'our Youth Cup on 12 Dec now has 20 teams entered']</span>. We're holding the <span class="ph">[category]</span> spot for <span class="ph">[Company]</span> until <span class="ph">[date]</span>. Would a short call this week work?"</td></tr>
+      <tr><td><strong>Day 14</strong></td><td>"I don't want to crowd your inbox. This is my last note. If 2027 isn't right, I'd be grateful to know, and we'll keep you in mind for the Youth Cup or a smaller option like sponsoring one player (R1,500). Thank you, <span class="ph">[Name]</span>."</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <span class="tpl-label">O2 · Formal letter</span>
+  <div class="letter">
+    <div class="lh"><img src="../../../growfit.png" alt=""><div class="org"><b>Growfit Sports Academy NPC</b><br>In partnership with North Crest Primary School<br>NPC Reg. No. <span class="ph">[ ]</span><br><span class="ph">[email]</span> · <span class="ph">[phone]</span></div></div>
+    <p><span class="ph">[Date]</span></p>
+    <p><span class="ph">[Name, title]</span><br><span class="ph">[Company]</span></p>
+    <p><strong>Invitation to partner with Growfit Sports Academy in 2027: <span class="ph">[package]</span></strong></p>
+    <p>Dear <span class="ph">[Mr/Ms Surname]</span>,</p>
+    <p>Every week, hundreds of families in Greater Durban watch their children play for Growfit Sports Academy, a registered non-profit football academy run in partnership with North Crest Primary School. We would like <span class="ph">[Company]</span> to be the brand those families see.</p>
+    <p>We are inviting <span class="ph">[Company]</span> to become our <strong><span class="ph">[package]</span></strong> for 2027, at <strong><span class="ph">[R amount]</span></strong>. In return, <span class="ph">[Company]</span> would receive:</p>
+    <ul>
+      <li><span class="ph">[Placement, e.g. "your logo on the front of every match shirt across all age groups"]</span></li>
+      <li>Regular content through our new social media and content programme, run by a dedicated manager, plus a monthly Partner Spotlight</li>
+      <li>Recognition to the North Crest Primary school community <span class="ph">[if family-appropriate brand and approved by the school]</span></li>
+      <li>A trackable offer to our families, partner breakfasts with fellow sponsors, and a quarterly report</li>
+      <li>A B-BBEE socio-economic development beneficiary letter (at least 75% of our beneficiaries are black youth)</li>
+    </ul>
+    <p>We offer one partnership per category, and founding partners who sign before <span class="ph">[date]</span> receive locked 2027 pricing for 2028 and lifetime Founding Partner recognition. Our prospectus and media kit are enclosed. I would value 20 minutes with you to tailor the partnership to <span class="ph">[Company]</span>'s goals.</p>
+    <p>Yours sincerely,<br><br><br>Buhle Madlala<br>Founder &amp; Academy Director, Growfit Sports Academy NPC</p>
+  </div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">O5 · The 20-minute meeting</span>
+  <table class="avoid">
+    <thead><tr><th style="width:16%">Minutes</th><th>What to do</th></tr></thead>
+    <tbody>
+      <tr><td>0–3</td><td>Thank them. Ask: <em>"What would make a community partnership worthwhile for you this year?"</em> Listen, and write down their words.</td></tr>
+      <tr><td>3–8</td><td>Show, using their words: the kit, the media kit (exposure map), a 30-second video, North Crest and the content programme.</td></tr>
+      <tr><td>8–13</td><td>Recommend <strong>one</strong> package that matches what they said, plus one activation idea for their industry (Section 4).</td></tr>
+      <tr><td>13–17</td><td>Answer concerns (O6). Mention the category exclusivity, the founding-partner deadline and the delivery promise.</td></tr>
+      <tr><td>17–20</td><td>Ask directly: <em>"Shall we reserve the <span class="ph">[category]</span> spot for <span class="ph">[Company]</span>?"</em> Leave the commitment form (O7) and agree on a next step and date.</td></tr>
+    </tbody>
+  </table>
+
+  <span class="tpl-label" style="margin-top:6mm">O6 · Objection answers</span>
+  <table>
+    <thead><tr><th style="width:28%">They say</th><th>You answer</th></tr></thead>
+    <tbody>
+      <tr><td>"We don't have budget."</td><td>"Understood. Many partners start smaller: a Squad Partner is R8,000 a season, about R22 a day, and monthly payments are fine. Support in kind (products, transport, printing) also counts, and can count toward your B-BBEE socio-economic development."</td></tr>
+      <tr><td>"We already sponsor something."</td><td>"That's great. It shows you value community work. We'd complement it with weekly, local, family-level exposure, and our quarterly report makes it easy to compare results."</td></tr>
+      <tr><td>"Why Growfit and not a bigger club?"</td><td>"With us you're <em>the</em> brand in your category, not one of twenty. You're in front of the same families every week, and you get a trackable family offer and our school partnership."</td></tr>
+      <tr><td>"How do we know it works?"</td><td>"We count it: attendance, posts, reach and redemptions of your code, every quarter. If we miss a placement or report, you get an extra month free."</td></tr>
+      <tr><td>"Send me something and I'll think about it."</td><td>"Of course. Can we book 10 minutes on <span class="ph">[date]</span> to answer questions? We're holding your category until <span class="ph">[date]</span>."</td></tr>
+      <tr><td>"Isn't a betting brand on kids' kit a problem?"</td><td>"Our licensed betting partner's branding is name and logo only. There are no promotions aimed at children, and none at the school. Every partner signs the same child-protection terms."</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <span class="tpl-label">O7 · Partnership commitment form</span>
+  <h2 style="margin-top:2mm">Yes, we'd like to partner with Growfit in 2027</h2>
+  <div class="form-row"><span>Company (legal name)</span><span></span></div>
+  <div class="form-row"><span>Registration no. · VAT no.</span><span></span></div>
+  <div class="form-row"><span>Contact person · role</span><span></span></div>
+  <div class="form-row"><span>Phone · email</span><span></span></div>
+  <div class="form-row"><span>Package</span><span><span class="check"></span>Headline &nbsp;<span class="check"></span>Digital &amp; Content &nbsp;<span class="check"></span>Team Wear &nbsp;<span class="check"></span>Kit &nbsp;<span class="check"></span>North Crest Schools</span></div>
+  <div class="form-row"><span></span><span><span class="check"></span>Youth Cup &nbsp;<span class="check"></span>Squad (U__) &nbsp;<span class="check"></span>Match Camera &nbsp;<span class="check"></span>Hydration &nbsp;<span class="check"></span>Sponsor ___ players</span></div>
+  <div class="form-row"><span>Value (R) · in kind?</span><span></span></div>
+  <div class="form-row"><span>Payment</span><span><span class="check"></span>Once-off &nbsp;<span class="check"></span>Quarterly &nbsp;<span class="check"></span>Monthly &nbsp;&nbsp; First payment date: ________</span></div>
+  <div class="form-row"><span>Family offer (optional)</span><span>e.g. 10% off with code GROWFIT: ______________________</span></div>
+  <div class="form-row"><span>Logo &amp; brand guidelines</span><span>Send to <span class="ph">[email]</span> (vector format preferred)</span></div>
+  <div class="form-row"><span>Need a B-BBEE SED letter?</span><span><span class="check"></span>Yes &nbsp;<span class="check"></span>No</span></div>
+  <p style="margin-top:4mm">Signing this form confirms our intention to partner. Growfit will send a short partnership agreement within 5 working days. Founding Partner benefits apply to forms signed before <span class="ph">[date]</span>.</p>
+  <div class="sig">
+    <div>For the Partner<br><br>Name: ______________________<br>Signature: __________________<br>Date: ____ / ____ / ______</div>
+    <div>For Growfit Sports Academy NPC<br><br>Name: ______________________<br>Signature: __________________<br>Date: ____ / ____ / ______</div>
+  </div>
+  <div class="callout" style="margin-top:8mm"><p><strong>Thank you for backing Durban's young players.</strong> Banking details: <span class="ph">[bank, account name, number, branch]</span> · Reference: <span class="ph">company name + PARTNER</span></p></div>
+</div>
+
+</body>
+</html>
