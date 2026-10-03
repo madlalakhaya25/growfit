@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Growfit Youth Cup High Stakes Edition – Proposal</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4; margin: 18mm 17mm 20mm 17mm; }
+  :root {
+    --red: #AF2D35; --red-dark: #6B1B1F; --red-tint: #F7EAEB;
+    --ink: #16181D; --ink-2: #474C55; --ink-3: #7A808A;
+    --rule: #DADDE2; --panel: #F5F6F8;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: #fff; }
+  body { font-family: Inter, "Liberation Sans", Arial, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.5; margin: 0; }
+  h1, h2, h3 { line-height: 1.2; margin: 0; }
+  h2 { font-size: 17pt; font-weight: 800; color: var(--ink); margin: 0 0 4mm; padding-top: 1mm; }
+  h2 .num { color: var(--red); margin-right: 6px; }
+  h3 { font-size: 11pt; font-weight: 700; margin: 5mm 0 2mm; }
+  p { margin: 0 0 2.6mm; }
+  ul { margin: 0 0 3mm; padding-left: 5mm; }
+  li { margin-bottom: 1.2mm; }
+  .section { break-before: page; }
+  .avoid { break-inside: avoid; }
+  .muted { color: var(--ink-2); }
+  .small { font-size: 8.5pt; color: var(--ink-3); }
+  strong { font-weight: 700; }
+
+  /* cover */
+  .cover { height: 257mm; display: flex; flex-direction: column; }
+  .cover-top { display: flex; align-items: center; gap: 6mm; }
+  .cover-top img { width: 26mm; height: 26mm; }
+  .cover-org { font-weight: 700; font-size: 11pt; }
+  .cover-org span { display: block; font-weight: 400; color: var(--ink-2); font-size: 9.5pt; }
+  .cover-band { margin-top: 30mm; border-left: 3mm solid var(--red); padding-left: 7mm; }
+  .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: 8.5pt; font-weight: 700; color: var(--red); }
+  .cover h1 { font-size: 30pt; font-weight: 800; margin: 3mm 0 4mm; letter-spacing: -.01em; }
+  .cover .lede { font-size: 12pt; color: var(--ink-2); max-width: 150mm; }
+  .cover-ask { margin-top: 18mm; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+  .cover-foot { margin-top: auto; border-top: 1px solid var(--rule); padding-top: 4mm; display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; font-size: 9pt; color: var(--ink-2); }
+  .cover-foot b { color: var(--ink); }
+
+  /* tiles */
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 4mm 0 5mm; }
+  .tile { background: var(--panel); border-radius: 3mm; padding: 3.5mm 4mm; }
+  .tile .v { font-size: 16pt; font-weight: 800; color: var(--ink); line-height: 1.1; }
+  .tile .l { font-size: 8.3pt; color: var(--ink-2); margin-top: 1.2mm; line-height: 1.35; }
+  .tile.hero { background: var(--red); }
+  .tile.hero .v, .tile.hero .l { color: #fff; }
+
+  /* tables */
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 9pt; }
+  th { text-align: left; font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); border-bottom: 1.5px solid var(--ink); padding: 2mm 2mm; }
+  td { border-bottom: 1px solid var(--rule); padding: 2mm 2mm; vertical-align: top; }
+  td.n, th.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tr.sub td { background: var(--panel); font-weight: 600; }
+  tr.total td { border-top: 1.5px solid var(--ink); border-bottom: none; font-weight: 800; font-size: 10pt; }
+  tr.total td.n { color: var(--red); }
+
+  .callout { background: var(--red-tint); border-left: 1.2mm solid var(--red); padding: 3.5mm 4.5mm; border-radius: 0 2mm 2mm 0; margin: 3mm 0 4mm; }
+  .callout p:last-child { margin: 0; }
+  .note { background: var(--panel); padding: 3mm 4mm; border-radius: 2mm; font-size: 8.8pt; color: var(--ink-2); margin: 3mm 0; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+  .card { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; }
+  .card h3 { margin-top: 0; }
+
+  /* weekly cycle */
+  .cycle { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2mm; margin: 3mm 0 4mm; }
+  .step { border-top: 1.2mm solid var(--red); background: var(--panel); padding: 2.5mm 3mm; border-radius: 0 0 2mm 2mm; font-size: 8.5pt; }
+  .step b { display: block; font-size: 9pt; margin-bottom: .8mm; }
+  .step .d { color: var(--red); font-weight: 700; font-size: 7.8pt; text-transform: uppercase; letter-spacing: .06em; }
+
+  /* bar figure */
+  .fig { margin: 3mm 0 2mm; }
+  .bar-row { display: grid; grid-template-columns: 30mm 1fr 22mm; align-items: center; gap: 3mm; margin: 2.2mm 0; font-size: 9pt; }
+  .bar-track { position: relative; height: 7mm; }
+  .bar { height: 100%; background: var(--red); border-radius: 0 1.2mm 1.2mm 0; }
+  .ref { position: absolute; top: -2mm; bottom: -2mm; border-left: 1.5px dashed var(--ink); }
+  .ref-label { font-size: 7.8pt; color: var(--ink-2); position: absolute; top: -6mm; transform: translateX(-50%); white-space: nowrap; }
+  .fig-cap { font-size: 8.3pt; color: var(--ink-3); margin-top: 1mm; }
+
+  .compact table { font-size: 8.3pt; margin: 1.5mm 0 2.5mm; }
+  .compact td { padding: 1.3mm 2mm; }
+  .compact h3 { margin: 2.5mm 0 1mm; }
+  .compact li { margin-bottom: .6mm; font-size: 9pt; }
+  .compact .callout { margin: 2mm 0; padding: 2.5mm 4mm; }
+  .sig { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 10mm; }
+  .sig div { border-top: 1px solid var(--ink); padding-top: 2mm; font-size: 9pt; color: var(--ink-2); }
+  .src { font-size: 8pt; color: var(--ink-2); word-break: break-all; }
+  .src li { margin-bottom: .8mm; }
+  .tag { display: inline-block; border-radius: 1mm !important; font-size: 7.5pt; font-weight: 700; padding: .3mm 1.8mm; border-radius: 10mm; background: var(--panel); color: var(--ink-2); text-transform: uppercase; letter-spacing: .05em; }
+  .tag.r { background: var(--red-tint); color: var(--red-dark); }
+
+  .ph { background: #F7EAEB; color: #6B1B1F; padding: 0 1.2mm; border-radius: 1mm; font-weight: 600; }
+  .tpl-label { display:inline-block; font-size: 8pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #fff; background: var(--ink); padding: .8mm 2.5mm; border-radius: 1mm; margin-bottom: 3mm; }
+  .letter { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 7mm 8mm; font-size: 9.6pt; }
+  .letter p { margin-bottom: 2.8mm; }
+  .letter .lh { display:flex; justify-content: space-between; align-items:flex-start; border-bottom: 1.5px solid var(--red); padding-bottom: 3mm; margin-bottom: 5mm; }
+  .letter .lh img { width: 15mm; height: 15mm; }
+  .letter .lh .org { text-align:right; font-size: 8.3pt; color: var(--ink-2); line-height: 1.4; }
+  .letter .lh .org b { color: var(--ink); font-size: 9.5pt; }
+  .msg { background: var(--panel); border-radius: 3mm; padding: 4mm 5mm; font-size: 9.6pt; white-space: normal; }
+  .howto { font-size: 8.8pt; color: var(--ink-2); margin: 0 0 3mm; }
+  .form-row { display:grid; grid-template-columns: 45mm 1fr; border-bottom: 1px solid var(--rule); padding: 2.6mm 0; font-size: 9.3pt; }
+  .form-row span:last-child { border-bottom: 1px dotted var(--ink-3); }
+  .check { display:inline-block; width:3.2mm; height:3.2mm; border:1px solid var(--ink); margin-right:1.5mm; vertical-align:-0.4mm; }
+  .tier { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; break-inside: avoid; }
+  .tier .price { color: var(--red); font-weight: 800; font-size: 13pt; }
+  .tier h3 { margin: 0 0 1mm; }
+  .tiers { display:grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; }
+  .tiers ul { margin-bottom: 0; }
+  .toc { columns: 2; font-size: 9.5pt; }
+  .check-list li { list-style: none; position: relative; padding-left: 5mm; margin-bottom: 1.2mm; }
+  .check-list li::before { content: "✓"; position: absolute; left: 0; color: var(--red); font-weight: 800; }
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="cover-top">
+    <img src="../../../growfit.png" alt="Growfit Football Academy crest">
+    <div class="cover-org">Growfit Sports Academy NPC<span>Grassroots football · U12 · U15 · U17 · Greater Durban, KwaZulu-Natal</span></div>
+  </div>
+  <div class="cover-band">
+    <div class="eyebrow">Event proposal · High Stakes Edition · October 2026</div>
+    <h1>Growfit Youth Cup<br><span style="color:var(--red)">High Stakes Edition</span></h1>
+    <p class="lede">A one-day, high-stakes tournament for the strongest U12, U15 and U17 teams in Greater Durban. <strong>Half of every entry fee goes into the prize pool</strong>, so winners take home up to R8,000 per division. The event pays for itself from entries and the gate. Sponsorship makes it bigger, but it doesn't depend on it.</p>
+  </div>
+  <div class="cover-ask">
+    <div class="tile hero"><div class="v">24 teams</div><div class="l">8 per age group · about 360 young players</div></div>
+    <div class="tile"><div class="v">54 matches</div><div class="l">On one day, across three pitches</div></div>
+    <div class="tile"><div class="v">R48,000</div><div class="l">Prize pool at 24 teams, paid from 50% of entry fees</div></div>
+  </div>
+  <div class="cover-foot">
+    <div><b>Contact</b><br>Buhle Madlala, Founder &amp; Academy Director<br>Khaya Madlala, Fundraising &amp; Registration<br><span class="ph">[email]</span> · <span class="ph">[phone]</span></div>
+    <div><b>Event</b><br>Date: <span class="ph">[Saturday, school holidays]</span><br>Venue: <span class="ph">[venue, Greater Durban]</span><br>Sanctioned through: <span class="ph">[GDLFA / SAFA eThekwini]</span></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2><span class="num">1</span>The idea</h2>
+  <p>During the school holidays, grassroots players in Durban have few chances to play competitive football. The Growfit Youth Cup fills that gap. It is a one-day tournament for <strong>U12, U15 and U17</strong> teams, run to the same standards Growfit applies every week: qualified referees, first aid on site, safeguarding, and every child getting meaningful game time.</p>
+
+  <div class="tiles">
+    <div class="tile hero"><div class="v">3</div><div class="l">Age groups: U12, U15, U17</div></div>
+    <div class="tile"><div class="v">8</div><div class="l">Teams per age group</div></div>
+    <div class="tile"><div class="v">4–5</div><div class="l">Matches guaranteed per team</div></div>
+    <div class="tile"><div class="v">R4,000</div><div class="l">Entry fee per team (about R285 per player)</div></div>
+  </div>
+
+  <h3>Format</h3>
+  <table class="avoid">
+    <thead><tr><th style="width:24%">Element</th><th>Detail</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Group stage</strong></td><td>Two groups of four per age group. Every team plays three group matches.</td></tr>
+      <tr><td><strong>Knockouts</strong></td><td>Group winners and runners-up play semi-finals, the final and a 3rd-place play-off. Teams finishing 3rd and 4th play placement matches for 5th–8th, so nobody goes home after three games.</td></tr>
+      <tr><td><strong>Match length</strong></td><td>U12: 2 × 10 min (9-a-side). U15 and U17: 2 × 10 min (11-a-side). One pitch per division, three full-size pitches in total. Final lengths are confirmed with the sanctioning body.</td></tr>
+      <tr><td><strong>Squads</strong></td><td>Up to 14 players per team, with rolling substitutions. SAFA/LFA-registered players only, with a team list and age verification at check-in.</td></tr>
+      <tr><td><strong>Awards</strong></td><td>Trophies and medals, plus <strong>real prizes</strong>: equipment vouchers, a new match kit for each winning team, boots and gloves for individual winners, and a camp bursary for the most promising player in each division (Section 4). Every player gets a participation certificate.</td></tr>
+      <tr><td><strong>Extras</strong></td><td>A coaches' breakfast and short coaching talk. Match filming if the academy camera is in place. A family zone with food vendors.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Why Growfit can deliver it</h3>
+  <p>Growfit is a registered NPC running three age groups in the Greater Durban Football League. It has eight adopted policies, including Child Protection &amp; Safeguarding and Injury &amp; Medical Emergency. Every player is registered with SAFA and every coach is CPR Part B checked. Our weekly matchday routine (registration checks, attendance, first aid, communication with parents) is the same routine a tournament needs, only bigger.</p>
+</div>
+
+<div class="section">
+  <h2><span class="num">2</span>What participating clubs get</h2>
+  <div class="two">
+    <div class="card"><h3>Quality football</h3><p>At least four competitive matches per team in one day, against opponents of similar age from across Durban. That is more game time than a month of league weekends.</p></div>
+    <div class="card"><h3>High stakes, real money</h3><p>R4,000 per team (about R285 per player). <strong>Half of every entry fee goes straight into the prize pool</strong>: up to R8,000 for each division's winners, paid to the club. Early-bird entry is R3,500 for the first 12 paid entries before <span class="ph">[date]</span>, payable in two instalments.</p></div>
+    <div class="card"><h3>Safe and well run</h3><p>Qualified referees, a first-aid station, a named safety officer, a safeguarding lead and a lost-child point. Parents know what to expect.</p></div>
+    <div class="card"><h3>Visibility for players</h3><p>Individual awards, certificates and match footage (where available) help players with trials and school sports programmes. Scouts and school coaches are invited.</p></div>
+    <div class="card"><h3>Coach development</h3><p>A coaches' breakfast with a short talk (e.g. "Game-time for every player") and a chance to connect with other grassroots coaches.</p></div>
+    <div class="card"><h3>Recognition</h3><p>Each club is named in the programme, on social media and in the results sheet sent to all participants.</p></div>
+  </div>
+
+  </div>
+
+<div class="section">
+  <h2><span class="num">3</span>What sponsors get</h2>
+  <p>The Cup <strong>pays for itself</strong> from entry fees, the gate and vendors (Section 6). Sponsorship makes it bigger. Every R10,000 of sponsorship can add R10,000 to the prize pool (headline: "R58,000 in prizes"), <strong>or</strong> pay for 2 bursary entries for strong clubs from poor communities, <strong>or</strong> upgrade the event: live-stream, photographer, stadium venue.</p>
+  <table class="avoid">
+    <thead><tr><th>Package</th><th>Includes</th><th class="n">Value</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Headline Partner</strong> (1)</td><td>Event named "Growfit Youth Cup presented by <span class="ph">[Partner]</span>". Logo on banners, medals ribbon, certificates and all posts. Presents the trophies. Branded stall in the family zone. B-BBEE socio-economic development letter.</td><td class="n">R15,000</td></tr>
+      <tr><td><strong>Pitch Partner</strong> (3)</td><td>A pitch named after the partner ("<span class="ph">[Partner]</span> Pitch"), with pitch-side banner and mentions on the PA and social media.</td><td class="n">R3,000 each</td></tr>
+      <tr><td><strong>Medals &amp; Awards Partner</strong> (1)</td><td>Logo on medal ribbons and certificates. Presents the individual awards.</td><td class="n">R5,000</td></tr>
+      <tr><td><strong>Refreshment Partner</strong> (in kind)</td><td>Provides water, fruit or snacks for players. Sampling stand and logo on the programme.</td><td class="n">In kind</td></tr>
+      <tr><td><strong>Community Supporter</strong></td><td>Any amount or service: printing, transport, gazebos, PA system, first-aid supplies. Thanked in the programme and on social media.</td><td class="n">Any</td></tr>
+    </tbody>
+  </table>
+  <p class="small">Growfit does not accept sponsorship from alcohol or tobacco/vaping brands. Licensed betting partners are welcome. On children's kit, medals and certificates their branding is limited to name and logo, with no betting promotions aimed at under-18s.</p>
+</div>
+
+<div class="section">
+  <h2><span class="num">4</span>Prizes worth playing for</h2>
+  <p>The prize pool is <strong>50% of all entry fees</strong>, so it grows with every team that enters and can never put the event at risk. At 24 teams it's <strong>R48,000</strong>: <strong>R16,000 per division</strong>. The pool is announced as "up to R48,000", and the final figure is confirmed when entries close.</p>
+  <table class="avoid">
+    <thead><tr><th>Award (each division: U12 · U15 · U17)</th><th>Prize</th><th class="n">At 24 teams</th><th class="n">At 14 teams</th></tr></thead>
+    <tbody><tr><td><strong>Winners</strong></td><td>Trophy, gold medals and <strong>R8,000</strong> for the club</td><td class="n">R8,000</td><td class="n">R4,650</td></tr><tr><td><strong>Runners-up</strong></td><td>Silver medals and R4,000 for the club</td><td class="n">R4,000</td><td class="n">R2,350</td></tr><tr><td><strong>3rd place</strong></td><td>Bronze medals and R2,000 for the club</td><td class="n">R2,000</td><td class="n">R1,150</td></tr><tr><td><strong>Player of the Tournament</strong></td><td>Trophy and R1,000 boots voucher</td><td class="n">R1,000</td><td class="n">R600</td></tr><tr><td><strong>Golden Glove</strong></td><td>Trophy and R500 goalkeeper-gloves voucher</td><td class="n">R500</td><td class="n">R290</td></tr><tr><td><strong>Fair Play award</strong></td><td>R500 equipment voucher for the club</td><td class="n">R500</td><td class="n">R290</td></tr>
+      <tr class="total"><td colspan="2">Per division</td><td class="n">R16,000</td><td class="n">R9,330</td></tr>
+    </tbody>
+  </table>
+  <h3>Fair play with real money at stake</h3>
+  <ul class="check-list">
+    <li><strong>Prize money goes to the club, never to children.</strong> It's paid by EFT to the club's bank account within 7 days of the event. On the day, winners receive a giant cheque.</li>
+    <li><strong>Strict eligibility:</strong> SAFA/LFA registration cards and ID or birth certificates are checked at check-in. Age disputes go to the tournament committee before the knockouts, and a team that fields an ineligible player forfeits its prize.</li>
+    <li><strong>Qualified referees</strong> for every match, with assistant referees for semi-finals and finals. The tournament committee's decision on disputes is final.</li>
+    <li>Individual awards are equipment vouchers, not cash.</li>
+  </ul>
+  <h3>Sponsors can add to the pool</h3>
+  <table class="avoid">
+    <tbody>
+      <tr><td style="width:32%"><strong>Division Prize Partner</strong></td><td>Adds R5,000 or more to one division's prizes. The division is named "<span class="ph">[Partner]</span> U15 Cup", and you present the prizes on stage.</td></tr>
+      <tr><td><strong>Award Partner</strong></td><td>Adds a named award across all divisions, e.g. "Golden Boot by <span class="ph">[Partner]</span>" (R1,200–R2,500, or product).</td></tr>
+      <tr><td><strong>Kit Prize Partner</strong></td><td>A new match kit for each division winner, with your logo on it.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h2><span class="num">5</span>How partners are showcased on the day</h2>
+  <p>We showcase partners the way established tournaments do, and we make sure every partner's investment is seen, photographed and reported.</p>
+  <ul class="check-list">
+    <li><strong>Posters &amp; social graphics</strong>: a sponsor logo strip on every poster, fixture list, results graphic and story</li>
+    <li><strong>Photo wall</strong>: every team, winner and VIP photo is taken in front of a backdrop with your logo</li>
+    <li><strong>Pitch-side</strong>: banners, flags and named pitches ("<span class="ph">[Partner]</span> Pitch")</li>
+    <li><strong>Stage &amp; PA</strong>: hourly mentions by the MC, and partners present the prizes</li>
+    <li><strong>Sponsor village</strong>: a stall or gazebo in the family zone for sampling, offers and sign-ups</li>
+    <li><strong>VIP tent</strong>: partners and their guests are hosted for the finals and prize-giving</li>
+    <li><strong>Live coverage &amp; take-home items</strong>: posts, stories and a highlight reel with partner end-cards, plus medal ribbons, certificates and the programme kept by ~360 families. Media invited</li>
+    <li><strong>Post-event report</strong>: attendance, reach, photos of your branding and the finances, within 30 days</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h2><span class="num">6</span>Budget: balanced without sponsors</h2>
+  <p>Planning estimates, to be updated with real quotes. Costs include the prize pool, and <strong>no sponsorship is counted</strong>. The event balances on entry fees, the gate and vendors alone. Shown at full capacity (24 teams) and at the minimum to go ahead (14 teams).</p>
+  <div class="two">
+    <div>
+      <h3>Costs</h3>
+      <table>
+        <thead><tr><th>Item</th><th class="n">24 teams</th><th class="n">14 teams</th></tr></thead>
+        <tbody><tr><td>Referees (R450 per team)</td><td class="n">10,800</td><td class="n">6,300</td></tr><tr><td>Assistant referees for semis &amp; finals</td><td class="n">2,000</td><td class="n">2,000</td></tr><tr><td>Venue hire (3 pitches, full day)</td><td class="n">6,000</td><td class="n">6,000</td></tr><tr><td>First-aid / paramedic standby</td><td class="n">4,000</td><td class="n">4,000</td></tr><tr><td>Trophies &amp; medals</td><td class="n">4,000</td><td class="n">4,000</td></tr><tr><td>Security, marshals &amp; cash handling</td><td class="n">5,000</td><td class="n">5,000</td></tr><tr><td>Gazebos, stage &amp; PA</td><td class="n">3,500</td><td class="n">3,500</td></tr><tr><td>Drinking water for players</td><td class="n">2,000</td><td class="n">2,000</td></tr><tr><td>Event liability insurance</td><td class="n">2,000</td><td class="n">2,000</td></tr><tr><td>Banners, programme &amp; printing</td><td class="n">1,500</td><td class="n">1,500</td></tr><tr><td>Admin, safety plan &amp; permits</td><td class="n">1,000</td><td class="n">1,000</td></tr><tr><td>Participation certificates</td><td class="n">500</td><td class="n">500</td></tr><tr><td>Contingency (10%)</td><td class="n">4,200</td><td class="n">3,800</td></tr><tr><td><strong>Prize pool (50% of entries)</strong></td><td class="n">48,000</td><td class="n">28,000</td></tr>
+          <tr class="total"><td>Total costs</td><td class="n">R94,500</td><td class="n">R69,600</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h3>Income</h3>
+      <table>
+        <thead><tr><th>Source</th><th class="n">24 teams</th><th class="n">14 teams</th></tr></thead>
+        <tbody><tr><td>Entry fees (R4,000 per team)</td><td class="n">96,000</td><td class="n">56,000</td></tr><tr><td>Gate: ~450 adults × R30 (under-12s free)</td><td class="n">13,500</td><td class="n">13,500</td></tr><tr><td>Food vendor stalls (10 × R800)</td><td class="n">8,000</td><td class="n">8,000</td></tr>
+          <tr class="total"><td>Total income</td><td class="n">R117,500</td><td class="n">R77,500</td></tr>
+        </tbody>
+      </table>
+      <div class="callout"><p><strong>Surplus: R23,000 at 24 teams · R7,900 at 14 teams.</strong> It goes to the academy's player-support fund and pays Growfit's own tournament entries. Any sponsorship comes on top.</p></div>
+      <p class="small">If the gate brings in only half the estimate, the surplus is still about R16,250 at 24 teams and R1,150 at 14 teams. The early-bird discount (R500 per team) is limited to the first 12 paid entries, so it costs at most R6,000.</p>
+      <h3>Go / no-go (6 weeks before)</h3>
+      <ul>
+        <li>At least 14 teams entered and paid</li>
+        <li>Venue, referees and first aid booked in writing</li>
+        <li>Sanction from the LFA/region received</li>
+      </ul>
+      <p class="small">If these aren't met, the event is postponed and all entry fees are refunded in full.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2><span class="num">7</span>Safety, safeguarding &amp; compliance</h2>
+  <table>
+    <thead><tr><th style="width:28%">Area</th><th>How it is handled</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Sanctioning</strong></td><td>The tournament is registered with the Greater Durban LFA / SAFA eThekwini Region, and their rules and referee appointments are followed.</td></tr>
+      <tr><td><strong>Event safety (SASREA)</strong></td><td>The event's risk category is confirmed with the municipality and SAPS under the Safety at Sports and Recreational Events Act. In all cases: a named safety officer, a written safety plan (crowd, parking, emergency medical, evacuation) and a briefing for all marshals.</td></tr>
+      <tr><td><strong>Medical</strong></td><td>Paramedic or qualified first-aid standby all day. Each team submits medical and emergency details. Concussion protocol: "if in doubt, sit them out". The nearest hospital route is in the safety plan.</td></tr>
+      <tr><td><strong>Safeguarding</strong></td><td>A named safeguarding lead. Team officials are accredited and wear tags, and only accredited adults are allowed in player areas. Lost-child point, no changing-room access for spectators, and a clear process for reporting concerns.</td></tr>
+      <tr><td><strong>Photos &amp; filming (POPIA)</strong></td><td>Entry form confirms each club holds media consent for its players. Filming signage at the venue. Players without consent are not featured. Footage is shared only with the player's own club.</td></tr>
+      <tr><td><strong>Weather &amp; heat</strong></td><td>Shaded areas, water points and drinks breaks in hot weather. A lightning and severe-weather stop rule. A rain-date plan is agreed with the venue.</td></tr>
+      <tr><td><strong>Discipline &amp; fair play</strong></td><td>Code of conduct for players, officials and parents. A tournament committee rules on disputes. Zero tolerance for abuse of referees.</td></tr>
+      <tr><td><strong>Money</strong></td><td>Entry fees by EFT only, with reference = team name. Vendors pay in advance. Gate takings by SnapScan or card where possible, and any cash is counted by two people and banked within 2 working days. Income and spending are reported to sponsors within 30 days.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:7mm"><span class="num">8</span>Event team</h2>
+  <table class="avoid">
+    <thead><tr><th>Role</th><th>Who</th><th>Main tasks</th></tr></thead>
+    <tbody>
+      <tr><td>Tournament Director</td><td>Buhle Madlala</td><td>Overall lead, sponsors, sanctioning, referees</td></tr>
+      <tr><td>Competitions &amp; Registration</td><td>Khaya Madlala</td><td>Entries, team lists, age checks, fixtures and results</td></tr>
+      <tr><td>Operations &amp; Equipment</td><td>Sphe Mlotshwa</td><td>Venue layout, equipment, marshals, vendors</td></tr>
+      <tr><td>Safety Officer</td><td><span class="ph">[name]</span></td><td>Safety plan, first-aid liaison, emergency response</td></tr>
+      <tr><td>Safeguarding Lead</td><td><span class="ph">[name]</span></td><td>Accreditation, lost-child point, reporting concerns</td></tr>
+      <tr><td>Volunteers (12–15)</td><td>Parents &amp; senior players</td><td>Pitch marshals, results runners, check-in, family zone</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h2><span class="num">9</span>Timeline</h2>
+  <table>
+    <thead><tr><th style="width:22%">When</th><th>Milestone</th></tr></thead>
+    <tbody>
+      <tr><td><strong>12 weeks before</strong></td><td>Date and venue provisionally booked. Sanction application to the LFA/region. Sponsor approaches start.</td></tr>
+      <tr><td><strong>10 weeks before</strong></td><td>Entry pack and invitation sent to clubs. Event categorisation started with the municipality and SAPS.</td></tr>
+      <tr><td><strong>6 weeks before</strong></td><td><strong>Go/no-go decision.</strong> Referees, first aid, marquee and toilets confirmed.</td></tr>
+      <tr><td><strong>3 weeks before</strong></td><td>Entries close. Fixtures drawn and published. Volunteer roster done. Medals ordered.</td></tr>
+      <tr><td><strong>1 week before</strong></td><td>Safety briefing. Team lists and medical forms received. Programme printed.</td></tr>
+      <tr><td><strong>Event day</strong></td><td>07:00 setup · 07:45 check-in · 08:30 opening · group stage · 13:00 knockouts &amp; placement matches · 15:30 finals · 16:15 awards · 17:00 pack-down.</td></tr>
+      <tr><td><strong>2–4 weeks after</strong></td><td>Results, photos (consented) and thank-you to all clubs. Sponsor report with reach, attendance and finances.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:7mm"><span class="num">10</span>How we will measure success</h2>
+  <div class="tiles">
+    <div class="tile"><div class="v">≥ 18</div><div class="l">teams entered (24 target)</div></div>
+    <div class="tile"><div class="v">≥ 4</div><div class="l">matches for every team</div></div>
+    <div class="tile"><div class="v">0</div><div class="l">serious safety or safeguarding incidents</div></div>
+    <div class="tile"><div class="v">≥ 80%</div><div class="l">of clubs say they'd return (post-event survey)</div></div>
+  </div>
+  <p>Our goal is to make the Growfit Youth Cup a <strong>twice-yearly fixture</strong> (June/July and December holidays) that grassroots clubs in Durban look forward to, and that grows with its sponsors.</p>
+
+  <div class="callout">
+    <p><strong>Get involved.</strong> Clubs can enter with the form on the next page. Sponsors and supporters can contact <span class="ph">[name, phone, email]</span>.</p>
+  </div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">Form · Team entry</span>
+  <h2>Growfit Youth Cup: team entry form</h2>
+  <p class="howto">One form per team. Send to <span class="ph">[email]</span> by <span class="ph">[closing date]</span> with proof of payment.</p>
+  <div class="form-row"><span>Club name</span><span></span></div>
+  <div class="form-row"><span>Age group</span><span><span class="check"></span>U12 &nbsp;&nbsp;<span class="check"></span>U15 &nbsp;&nbsp;<span class="check"></span>U17</span></div>
+  <div class="form-row"><span>Affiliation (LFA / league)</span><span></span></div>
+  <div class="form-row"><span>Head coach name</span><span></span></div>
+  <div class="form-row"><span>Head coach phone / email</span><span></span></div>
+  <div class="form-row"><span>Second team official</span><span></span></div>
+  <div class="form-row"><span>Emergency contact on the day</span><span></span></div>
+  <div class="form-row"><span>Number of players (max 14)</span><span></span></div>
+  <h3>Declarations by the club</h3>
+  <p><span class="check"></span>All players are registered with SAFA / our LFA and are within the age group.</p>
+  <p><span class="check"></span>We hold parent/guardian consent for each player to take part, and medical/emergency details for each player will be brought on the day.</p>
+  <p><span class="check"></span>We hold photo/media consent for players who may be filmed or photographed, and we will tell organisers about any player who must not be filmed.</p>
+  <p><span class="check"></span>Our officials hold valid police/CPR Part B clearance and will follow the tournament code of conduct.</p>
+  <h3>Payment</h3>
+  <p>Entry fee: <strong>R4,000 per team</strong> (early-bird R3,500 for the first 12 paid entries before <span class="ph">[date]</span>, payable in two instalments), by EFT to <span class="ph">[bank, account name, account number, branch code]</span>. Reference: <span class="ph">[club name + age group]</span>. Refunded in full if the event does not go ahead.</p>
+  <div class="sig">
+    <div>Signed for the club<br><br>Name: ______________________<br>Role: ______________________<br>Date: ____ / ____ / ______</div>
+    <div>Received by Growfit<br><br>Name: ______________________<br>Payment confirmed: <span class="check"></span><br>Date: ____ / ____ / ______</div>
+  </div>
+</div>
+
+</body>
+</html>
