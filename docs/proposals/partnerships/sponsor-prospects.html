@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Growfit Sponsor Prospects & Approach Letters</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4; margin: 18mm 17mm 20mm 17mm; }
+  :root {
+    --red: #AF2D35; --red-dark: #6B1B1F; --red-tint: #F7EAEB;
+    --ink: #16181D; --ink-2: #474C55; --ink-3: #7A808A;
+    --rule: #DADDE2; --panel: #F5F6F8;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: #fff; }
+  body { font-family: Inter, "Liberation Sans", Arial, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.5; margin: 0; }
+  h1, h2, h3 { line-height: 1.2; margin: 0; }
+  h2 { font-size: 17pt; font-weight: 800; color: var(--ink); margin: 0 0 4mm; padding-top: 1mm; }
+  h2 .num { color: var(--red); margin-right: 6px; }
+  h3 { font-size: 11pt; font-weight: 700; margin: 5mm 0 2mm; }
+  p { margin: 0 0 2.6mm; }
+  ul { margin: 0 0 3mm; padding-left: 5mm; }
+  li { margin-bottom: 1.2mm; }
+  .section { break-before: page; }
+  .avoid { break-inside: avoid; }
+  .muted { color: var(--ink-2); }
+  .small { font-size: 8.5pt; color: var(--ink-3); }
+  strong { font-weight: 700; }
+
+  /* cover */
+  .cover { height: 257mm; display: flex; flex-direction: column; }
+  .cover-top { display: flex; align-items: center; gap: 6mm; }
+  .cover-top img { width: 26mm; height: 26mm; }
+  .cover-org { font-weight: 700; font-size: 11pt; }
+  .cover-org span { display: block; font-weight: 400; color: var(--ink-2); font-size: 9.5pt; }
+  .cover-band { margin-top: 30mm; border-left: 3mm solid var(--red); padding-left: 7mm; }
+  .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: 8.5pt; font-weight: 700; color: var(--red); }
+  .cover h1 { font-size: 30pt; font-weight: 800; margin: 3mm 0 4mm; letter-spacing: -.01em; }
+  .cover .lede { font-size: 12pt; color: var(--ink-2); max-width: 150mm; }
+  .cover-ask { margin-top: 18mm; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+  .cover-foot { margin-top: auto; border-top: 1px solid var(--rule); padding-top: 4mm; display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; font-size: 9pt; color: var(--ink-2); }
+  .cover-foot b { color: var(--ink); }
+
+  /* tiles */
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 4mm 0 5mm; }
+  .tile { background: var(--panel); border-radius: 3mm; padding: 3.5mm 4mm; }
+  .tile .v { font-size: 16pt; font-weight: 800; color: var(--ink); line-height: 1.1; }
+  .tile .l { font-size: 8.3pt; color: var(--ink-2); margin-top: 1.2mm; line-height: 1.35; }
+  .tile.hero { background: var(--red); }
+  .tile.hero .v, .tile.hero .l { color: #fff; }
+
+  /* tables */
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 9pt; }
+  th { text-align: left; font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); border-bottom: 1.5px solid var(--ink); padding: 2mm 2mm; }
+  td { border-bottom: 1px solid var(--rule); padding: 2mm 2mm; vertical-align: top; }
+  td.n, th.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tr.sub td { background: var(--panel); font-weight: 600; }
+  tr.total td { border-top: 1.5px solid var(--ink); border-bottom: none; font-weight: 800; font-size: 10pt; }
+  tr.total td.n { color: var(--red); }
+
+  .callout { background: var(--red-tint); border-left: 1.2mm solid var(--red); padding: 3.5mm 4.5mm; border-radius: 0 2mm 2mm 0; margin: 3mm 0 4mm; }
+  .callout p:last-child { margin: 0; }
+  .note { background: var(--panel); padding: 3mm 4mm; border-radius: 2mm; font-size: 8.8pt; color: var(--ink-2); margin: 3mm 0; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+  .card { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; }
+  .card h3 { margin-top: 0; }
+
+  /* weekly cycle */
+  .cycle { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2mm; margin: 3mm 0 4mm; }
+  .step { border-top: 1.2mm solid var(--red); background: var(--panel); padding: 2.5mm 3mm; border-radius: 0 0 2mm 2mm; font-size: 8.5pt; }
+  .step b { display: block; font-size: 9pt; margin-bottom: .8mm; }
+  .step .d { color: var(--red); font-weight: 700; font-size: 7.8pt; text-transform: uppercase; letter-spacing: .06em; }
+
+  /* bar figure */
+  .fig { margin: 3mm 0 2mm; }
+  .bar-row { display: grid; grid-template-columns: 30mm 1fr 22mm; align-items: center; gap: 3mm; margin: 2.2mm 0; font-size: 9pt; }
+  .bar-track { position: relative; height: 7mm; }
+  .bar { height: 100%; background: var(--red); border-radius: 0 1.2mm 1.2mm 0; }
+  .ref { position: absolute; top: -2mm; bottom: -2mm; border-left: 1.5px dashed var(--ink); }
+  .ref-label { font-size: 7.8pt; color: var(--ink-2); position: absolute; top: -6mm; transform: translateX(-50%); white-space: nowrap; }
+  .fig-cap { font-size: 8.3pt; color: var(--ink-3); margin-top: 1mm; }
+
+  .compact table { font-size: 8.3pt; margin: 1.5mm 0 2.5mm; }
+  .compact td { padding: 1.3mm 2mm; }
+  .compact h3 { margin: 2.5mm 0 1mm; }
+  .compact li { margin-bottom: .6mm; font-size: 9pt; }
+  .compact .callout { margin: 2mm 0; padding: 2.5mm 4mm; }
+  .sig { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 10mm; }
+  .sig div { border-top: 1px solid var(--ink); padding-top: 2mm; font-size: 9pt; color: var(--ink-2); }
+  .src { font-size: 8pt; color: var(--ink-2); word-break: break-all; }
+  .src li { margin-bottom: .8mm; }
+  .tag { display: inline-block; border-radius: 1mm !important; font-size: 7.5pt; font-weight: 700; padding: .3mm 1.8mm; border-radius: 10mm; background: var(--panel); color: var(--ink-2); text-transform: uppercase; letter-spacing: .05em; }
+  .tag.r { background: var(--red-tint); color: var(--red-dark); }
+
+  .ph { background: #F7EAEB; color: #6B1B1F; padding: 0 1.2mm; border-radius: 1mm; font-weight: 600; }
+  .tpl-label { display:inline-block; font-size: 8pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #fff; background: var(--ink); padding: .8mm 2.5mm; border-radius: 1mm; margin-bottom: 3mm; }
+  .letter { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 7mm 8mm; font-size: 9.6pt; }
+  .letter p { margin-bottom: 2.8mm; }
+  .letter .lh { display:flex; justify-content: space-between; align-items:flex-start; border-bottom: 1.5px solid var(--red); padding-bottom: 3mm; margin-bottom: 5mm; }
+  .letter .lh img { width: 15mm; height: 15mm; }
+  .letter .lh .org { text-align:right; font-size: 8.3pt; color: var(--ink-2); line-height: 1.4; }
+  .letter .lh .org b { color: var(--ink); font-size: 9.5pt; }
+  .msg { background: var(--panel); border-radius: 3mm; padding: 4mm 5mm; font-size: 9.6pt; white-space: normal; }
+  .howto { font-size: 8.8pt; color: var(--ink-2); margin: 0 0 3mm; }
+  .form-row { display:grid; grid-template-columns: 45mm 1fr; border-bottom: 1px solid var(--rule); padding: 2.6mm 0; font-size: 9.3pt; }
+  .form-row span:last-child { border-bottom: 1px dotted var(--ink-3); }
+  .check { display:inline-block; width:3.2mm; height:3.2mm; border:1px solid var(--ink); margin-right:1.5mm; vertical-align:-0.4mm; }
+  .tier { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; break-inside: avoid; }
+  .tier .price { color: var(--red); font-weight: 800; font-size: 13pt; }
+  .tier h3 { margin: 0 0 1mm; }
+  .tiers { display:grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; }
+  .tiers ul { margin-bottom: 0; }
+  .toc { columns: 2; font-size: 9.5pt; }
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="cover-top">
+    <img src="../../../growfit.png" alt="Growfit Football Academy crest">
+    <div class="cover-org">Growfit Sports Academy NPC<span>Grassroots football · Greater Durban, KwaZulu-Natal</span></div>
+  </div>
+  <div class="cover-band">
+    <div class="eyebrow">Fundraising research · October 2026</div>
+    <h1>Sponsor Prospects &amp; Approach Letters</h1>
+    <p class="lede">Who to approach for kit, apparel, equipment, hydration, food and money. What other grassroots tournaments in KZN and South Africa do to win sponsors. Letters written for each type of sponsor.</p>
+  </div>
+  <div class="cover-ask">
+    <div class="tile hero"><div class="v">25+</div><div class="l">Prospects, grouped by what they can give</div></div>
+    <div class="tile"><div class="v">6</div><div class="l">Tournament models studied, with lessons for Growfit</div></div>
+    <div class="tile"><div class="v">11</div><div class="l">Letters ready to send (L1–L11)</div></div>
+  </div>
+  <div class="cover-foot">
+    <div><b>Owner</b><br>Khaya Madlala, Fundraising &amp; Registration<br>Sign-off: Buhle Madlala</div>
+    <div><b>Status</b><br>Existing partner: Hollywoodbets (match kit)<br>Research is from public sources. Check contacts and application windows before sending.</div>
+  </div>
+</div>
+
+<div class="section">
+  <h2><span class="num">1</span>What other grassroots tournaments do</h2>
+  <p>We looked at how established youth tournaments in KZN and South Africa attract and keep sponsors. The patterns repeat, and most of them are within Growfit's reach.</p>
+  <table>
+    <thead><tr><th style="width:22%">Tournament</th><th>Who backs it and how</th><th style="width:30%">Lesson for Growfit</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Siyakhula Under-15 Cup</strong> (Durban)</td><td>The <strong>AmaZulu Community Trust</strong> and <strong>Hollywoodbets</strong>, through the Hollywood Foundation, with <strong>SAFA eThekwini</strong>. Played at Siripat Sports Grounds, Reservoir Hills. Winners received <strong>R10,000 in equipment and sponsored match kits</strong>. A girls' division was added, and the event was pitched as talent identification.</td><td>Co-host with a recognised partner (a PSL club's community trust, the LFA). Give prizes as equipment rather than cash. Sponsors respond to talent identification and inclusion.</td></tr>
+      <tr><td><strong>Engen Knockout Challenge</strong></td><td>One title sponsor (<strong>Engen</strong>) in partnership with <strong>SAFA</strong> for more than 20 years. Regional qualifiers lead to finals at major venues. The 2026 KZN leg was at Hollywoodbets Kings Park.</td><td>One <strong>title sponsor</strong>, a long-term relationship and federation approval give credibility. Our Youth Cup should be planned as a recurring, named event.</td></tr>
+      <tr><td><strong>Kay Motsepe Schools Championship</strong></td><td><strong>Sanlam</strong> with the <strong>Motsepe Foundation</strong> and the Department of Basic Education. Prize money (R3m+) is for school sports facilities and equipment.</td><td>Corporate, foundation and government together. Prize money tied to development, not individuals. Our schools can enter, a route for players outside the academy.</td></tr>
+      <tr><td><strong>KZN Premier's Cup</strong></td><td>Led by the provincial government. District teams, including two from eThekwini. Framed as youth development and talent identification.</td><td>Government is a partner for <strong>event support and visibility</strong>. Invite the ward councillor and KZN DSR to the Youth Cup.</td></tr>
+      <tr><td><strong>Danone Nations Cup</strong> (U12)</td><td>A brand-owned tournament (Danone) tied to a health and nutrition message, with national finals and an international final.</td><td>Food and hydration brands like events that link sport to <strong>healthy habits</strong>. Use this angle with water, juice and food brands.</td></tr>
+      <tr><td><strong>GDLFA × Mr Price Sport</strong></td><td><strong>Mr Price Sport</strong> became a Tier-1 sponsor of the Greater Durban LFA (7,500+ players, 108 clubs, 5,600 juniors). Mr Price Sport also ran a grassroots programme with <strong>Ukhozi FM</strong> and AmaZulu.</td><td>Our <strong>own LFA</strong> already has a sports-retail sponsor. Ask the GDLFA for an introduction, and pair the ask with community media.</td></tr>
+      <tr><td><strong>Sonani Heritage Cup</strong></td><td>We found no public information online. <span class="ph">[Add what you know: organiser, sponsors, prizes, how they approached sponsors]</span>.</td><td><span class="ph">[Ask the organisers directly: most will share sponsor contacts and what worked.]</span></td></tr>
+    </tbody>
+  </table>
+
+</div>
+
+<div class="section">
+  <h3 style="margin-top:0">Seven habits of tournaments that keep their sponsors</h3>
+  <ol>
+    <li><strong>Borrow credibility.</strong> Partner with SAFA eThekwini / GDLFA, a PSL club's community trust, or a school. Sponsors fund what looks safe and well run.</li>
+    <li><strong>One title sponsor plus category partners.</strong> One headline name, then kit, hydration, equipment, media and food partners, each with a clear, exclusive role.</li>
+    <li><strong>Prizes in kind.</strong> Equipment, kit and vouchers cost sponsors less and do more for clubs than cash.</li>
+    <li><strong>Talent identification and inclusion.</strong> Scouts present, a girls' division, and bursary places all make the story easier for a sponsor to tell.</li>
+    <li><strong>Media.</strong> Community radio (Ukhozi FM), local papers (e.g. Berea Mail) and the clubs' own social pages give sponsors visibility.</li>
+    <li><strong>Use the official channel.</strong> Big brands run CSI portals with set turnaround times (the Hollywood Foundation replies within about 14 working days). Letters alone often get lost.</li>
+    <li><strong>Report back and renew.</strong> Photos, numbers and a thank-you within weeks, then the renewal conversation before budgets are set.</li>
+  </ol>
+</div>
+
+<div class="section compact">
+  <h2><span class="num">2</span>Prospects by what they can give</h2>
+  <p class="howto">Each row lists why the prospect fits, how to approach them, and which letter to use. <span class="tag r">Hot</span> = strongest fit or existing link. <span class="tag">Warm</span> = good fit, needs an introduction. <span class="tag">Later</span> = closed or long-term.</p>
+
+  <h3>A. Kit &amp; apparel</h3>
+  <table>
+    <thead><tr><th style="width:22%">Prospect</th><th>Why they fit · how to approach</th><th style="width:11%">Letter</th><th style="width:9%"></th></tr></thead>
+    <tbody>
+      <tr><td><strong>Hollywoodbets / Hollywood Foundation</strong> (existing)</td><td>Already gave Growfit match kit. Their foundation sponsors grassroots kits and youth tournaments in KZN. Next ask: training wear, tour kit or Youth Cup support. Apply through the <strong>online sponsorship application</strong> on hollywoodfoundation.co.za (reply in about 14 working days).</td><td>L1</td><td><span class="tag r">Hot</span></td></tr>
+      <tr><td><strong>Mr Price Sport</strong> (Durban HQ)</td><td>A Durban-based retailer and Tier-1 sponsor of our own LFA (GDLFA). Ask the GDLFA for an introduction to the Mr Price Sport sponsorship team. Ask for training wear or equipment, or a Youth Cup prize partnership.</td><td>L2</td><td><span class="tag r">Hot</span></td></tr>
+      <tr><td><strong>The Sports Trust</strong></td><td>Delivers kit and equipment to disadvantaged schools and clubs on behalf of corporate funders, branded with the funder's logo. Ask to be listed as a beneficiary club in KZN. Contact: marketing@sportstrust.co.za · 011 802 1818.</td><td>L3</td><td><span class="tag">Warm</span></td></tr>
+      <tr><td><strong>Local kit makers</strong>: Susan Reid Design (Umgeni Rd, Durban); Just Brand, Ronex, Casco, GripSport (national)</td><td>Ask for a <strong>community rate</strong> or part-donation in return for "Kit made by" recognition. This makes any cash sponsor's money go further. Durban-made is a good story.</td><td>L4</td><td><span class="tag">Warm</span></td></tr>
+      <tr><td><strong>Totalsports</strong> (TFG)</td><td>A national sports retailer with community sponsorships (e.g. title sponsor of a grassroots athletics club). Start with the local store manager for vouchers, then head-office marketing for bigger asks.</td><td>L5</td><td><span class="tag">Warm</span></td></tr>
+      <tr><td><strong>Sportsmans Warehouse</strong></td><td>Sports retailer with a published sponsorship policy. Read it first, then apply. The local store is the best start for vouchers or end-of-range stock.</td><td>L5</td><td><span class="tag">Warm</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>B. Equipment</h3>
+  <table>
+    <tbody>
+      <tr><td style="width:22%"><strong>Hollywood Foundation</strong></td><td>Funds sports equipment for registered NPOs, schools and communities. Add equipment to the L1 application.</td><td style="width:11%">L1</td><td style="width:9%"><span class="tag r">Hot</span></td></tr>
+      <tr><td><strong>Mr Price Sport · Totalsports · Sportsmans Warehouse</strong></td><td>Balls, bibs, cones, goals, gloves, as vouchers or stock.</td><td>L2 / L5</td><td><span class="tag">Warm</span></td></tr>
+      <tr><td><strong>eThekwini Grant-in-Aid</strong> (Sports sector)</td><td>The annual municipal programme funds sports organisations among other sectors (R5.5m in 2026, 418 applications). Watch for the call. Grant-in-Aid Manager: 031 311 2070.</td><td>L9</td><td><span class="tag">Warm</span></td></tr>
+      <tr><td><strong>KZN Dept of Sport &amp; Recreation</strong></td><td>Runs a Club Development programme. Ask the district office what equipment or kit support is open to registered clubs. Tel 031 360 6574.</td><td>L9</td><td><span class="tag">Warm</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section compact">
+  <h3 style="margin-top:0">C. Hydration &amp; food</h3>
+  <table>
+    <thead><tr><th style="width:22%">Prospect</th><th>Why they fit · how to approach</th><th style="width:11%">Letter</th><th style="width:9%"></th></tr></thead>
+    <tbody>
+      <tr><td><strong>aQuellé</strong> (KZN-based water brand)</td><td>Official water sponsor of COSAFA and Netball SA, and supplies thousands of bottles to sports events each year. Bottles in KZN (Kranskop). Use the contact form on aquelle.co.za. <span class="small">Do reputational due diligence first: the brand is linked to KwaSizabantu Mission, which faced public abuse allegations in 2020.</span></td><td>L6</td><td><span class="tag">Warm</span></td></tr>
+      <tr><td><strong>Coca-Cola Beverages SA</strong> (Valpré water, Powerade)</td><td>Strong KZN presence and community programmes, including employee "Soul Ambassadors" volunteers. Ask for Valpré water and Powerade for the Youth Cup and the tour, through the regional office or community channel.</td><td>L6</td><td><span class="tag">Warm</span></td></tr>
+      <tr><td><strong>Energade</strong></td><td>Has been official sports drink of SAFA's national teams, so football fits the brand. Ask brand marketing for product for tournaments.</td><td>L6</td><td><span class="tag">Warm</span></td></tr>
+      <tr><td><strong>SPAR</strong> (Group head office: Pinetown)</td><td>A Durban-headquartered retailer that already sponsors AmaZulu FC. Independent SPAR store owners support local causes, so approach your <strong>nearest SPAR owner</strong> for fruit, water or vouchers. Head office: 031 719 1900.</td><td>L7</td><td><span class="tag r">Hot</span></td></tr>
+      <tr><td><strong>Pick n Pay · Shoprite · Boxer</strong> (local stores)</td><td>Store-level community budgets: snacks, water and vouchers for match days and camps.</td><td>L7</td><td><span class="tag">Warm</span></td></tr>
+      <tr><td><strong>BB Bakeries · local butchers &amp; bakeries</strong></td><td>BB Bakeries has partnered AmaZulu community outreach. Local suppliers for camp snacks and braai-day meat at cost.</td><td>L7</td><td><span class="tag">Warm</span></td></tr>
+    </tbody>
+  </table>
+
+</div>
+
+<div class="section compact">
+  <h3 style="margin-top:0">D. Money: corporate CSI, foundations &amp; government</h3>
+  <table>
+    <tbody>
+      <tr><td style="width:22%"><strong>Hollywood Foundation</strong></td><td>As above. Cash and kit for Youth Cup and tour asks.</td><td style="width:11%">L1</td><td style="width:9%"><span class="tag r">Hot</span></td></tr>
+      <tr><td><strong>Toyota South Africa Motors</strong> (Prospecton)</td><td>Durban's largest manufacturer, with a stated commitment to the community around Prospecton. Ask CSI for tour or programme funding, with a staff-volunteering angle.</td><td>L8</td><td><span class="tag">Warm</span></td></tr>
+      <tr><td><strong>Other large Durban employers</strong>: parents' employers, port and logistics firms, banks' local branches</td><td>Use parents' links first. A staff member who "brings" the ask is the strongest route. Use the B-BBEE SED angle.</td><td>L8</td><td><span class="tag r">Hot</span></td></tr>
+      <tr><td><strong>National Lotteries Commission</strong></td><td>Funds sport and recreation, including local clubs. Apply only during an open call.</td><td>D9*</td><td><span class="tag">Warm</span></td></tr>
+      <tr><td><strong>eThekwini Grant-in-Aid · KZN DSR</strong></td><td>See section B.</td><td>L9</td><td><span class="tag">Warm</span></td></tr>
+      <tr><td><strong>Motsepe Foundation</strong></td><td>Big in school football, but <strong>not accepting proposals</strong>. It chooses projects itself. Take part through the Kay Motsepe Schools Championship via players' schools.</td><td>–</td><td><span class="tag">Later</span></td></tr>
+      <tr><td><strong>Transnet Foundation</strong></td><td>Strong sport programme, but <strong>applications are closed</strong> (a moratorium on sponsorships). Check again in 6 months.</td><td>–</td><td><span class="tag">Later</span></td></tr>
+      <tr><td><strong>Mr Price Foundation</strong></td><td>Focuses on youth skills and employability, not sport. Only approach with a life-skills or coaching-qualification project.</td><td>–</td><td><span class="tag">Later</span></td></tr>
+    </tbody>
+  </table>
+  <p class="small">*D9 is the grant cover letter in the Donations &amp; Grants pack.</p>
+
+  <h3>E. Partners, media &amp; services</h3>
+  <table>
+    <tbody>
+      <tr><td style="width:22%"><strong>AmaZulu Community Trust</strong></td><td>Co-runs grassroots tournaments (Siyakhula Cup) with SAFA eThekwini and sponsors. Propose co-hosting the Growfit Youth Cup or a coaching clinic.</td><td style="width:11%">L10</td><td style="width:9%"><span class="tag r">Hot</span></td></tr>
+      <tr><td><strong>SAFA eThekwini / GDLFA</strong></td><td>Sanctioning, credibility and sponsor introductions (Mr Price Sport).</td><td>L10</td><td><span class="tag r">Hot</span></td></tr>
+      <tr><td><strong>Ukhozi FM · Berea Mail · local community papers</strong></td><td>Ukhozi FM has partnered grassroots football programmes before. Media coverage is a benefit we can offer sponsors.</td><td>L11</td><td><span class="tag">Warm</span></td></tr>
+      <tr><td><strong>Medical &amp; transport</strong></td><td>Not yet researched: private ambulance or first-aid providers (standby at a community rate), local pharmacies (first-aid kits), taxi associations and bus or air lines for the Gauteng tour.</td><td>S8 / T3</td><td><span class="tag">Warm</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h2><span class="num">3</span>Plan for the next 90 days</h2>
+  <table class="avoid">
+    <thead><tr><th style="width:6%">#</th><th>Action</th><th style="width:22%">Owner · by</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Thank Hollywoodbets for the kit (photos, numbers), then submit a Hollywood Foundation application for the next need (L1).</td><td><span class="ph">[name]</span> · week 1–2</td></tr>
+      <tr><td>2</td><td>Ask the GDLFA for introductions to Mr Price Sport and the AmaZulu Community Trust. Send L2 and L10.</td><td><span class="ph">[name]</span> · week 2</td></tr>
+      <tr><td>3</td><td>Parents' employer drive: every parent names one employer contact. Send L8 with a personal note.</td><td><span class="ph">[name]</span> · week 2–4</td></tr>
+      <tr><td>4</td><td>Visit 3 local stores (SPAR, Pick n Pay, sports retailer) with L7 and L5 printed, plus the one-page fact sheet.</td><td><span class="ph">[name]</span> · week 3–4</td></tr>
+      <tr><td>5</td><td>Hydration asks for the Youth Cup: aQuellé (after due diligence), CCBSA, Energade (L6).</td><td><span class="ph">[name]</span> · week 4</td></tr>
+      <tr><td>6</td><td>Kit maker community-rate quotes for the Gauteng tour kit (L4). Sports Trust beneficiary request (L3).</td><td><span class="ph">[name]</span> · week 4–6</td></tr>
+      <tr><td>7</td><td>Watch for eThekwini Grant-in-Aid, KZN DSR and NLC calls (L9 / D9).</td><td><span class="ph">[name]</span> · ongoing</td></tr>
+      <tr><td>8</td><td>Media: pitch the Youth Cup and the tour to Ukhozi FM and local papers (L11).</td><td><span class="ph">[name]</span> · 6 weeks before events</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Every pack should include</h3>
+  <ul>
+    <li>The covering letter (L1–L11), personalised, with one clear ask and one smaller alternative</li>
+    <li>The relevant proposal (Sponsorship pack, Youth Cup, Gauteng Tour or Camps)</li>
+    <li>NPC registration certificate, bank confirmation letter, <span class="ph">[PBO/NPO certificates if any]</span>, SAFA/GDLFA affiliation letter</li>
+    <li>2–3 consented photos (no full names) and the Hollywoodbets kit as proof that sponsors already back us</li>
+  </ul>
+
+  <h3>Brand suitability</h3>
+  <p>Our players are children, so every partner is checked for suitability before we accept support. We follow advertising rules that protect minors, including the gambling-advertising rules. Partner branding on children's kit is limited to a name or logo, with no betting promotions, odds or calls to action, and nothing aimed at under-18s. <span class="ph">[Confirm the academy's partner-suitability policy. See the note from Claude.]</span></p>
+</div>
+
+<div class="section">
+  <span class="tpl-label">L1 · Hollywood Foundation: thank-you &amp; next request</span>
+  <p class="howto">Send the thank-you now. Use the second part as the motivation text in the online sponsorship application.</p>
+  <div class="letter">
+    <div class="lh"><img src="../../../growfit.png" alt=""><div class="org"><b>Growfit Sports Academy NPC</b><br>NPC Reg. No. <span class="ph">[ ]</span><br><span class="ph">[address]</span><br><span class="ph">[email]</span> · <span class="ph">[phone]</span></div></div>
+    <p><span class="ph">[Date]</span></p>
+    <p>Hollywood Foundation · Hollywoodbets<br><span class="ph">[Contact name, role]</span></p>
+    <p>Dear <span class="ph">[Name]</span>,</p>
+    <p><strong>Thank you.</strong> On behalf of the players, parents and coaches of Growfit Sports Academy, thank you for the match kit Hollywoodbets provided to our teams. Since receiving it, our <span class="ph">[squads]</span> have played <span class="ph">[number]</span> matches in the Greater Durban Football League. <span class="ph">[One result or moment.]</span> Photos are attached.</p>
+    <p><strong>Our next step.</strong> In <span class="ph">[month]</span> 2027, our U15 and U17 squads will travel to <span class="ph">[tournament]</span> in Gauteng, the first national tournament for most of our 36 players. We will also host the <strong>Growfit Youth Cup</strong>, a holiday tournament for 24 U11–U15 teams from across Durban, modelled on events like the Siyakhula Under-15 Cup.</p>
+    <p>We would be grateful if the Hollywood Foundation would consider supporting <span class="ph">[choose: "training wear and tracksuits for the tour squads (R30,000)" / "equipment prizes for the Growfit Youth Cup (R10,000)" / "the Youth Cup as Headline Partner (R15,000)"]</span>. We will report back with photos, results and a full account of how the support was used.</p>
+    <p>Our tour and tournament proposals are attached.</p>
+    <p>With sincere thanks,<br><br>Buhle Madlala<br>Founder &amp; Academy Director, Growfit Sports Academy NPC</p>
+  </div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">L2 · Mr Price Sport (via GDLFA introduction)</span>
+  <div class="letter">
+    <p><span class="ph">[Date]</span></p>
+    <p>Dear <span class="ph">[Name]</span>,</p>
+    <p><span class="ph">[Name at GDLFA]</span> suggested I contact you. Growfit Sports Academy is a non-profit GDLFA member club running U11–U17 teams in Greater Durban. We were glad to see Mr Price Sport come on board as a Tier-1 sponsor of the GDLFA. It means a lot to Durban's junior clubs.</p>
+    <p>We would like to invite Mr Price Sport to support our players at club level, through <span class="ph">[choose: "training wear for 60 players" / "a season's equipment (balls, bibs, cones, goalkeeper gloves) worth R8,000" / "prizes for the Growfit Youth Cup, our 24-team holiday tournament"]</span>. In return, Mr Price Sport would be recognised as <span class="ph">[partner title]</span>: logo on <span class="ph">[training tops / Youth Cup banners and medals]</span>, social media features, and a presence at our matches and events.</p>
+    <p>Because sport development for black youth is a recognised socio-economic development activity, we can also provide a B-BBEE beneficiary letter. Our sponsorship proposal is attached. Could we meet for 20 minutes?</p>
+    <p>Kind regards,<br><br><span class="ph">[Name]</span> · Growfit Sports Academy NPC · <span class="ph">[phone]</span></p>
+  </div>
+
+  <span class="tpl-label" style="margin-top:6mm">L3 · The Sports Trust: beneficiary request</span>
+  <div class="letter">
+    <p>Dear Sports Trust team,</p>
+    <p>Growfit Sports Academy NPC is a registered non-profit youth football academy in Greater Durban, KwaZulu-Natal. We run U11–U17 teams in the Greater Durban Football League for about <span class="ph">[60]</span> players, most of them from <span class="ph">[communities]</span>. We are governed by eight adopted policies, including Child Protection &amp; Safeguarding.</p>
+    <p>We understand the Sports Trust delivers kit and equipment to schools and clubs on behalf of its corporate partners. We would like to be considered as a <strong>beneficiary club in KZN</strong> for <span class="ph">[soccer kits / training equipment: balls, bibs, cones, goals]</span>. We would welcome the funder's branding on any kit, report on use and impact, and host a handover with photos.</p>
+    <p>Our registration documents and a short profile are attached. Thank you for considering Growfit.</p>
+    <p>Kind regards,<br><br><span class="ph">[Name]</span> · <span class="ph">[Role]</span> · <span class="ph">[phone]</span> · <span class="ph">[email]</span></p>
+  </div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">L4 · Kit manufacturer: community rate / part-donation</span>
+  <div class="letter">
+    <p>Dear <span class="ph">[Name]</span>,</p>
+    <p>Growfit Sports Academy, a non-profit youth football academy in Durban, needs <span class="ph">[number]</span> custom sublimated kits (shirt, shorts and socks with names, numbers and logos) and <span class="ph">[number]</span> tracksuits for our U15 and U17 squads, ahead of a national tournament in Gauteng in <span class="ph">[month]</span> 2027.</p>
+    <p>Could <span class="ph">[Company]</span> quote at a <strong>community rate</strong>, or donate part of the order? In return, we would credit <span class="ph">[Company]</span> as our <strong>Official Kit Maker</strong>: a small "made by" mark on the kit where allowed, tags in all kit-launch and tour posts, and a recommendation to the 24 clubs at our Growfit Youth Cup. <span class="ph">[If Durban-made: "We'd love our players to wear kit made in Durban."]</span></p>
+    <p>Delivery needed by <span class="ph">[date]</span>. Size breakdown and design brief attached.</p>
+    <p>Kind regards,<br><br><span class="ph">[Name]</span> · <span class="ph">[phone]</span></p>
+  </div>
+
+  <span class="tpl-label" style="margin-top:6mm">L5 · Sports retailer store (Totalsports / Sportsmans Warehouse / Mr Price Sport)</span>
+  <p class="howto">Print and take it to the store manager in person, with the one-page fact sheet.</p>
+  <div class="letter">
+    <p>Dear Store Manager,</p>
+    <p>I'm <span class="ph">[name]</span> from Growfit Sports Academy, a non-profit football academy whose players and families shop in <span class="ph">[area]</span>. We are asking local sports stores to help keep our <span class="ph">[60]</span> young players equipped this season.</p>
+    <p>Could your store support us with <span class="ph">[a R2,000 equipment voucher / 10 match balls / end-of-range boots for our boot bank / prizes for our holiday tournament]</span>? We would thank your store on our social media and at our matches, and encourage our families to shop with you. If store-level support isn't possible, could you refer us to your regional marketing team?</p>
+    <p>Thank you,<br><br><span class="ph">[Name]</span> · <span class="ph">[phone]</span></p>
+  </div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">L6 · Hydration brand (water / sports drink)</span>
+  <div class="letter">
+    <p>Dear <span class="ph">[Name / Brand team]</span>,</p>
+    <p>Growfit Sports Academy is a non-profit youth football academy in Greater Durban. Healthy habits are part of how we coach: water before, during and after every session. We are inviting <span class="ph">[Brand]</span> to be the <strong>Official Hydration Partner</strong> of:</p>
+    <ul>
+      <li>the <strong>Growfit Youth Cup</strong>, <span class="ph">[date]</span>: 24 teams and about 360 players over one day (about <span class="ph">[1,000]</span> bottles), and/or</li>
+      <li>our <strong>Gauteng Tour 2027</strong>: 42 travellers for 5 days, and/or</li>
+      <li>our weekly <strong>training and home matches</strong> for <span class="ph">[60]</span> players.</li>
+    </ul>
+    <p>In return: "Hydration Partner" branding at water points and on banners, a sampling stand at the Youth Cup, social media features, and mention in our post-event report. We would also welcome your staff volunteers on the day.</p>
+    <p>Our tournament proposal is attached. Thank you for considering it.</p>
+    <p>Kind regards,<br><br><span class="ph">[Name]</span> · Growfit Sports Academy NPC · <span class="ph">[phone]</span></p>
+  </div>
+
+  <span class="tpl-label" style="margin-top:6mm">L7 · Supermarket store owner (SPAR / Pick n Pay / Shoprite)</span>
+  <div class="letter">
+    <p>Dear <span class="ph">[Owner / Manager name]</span>,</p>
+    <p>Many of the families at Growfit Sports Academy, a non-profit youth football academy, shop at your store in <span class="ph">[area]</span>. We are asking you to support our young players with <span class="ph">[fruit and water for Sunday home matches this term / snacks for 48 children at our holiday camp on <span>[dates]</span> / a R1,500 voucher for the Growfit Youth Cup]</span>.</p>
+    <p>We would proudly thank <span class="ph">[Store name]</span> as a <strong>Community Partner</strong> on our social media, on a banner at our matches and in our tournament programme. We would also encourage our families to keep supporting your store.</p>
+    <p>Thank you for being part of our community,<br><br><span class="ph">[Name]</span> · <span class="ph">[phone]</span></p>
+  </div>
+</div>
+
+<div class="section">
+  <span class="tpl-label">L8 · Corporate CSI (large employer / parents' employers)</span>
+  <p class="howto">Strongest when a staff member or parent forwards it internally. Add their name in the first line.</p>
+  <div class="letter">
+    <div class="lh"><img src="../../../growfit.png" alt=""><div class="org"><b>Growfit Sports Academy NPC</b><br>NPC Reg. No. <span class="ph">[ ]</span><br><span class="ph">[email]</span> · <span class="ph">[phone]</span></div></div>
+    <p><span class="ph">[Date]</span></p>
+    <p><span class="ph">[Name, CSI / Marketing Manager]</span><br><span class="ph">[Company]</span></p>
+    <p>Dear <span class="ph">[Name]</span>,</p>
+    <p><span class="ph">[Colleague / parent name]</span>, whose child plays for us, suggested I write to you. Growfit Sports Academy NPC is a registered non-profit youth football academy in Greater Durban, founded in 2023, running teams from U11 to U17 in the Greater Durban Football League.</p>
+    <p>We are seeking <strong><span class="ph">[R amount]</span></strong> from <span class="ph">[Company]</span>'s social investment budget toward <span class="ph">[the Gauteng Tour 2027 / the Growfit Youth Cup / a season of equipment and transport]</span>. This would <span class="ph">[outcome with numbers]</span>.</p>
+    <p>For <span class="ph">[Company]</span>, this offers: recognition as <span class="ph">[package]</span>; a contribution that may count toward <strong>B-BBEE socio-economic development</strong> (at least 75% of our beneficiaries are black youth, and we provide the beneficiary letter); a staff volunteering opportunity; and a clear report on impact and spending.</p>
+    <p>The relevant proposal is enclosed. I would welcome a short meeting.</p>
+    <p>Yours sincerely,<br><br>Buhle Madlala, Founder &amp; Academy Director</p>
+  </div>
+
+</div>
+
+<div class="section">
+  <span class="tpl-label">L9 · Municipality / provincial department</span>
+  <div class="letter">
+    <p>To: <span class="ph">[eThekwini Grant-in-Aid Manager / KZN DSR eThekwini District, Club Development]</span></p>
+    <p>Dear <span class="ph">[Name]</span>,</p>
+    <p>Growfit Sports Academy NPC (Reg. <span class="ph">[ ]</span>) is a registered youth football academy in <span class="ph">[ward / area]</span>, affiliated to the Greater Durban LFA under SAFA eThekwini. We develop about <span class="ph">[60]</span> young players under eight adopted policies, including Child Protection &amp; Safeguarding.</p>
+    <p>We would like to <span class="ph">[apply for the Sports sector of the Grant-in-Aid programme / be considered for Club Development support]</span> for <span class="ph">[project: equipment, kit, coaching courses, the Growfit Youth Cup]</span>, at a value of <span class="ph">[R ]</span>. Please advise us of the current application process and deadlines. Our registration documents are attached.</p>
+    <p>We would also be honoured to welcome the <span class="ph">[Department / ward councillor]</span> at the Growfit Youth Cup on <span class="ph">[date]</span>.</p>
+    <p>Yours faithfully,<br><br>Buhle Madlala, Founder &amp; Academy Director · <span class="ph">[phone]</span></p>
+  </div>
+</div>
+
+  <span class="tpl-label" style="margin-top:6mm">L10 · PSL club community trust / LFA: event partnership</span>
+  <div class="letter">
+    <p>Dear <span class="ph">[Name, AmaZulu Community Trust / GDLFA / SAFA eThekwini]</span>,</p>
+    <p>Growfit Sports Academy, a non-profit GDLFA member club, admires the work behind grassroots events such as the <strong>Siyakhula Under-15 Cup</strong>. We are planning the <strong>Growfit Youth Cup</strong>: a one-day holiday tournament for 24 U11–U15 teams from across Durban on <span class="ph">[date]</span> at <span class="ph">[venue]</span>, with qualified referees, first aid and safeguarding.</p>
+    <p>We would like to invite <span class="ph">[organisation]</span> to <span class="ph">[co-host / endorse / send scouts and coaches to]</span> the tournament. Possible roles include a coaching clinic for players, a talent-identification presence, help with sanctioning and referees, or an introduction to sponsors. Partners would be credited in all event materials.</p>
+    <p>Our tournament proposal is attached. Could we meet to discuss?</p>
+    <p>Kind regards,<br><br>Buhle Madlala · <span class="ph">[phone]</span></p>
+  </div>
+
+</div>
+
+<div class="section">
+  <span class="tpl-label">L11 · Media partnership (community radio / local paper)</span>
+  <div class="msg"><strong>Subject:</strong> Story &amp; media partnership: Durban youth football <span class="ph">[Youth Cup / Gauteng Tour]</span><br><br>
+  Hi <span class="ph">[Name]</span>,<br><br>
+  Growfit Sports Academy, a non-profit grassroots football academy in <span class="ph">[area]</span>, is <span class="ph">[hosting the Growfit Youth Cup for 24 teams on <span>[date]</span> / taking 36 young players to a national tournament in Gauteng]</span>. We'd love <span class="ph">[station/paper]</span> to be our <strong>media partner</strong>: a pre-event interview, a mention on the day, and a results story. In return, your logo goes on our banners and programme, and you get exclusive photos and access to coaches and (consented) players.<br><br>
+  Could we set up a quick call?<br><br>
+  <span class="ph">[Name]</span> · <span class="ph">[phone]</span></div>
+
+  <h3>Sources</h3>
+  <ul class="src">
+    <li>Siyakhula U15 Cup (AmaZulu Community Trust, Hollywoodbets, SAFA eThekwini): https://hollywoodfoundation.co.za/programmes/sponsorship/soccer-sponsorships/amazulu-community-trust-and-hollywoodbets-unite-for-inclusive-youth-football-siyakhula-under-15-cup/</li>
+    <li>Hollywood Foundation applications: https://hollywoodfoundation.co.za/applications/csi-application/</li>
+    <li>Engen Knockout Challenge: https://engensports.co.za/engen-knockout-challenge/ · https://ssschoolsplus.co.za/engen-knockout-challenge-ready-to-kick-off-in-kzn/</li>
+    <li>Kay Motsepe Schools Championship: https://kaymotsepe.com/about-us/ · Motsepe Foundation FAQ (not accepting proposals): https://www.motsepefoundation.org/resources/faq/</li>
+    <li>KZN Premier's Cup 2025: https://www.kznonline.gov.za/</li>
+    <li>Danone Nations Cup: https://www.danonenationscup.com/en/country/za/boy</li>
+    <li>GDLFA × Mr Price Sport: https://sportswire.co.za/mr-price-sport-and-the-greater-durban-local-football-association/ · Ukhozi FM / AmaZulu: https://risingsunnewspapers.co.za/321661/</li>
+    <li>The Sports Trust: https://www.thesportstrust.co.za/</li>
+    <li>Susan Reid Design (Durban kit maker): https://susanreiddesign.co.za/sports-kit/</li>
+    <li>aQuellé: https://aquelle.co.za/about-us/ · COSAFA water sponsor: https://cosafa.com/cosafa-welcomes-aquelle-as-water-sponsor-in-2022/</li>
+    <li>CCBSA community: https://www.ccbagroup.com/ · Energade × SAFA: https://www.isportconnect.com/energade-become-official-sports-drink-of-south-african-football-association/</li>
+    <li>SPAR sponsorships: https://www.spar.co.za/Lifestyle/Sponsorship-Application-Portal/Sponsorships</li>
+    <li>Transnet Foundation (applications closed): https://transnetfoundation.co.za/grants-donations.html</li>
+    <li>eThekwini Grant-in-Aid 2026: https://iol.co.za/news/south-africa/kwazulu-natal/2026-04-15-concerns-over-ethekwini-municipalitys-r55-million-grant-in-aid-programme/</li>
+    <li>Gambling advertising and minors: https://www.ngb.org.za/wp-content/uploads/2025/12/NGB-Statement-Gambling-Advertising.pdf · https://www.businessday.co.za/news/2026-02-19-new-gambling-advertising-rules-expected-by-july/</li>
+  </ul>
+</div>
+
+</body>
+</html>
