@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Growfit Partnership Summary 2027</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4; margin: 18mm 17mm 20mm 17mm; }
+  :root {
+    --red: #AF2D35; --red-dark: #6B1B1F; --red-tint: #F7EAEB;
+    --ink: #16181D; --ink-2: #474C55; --ink-3: #7A808A;
+    --rule: #DADDE2; --panel: #F5F6F8;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: #fff; }
+  body { font-family: Inter, "Liberation Sans", Arial, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.5; margin: 0; }
+  h1, h2, h3 { line-height: 1.2; margin: 0; }
+  h2 { font-size: 17pt; font-weight: 800; color: var(--ink); margin: 0 0 4mm; padding-top: 1mm; }
+  h2 .num { color: var(--red); margin-right: 6px; }
+  h3 { font-size: 11pt; font-weight: 700; margin: 5mm 0 2mm; }
+  p { margin: 0 0 2.6mm; }
+  ul { margin: 0 0 3mm; padding-left: 5mm; }
+  li { margin-bottom: 1.2mm; }
+  .section { break-before: page; }
+  .avoid { break-inside: avoid; }
+  .muted { color: var(--ink-2); }
+  .small { font-size: 8.5pt; color: var(--ink-3); }
+  strong { font-weight: 700; }
+
+  /* cover */
+  .cover { height: 257mm; display: flex; flex-direction: column; }
+  .cover-top { display: flex; align-items: center; gap: 6mm; }
+  .cover-top img { width: 26mm; height: 26mm; }
+  .cover-org { font-weight: 700; font-size: 11pt; }
+  .cover-org span { display: block; font-weight: 400; color: var(--ink-2); font-size: 9.5pt; }
+  .cover-band { margin-top: 30mm; border-left: 3mm solid var(--red); padding-left: 7mm; }
+  .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: 8.5pt; font-weight: 700; color: var(--red); }
+  .cover h1 { font-size: 30pt; font-weight: 800; margin: 3mm 0 4mm; letter-spacing: -.01em; }
+  .cover .lede { font-size: 12pt; color: var(--ink-2); max-width: 150mm; }
+  .cover-ask { margin-top: 18mm; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+  .cover-foot { margin-top: auto; border-top: 1px solid var(--rule); padding-top: 4mm; display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; font-size: 9pt; color: var(--ink-2); }
+  .cover-foot b { color: var(--ink); }
+
+  /* tiles */
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 4mm 0 5mm; }
+  .tile { background: var(--panel); border-radius: 3mm; padding: 3.5mm 4mm; }
+  .tile .v { font-size: 16pt; font-weight: 800; color: var(--ink); line-height: 1.1; }
+  .tile .l { font-size: 8.3pt; color: var(--ink-2); margin-top: 1.2mm; line-height: 1.35; }
+  .tile.hero { background: var(--red); }
+  .tile.hero .v, .tile.hero .l { color: #fff; }
+
+  /* tables */
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 9pt; }
+  th { text-align: left; font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); border-bottom: 1.5px solid var(--ink); padding: 2mm 2mm; }
+  td { border-bottom: 1px solid var(--rule); padding: 2mm 2mm; vertical-align: top; }
+  td.n, th.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tr.sub td { background: var(--panel); font-weight: 600; }
+  tr.total td { border-top: 1.5px solid var(--ink); border-bottom: none; font-weight: 800; font-size: 10pt; }
+  tr.total td.n { color: var(--red); }
+
+  .callout { background: var(--red-tint); border-left: 1.2mm solid var(--red); padding: 3.5mm 4.5mm; border-radius: 0 2mm 2mm 0; margin: 3mm 0 4mm; }
+  .callout p:last-child { margin: 0; }
+  .note { background: var(--panel); padding: 3mm 4mm; border-radius: 2mm; font-size: 8.8pt; color: var(--ink-2); margin: 3mm 0; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+  .card { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; }
+  .card h3 { margin-top: 0; }
+
+  /* weekly cycle */
+  .cycle { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2mm; margin: 3mm 0 4mm; }
+  .step { border-top: 1.2mm solid var(--red); background: var(--panel); padding: 2.5mm 3mm; border-radius: 0 0 2mm 2mm; font-size: 8.5pt; }
+  .step b { display: block; font-size: 9pt; margin-bottom: .8mm; }
+  .step .d { color: var(--red); font-weight: 700; font-size: 7.8pt; text-transform: uppercase; letter-spacing: .06em; }
+
+  /* bar figure */
+  .fig { margin: 3mm 0 2mm; }
+  .bar-row { display: grid; grid-template-columns: 30mm 1fr 22mm; align-items: center; gap: 3mm; margin: 2.2mm 0; font-size: 9pt; }
+  .bar-track { position: relative; height: 7mm; }
+  .bar { height: 100%; background: var(--red); border-radius: 0 1.2mm 1.2mm 0; }
+  .ref { position: absolute; top: -2mm; bottom: -2mm; border-left: 1.5px dashed var(--ink); }
+  .ref-label { font-size: 7.8pt; color: var(--ink-2); position: absolute; top: -6mm; transform: translateX(-50%); white-space: nowrap; }
+  .fig-cap { font-size: 8.3pt; color: var(--ink-3); margin-top: 1mm; }
+
+  .compact table { font-size: 8.3pt; margin: 1.5mm 0 2.5mm; }
+  .compact td { padding: 1.3mm 2mm; }
+  .compact h3 { margin: 2.5mm 0 1mm; }
+  .compact li { margin-bottom: .6mm; font-size: 9pt; }
+  .compact .callout { margin: 2mm 0; padding: 2.5mm 4mm; }
+  .sig { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 10mm; }
+  .sig div { border-top: 1px solid var(--ink); padding-top: 2mm; font-size: 9pt; color: var(--ink-2); }
+  .src { font-size: 8pt; color: var(--ink-2); word-break: break-all; }
+  .src li { margin-bottom: .8mm; }
+  .tag { display: inline-block; border-radius: 1mm !important; font-size: 7.5pt; font-weight: 700; padding: .3mm 1.8mm; border-radius: 10mm; background: var(--panel); color: var(--ink-2); text-transform: uppercase; letter-spacing: .05em; }
+  .tag.r { background: var(--red-tint); color: var(--red-dark); }
+
+  .ph { background: #F7EAEB; color: #6B1B1F; padding: 0 1.2mm; border-radius: 1mm; font-weight: 600; }
+  .tpl-label { display:inline-block; font-size: 8pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #fff; background: var(--ink); padding: .8mm 2.5mm; border-radius: 1mm; margin-bottom: 3mm; }
+  .letter { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 7mm 8mm; font-size: 9.6pt; }
+  .letter p { margin-bottom: 2.8mm; }
+  .letter .lh { display:flex; justify-content: space-between; align-items:flex-start; border-bottom: 1.5px solid var(--red); padding-bottom: 3mm; margin-bottom: 5mm; }
+  .letter .lh img { width: 15mm; height: 15mm; }
+  .letter .lh .org { text-align:right; font-size: 8.3pt; color: var(--ink-2); line-height: 1.4; }
+  .letter .lh .org b { color: var(--ink); font-size: 9.5pt; }
+  .msg { background: var(--panel); border-radius: 3mm; padding: 4mm 5mm; font-size: 9.6pt; white-space: normal; }
+  .howto { font-size: 8.8pt; color: var(--ink-2); margin: 0 0 3mm; }
+  .form-row { display:grid; grid-template-columns: 45mm 1fr; border-bottom: 1px solid var(--rule); padding: 2.6mm 0; font-size: 9.3pt; }
+  .form-row span:last-child { border-bottom: 1px dotted var(--ink-3); }
+  .check { display:inline-block; width:3.2mm; height:3.2mm; border:1px solid var(--ink); margin-right:1.5mm; vertical-align:-0.4mm; }
+  .tier { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; break-inside: avoid; }
+  .tier .price { color: var(--red); font-weight: 800; font-size: 13pt; }
+  .tier h3 { margin: 0 0 1mm; }
+  .tiers { display:grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; }
+  .tiers ul { margin-bottom: 0; }
+  .toc { columns: 2; font-size: 9.5pt; }
+</style>
+</head>
+<body><style>
+  .hdr { display:flex; align-items:center; gap:5mm; border-bottom: 1.5px solid var(--red); padding-bottom: 3mm; margin-bottom: 5mm; }
+  .hdr img { width: 16mm; height: 16mm; }
+  .hdr b { font-size: 11pt; } .hdr span { display:block; font-size: 8.5pt; color: var(--ink-2); }
+  h1.g { font-size: 22pt; font-weight: 800; line-height: 1.12; margin: 0 0 3mm; }
+  .three { display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 3.5mm; }
+  .pkgt td, .pkgt th { padding: 1.6mm 2mm; }
+  .check-list li { list-style:none; position:relative; padding-left:5mm; margin-bottom:1mm; }
+  .check-list li::before { content:"✓"; position:absolute; left:0; color: var(--red); font-weight:800; }
+</style>
+<div>
+  <div class="hdr"><img src="../../../growfit.png" alt=""><div><b>Growfit Sports Academy NPC</b><span>In partnership with North Crest Primary School · Greater Durban · Partnership summary 2027</span></div></div>
+  <h1 class="g">Put your name where Durban's families look every week</h1>
+  <p class="muted" style="font-size:10.5pt">On the shirts of young footballers, on the touchline at every match and tournament, across a primary-school community, and in the social media feeds of the families who decide where their households spend.</p>
+  <div class="tiles">
+    <div class="tile hero"><div class="v">Up to ~355,000</div><div class="l">Brand impressions a year with our content programme (target · ~138,000 today)</div></div>
+    <div class="tile"><div class="v">3 divisions</div><div class="l">U12 · U15 · U17, ~60 players, 12+ league matches each</div></div>
+    <div class="tile"><div class="v">~9</div><div class="l">Tournament entries a year, plus our own Growfit Youth Cup twice a year</div></div>
+    <div class="tile"><div class="v">~735</div><div class="l">Learners at North Crest Primary, our partner school <span class="ph">[confirm]</span></div></div>
+  </div>
+  <h3>Who we are</h3>
+  <p>A registered non-profit football academy founded in 2023, playing in the Greater Durban Football League under SAFA eThekwini. We have SAFA-registered players and police-cleared coaches, and work to eight adopted policies, including child safeguarding. <strong>Hollywoodbets already backs our players with match kit</strong> <span class="ph">[confirm permission to name]</span>.</p>
+  <h3>Where your brand is seen</h3>
+  <div class="three">
+    <div class="card"><h3>On the pitch</h3><p>Kit, tracksuits, banners and medals at league matches, training, tournaments, camps and the Gauteng Tour. That's about <strong>17,700</strong> in-person sightings a season, plus about <strong>72,000</strong> everyday sightings of tracksuits and bags.</p></div>
+    <div class="card"><h3>At North Crest</h3><p>Recognition in a 700-plus-learner school community: newsletters, sports days, prize-givings. About <strong>15,000</strong> impressions a year. <span class="small">(Family-appropriate brands only, subject to school approval.)</span></p></div>
+    <div class="card"><h3>Online</h3><p>Partner funding pays for a part-time content manager: weekly match content, highlight clips and a monthly <strong>Partner Spotlight</strong>. The year-1 target is about <strong>250,000</strong> impressions.</p></div>
+  </div>
+  <h3>Why your support matters</h3>
+  <p>Most of our families come from disadvantaged backgrounds. <strong>Tournament entry fees, transport and kit</strong> are what hold our players back. Partner support pays for them, and every tournament we enter becomes another stage for your brand.</p>
+</div>
+
+<div class="section">
+  <h2 style="margin-top:0">Partnership options</h2>
+  <p class="small">One partner per category: only one bank, one supermarket, one water brand, and so on. Monthly payment is available on annual packages.</p>
+  <table class="pkgt">
+    <thead><tr><th>Package</th><th class="n">Investment</th><th class="n">≈ per day</th><th>Headline benefit</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Headline Academy Partner</strong></td><td class="n">R60,000 / yr</td><td class="n">R164</td><td>Main shirt-front logo, on everything we publish, top billing at the Youth Cup</td></tr>
+      <tr><td><strong>Digital &amp; Content Partner</strong></td><td class="n">R60,000 / yr</td><td class="n">R164</td><td>Your logo on every post and video. Funds our content manager</td></tr>
+      <tr><td><strong>Team Wear Partner</strong></td><td class="n">R30,000 / yr</td><td class="n">R82</td><td>Tracksuits, training tops and kit bags, worn in public every day</td></tr>
+      <tr><td><strong>Tournament Entry Partner</strong></td><td class="n">R28,000 / yr</td><td class="n">R77</td><td>Pays our ~7 regional tournament entries. Your banner in every team photo</td></tr>
+      <tr><td><strong>Kit Partner</strong></td><td class="n">R25,000 / season</td><td class="n">R68</td><td>Sleeve or back-of-shirt logo, in every match photo and clip</td></tr>
+      <tr><td><strong>North Crest Schools Programme Partner</strong></td><td class="n">R20,000 / yr</td><td class="n">R55</td><td>School football at North Crest, with recognition to the school community</td></tr>
+      <tr><td><strong>Youth Cup Partner</strong></td><td class="n">R15,000 / event</td><td class="n">–</td><td>"Growfit Youth Cup, presented by you", with ~1,100 people and a R39,000 prize pool</td></tr>
+      <tr><td><strong>Division Prize Partner</strong></td><td class="n">~R13,850 / event</td><td class="n">–</td><td>"Your name U15 Cup". You present the prizes on stage</td></tr>
+      <tr><td><strong>Squad Partner</strong></td><td class="n">R8,000 / season</td><td class="n">R22</td><td>One division's equipment and travel. Logo on its bibs and banner</td></tr>
+      <tr><td><strong>Match Camera Partner</strong></td><td class="n">R6,000 / yr</td><td class="n">R16</td><td>Your logo on every highlight clip</td></tr>
+      <tr><td><strong>Sponsor a Player</strong></td><td class="n">R1,500 / season</td><td class="n">R4</td><td>One child's registration, kit and transport</td></tr>
+    </tbody>
+  </table>
+  <div class="two">
+    <div>
+      <h3>Every package includes</h3>
+      <ul class="check-list">
+        <li>A trackable offer code for our families</li>
+        <li>A featured Business Directory listing</li>
+        <li>Partner breakfasts with fellow sponsors</li>
+        <li>A B-BBEE socio-economic development letter</li>
+        <li>A quarterly report with photos and numbers</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Founding Partners 2027</h3>
+      <p>The first six partners to sign before <span class="ph">[date]</span> get the 2027 price locked for 2028, lifetime Founding Partner recognition, first choice of category, and a free pitch naming at the next Youth Cup.</p>
+      <p class="small"><strong>Our delivery promise:</strong> if we miss an agreed placement or report, you get an extra month of exposure free.</p>
+    </div>
+  </div>
+  <div class="callout"><p><strong>Let's talk: 20 minutes, at your office or ours.</strong> <span class="ph">[Name]</span> · <span class="ph">[phone]</span> · <span class="ph">[email]</span>. The full prospectus and media kit are available on request.</p></div>
+</div>
+</body></html>
