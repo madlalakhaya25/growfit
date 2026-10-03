@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Growfit Sponsor Media Kit</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4; margin: 18mm 17mm 20mm 17mm; }
+  :root {
+    --red: #AF2D35; --red-dark: #6B1B1F; --red-tint: #F7EAEB;
+    --ink: #16181D; --ink-2: #474C55; --ink-3: #7A808A;
+    --rule: #DADDE2; --panel: #F5F6F8;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: #fff; }
+  body { font-family: Inter, "Liberation Sans", Arial, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.5; margin: 0; }
+  h1, h2, h3 { line-height: 1.2; margin: 0; }
+  h2 { font-size: 17pt; font-weight: 800; color: var(--ink); margin: 0 0 4mm; padding-top: 1mm; }
+  h2 .num { color: var(--red); margin-right: 6px; }
+  h3 { font-size: 11pt; font-weight: 700; margin: 5mm 0 2mm; }
+  p { margin: 0 0 2.6mm; }
+  ul { margin: 0 0 3mm; padding-left: 5mm; }
+  li { margin-bottom: 1.2mm; }
+  .section { break-before: page; }
+  .avoid { break-inside: avoid; }
+  .muted { color: var(--ink-2); }
+  .small { font-size: 8.5pt; color: var(--ink-3); }
+  strong { font-weight: 700; }
+
+  /* cover */
+  .cover { height: 257mm; display: flex; flex-direction: column; }
+  .cover-top { display: flex; align-items: center; gap: 6mm; }
+  .cover-top img { width: 26mm; height: 26mm; }
+  .cover-org { font-weight: 700; font-size: 11pt; }
+  .cover-org span { display: block; font-weight: 400; color: var(--ink-2); font-size: 9.5pt; }
+  .cover-band { margin-top: 30mm; border-left: 3mm solid var(--red); padding-left: 7mm; }
+  .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: 8.5pt; font-weight: 700; color: var(--red); }
+  .cover h1 { font-size: 30pt; font-weight: 800; margin: 3mm 0 4mm; letter-spacing: -.01em; }
+  .cover .lede { font-size: 12pt; color: var(--ink-2); max-width: 150mm; }
+  .cover-ask { margin-top: 18mm; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+  .cover-foot { margin-top: auto; border-top: 1px solid var(--rule); padding-top: 4mm; display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; font-size: 9pt; color: var(--ink-2); }
+  .cover-foot b { color: var(--ink); }
+
+  /* tiles */
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 4mm 0 5mm; }
+  .tile { background: var(--panel); border-radius: 3mm; padding: 3.5mm 4mm; }
+  .tile .v { font-size: 16pt; font-weight: 800; color: var(--ink); line-height: 1.1; }
+  .tile .l { font-size: 8.3pt; color: var(--ink-2); margin-top: 1.2mm; line-height: 1.35; }
+  .tile.hero { background: var(--red); }
+  .tile.hero .v, .tile.hero .l { color: #fff; }
+
+  /* tables */
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 9pt; }
+  th { text-align: left; font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-2); border-bottom: 1.5px solid var(--ink); padding: 2mm 2mm; }
+  td { border-bottom: 1px solid var(--rule); padding: 2mm 2mm; vertical-align: top; }
+  td.n, th.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tr.sub td { background: var(--panel); font-weight: 600; }
+  tr.total td { border-top: 1.5px solid var(--ink); border-bottom: none; font-weight: 800; font-size: 10pt; }
+  tr.total td.n { color: var(--red); }
+
+  .callout { background: var(--red-tint); border-left: 1.2mm solid var(--red); padding: 3.5mm 4.5mm; border-radius: 0 2mm 2mm 0; margin: 3mm 0 4mm; }
+  .callout p:last-child { margin: 0; }
+  .note { background: var(--panel); padding: 3mm 4mm; border-radius: 2mm; font-size: 8.8pt; color: var(--ink-2); margin: 3mm 0; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+  .card { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; }
+  .card h3 { margin-top: 0; }
+
+  /* weekly cycle */
+  .cycle { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2mm; margin: 3mm 0 4mm; }
+  .step { border-top: 1.2mm solid var(--red); background: var(--panel); padding: 2.5mm 3mm; border-radius: 0 0 2mm 2mm; font-size: 8.5pt; }
+  .step b { display: block; font-size: 9pt; margin-bottom: .8mm; }
+  .step .d { color: var(--red); font-weight: 700; font-size: 7.8pt; text-transform: uppercase; letter-spacing: .06em; }
+
+  /* bar figure */
+  .fig { margin: 3mm 0 2mm; }
+  .bar-row { display: grid; grid-template-columns: 30mm 1fr 22mm; align-items: center; gap: 3mm; margin: 2.2mm 0; font-size: 9pt; }
+  .bar-track { position: relative; height: 7mm; }
+  .bar { height: 100%; background: var(--red); border-radius: 0 1.2mm 1.2mm 0; }
+  .ref { position: absolute; top: -2mm; bottom: -2mm; border-left: 1.5px dashed var(--ink); }
+  .ref-label { font-size: 7.8pt; color: var(--ink-2); position: absolute; top: -6mm; transform: translateX(-50%); white-space: nowrap; }
+  .fig-cap { font-size: 8.3pt; color: var(--ink-3); margin-top: 1mm; }
+
+  .compact table { font-size: 8.3pt; margin: 1.5mm 0 2.5mm; }
+  .compact td { padding: 1.3mm 2mm; }
+  .compact h3 { margin: 2.5mm 0 1mm; }
+  .compact li { margin-bottom: .6mm; font-size: 9pt; }
+  .compact .callout { margin: 2mm 0; padding: 2.5mm 4mm; }
+  .sig { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 10mm; }
+  .sig div { border-top: 1px solid var(--ink); padding-top: 2mm; font-size: 9pt; color: var(--ink-2); }
+  .src { font-size: 8pt; color: var(--ink-2); word-break: break-all; }
+  .src li { margin-bottom: .8mm; }
+  .tag { display: inline-block; border-radius: 1mm !important; font-size: 7.5pt; font-weight: 700; padding: .3mm 1.8mm; border-radius: 10mm; background: var(--panel); color: var(--ink-2); text-transform: uppercase; letter-spacing: .05em; }
+  .tag.r { background: var(--red-tint); color: var(--red-dark); }
+
+  .ph { background: #F7EAEB; color: #6B1B1F; padding: 0 1.2mm; border-radius: 1mm; font-weight: 600; }
+  .tpl-label { display:inline-block; font-size: 8pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #fff; background: var(--ink); padding: .8mm 2.5mm; border-radius: 1mm; margin-bottom: 3mm; }
+  .letter { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 7mm 8mm; font-size: 9.6pt; }
+  .letter p { margin-bottom: 2.8mm; }
+  .letter .lh { display:flex; justify-content: space-between; align-items:flex-start; border-bottom: 1.5px solid var(--red); padding-bottom: 3mm; margin-bottom: 5mm; }
+  .letter .lh img { width: 15mm; height: 15mm; }
+  .letter .lh .org { text-align:right; font-size: 8.3pt; color: var(--ink-2); line-height: 1.4; }
+  .letter .lh .org b { color: var(--ink); font-size: 9.5pt; }
+  .msg { background: var(--panel); border-radius: 3mm; padding: 4mm 5mm; font-size: 9.6pt; white-space: normal; }
+  .howto { font-size: 8.8pt; color: var(--ink-2); margin: 0 0 3mm; }
+  .form-row { display:grid; grid-template-columns: 45mm 1fr; border-bottom: 1px solid var(--rule); padding: 2.6mm 0; font-size: 9.3pt; }
+  .form-row span:last-child { border-bottom: 1px dotted var(--ink-3); }
+  .check { display:inline-block; width:3.2mm; height:3.2mm; border:1px solid var(--ink); margin-right:1.5mm; vertical-align:-0.4mm; }
+  .tier { border: 1px solid var(--rule); border-radius: 2.5mm; padding: 3.5mm 4mm; break-inside: avoid; }
+  .tier .price { color: var(--red); font-weight: 800; font-size: 13pt; }
+  .tier h3 { margin: 0 0 1mm; }
+  .tiers { display:grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; }
+  .tiers ul { margin-bottom: 0; }
+  .toc { columns: 2; font-size: 9.5pt; }
+</style>
+</head>
+<body>
+<style>
+  .flow { display:grid; grid-template-columns: 1fr 5mm 1fr 5mm 1fr 5mm 1fr; align-items: stretch; margin: 3mm 0 4mm; }
+  .flow .col { background: var(--panel); border-radius: 2.5mm; padding: 3mm 3.2mm; }
+  .flow .col.brand { background: var(--red); color:#fff; }
+  .flow .col.brand .item { background: rgba(255,255,255,.14); color:#fff; }
+  .flow .col h4 { margin: 0 0 2mm; font-size: 8.3pt; text-transform: uppercase; letter-spacing: .08em; }
+  .flow .item { background:#fff; border-radius: 1.5mm; padding: 1.3mm 2mm; margin-bottom: 1.4mm; font-size: 8.4pt; line-height: 1.3; }
+  .flow .arrow { display:flex; align-items:center; justify-content:center; color: var(--ink-3); font-size: 12pt; }
+  .fig-row { display:grid; grid-template-columns: 78mm 1fr; gap: 6mm; align-items: center; }
+  svg text { font-family: Inter, "Liberation Sans", Arial, sans-serif; }
+  .legend-dot { display:inline-block; width:3mm; height:3mm; border-radius:50%; vertical-align:-0.4mm; margin-right:1.5mm; }
+</style>
+
+<div class="cover">
+  <div class="cover-top">
+    <img src="../../../growfit.png" alt="Growfit Football Academy crest">
+    <div class="cover-org">Growfit Sports Academy NPC<span>Grassroots football · Greater Durban, KwaZulu-Natal</span></div>
+  </div>
+  <div class="cover-band">
+    <div class="eyebrow">Sponsor media kit · Season 2027</div>
+    <h1>Where Your Brand Is Seen</h1>
+    <p class="lede">A map of where a Growfit partner's name goes during a season: on match days, at tournaments and camps, on the way to school, online, and in front of other businesses that back us. It also covers how we measure and report it.</p>
+  </div>
+  <div class="cover-ask">
+    <div class="tile hero"><div class="v">~136,000</div><div class="l">Estimated brand impressions per season (all channels)</div></div>
+    <div class="tile"><div class="v">~16,400</div><div class="l">People who see the brand in person at matches, tournaments, camps and events</div></div>
+    <div class="tile"><div class="v">108 clubs</div><div class="l">In our local football association, the network our matches and Youth Cup reach</div></div>
+  </div>
+  <div class="cover-foot">
+    <div><b>Contact</b><br>Khaya Madlala, Fundraising &amp; Registration<br>Buhle Madlala, Founder &amp; Academy Director<br><span class="ph">[email]</span> · <span class="ph">[phone]</span></div>
+    <div><b>Read with</b><br>Sponsorship pack (packages &amp; prices)<br>Youth Cup, Camps and Gauteng Tour proposals<br>All figures are estimates. Method on the last page.</div>
+  </div>
+</div>
+
+<div class="section">
+  <h2><span class="num">1</span>How your brand travels</h2>
+  <p>A logo on a youth football kit isn't seen once. It goes wherever the players, their families and our events go, and every week it reaches the same local households again. That repetition is what builds brand recall in a community.</p>
+
+  <div class="flow avoid">
+    <div class="col brand"><h4>Your brand on</h4>
+      <div class="item">Match shirt (front, sleeve, back)</div>
+      <div class="item">Tracksuits, training tops, kit bags</div>
+      <div class="item">Banners, flags, water points</div>
+      <div class="item">Certificates, medals, programmes</div>
+      <div class="item">Posts, photos, highlight videos</div>
+      <div class="item">Business directory listing</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="col"><h4>Seen at</h4>
+      <div class="item">League Sundays (GDFL)</div>
+      <div class="item">Training: Wednesday &amp; Friday</div>
+      <div class="item">Growfit Youth Cup (×2 a year)</div>
+      <div class="item">Holiday camps (×4 a year)</div>
+      <div class="item">Challenge Series friendlies</div>
+      <div class="item">Gauteng Tour (national stage)</div>
+      <div class="item">School, taxis, shops (everyday wear)</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="col"><h4>By</h4>
+      <div class="item">Parents &amp; families (household decision-makers)</div>
+      <div class="item">Opponent clubs, coaches, officials</div>
+      <div class="item">Local business owners &amp; fellow sponsors</div>
+      <div class="item">Schools, teachers, scouts</div>
+      <div class="item">Municipality, LFA, media</div>
+      <div class="item">Social followers &amp; the wider public</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="col"><h4>You get</h4>
+      <div class="item">Name recognition in local homes</div>
+      <div class="item">New customers via Growfit family offers</div>
+      <div class="item">Introductions to other businesses</div>
+      <div class="item">B-BBEE socio-economic development</div>
+      <div class="item">Staff pride &amp; volunteering</div>
+      <div class="item">Content for your own channels</div>
+    </div>
+  </div>
+
+  <h3>Why it works for local brands</h3>
+  <ul>
+    <li><strong>The same audience, every week.</strong> League football runs about 9 months a year, so families see your brand at every match, training session and school run, not just once.</li>
+    <li><strong>Goodwill attaches to your name.</strong> Parents notice who supports their children, and many are deciding where their household shops.</li>
+    <li><strong>The business network.</strong> Our parents include business owners and employees of Durban companies, and our partners meet each other (Section 6).</li>
+    <li><strong>It's measurable.</strong> We count attendance, track social reach and give every partner a trackable family offer (Section 7).</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h2><span class="num">2</span>The exposure map: who sees your brand</h2>
+  <p>Five circles of reach, from the players wearing your name to the wider public. The inner circles see it most often. The outer circles are the largest.</p>
+  <div class="fig-row avoid">
+    <svg viewBox="0 0 300 300" width="78mm" role="img" aria-label="Five concentric circles of brand reach, from players at the centre to the wider public on the outside.">
+      <circle cx="150" cy="150" r="146" fill="#FBEFF0" stroke="#fff" stroke-width="2"/>
+      <circle cx="150" cy="150" r="117" fill="#F4D5D8" stroke="#fff" stroke-width="2"/>
+      <circle cx="150" cy="150" r="88" fill="#E9AAB0" stroke="#fff" stroke-width="2"/>
+      <circle cx="150" cy="150" r="59" fill="#D0646D" stroke="#fff" stroke-width="2"/>
+      <circle cx="150" cy="150" r="30" fill="#AF2D35" stroke="#fff" stroke-width="2"/>
+      <text x="150" y="155" text-anchor="middle" font-size="14" font-weight="800" fill="#fff">1</text>
+      <text x="150" y="111" text-anchor="middle" font-size="14" font-weight="800" fill="#fff">2</text>
+      <text x="150" y="82" text-anchor="middle" font-size="14" font-weight="800" fill="#16181D">3</text>
+      <text x="150" y="53" text-anchor="middle" font-size="14" font-weight="800" fill="#16181D">4</text>
+      <text x="150" y="24" text-anchor="middle" font-size="14" font-weight="800" fill="#16181D">5</text>
+    </svg>
+    <table>
+      <thead><tr><th style="width:8%">#</th><th>Circle</th><th class="n">Reach / season</th></tr></thead>
+      <tbody>
+        <tr><td><strong>1</strong></td><td><strong>Players &amp; staff</strong>: wear your brand, ~3–5 days a week</td><td class="n">~70</td></tr>
+        <tr><td><strong>2</strong></td><td><strong>Families</strong>: parents, siblings, grandparents at matches, on WhatsApp, at home</td><td class="n">~200</td></tr>
+        <tr><td><strong>3</strong></td><td><strong>Match-day community</strong>: opponent players, coaches and parents, referees, spectators at shared GDFL venues</td><td class="n">~1,500</td></tr>
+        <tr><td><strong>4</strong></td><td><strong>Events &amp; partners</strong>: Youth Cup clubs and families, camp families, partner clubs, schools, scouts, the corporate 5-a-side, the Gauteng tour</td><td class="n">~4,500</td></tr>
+        <tr><td><strong>5</strong></td><td><strong>Wider public &amp; online</strong>: everyday wear in public, social media, parents' shares, local media</td><td class="n">tens of thousands</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="small">Reach counts different people. Impressions (Section 4) count every time your brand is seen, including repeat views.</p>
+
+  <h3>Who is in the audience</h3>
+  <table class="avoid">
+    <thead><tr><th style="width:30%">Audience</th><th>Why they matter to a sponsor</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Parents &amp; guardians</strong> (mostly 30–55)</td><td>Make the household's spending decisions: food, clothing, transport, services, banking. They see your brand weekly, from the touchline.</td></tr>
+      <tr><td><strong>Local business owners</strong></td><td>Parents who run businesses, our business directory members and fellow sponsors. A ready-made B2B network.</td></tr>
+      <tr><td><strong>Football community</strong></td><td>Coaches, club officials and families from the <strong>108 clubs</strong> and <strong>5,600 junior players</strong> in the Greater Durban LFA.</td></tr>
+      <tr><td><strong>Schools &amp; scouts</strong></td><td>Teachers, sports coordinators and talent scouts at tournaments and showcase events.</td></tr>
+      <tr><td><strong>Community leaders &amp; media</strong></td><td>Ward councillors, municipal and provincial sport officials, community radio and local papers at our events.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h2><span class="num">3</span>Where your logo goes</h2>
+  <p>Placement decides how often your brand is seen and photographed. The <strong>shirt front</strong> appears in almost every photo. <strong>Tracksuits and kit bags</strong> are worn in public every day, not just on match days.</p>
+  <div class="two avoid">
+    <svg viewBox="0 0 300 175" width="100%" role="img" aria-label="Front and back of a match shirt showing numbered logo positions.">
+      <g transform="translate(15,20)">
+        <path d="M30,10 L50,4 Q60,14 70,4 L90,10 L118,32 L104,50 L92,42 L92,136 L28,136 L28,42 L16,50 L2,32 Z" fill="#F5F6F8" stroke="#474C55" stroke-width="1.5"/>
+        <rect x="38" y="52" width="44" height="22" rx="3" fill="#AF2D35"/>
+        <text x="60" y="67" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">1</text>
+        <circle cx="105" cy="33" r="8" fill="#AF2D35"/><text x="105" y="37" text-anchor="middle" font-size="10" font-weight="800" fill="#fff">2</text>
+        <circle cx="45" cy="28" r="6" fill="#474C55"/><text x="45" y="31" text-anchor="middle" font-size="7" fill="#fff">crest</text>
+        <text x="60" y="155" text-anchor="middle" font-size="10" fill="#474C55">Front</text>
+      </g>
+      <g transform="translate(165,20)">
+        <path d="M30,10 L50,4 Q60,10 70,4 L90,10 L118,32 L104,50 L92,42 L92,136 L28,136 L28,42 L16,50 L2,32 Z" fill="#F5F6F8" stroke="#474C55" stroke-width="1.5"/>
+        <rect x="36" y="22" width="48" height="14" rx="3" fill="#AF2D35"/>
+        <text x="60" y="33" text-anchor="middle" font-size="10" font-weight="800" fill="#fff">3</text>
+        <text x="60" y="88" text-anchor="middle" font-size="34" font-weight="800" fill="#474C55">10</text>
+        <rect x="40" y="108" width="40" height="12" rx="3" fill="#D0646D"/>
+        <text x="60" y="118" text-anchor="middle" font-size="9" font-weight="800" fill="#fff">4</text>
+        <text x="60" y="155" text-anchor="middle" font-size="10" fill="#474C55">Back</text>
+      </g>
+    </svg>
+    <table>
+      <thead><tr><th>#</th><th>Position</th><th>Seen</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><strong>Shirt front</strong>: the main sponsor</td><td>Every match, every photo, every video</td></tr>
+        <tr><td>2</td><td><strong>Sleeve</strong></td><td>Matches, close-up photos</td></tr>
+        <tr><td>3</td><td><strong>Back, above the number</strong></td><td>Matches, team photos from behind, video</td></tr>
+        <tr><td>4</td><td><strong>Back, lower</strong></td><td>Matches</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <table class="avoid">
+    <thead><tr><th style="width:30%">Beyond the match shirt</th><th>Where it's seen</th><th style="width:22%">How often</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Tracksuit</strong> (chest &amp; back)</td><td>Travel to matches, school, taxis, shops, the Gauteng tour</td><td>3–5 days a week</td></tr>
+      <tr><td><strong>Training top</strong></td><td>Wednesday &amp; Friday training at public fields, camps</td><td>2+ days a week</td></tr>
+      <tr><td><strong>Kit bag</strong></td><td>Carried to school and training</td><td>Daily</td></tr>
+      <tr><td><strong>Banners &amp; flags</strong></td><td>Home matches, Youth Cup, camps, friendlies</td><td>Every home event</td></tr>
+      <tr><td><strong>Medals, certificates, programme</strong></td><td>Taken home and displayed: ~720 certificates a year from the Youth Cup alone</td><td>Kept for years</td></tr>
+      <tr><td><strong>Digital</strong></td><td>Match posts, results, highlight reels, parents' WhatsApp shares</td><td>Weekly</td></tr>
+    </tbody>
+  </table>
+  <p class="small">Logo placements follow league and tournament kit rules. Children's images are used only with parent/guardian consent and never with full names.</p>
+</div>
+
+<div class="section">
+  <h2><span class="num">4</span>A season of exposure</h2>
+  <p>In-person sightings each month: people who see the brand at matches, training, tournaments, camps, friendlies and events. Peaks come with the Gauteng tour (March), the winter Youth Cup and camp (July), and the summer Youth Cup (December).</p>
+  <figure class="avoid" style="margin:3mm 0 2mm">
+    <svg viewBox="0 0 620 230" width="100%" role="img" aria-label="Bar chart of estimated in-person brand sightings per month. January 650, February 1,000, March 3,000, April 1,430, May 1,150, June 1,000, July 2,040, August 1,300, September 1,000, October 1,430, November 1,150, December 1,230.">
+      <g font-size="10" fill="#7A808A">
+        <line x1="50" y1="190" x2="610" y2="190" stroke="#DADDE2"/>
+        <line x1="50" y1="136.7" x2="610" y2="136.7" stroke="#EEF0F2"/>
+        <line x1="50" y1="83.3" x2="610" y2="83.3" stroke="#EEF0F2"/>
+        <line x1="50" y1="30" x2="610" y2="30" stroke="#EEF0F2"/>
+        <text x="44" y="193" text-anchor="end">0</text>
+        <text x="44" y="140" text-anchor="end">1,000</text>
+        <text x="44" y="87" text-anchor="end">2,000</text>
+        <text x="44" y="33" text-anchor="end">3,000</text>
+      </g>
+      <g id="bars"><path d="M58.3,190 L58.3,159.3 Q58.3,155.3 62.3,155.3 L84.3,155.3 Q88.3,155.3 88.3,159.3 L88.3,190 Z" fill="#AF2D35"/><text x="73.3" y="206" text-anchor="middle" font-size="10" fill="#474C55">Jan</text><path d="M105.0,190 L105.0,140.7 Q105.0,136.7 109.0,136.7 L131.0,136.7 Q135.0,136.7 135.0,140.7 L135.0,190 Z" fill="#AF2D35"/><text x="120.0" y="206" text-anchor="middle" font-size="10" fill="#474C55">Feb</text><path d="M151.7,190 L151.7,34.0 Q151.7,30.0 155.7,30.0 L177.7,30.0 Q181.7,30.0 181.7,34.0 L181.7,190 Z" fill="#AF2D35"/><text x="166.7" y="206" text-anchor="middle" font-size="10" fill="#474C55">Mar</text><text x="166.7" y="24.0" text-anchor="middle" font-size="9.5" font-weight="700" fill="#16181D">3,000 · Tour</text><path d="M198.3,190 L198.3,117.7 Q198.3,113.7 202.3,113.7 L224.3,113.7 Q228.3,113.7 228.3,117.7 L228.3,190 Z" fill="#AF2D35"/><text x="213.3" y="206" text-anchor="middle" font-size="10" fill="#474C55">Apr</text><path d="M245.0,190 L245.0,132.7 Q245.0,128.7 249.0,128.7 L271.0,128.7 Q275.0,128.7 275.0,132.7 L275.0,190 Z" fill="#AF2D35"/><text x="260.0" y="206" text-anchor="middle" font-size="10" fill="#474C55">May</text><path d="M291.7,190 L291.7,140.7 Q291.7,136.7 295.7,136.7 L317.7,136.7 Q321.7,136.7 321.7,140.7 L321.7,190 Z" fill="#AF2D35"/><text x="306.7" y="206" text-anchor="middle" font-size="10" fill="#474C55">Jun</text><path d="M338.3,190 L338.3,85.2 Q338.3,81.2 342.3,81.2 L364.3,81.2 Q368.3,81.2 368.3,85.2 L368.3,190 Z" fill="#AF2D35"/><text x="353.3" y="206" text-anchor="middle" font-size="10" fill="#474C55">Jul</text><text x="353.3" y="75.2" text-anchor="middle" font-size="9.5" font-weight="700" fill="#16181D">2,040 · Youth Cup</text><path d="M385.0,190 L385.0,124.7 Q385.0,120.7 389.0,120.7 L411.0,120.7 Q415.0,120.7 415.0,124.7 L415.0,190 Z" fill="#AF2D35"/><text x="400.0" y="206" text-anchor="middle" font-size="10" fill="#474C55">Aug</text><path d="M431.7,190 L431.7,140.7 Q431.7,136.7 435.7,136.7 L457.7,136.7 Q461.7,136.7 461.7,140.7 L461.7,190 Z" fill="#AF2D35"/><text x="446.7" y="206" text-anchor="middle" font-size="10" fill="#474C55">Sep</text><path d="M478.3,190 L478.3,117.7 Q478.3,113.7 482.3,113.7 L504.3,113.7 Q508.3,113.7 508.3,117.7 L508.3,190 Z" fill="#AF2D35"/><text x="493.3" y="206" text-anchor="middle" font-size="10" fill="#474C55">Oct</text><path d="M525.0,190 L525.0,132.7 Q525.0,128.7 529.0,128.7 L551.0,128.7 Q555.0,128.7 555.0,132.7 L555.0,190 Z" fill="#AF2D35"/><text x="540.0" y="206" text-anchor="middle" font-size="10" fill="#474C55">Nov</text><path d="M571.7,190 L571.7,128.4 Q571.7,124.4 575.7,124.4 L597.7,124.4 Q601.7,124.4 601.7,128.4 L601.7,190 Z" fill="#AF2D35"/><text x="586.7" y="206" text-anchor="middle" font-size="10" fill="#474C55">Dec</text><text x="586.7" y="107.4" text-anchor="middle" font-size="9.5" font-weight="700" fill="#16181D">1,230</text><text x="586.7" y="118.4" text-anchor="middle" font-size="9.5" font-weight="700" fill="#16181D">Youth Cup</text></g>
+    </svg>
+    <figcaption class="fig-cap">Estimated in-person sightings per month, season total about 16,400. Static chart: the figures are in the table below.</figcaption>
+  </figure>
+
+  <table class="avoid">
+    <thead><tr><th>Where your brand is seen</th><th>Basis (estimate)</th><th class="n">In person / season</th></tr></thead>
+    <tbody>
+      <tr><td>League matches</td><td>~72 matches × ~80 people (both teams, parents, officials, spectators)</td><td class="n">5,760</td></tr>
+      <tr><td>Training (Wed &amp; Fri)</td><td>3 squads × 2 sessions × ~40 weeks × ~15 passers-by and parents</td><td class="n">3,800</td></tr>
+      <tr><td>Growfit Youth Cup</td><td>2 tournaments × ~1,100 people, all-day</td><td class="n">2,200</td></tr>
+      <tr><td>Gauteng Tour</td><td>Tournament venue, bus stations, opponents and scouts</td><td class="n">2,000</td></tr>
+      <tr><td>Challenge Series friendlies</td><td>~10 fixture days × ~150 people</td><td class="n">1,500</td></tr>
+      <tr><td>Fundraising events</td><td>Quiz/braai nights, corporate 5-a-side cup (company staff)</td><td class="n">600</td></tr>
+      <tr><td>Holiday camps</td><td>4 camps × ~130 children and parents</td><td class="n">520</td></tr>
+      <tr class="sub"><td colspan="2">In person, total</td><td class="n">~16,400</td></tr>
+      <tr><td>Everyday wear</td><td>60 players × 3 public outings a week × 40 weeks × ~10 people</td><td class="n">~72,000</td></tr>
+      <tr><td>Digital</td><td>~120 posts × ~400 average reach <span class="ph">[replace with real page insights]</span></td><td class="n">~48,000</td></tr>
+      <tr class="total"><td colspan="2">Estimated brand impressions per season</td><td class="n">~136,000</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h2><span class="num">5</span>Reach by package</h2>
+  <table class="avoid">
+    <thead><tr><th style="width:26%">Package</th><th>Where the brand appears</th><th class="n">Est. impressions / season</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Headline Academy Partner</strong></td><td>Shirt front on all kits, all communications, Youth Cup naming, every channel</td><td class="n">~136,000</td></tr>
+      <tr><td><strong>Team Wear Partner</strong></td><td>Tracksuits, training tops, kit bags: everyday wear, training, travel</td><td class="n">~85,000</td></tr>
+      <tr><td><strong>Kit Partner</strong></td><td>Match kit sleeve/back: league, friendlies, tournaments, match photos</td><td class="n">~60,000</td></tr>
+      <tr><td><strong>Squad Partner</strong> (one age group)</td><td>That squad's bibs, banner and posts</td><td class="n">~20,000</td></tr>
+      <tr><td><strong>Youth Cup Partner</strong> (per tournament)</td><td>Banners, medals ribbons, certificates, programme, tournament posts</td><td class="n">~1,100 on the day + ~5,000 online</td></tr>
+      <tr><td><strong>Hydration Partner</strong></td><td>Water points and banners at the Youth Cup, camps and home matches</td><td class="n">~4,000 in person</td></tr>
+      <tr><td><strong>Business directory</strong> (featured)</td><td>Printed (200 copies) and digital directory shared with families and partner clubs</td><td class="n">~200 households + shares</td></tr>
+    </tbody>
+  </table>
+  <p class="small">Package prices are in the Sponsorship pack. Estimates follow the method on the last page and will be replaced by measured figures after the first season.</p>
+
+</div>
+
+<div class="section">
+  <h2><span class="num">6</span>The Growfit partner network</h2>
+  <p>Sponsoring Growfit connects your brand to families, clubs, schools, other businesses and local government. The red dashed lines show what partners get directly.</p>
+  <svg class="avoid" viewBox="0 0 640 380" width="100%" role="img" aria-label="Network diagram with Growfit at the centre connected to your brand, players and families, fellow sponsors, business directory members, media, municipality, schools and scouts, and opponent clubs and the LFA.">
+    <g stroke="#C9CDD3" stroke-width="1.5">
+      <line x1="320" y1="190" x2="320" y2="40"/><line x1="320" y1="190" x2="120" y2="95"/><line x1="320" y1="190" x2="530" y2="95"/>
+      <line x1="320" y1="190" x2="95" y2="200"/><line x1="320" y1="190" x2="550" y2="200"/><line x1="320" y1="190" x2="125" y2="310"/>
+      <line x1="320" y1="190" x2="515" y2="310"/><line x1="320" y1="190" x2="320" y2="350"/>
+    </g>
+    <g fill="none" stroke="#AF2D35" stroke-width="1.6" stroke-dasharray="5 4">
+      <path d="M245,39 Q135,39 120,76"/><path d="M395,39 Q515,39 530,76"/>
+    </g>
+    <g font-size="9" fill="#6B1B1F" font-weight="700">
+      <text x="232" y="30" text-anchor="end">family offers → new customers</text>
+      <text x="408" y="30">B2B introductions</text>
+    </g>
+    <circle cx="320" cy="190" r="48" fill="#16181D"/>
+    <text x="320" y="186" text-anchor="middle" font-size="13" font-weight="800" fill="#fff">Growfit</text>
+    <text x="320" y="202" text-anchor="middle" font-size="9" fill="#C9CDD3">Sports Academy</text>
+    <g font-size="10.5" font-weight="700" text-anchor="middle">
+      <rect x="245" y="20" width="150" height="38" rx="8" fill="#AF2D35"/><text x="320" y="44" fill="#fff">YOUR BRAND</text>
+      <rect x="40" y="76" width="160" height="38" rx="8" fill="#F5F6F8" stroke="#DADDE2"/><text x="120" y="92" fill="#16181D">Players &amp; families</text><text x="120" y="106" font-size="8.5" font-weight="400" fill="#474C55">~200 people, weekly</text>
+      <rect x="450" y="76" width="160" height="38" rx="8" fill="#F5F6F8" stroke="#DADDE2"/><text x="530" y="92" fill="#16181D">Fellow sponsors</text><text x="530" y="106" font-size="8.5" font-weight="400" fill="#474C55">partner breakfasts</text>
+      <rect x="15" y="181" width="160" height="38" rx="8" fill="#F5F6F8" stroke="#DADDE2"/><text x="95" y="197" fill="#16181D">Opponent clubs &amp; LFA</text><text x="95" y="211" font-size="8.5" font-weight="400" fill="#474C55">108 clubs</text>
+      <rect x="470" y="181" width="160" height="38" rx="8" fill="#F5F6F8" stroke="#DADDE2"/><text x="550" y="197" fill="#16181D">Business directory</text><text x="550" y="211" font-size="8.5" font-weight="400" fill="#474C55">your featured listing</text>
+      <rect x="45" y="291" width="160" height="38" rx="8" fill="#F5F6F8" stroke="#DADDE2"/><text x="125" y="307" fill="#16181D">Schools &amp; scouts</text><text x="125" y="321" font-size="8.5" font-weight="400" fill="#474C55">tournaments, showcases</text>
+      <rect x="435" y="291" width="160" height="38" rx="8" fill="#F5F6F8" stroke="#DADDE2"/><text x="515" y="307" fill="#16181D">Media &amp; radio</text><text x="515" y="321" font-size="8.5" font-weight="400" fill="#474C55">event coverage</text>
+      <rect x="240" y="331" width="160" height="38" rx="8" fill="#F5F6F8" stroke="#DADDE2"/><text x="320" y="347" fill="#16181D">Municipality &amp; KZN DSR</text><text x="320" y="361" font-size="8.5" font-weight="400" fill="#474C55">officials at events</text>
+    </g>
+  </svg>
+</div>
+
+<div class="section">
+  <h2><span class="num">7</span>What every partner gets beyond the logo</h2>
+  <div class="two">
+    <div class="card"><h3>Growfit family offers</h3><p>Give our ~150 families a discount or offer with a <strong>unique code or QR</strong> (e.g. "GROWFIT10"). We share it on match days and in parent groups, and you can count every customer it brings in.</p></div>
+    <div class="card"><h3>Partner breakfasts</h3><p>Twice a year, all partners meet the academy and <strong>each other</strong>: business owners, corporate CSI teams and suppliers in one room. Many sponsorships pay off through these introductions.</p></div>
+    <div class="card"><h3>Featured directory listing</h3><p>Free featured listing in the Growfit Business Directory, printed and shared digitally with all families and partner clubs.</p></div>
+    <div class="card"><h3>Cross-promotion</h3><p>Partners appear together at the Youth Cup and in posts. For example, the hydration partner's water point sits next to the kit partner's banner.</p></div>
+    <div class="card"><h3>Staff engagement</h3><p>Volunteering days at camps and the Youth Cup, a coaching clinic for staff's children, and a team in the corporate 5-a-side cup.</p></div>
+    <div class="card"><h3>B-BBEE &amp; reporting</h3><p>A socio-economic development beneficiary letter, proof of contribution and a quarterly report with photos and numbers.</p></div>
+  </div>
+
+  <h2 style="margin-top:6mm"><span class="num">8</span>How we measure and report</h2>
+  <table class="avoid">
+    <thead><tr><th style="width:28%">We count</th><th>How</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Attendance</strong></td><td>Team sheets plus a spectator count by volunteers at every home match and event. Gate registration at the Youth Cup and camps.</td></tr>
+      <tr><td><strong>Logo appearances</strong></td><td>A photo log: every match, event and post where your brand appears.</td></tr>
+      <tr><td><strong>Digital reach</strong></td><td>Page insights (reach, views, shares) for every post that shows your brand. Highlight video views.</td></tr>
+      <tr><td><strong>Response</strong></td><td>QR scans from banners and redemptions of your family-offer code.</td></tr>
+      <tr><td><strong>Media</strong></td><td>Radio mentions and newspaper articles naming your brand, with clippings.</td></tr>
+    </tbody>
+  </table>
+  <h3>Your quarterly partner report (example)</h3>
+  <div class="tiles">
+    <div class="tile"><div class="v"><span class="ph">[3,950]</span></div><div class="l">In-person sightings this quarter</div></div>
+    <div class="tile"><div class="v"><span class="ph">[38]</span></div><div class="l">Posts featuring your brand</div></div>
+    <div class="tile"><div class="v"><span class="ph">[14,200]</span></div><div class="l">Social reach of those posts</div></div>
+    <div class="tile"><div class="v"><span class="ph">[46]</span></div><div class="l">Family-offer redemptions</div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2><span class="num">9</span>Method &amp; assumptions</h2>
+  <p>We'd rather give a sponsor honest estimates than impressive ones. These figures are planning estimates for a full season, with about 60 players in 3–4 squads. They will be replaced by measured figures (Section 8) after the first season with a partner.</p>
+  <table>
+    <thead><tr><th style="width:30%">Item</th><th>Assumption</th></tr></thead>
+    <tbody>
+      <tr><td>League matches</td><td>~8 Growfit matches a month over 9 match months (~72). ~80 people see the kit per match: two squads (~30), parents of both teams (~30), officials, and spectators at shared venues.</td></tr>
+      <tr><td>Training</td><td>3 squads, 2 sessions a week, ~40 weeks, ~15 parents and passers-by per session at public fields.</td></tr>
+      <tr><td>Youth Cup</td><td>24 teams, ~360 players, ~700 parents and spectators, plus officials and vendors: ~1,100 per tournament, twice a year.</td></tr>
+      <tr><td>Gauteng Tour</td><td>~2,000 people at the tournament venue (teams, parents, scouts) and in transit.</td></tr>
+      <tr><td>Friendlies · events · camps</td><td>~10 friendly days × ~150; quiz/braai and corporate 5-a-side ~600 in total; 4 camps × ~130 children and parents.</td></tr>
+      <tr><td>Everyday wear</td><td>Tracksuits and kit bags worn in public ~3 times a week for ~40 weeks, seen by ~10 people each time. This is the most uncertain figure, so it is rounded down.</td></tr>
+      <tr><td>Digital</td><td>~120 posts a season × ~400 average reach. <span class="ph">[Replace with real figures from page insights.]</span></td></tr>
+      <tr><td>Football community</td><td>The Greater Durban LFA has 108 clubs, 7,500+ amateur players and 5,600 junior players (2025).</td></tr>
+    </tbody>
+  </table>
+  <p class="small">An impression is one person seeing the brand once, so one person can count many times. Reach (Section 2) counts different people. Sources: GDLFA figures as reported by Berea Mail and Sportswire (2025). All other figures are Growfit's own estimates.</p>
+  <div class="callout"><p><strong>Let's talk about your brand on our kit.</strong> Contact <span class="ph">[name]</span> on <span class="ph">[phone]</span> or <span class="ph">[email]</span>. We'll match a package to where your customers are.</p></div>
+</div>
+
+</body>
+</html>
