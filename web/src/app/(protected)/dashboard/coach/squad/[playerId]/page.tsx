@@ -49,6 +49,7 @@ import { formatDayMonth, todayIso } from "@/lib/time";
 import { signPlayerPhotoUrl } from "@/lib/player-photo";
 import { loadTermReview, loadSelfRatings } from "@/lib/term-review-data";
 import { TermReviewCard } from "@/components/development/term-review-card";
+import { loadSeasonMinutes } from "@/lib/match-minutes";
 
 
 export default async function PlayerDetailPage({
@@ -281,6 +282,9 @@ export default async function PlayerDetailPage({
   };
 
   const curves = await loadCurves(supabase, player.id);
+  // Minutes played this season, from the match-day playing-time screen.
+  // Quietly absent until migration 062 is run or a match has been recorded.
+  const seasonMinutes = (await loadSeasonMinutes(supabase, [player.id], currentSeasonForRecords)).byPlayer.get(player.id) ?? null;
   const ratings: Rating[] = player.player_ratings ?? [];
 
   // Chart data — sorted ascending by date for the trend line
@@ -369,6 +373,17 @@ export default async function PlayerDetailPage({
                   <p className="text-muted-foreground text-xs">Ratings</p>
                   <p className="font-semibold">{ratings.length}</p>
                 </div>
+                {seasonMinutes && (
+                  <div>
+                    <p className="text-muted-foreground text-xs">Minutes this season</p>
+                    <p className="font-semibold tabular-nums">
+                      {seasonMinutes.minutes}
+                      <span className="text-xs font-normal text-muted-foreground">
+                        {" "}· {seasonMinutes.matches} {seasonMinutes.matches === 1 ? "match" : "matches"}
+                      </span>
+                    </p>
+                  </div>
+                )}
                 <div>
                   <p className="text-muted-foreground text-xs">Public passport link</p>
                   <Link

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, ClipboardList, Printer, Star } from "lucide-react";
+import { ArrowLeft, ClipboardList, Printer, Star, Timer } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getTrainingAttendanceSummaries } from "@/lib/training-attendance";
 import type { AttendanceSummary } from "@/lib/attendance";
@@ -257,6 +257,14 @@ export default async function FixtureDetailPage({
               entry instead of it sitting there forever. */}
           {fixture.status !== "completed" && (
             <DeleteFixtureButton fixtureId={id} />
+          )}
+          {fixture.status !== "cancelled" && (
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/dashboard/coach/fixtures/${id}/minutes`}>
+                <Timer className="size-4" aria-hidden="true" />
+                Playing time
+              </Link>
+            </Button>
           )}
           <Button asChild variant="outline" size="sm">
             <Link href={`/print/match/${id}`} target="_blank" rel="noopener">
