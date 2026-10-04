@@ -93,6 +93,32 @@ async function loadAttributes(supabase: Awaited<ReturnType<typeof createClient>>
   return { data: core.data as Partial<Record<AttrKey, number | null>>[] | null, error: core.error };
 }
 
+type RawMediaUpload = {
+  id: string;
+  url: string;
+  media_type: string;
+  caption: string | null;
+  created_at: string;
+} | null;
+type RawMediaTag = { media_uploads: RawMediaUpload | RawMediaUpload[] };
+
+/** The media a player is tagged in, flattened to what the gallery shows. */
+function normalizeTaggedMedia(tags: RawMediaTag[] | null) {
+  return (tags ?? []).flatMap((tag) => {
+    const mu = tag.media_uploads;
+    if (!mu) return [];
+    const items = Array.isArray(mu) ? mu : [mu];
+    return items.filter((item): item is NonNullable<RawMediaUpload> => item !== null).map((item) => ({
+      id: item.id,
+      url: item.url,
+      media_type: item.media_type,
+      caption: item.caption,
+      created_at: item.created_at,
+      tagged_players: [],
+    }));
+  });
+}
+
 export default async function PlayerDashboardPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<{ tab?: string }> }>) {
@@ -224,28 +250,7 @@ export default async function PlayerDashboardPage({
   const positions = await getPlayerPositions(supabase, player.id);
   const playerAgeGroup = age ? `U${age % 2 === 1 ? age : age + 1}` : "U15";
 
-  // Normalize media tag items
-  type RawMediaUpload = {
-    id: string;
-    url: string;
-    media_type: string;
-    caption: string | null;
-    created_at: string;
-  } | null;
-  type RawMediaTag = { media_uploads: RawMediaUpload | RawMediaUpload[] };
-  const taggedMediaItems = (myMediaTags ?? []).flatMap((tag: RawMediaTag) => {
-    const mu = tag.media_uploads;
-    if (!mu) return [];
-    const items = Array.isArray(mu) ? mu : [mu];
-    return items.filter((item): item is NonNullable<RawMediaUpload> => item !== null).map((item) => ({
-      id: item.id,
-      url: item.url,
-      media_type: item.media_type,
-      caption: item.caption,
-      created_at: item.created_at,
-      tagged_players: [],
-    }));
-  });
+  const taggedMediaItems = normalizeTaggedMedia(myMediaTags);
 
   const needsRegistration = !player.mysafa_number && !player.id_number;
   const docsSigned = (myDocuments ?? []).filter(
