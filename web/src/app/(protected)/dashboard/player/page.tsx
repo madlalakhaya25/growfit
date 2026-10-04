@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { StatBar } from "@/components/ui/stat-bar";
 import { POSITIONS } from "@/lib/types";
 import { calculateAge, matchRatingAverage } from "@/lib/player";
-import { formatDayMonth } from "@/lib/time";
+import { formatDayMonth, formatWeekdayDayMonth } from "@/lib/time";
 import { RemovePlayerPhotoButton } from "@/components/remove-player-photo-button";
 import { CopyButton } from "@/components/copy-button";
 import { AttributeSummary } from "@/components/player/attribute-summary";
@@ -31,10 +31,22 @@ import {
 } from "@/lib/attributes";
 import { reportError } from "@/lib/report-error";
 import { signPlayerPhotoUrl } from "@/lib/player-photo";
+import { PageHeader } from "@/components/ui/page-header";
+import { QueryTabs } from "@/components/ui/query-tabs";
+import { PlayerToday } from "@/components/player/player-today";
+import { pickTab } from "@/lib/tabs";
 
 
 
-export default async function PlayerDashboardPage() {
+const TABS = [
+  { id: "today", label: "Today" },
+  { id: "passport", label: "Passport" },
+] as const;
+
+export default async function PlayerDashboardPage({
+  searchParams,
+}: Readonly<{ searchParams: Promise<{ tab?: string }> }>) {
+  const tab = pickTab(TABS, (await searchParams).tab);
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
@@ -97,6 +109,16 @@ export default async function PlayerDashboardPage() {
             </p>
           </div>
         )}
+      </div>
+    );
+  }
+
+  if (tab === "today") {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Today" eyebrow={formatWeekdayDayMonth(new Date())} />
+        <QueryTabs tabs={TABS} active={tab} basePath="/dashboard/player" />
+        <PlayerToday supabase={supabase} playerId={player.id} />
       </div>
     );
   }
@@ -250,6 +272,7 @@ export default async function PlayerDashboardPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">My Passport</h1>
+      <QueryTabs tabs={TABS} active={tab} basePath="/dashboard/player" />
 
       {needsRegistration && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-4 py-3 flex items-start gap-3">
