@@ -2,11 +2,10 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import { AI_MODEL } from "@/lib/ai-models";
-import { aiError, checkAiBudget } from "@/lib/ai-guard";
+import { aiError } from "@/lib/ai-guard";
 import { parseJsonObject } from "@/lib/ai-json";
 import { getLTPDPhase, specialistSystem } from "@/lib/ai-safeguards";
-import { requireUser } from "@/lib/auth";
-import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { gateCoachAi } from "@/lib/coach-ai-gate";
 import { generateWithRetry } from "@/lib/ai-resilient";
 import {
   INSTRUCTION_ACTIONS, MAX_INSTRUCTIONS, MAX_INSTRUCTION_CHARS, actionMenu, validateInstructions,
@@ -38,20 +37,9 @@ export async function interpretBoardInstructions(params: {
     if (sentence.length > MAX_INSTRUCTION_CHARS) return { error: "That's a bit long. Try one or two short lines." };
     if (!Number.isInteger(params.count) || params.count < 1 || params.count > 22) return { error: "Put your players on the board first." };
 
-    const { supabase, user } = await requireUser();
-    const { data: team } = await supabase
-      .from("teams")
-      .select("id, age_group")
-      .eq("id", params.teamId)
-      .in("id", await getCoachedTeamIds(supabase, user.id))
-      .eq("active", true)
-      .single();
-    if (!team) return { error: "You don't coach this team." };
-
-    const overBudget = await checkAiBudget(user.id);
-    if (overBudget) return { error: overBudget };
-
-    const ageGroup = ((team.age_group as string | null) ?? "").trim() || "U15";
+    const gate = await gateCoachAi(params.teamId);
+    if ("error" in gate) return { error: gate.error };
+    const { ageGroup } = gate;
     const prompt = `A youth football coach has told the tactics board how the team should move. Turn it into a list of actions.
 
 COACH'S WORDS: ${sentence}

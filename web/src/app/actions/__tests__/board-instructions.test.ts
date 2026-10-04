@@ -1,13 +1,11 @@
 const mockRequireUser = jest.fn();
 jest.mock("@/lib/auth", () => ({ requireUser: () => mockRequireUser() }));
 jest.mock("@/lib/coached-teams", () => ({ getCoachedTeamIds: async () => ["t1"] }));
+const mockGenerate = jest.fn();
 const mockBudget = jest.fn();
 jest.mock("@/lib/ai-guard", () => ({ checkAiBudget: (...a: unknown[]) => mockBudget(...a), aiError: () => "friendly" }));
-const mockGenerate = jest.fn();
-jest.mock("@google/genai", () => ({
-  Type: { OBJECT: "OBJECT", ARRAY: "ARRAY", STRING: "STRING", NUMBER: "NUMBER", BOOLEAN: "BOOLEAN" },
-  GoogleGenAI: class { models = { generateContent: (...a: unknown[]) => mockGenerate(...a) }; },
-}));
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+jest.mock("@google/genai", () => require("@/test-utils/genai-mock").genaiMock((...a: unknown[]) => mockGenerate(...a)));
 
 import { interpretBoardInstructions } from "../board-instructions";
 import { fakeSupabase } from "@/test-utils/fake-supabase";
