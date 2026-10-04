@@ -144,6 +144,7 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
       key: "learn", label: "Learn", Icon: Lightbulb,
       tabs: [
         { href: "/dashboard/player/tactics", label: "Plays", feature: "tactics" },
+        { href: "/dashboard/player/homework", label: "Homework", feature: "tactics" },
         { href: "/dashboard/player/development", label: "Development" },
       ],
     },

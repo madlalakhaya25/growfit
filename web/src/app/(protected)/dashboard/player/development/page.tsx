@@ -14,6 +14,8 @@ import { loadSharedDevelopmentPlan } from "@/lib/shared-development-plan";
 import { loadTermReview, loadSelfRatings } from "@/lib/term-review-data";
 import { SelfRatingCard } from "@/components/development/self-rating-card";
 import { todayIso } from "@/lib/time";
+import { loadPlayerHomework } from "@/lib/homework-data";
+import { HomeworkEvidence } from "@/components/homework/homework-evidence";
 
 /**
  * Milestones and the development plan, split out of the passport page.
@@ -69,6 +71,7 @@ export default async function PlayerDevelopmentPage() {
 
   const shared = await loadSharedDevelopmentPlan(supabase, player.id);
   const challenge = shared ? pickHomeChallenge(shared.plan) : null;
+  const homework = await loadPlayerHomework(supabase, player.id);
 
   return (
     <div className="space-y-6">
@@ -96,6 +99,9 @@ export default async function PlayerDevelopmentPage() {
         <h2 className="text-base font-semibold">My journey</h2>
         <MilestoneTimeline snapshot={snapshot} audience="player" />
       </section>
+
+      {/* Evidence for the Tactical category: plays studied at home. */}
+      <HomeworkEvidence rows={homework.rows} audience="player" />
 
       {/* Only a plan a coach has approved is ever shown here; the generator is
           coach-only (Phase 0 of docs/AI_AND_UX_PLAN_2026.md). */}

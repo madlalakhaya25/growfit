@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { LayoutGrid, ChevronRight, Sparkles, Film } from "lucide-react";
+import { LayoutGrid, ChevronRight, Sparkles, Film, BookOpenCheck } from "lucide-react";
 import { AgentStream } from "@/components/ai/agent-stream";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 
@@ -64,6 +64,22 @@ export default async function CoachTacticsPage() {
           <span className="block font-semibold text-sm">Break down a match play</span>
           <span className="block text-xs text-muted-foreground">
             Freeze a frame from a phone clip or a photo and draw over it, like a TV analyst.
+          </span>
+        </span>
+        <ChevronRight className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
+      </Link>
+
+      <Link
+        href="/dashboard/coach/tactics/homework"
+        className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:bg-muted/40 transition-colors"
+      >
+        <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+          <BookOpenCheck className="size-5" aria-hidden="true" />
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="block font-semibold text-sm">Tactics homework</span>
+          <span className="block text-xs text-muted-foreground">
+            See who has watched the play you sent home, and who found the quiz tricky.
           </span>
         </span>
         <ChevronRight className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
