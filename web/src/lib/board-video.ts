@@ -24,6 +24,15 @@ export function canRecordVideo(): boolean {
   return typeof HTMLCanvasElement.prototype.captureStream === "function";
 }
 
+/** Can this browser save the move as a video by either route: recording the
+ * canvas, or encoding MP4 with WebCodecs (lib/board-video-mp4.ts)? Whether the
+ * encoder takes H.264 is only known asynchronously; this is the quick check
+ * the button uses. */
+export function canSaveVideo(): boolean {
+  if (canRecordVideo()) return true;
+  return typeof VideoEncoder !== "undefined" && typeof HTMLCanvasElement !== "undefined";
+}
+
 /**
  * The board moment (ms into the move) each video frame shows: one every
  * 1000/fps ms from 0 to the end of the move, always landing exactly on the

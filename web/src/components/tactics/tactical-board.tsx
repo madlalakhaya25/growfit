@@ -14,7 +14,10 @@ import { PITCH_THEME_LIST } from "@/lib/pitch-themes";
 import { passingLanes, spaceControl, offsideLines, zoneCounts } from "@/lib/board-overlays";
 import { shiftToBall, reachTimes, pressingPlan, playerJobs } from "@/lib/board-coaching";
 import { counterExploits, counterRunShapes, type OpponentCounter } from "@/lib/opponent-counter";
-import { recordMoveVideo, videoFileName, downloadBlob } from "@/lib/board-video";
+import { videoFileName, downloadBlob } from "@/lib/board-video";
+import { makeShareVideo } from "@/lib/board-video-mp4";
+import { generatePlayHandoutPdf, handoutFileName } from "@/lib/play-handout-pdf";
+import { canShareFile } from "@/lib/share-file";
 import { activePhase, switchPhase, phaseGlideFrames, phaseTourFrames, phasesFromLayouts, type Phase } from "@/lib/board-phases";
 import { layoutTeams } from "@/lib/formation-layout";
 import { framesFromShapes } from "@/lib/play-motion";
@@ -42,6 +45,8 @@ import { BoardDock, DockPanel, nextDockChoice, openDockTab, type DockTab } from 
 import { StepTimeline } from "@/components/tactics/step-timeline";
 import { PhaseToggle } from "@/components/tactics/phase-toggle";
 import { SaveVideoButton } from "@/components/tactics/save-video-button";
+import { HandoutButton } from "@/components/tactics/handout-button";
+import { ReadyFileBar } from "@/components/tactics/ready-file-bar";
 import { DraftRecoveryBanner } from "@/components/tactics/draft-recovery-banner";
 import { ExploitLayer, ExploitLegend } from "@/components/tactics/exploit-layer";
 import { BoardInstructionsPanel } from "@/components/tactics/board-instructions-panel";
@@ -391,6 +396,9 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   // deliberately left out of that slice.
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // A finished video or handout waiting for a tap on Share or Download.
+  const [readyFile, setReadyFile] = useState<File | null>(null);
+  const [makingHandout, setMakingHandout] = useState(false);
 
   // Tapping a player selects them; tapping a bench player then swaps the two.
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
@@ -987,19 +995,57 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
 
     stopPlayback();
     setRecording(true);
-    setNotice("Saving the video. It plays through once…");
+    setNotice("Making the video…");
     try {
-      const video = await recordMoveVideo({ baseTokens: state.tokens, frames: seqFrames, overlay, showNames });
+      const video = await makeShareVideo({
+        baseTokens: state.tokens, frames: seqFrames, overlay, showNames,
+        captions: { title: playName.trim() || "Play", subtitle: [team?.name, team?.age_group].filter(Boolean).join(" · ") },
+      });
       if (!video) {
         setNotice("This browser can't save video. Try Chrome, or use PNG export.");
         return;
       }
-      downloadBlob(video.blob, videoFileName(playName, team?.name, video.mime));
-      setNotice("Video saved to your downloads.");
+      hand(new File([video.blob], videoFileName(playName, team?.name, video.mime), { type: video.mime }), "Video");
     } catch {
       setNotice("Couldn't save the video. Try again, or use PNG export.");
     } finally {
       setRecording(false);
+    }
+  }
+
+  /** Share sheet where there is one (the file waits for a fresh tap), else a download. */
+  function hand(file: File, what: string) {
+    if (canShareFile(file)) {
+      setReadyFile(file);
+      setNotice(`${what} ready. Tap Share to send it.`);
+      return;
+    }
+    downloadBlob(file, file.name);
+    setNotice(`${what} saved to your downloads.`);
+  }
+
+  /** A one-page PDF of the board: positions, first names and the coach's words. */
+  async function makeHandout() {
+    if (!pitch.supportsFormations) {
+      setNotice("The handout needs the full pitch for now.");
+      return;
+    }
+    setMakingHandout(true);
+    try {
+      const bytes = await generatePlayHandoutPdf({
+        title: playName.trim() || "Play",
+        subtitle: [team?.name, team?.age_group].filter(Boolean).join(" · "),
+        dateLabel: new Date().toLocaleDateString("en-ZA", { day: "numeric", month: "long", year: "numeric" }),
+        // Only what is drawn: no player ids, so nothing but a first name or number leaves with the file.
+        tokens: state.tokens.map(({ label, x, y, kind, group }) => ({ label, x, y, kind, group })),
+        shapes: state.shapes,
+        instructions: state.instructions ?? [],
+      });
+      hand(new File([bytes as BlobPart], handoutFileName(playName, team?.name), { type: "application/pdf" }), "Handout");
+    } catch {
+      setNotice("Couldn't make the handout. Try again.");
+    } finally {
+      setMakingHandout(false);
     }
   }
 
@@ -2260,7 +2306,14 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               disabled={state.tokens.length === 0 || playing}
               blockedReason={pitch.supportsFormations ? null : "Video needs the full pitch."}
             />
+            <HandoutButton
+              onMake={() => { void makeHandout(); }}
+              busy={makingHandout}
+              disabled={state.tokens.length === 0}
+              blockedReason={pitch.supportsFormations ? null : "Handout needs the full pitch."}
+            />
           </div>
+          {readyFile && <div className="mt-2"><ReadyFileBar file={readyFile} onNotice={setNotice} onDone={() => setReadyFile(null)} /></div>}
           <StepTimeline
             scrubTo={scrubTo}
             endScrub={endScrub}
