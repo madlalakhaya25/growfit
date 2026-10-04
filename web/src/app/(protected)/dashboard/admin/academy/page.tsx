@@ -8,8 +8,21 @@ import { getAcademyFeatures } from "@/lib/features";
 import { todayIso } from "@/lib/time";
 import { TermsCard } from "./terms-card";
 import { overlappingTerms } from "@/lib/school-terms";
+import { QueryTabs } from "@/components/ui/query-tabs";
+import { pickTab } from "@/lib/tabs";
 
-export default async function AcademySettingsPage() {
+const TABS = [
+  { id: "profile", label: "Profile" },
+  { id: "terms", label: "Terms" },
+  { id: "features", label: "Features" },
+] as const;
+
+export default async function AcademySettingsPage({
+  searchParams,
+}: Readonly<{
+  searchParams: Promise<{ tab?: string | string[] }>;
+}>) {
+  const tab = pickTab(TABS, (await searchParams).tab);
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
@@ -30,15 +43,17 @@ export default async function AcademySettingsPage() {
 
   if (!academy) redirect("/dashboard/admin");
 
-  const features = await getAcademyFeatures(supabase, academy.id);
+  const features = tab === "features" ? await getAcademyFeatures(supabase, academy.id) : null;
 
   // Absent until migration 053 is run: the card then just offers setup and
   // the page keeps working.
-  const { data: termRows } = await supabase
-    .from("academy_terms")
-    .select("id, name, starts_on, ends_on")
-    .eq("academy_id", academy.id)
-    .order("starts_on");
+  const { data: termRows } = tab === "terms"
+    ? await supabase
+        .from("academy_terms")
+        .select("id, name, starts_on, ends_on")
+        .eq("academy_id", academy.id)
+        .order("starts_on")
+    : { data: [] };
   const terms = (termRows ?? []) as { id: string; name: string; starts_on: string; ends_on: string }[];
   const overlaps = overlappingTerms(terms);
   const today = todayIso();
@@ -53,6 +68,10 @@ export default async function AcademySettingsPage() {
         </p>
       </div>
 
+      <QueryTabs tabs={TABS} active={tab} basePath="/dashboard/admin/academy" />
+
+      {tab === "profile" && (
+        <>
       {/* Academy info card */}
       <section className="rounded-xl border border-border bg-card p-6 space-y-4">
         <div>
@@ -86,6 +105,11 @@ export default async function AcademySettingsPage() {
         </div>
       </section>
 
+        </>
+      )}
+
+      {tab === "terms" && (
+        <>
       {/* School terms card */}
       <section className="rounded-xl border border-border bg-card p-6 space-y-4">
         <div>
@@ -102,6 +126,11 @@ export default async function AcademySettingsPage() {
         <TermsCard terms={terms} year={year} />
       </section>
 
+        </>
+      )}
+
+      {tab === "features" && features && (
+        <>
       {/* Feature toggles card */}
       <section className="rounded-xl border border-border bg-card p-6 space-y-4">
         <div>
@@ -112,6 +141,8 @@ export default async function AcademySettingsPage() {
         </div>
         <AcademyFeaturesForm action={updateAcademyFeatures} initial={features} />
       </section>
+        </>
+      )}
     </div>
   );
 }

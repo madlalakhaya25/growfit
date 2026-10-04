@@ -24,6 +24,19 @@ import { fixtureStatusLabel, fixtureStatusVariant, isFixturePast, type FixtureBa
 import { signPlayerPhotoUrls } from "@/lib/player-photo";
 import { formatInTimezone } from "@/lib/time";
 import { cleanPhaseRatings, phaseHighlights, ratedPhases } from "@/lib/match-phases";
+import { QueryTabs } from "@/components/ui/query-tabs";
+import { pickTab } from "@/lib/tabs";
+
+const TABS = [
+  { id: "overview", label: "Overview" },
+  { id: "squad", label: "Squad" },
+  { id: "report", label: "Report" },
+] as const;
+
+// A tab that isn't open loads nothing for its data.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const NONE = Promise.resolve({ data: [] as any[] });
+const NO_PROFILE = Promise.resolve({ data: null as { academy_id: string | null } | null });
 
 /**
  * The status badge on the matchday header uses Badge's `onInk` variant (a
@@ -41,10 +54,13 @@ const STATUS_DOT: Record<FixtureBadgeVariant, string> = {
 
 export default async function FixtureDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string | string[] }>;
 }) {
-  const { id } = await params;
+  const [{ id }, { tab: tabParam }] = await Promise.all([params, searchParams]);
+  const tab = pickTab(TABS, tabParam);
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
@@ -68,33 +84,46 @@ export default async function FixtureDetailPage({
 
   if (!fixture) notFound();
 
+  const onOverview = tab === "overview";
+  const onSquad = tab === "squad";
+  const onReport = tab === "report";
+  // The log-result form (overview, once kickoff has passed) needs the squad too.
+  const logFormOpen = onOverview && fixture.status === "upcoming" && isFixturePast(fixture);
+  const needsSquad = onSquad || logFormOpen;
+
   const [
     { data: media },
     { data: squadMembersRaw },
     { data: profile },
     { data: matchAttendanceRaw },
   ] = await Promise.all([
-    supabase
-      .from("media_uploads")
-      .select("id, url, media_type, caption, created_at, uploaded_by, media_tags ( player_id, players ( full_name ) )")
-      .eq("fixture_id", id)
-      .order("created_at", { ascending: false }),
-    fixture.team_id
+    onReport
+      ? supabase
+          .from("media_uploads")
+          .select("id, url, media_type, caption, created_at, uploaded_by, media_tags ( player_id, players ( full_name ) )")
+          .eq("fixture_id", id)
+          .order("created_at", { ascending: false })
+      : NONE,
+    fixture.team_id && (needsSquad || onReport)
       ? supabase
           .from("team_members")
           .select("players ( id, full_name, position )")
           .eq("team_id", fixture.team_id)
           .eq("active", true)
-      : Promise.resolve({ data: [] }),
-    supabase
-      .from("profiles")
-      .select("academy_id")
-      .eq("id", user.id)
-      .single(),
-    supabase
-      .from("match_attendance")
-      .select("player_id, status")
-      .eq("fixture_id", id),
+      : NONE,
+    onReport
+      ? supabase
+          .from("profiles")
+          .select("academy_id")
+          .eq("id", user.id)
+          .single()
+      : NO_PROFILE,
+    onSquad
+      ? supabase
+          .from("match_attendance")
+          .select("player_id, status")
+          .eq("fixture_id", id)
+      : NONE,
   ]);
 
   type Appearance = { played: boolean; players: { id: string; full_name: string; position: string | null; photo_url: string | null } | { id: string; full_name: string; position: string | null; photo_url: string | null }[] | null };
@@ -107,10 +136,10 @@ export default async function FixtureDetailPage({
 
   const signedPhotoByUrl = await signPlayerPhotoUrls(
     supabase,
-    appearances.map((a) => (Array.isArray(a.players) ? a.players[0] : a.players)?.photo_url ?? null)
+    (onOverview ? appearances : []).map((a) => (Array.isArray(a.players) ? a.players[0] : a.players)?.photo_url ?? null)
   );
 
-  const stories = await loadFixtureStories(supabase, id);
+  const stories = onReport ? await loadFixtureStories(supabase, id) : { available: false, byPlayer: new Map<string, never>() };
   const storyRows: StoryRow[] = appearances.flatMap((a) => {
     const p = Array.isArray(a.players) ? a.players[0] : a.players;
     if (!p) return [];
@@ -131,7 +160,7 @@ export default async function FixtureDetailPage({
     return Array.isArray(m.players) ? m.players : [m.players];
   });
 
-  const attendanceByPlayer = fixture.team_id
+  const attendanceByPlayer = fixture.team_id && logFormOpen
     ? await getTrainingAttendanceSummaries(supabase, fixture.team_id, flattenedSquadPlayers.map((p) => p.id))
     : new Map<string, AttendanceSummary>();
   const trainingAttendance: Record<string, AttendanceSummary> = Object.fromEntries(attendanceByPlayer);
@@ -139,7 +168,7 @@ export default async function FixtureDetailPage({
   // Queried separately, and tolerant of migration 039 not having run yet
   // (42703) — see squad-context.ts's own note on the same tradeoff.
   const playerAvailability: Record<string, { status: string; note: string | null }> = {};
-  if (flattenedSquadPlayers.length > 0) {
+  if (logFormOpen && flattenedSquadPlayers.length > 0) {
     const availabilityResult = await supabase
       .from("players")
       .select("id, availability_status, availability_note")
@@ -157,7 +186,7 @@ export default async function FixtureDetailPage({
   // their own so a database without the column still shows the fixture.
   let phases: ReturnType<typeof ratedPhases> = [];
   let phaseSummary: ReturnType<typeof phaseHighlights> = null;
-  if (result) {
+  if (onOverview && result) {
     const { data: phaseRow, error: phaseError } = await supabase
       .from("match_results")
       .select("phase_ratings")
@@ -288,6 +317,10 @@ export default async function FixtureDetailPage({
         </p>
       )}
 
+      <QueryTabs tabs={TABS} active={tab} basePath={`/dashboard/coach/fixtures/${id}`} />
+
+      {onOverview && (
+        <>
       {/* Inline log result form — only once kickoff has actually passed
           (isFixturePast), not just because the status column still says
           "upcoming"; it can say that for days after the final whistle
@@ -386,6 +419,11 @@ export default async function FixtureDetailPage({
         </div>
       )}
 
+        </>
+      )}
+
+      {onSquad && (
+        <>
       {/* Attendance */}
       {flattenedSquadPlayers.length > 0 && (
         <section className="space-y-3">
@@ -398,6 +436,11 @@ export default async function FixtureDetailPage({
         </section>
       )}
 
+        </>
+      )}
+
+      {onReport && (
+        <>
       {/* Stories for each child's family, shared only after the coach approves. */}
       {fixture.status === "completed" && appearances.length > 0 && (
         <section className="max-w-2xl">
@@ -438,6 +481,8 @@ export default async function FixtureDetailPage({
           <p className="text-sm text-muted-foreground">No media yet — upload match photos or videos.</p>
         )}
       </section>
+        </>
+      )}
     </div>
   );
 }
