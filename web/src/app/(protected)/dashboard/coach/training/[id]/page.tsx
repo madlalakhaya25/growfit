@@ -23,6 +23,19 @@ import { loadCoachNotes } from "@/lib/coach-notes";
 import { CoachNotesBox } from "@/components/development/coach-notes-box";
 import { ShareToLibraryButton } from "@/components/training/drill-library/share-to-library-button";
 import { ageGroupFromTeam } from "@/lib/drill-library";
+import { QueryTabs } from "@/components/ui/query-tabs";
+import { pickTab } from "@/lib/tabs";
+
+const TABS = [
+  { id: "plan", label: "Plan" },
+  { id: "register", label: "Register" },
+  { id: "notes", label: "Notes" },
+] as const;
+
+// A tab that isn't open loads nothing for its data.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const NONE = Promise.resolve({ data: [] as any[] });
+const NO_PROFILE = Promise.resolve({ data: null as { academy_id: string | null } | null });
 
 const TYPE_STYLES: Record<string, { label: string; chip: string; header: string }> = {
   general:    { label: "General",    chip: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",       header: "bg-slate-500/10" },
@@ -35,10 +48,13 @@ const TYPE_STYLES: Record<string, { label: string; chip: string; header: string 
 
 export default async function CoachTrainingSessionPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string | string[] }>;
 }) {
-  const { id } = await params;
+  const [{ id }, { tab: tabParam }] = await Promise.all([params, searchParams]);
+  const tab = pickTab(TABS, tabParam);
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
@@ -55,6 +71,9 @@ export default async function CoachTrainingSessionPage({
 
   if (!session) notFound();
 
+  const onPlan = tab === "plan";
+  const onRegister = tab === "register";
+  const onNotes = tab === "notes";
   const [
     { data: drills },
     { data: attendanceRows },
@@ -63,37 +82,47 @@ export default async function CoachTrainingSessionPage({
     { data: squadMembersRaw },
     { data: profile },
   ] = await Promise.all([
-    supabase
-      .from("training_drills")
-      .select("id, title, description, video_url, sort_order, details")
-      .eq("session_id", id)
-      .order("sort_order"),
+    onPlan
+      ? supabase
+          .from("training_drills")
+          .select("id, title, description, video_url, sort_order, details")
+          .eq("session_id", id)
+          .order("sort_order")
+      : NONE,
     // `marked_by`/`marked_at` let the register say who actually marked it
     // (docs/BACKLOG.md 2.9) — a fact two co-coaches on the same team can
     // otherwise disagree about without either one noticing.
-    supabase
-      .from("training_attendance")
-      .select("player_id, status, marked_by, marked_at, profiles ( full_name )")
-      .eq("session_id", id),
-    supabase.from("training_rsvps").select("player_id, response").eq("session_id", id),
-    supabase
-      .from("media_uploads")
-      .select("id, url, media_type, caption, created_at, uploaded_by, media_tags ( player_id, players ( full_name ) )")
-      .eq("session_id", id)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("team_members")
-      .select("players ( id, full_name )")
-      .eq("team_id", session.team_id)
-      .eq("active", true),
-    supabase
-      .from("profiles")
-      .select("academy_id")
-      .eq("id", user.id)
-      .single(),
+    onRegister
+      ? supabase
+          .from("training_attendance")
+          .select("player_id, status, marked_by, marked_at, profiles ( full_name )")
+          .eq("session_id", id)
+      : NONE,
+    onRegister ? supabase.from("training_rsvps").select("player_id, response").eq("session_id", id) : NONE,
+    onNotes
+      ? supabase
+          .from("media_uploads")
+          .select("id, url, media_type, caption, created_at, uploaded_by, media_tags ( player_id, players ( full_name ) )")
+          .eq("session_id", id)
+          .order("created_at", { ascending: false })
+      : NONE,
+    onRegister || onNotes
+      ? supabase
+          .from("team_members")
+          .select("players ( id, full_name )")
+          .eq("team_id", session.team_id)
+          .eq("active", true)
+      : NONE,
+    onPlan || onNotes
+      ? supabase
+          .from("profiles")
+          .select("academy_id")
+          .eq("id", user.id)
+          .single()
+      : NO_PROFILE,
   ]);
 
-  const libraryDrills = profile?.academy_id
+  const libraryDrills = onPlan && profile?.academy_id
     ? (
         await supabase
           .from("drill_library")
@@ -145,7 +174,7 @@ export default async function CoachTrainingSessionPage({
     }),
   }));
 
-  const sessionNotes = await loadCoachNotes(supabase, user.id, "session", [id]);
+  const sessionNotes = onNotes ? await loadCoachNotes(supabase, user.id, "session", [id]) : null;
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -210,71 +239,12 @@ export default async function CoachTrainingSessionPage({
 
       </div>
 
+      <QueryTabs tabs={TABS} active={tab} basePath={`/dashboard/coach/training/${id}`} />
+
+      {onPlan && (
+        <>
       {/* Pitch-side view: one drill at a time with a stopwatch. */}
       <SessionRunner drills={(drills ?? []).map((d) => ({ id: d.id, title: d.title, description: d.description, details: sanitiseDrillDetails(d.details) }))} />
-
-      {/* Coach attendance marking — its own header already shows the real
-          P/A/L/E summary (attended/assessed/pct/unmarked); a duplicate
-          "Attendance" bar used to sit here too, but it filtered on
-          migration 005's RSVP vocabulary ('attending'/'unavailable'), which
-          migration 036 stopped writing entirely — it had shown 0 going, 0
-          can't-make-it and every player "pending" regardless of how the
-          register below was actually marked, ever since 036 shipped. */}
-      <TrainingAttendanceForm
-        sessionId={id}
-        players={flattenedSquadPlayers}
-        // Rows with no marked_by pre-date migration 051 and were written by the
-        // player's own RSVP tap, not by a coach: they are not register marks.
-        existing={((attendanceRows ?? []) as { player_id: string; status: string; marked_by: string | null }[])
-          .filter((r) => r.marked_by !== null)}
-        rsvps={Object.fromEntries(((rsvpRows ?? []) as { player_id: string; response: "going" | "cant" }[]).map((r) => [r.player_id, r.response]))}
-        lastMarkedBy={(() => {
-          type MarkRow = {
-            marked_by: string | null; marked_at: string | null;
-            profiles: { full_name: string } | { full_name: string }[] | null;
-          };
-          const rows = (attendanceRows ?? []) as unknown as MarkRow[];
-          const latest = rows
-            .filter((r) => r.marked_at)
-            .sort((a, b) => +new Date(b.marked_at!) - +new Date(a.marked_at!))[0];
-          if (!latest) return null;
-          const profile = Array.isArray(latest.profiles) ? latest.profiles[0] : latest.profiles;
-          return profile?.full_name ? { name: profile.full_name, at: latest.marked_at! } : null;
-        })()}
-      />
-
-      {/* Debrief: how it went, typed or spoken. Private to this coach and admins. */}
-      <CoachNotesBox
-        subjectType="session"
-        subjectId={id}
-        initialNotes={sessionNotes.bySubject[id] ?? []}
-        available={sessionNotes.available}
-        label="Session debrief"
-        placeholder="How did it go? What worked, what to change next time."
-      />
-
-      {/* Photos & Videos */}
-      <section className="rounded-xl border border-border bg-card p-4 space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold">Photos &amp; Videos</h2>
-          <MediaUploadForm
-            teamId={session.team_id}
-            sessionId={id}
-            academyId={profile?.academy_id ?? ""}
-            squadPlayers={flattenedSquadPlayers}
-          />
-        </div>
-        {normalizedMediaItems.length > 0 && (
-          <MediaGallery
-            items={normalizedMediaItems}
-            canDelete
-            currentUserId={user?.id}
-          />
-        )}
-        {normalizedMediaItems.length === 0 && (
-          <p className="text-sm text-muted-foreground">No media yet — upload training photos or videos.</p>
-        )}
-      </section>
 
       {/* Drills */}
       <section className="space-y-4">
@@ -337,6 +307,81 @@ export default async function CoachTrainingSessionPage({
         <AddFromLibrary sessionId={id} drills={libraryDrills} />
         <AddDrillForm sessionId={id} />
       </section>
+        </>
+      )}
+
+      {onRegister && (
+        <>
+      {/* Coach attendance marking — its own header already shows the real
+          P/A/L/E summary (attended/assessed/pct/unmarked); a duplicate
+          "Attendance" bar used to sit here too, but it filtered on
+          migration 005's RSVP vocabulary ('attending'/'unavailable'), which
+          migration 036 stopped writing entirely — it had shown 0 going, 0
+          can't-make-it and every player "pending" regardless of how the
+          register below was actually marked, ever since 036 shipped. */}
+      <TrainingAttendanceForm
+        sessionId={id}
+        players={flattenedSquadPlayers}
+        // Rows with no marked_by pre-date migration 051 and were written by the
+        // player's own RSVP tap, not by a coach: they are not register marks.
+        existing={((attendanceRows ?? []) as { player_id: string; status: string; marked_by: string | null }[])
+          .filter((r) => r.marked_by !== null)}
+        rsvps={Object.fromEntries(((rsvpRows ?? []) as { player_id: string; response: "going" | "cant" }[]).map((r) => [r.player_id, r.response]))}
+        lastMarkedBy={(() => {
+          type MarkRow = {
+            marked_by: string | null; marked_at: string | null;
+            profiles: { full_name: string } | { full_name: string }[] | null;
+          };
+          const rows = (attendanceRows ?? []) as unknown as MarkRow[];
+          const latest = rows
+            .filter((r) => r.marked_at)
+            .sort((a, b) => +new Date(b.marked_at!) - +new Date(a.marked_at!))[0];
+          if (!latest) return null;
+          const profile = Array.isArray(latest.profiles) ? latest.profiles[0] : latest.profiles;
+          return profile?.full_name ? { name: profile.full_name, at: latest.marked_at! } : null;
+        })()}
+      />
+
+        </>
+      )}
+
+      {onNotes && (
+        <>
+      {/* Debrief: how it went, typed or spoken. Private to this coach and admins. */}
+      <CoachNotesBox
+        subjectType="session"
+        subjectId={id}
+        initialNotes={sessionNotes?.bySubject[id] ?? []}
+        available={sessionNotes?.available ?? false}
+        label="Session debrief"
+        placeholder="How did it go? What worked, what to change next time."
+      />
+
+      {/* Photos & Videos */}
+      <section className="rounded-xl border border-border bg-card p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-base font-semibold">Photos &amp; Videos</h2>
+          <MediaUploadForm
+            teamId={session.team_id}
+            sessionId={id}
+            academyId={profile?.academy_id ?? ""}
+            squadPlayers={flattenedSquadPlayers}
+          />
+        </div>
+        {normalizedMediaItems.length > 0 && (
+          <MediaGallery
+            items={normalizedMediaItems}
+            canDelete
+            currentUserId={user?.id}
+          />
+        )}
+        {normalizedMediaItems.length === 0 && (
+          <p className="text-sm text-muted-foreground">No media yet — upload training photos or videos.</p>
+        )}
+      </section>
+
+        </>
+      )}
     </div>
   );
 }

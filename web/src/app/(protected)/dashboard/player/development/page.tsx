@@ -19,13 +19,27 @@ import { loadAttempts } from "@/lib/skill-challenges-data";
 import { skillAgeBand, trophyCabinet, weeklyStreak } from "@/lib/skill-challenges";
 import { loadPlayerHomework } from "@/lib/homework-data";
 import { HomeworkEvidence } from "@/components/homework/homework-evidence";
+import { QueryTabs } from "@/components/ui/query-tabs";
+import { pickTab } from "@/lib/tabs";
+
+const TABS = [
+  { id: "progress", label: "Progress" },
+  { id: "medals", label: "Medals" },
+  { id: "homework", label: "Homework" },
+  { id: "plan", label: "Plan" },
+] as const;
 
 /**
  * Milestones and the development plan, split out of the passport page.
  * The passport answers "who am I as a player"; this answers "what am I
  * working on" — two different questions that were sharing one long scroll.
  */
-export default async function PlayerDevelopmentPage() {
+export default async function PlayerDevelopmentPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string | string[] }>;
+}) {
+  const tab = pickTab(TABS, (await searchParams).tab);
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
@@ -51,6 +65,9 @@ export default async function PlayerDevelopmentPage() {
     .eq("id", user.id)
     .single();
 
+  const onProgress = tab === "progress";
+  const needsAge = onProgress || tab === "medals";
+
   const snapshot = await loadDevelopmentSnapshot(supabase, {
     playerId: player.id,
     academyId: playerProfile?.academy_id ?? null,
@@ -58,26 +75,28 @@ export default async function PlayerDevelopmentPage() {
   });
 
   // The player's own rating of themself. Nothing appears until terms exist.
-  const termReview = playerProfile?.academy_id
+  const termReview = onProgress && playerProfile?.academy_id
     ? await loadTermReview(supabase, player.id, playerProfile.academy_id as string, todayIso())
     : null;
   const selfRatings = termReview?.term ? await loadSelfRatings(supabase, player.id, termReview.term.id) : {};
-  const { data: teamRow } = await supabase
-    .from("team_members")
-    .select("teams ( age_group )")
-    .eq("player_id", player.id)
-    .eq("active", true)
-    .limit(1)
-    .maybeSingle();
+  const { data: teamRow } = needsAge
+    ? await supabase
+        .from("team_members")
+        .select("teams ( age_group )")
+        .eq("player_id", player.id)
+        .eq("active", true)
+        .limit(1)
+        .maybeSingle()
+    : { data: null };
   const teams = (teamRow as { teams: { age_group: string | null } | { age_group: string | null }[] | null } | null)?.teams;
   const ageGroup = (Array.isArray(teams) ? teams[0] : teams)?.age_group ?? null;
 
-  const shared = await loadSharedDevelopmentPlan(supabase, player.id);
+  const shared = tab === "plan" ? await loadSharedDevelopmentPlan(supabase, player.id) : null;
   // Ball-skill medals count as evidence for the Technical category. Hidden
   // until migration 064 has run.
-  const skillAttempts = await loadAttempts(supabase, [player.id]);
+  const skillAttempts = tab === "medals" ? await loadAttempts(supabase, [player.id]) : { available: false, rows: [] };
   const challenge = shared ? pickHomeChallenge(shared.plan) : null;
-  const homework = await loadPlayerHomework(supabase, player.id);
+  const homework = tab === "homework" ? await loadPlayerHomework(supabase, player.id) : { rows: [] };
 
   return (
     <div className="space-y-6">
@@ -90,6 +109,10 @@ export default async function PlayerDevelopmentPage() {
         description={`What you're working on this ${snapshot.currentSeason} season, across the five development categories.`}
       />
 
+      <QueryTabs tabs={TABS} active={tab} basePath="/dashboard/player/development" />
+
+      {tab === "progress" && (
+        <>
       {termReview?.term && (
         <SelfRatingCard
           termId={termReview.term.id}
@@ -101,6 +124,17 @@ export default async function PlayerDevelopmentPage() {
 
       <DevelopmentOverview snapshot={snapshot} audience="player" />
 
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold">My journey</h2>
+        <MilestoneTimeline snapshot={snapshot} audience="player" />
+      </section>
+
+        </>
+      )}
+
+      {tab === "medals" && (
+        <>
+      {!skillAttempts.available && <EmptyState message="Your ball-skill medals show here once home challenges are set up." />}
       {skillAttempts.available && (
         <TrophyCabinet
           results={trophyCabinet(skillAgeBand(ageGroup), skillAttempts.rows)}
@@ -112,14 +146,20 @@ export default async function PlayerDevelopmentPage() {
         />
       )}
 
-      <section className="space-y-3">
-        <h2 className="text-base font-semibold">My journey</h2>
-        <MilestoneTimeline snapshot={snapshot} audience="player" />
-      </section>
+        </>
+      )}
 
+      {tab === "homework" && (
+        <>
       {/* Evidence for the Tactical category: plays studied at home. */}
+      {homework.rows.length === 0 && <EmptyState message="No homework yet. Plays your coach sets for you show here." />}
       <HomeworkEvidence rows={homework.rows} audience="player" />
 
+        </>
+      )}
+
+      {tab === "plan" && (
+        <>
       {/* Only a plan a coach has approved is ever shown here; the generator is
           coach-only (Phase 0 of docs/AI_AND_UX_PLAN_2026.md). */}
       {challenge && <HomeChallengeCard challenge={challenge} audience="player" />}
@@ -135,6 +175,8 @@ export default async function PlayerDevelopmentPage() {
           />
         )}
       </section>
+        </>
+      )}
     </div>
   );
 }
