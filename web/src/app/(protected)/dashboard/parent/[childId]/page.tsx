@@ -30,6 +30,8 @@ import {
 import { matchRatingAverage } from "@/lib/player";
 import { loadTermReview } from "@/lib/term-review-data";
 import { TermGrowthCard } from "@/components/development/term-growth-card";
+import { ChallengeBoardView } from "@/components/skill-challenges/challenge-board-view";
+import { loadChallengeBoard } from "@/lib/skill-challenges-data";
 
 export default async function ChildDetailPage({
   params,
@@ -85,6 +87,7 @@ export default async function ChildDetailPage({
 
   const sharedPlan = await loadSharedDevelopmentPlan(supabase, player.id);
   const homeChallenge = sharedPlan ? pickHomeChallenge(sharedPlan.plan) : null;
+  const skillBoard = await loadChallengeBoard(supabase, player.id, todayIso());
 
   type Rating = {
     id: string;
@@ -234,6 +237,7 @@ export default async function ChildDetailPage({
             { href: "#ratings", label: "Ratings" },
             { href: "#fixtures", label: "Fixtures" },
             { href: "#development", label: "Development" },
+            ...(skillBoard.available ? [{ href: "#challenges", label: "Challenges" }] : []),
             { href: "#documents", label: "Documents" },
           ].map(({ href, label }) => (
             <a
@@ -423,6 +427,14 @@ export default async function ChildDetailPage({
           </p>
         )}
       </section>
+
+      {/* Ball-skill home challenges (migration 064). Hidden until it has run. */}
+      {skillBoard.available && (
+        <section id="challenges" className="space-y-3">
+          <h2 className="text-lg font-semibold">Skill challenges</h2>
+          <ChallengeBoardView board={skillBoard} childId={player.id} childName={player.full_name} />
+        </section>
+      )}
 
       <section id="documents" className="space-y-4 mt-8">
         <div className="flex items-center justify-between">

@@ -451,6 +451,22 @@ ratings are simply not stored.
 
 ---
 
+## 064: skill challenges
+
+Adds `skill_challenge_assignments` (a coach asks a team, or one player in it, to
+try a ball-skill home challenge by a date) and `skill_challenge_attempts` (one
+logged score: player, challenge key, a whole number, when, who typed it). The
+catalogue and the bronze/silver/gold targets live in the app, not the database.
+Additive: two new tables. Coaches of the team and admins of the academy manage
+assignments; the team's players and linked parents read them. A player logs and
+reads their own scores; a linked parent reads and may log for their child (the
+same rule as the medical form); coaches of the child's team and academy admins
+read. Erasing a player erases their scores (real foreign keys). Safe to re-run.
+Until it is run, the Challenges screens say they are not set up yet, and the
+development page and parent page simply show no medals.
+
+---
+
 ## How to apply
 
 Either route works. Take a backup first regardless.
