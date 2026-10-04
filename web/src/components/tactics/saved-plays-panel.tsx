@@ -12,6 +12,7 @@ import { folderNames, groupByFolder } from "@/lib/play-folders";
 import { describePlay, analyseOpponent } from "@/app/actions/tactics";
 import { generateSessionFromBoard } from "@/app/actions/board-to-session";
 import { generateBoardFromSentence } from "@/app/actions/board-from-text";
+import { readInstructions } from "@/lib/board-instructions";
 import { transcribeCoachNote } from "@/app/actions/coach-notes";
 import { useVoiceCapture } from "@/components/tactics/use-voice-capture";
 import { SessionProgression } from "@/components/tactics/session-progression";
@@ -134,6 +135,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
         pitchId, pitchThemeId, frames, homeFormationId, awayFormationId,
         // Undefined (and so left out of the JSON) for a play nobody flipped.
         phases: phasesForSave(state.tokens, state.phases),
+        instructions: state.instructions,
       },
       conceptIds,
       sessionId: sessionId || null,
@@ -154,7 +156,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
     if (res.error || !res.data) { setNotice(res.error ?? "Could not load play."); return; }
     const d = res.data as Partial<BoardState & { frames: Frame[]; homeFormationId: string; awayFormationId: string; pitchId: string; pitchThemeId: string }>;
     snapshot();
-    setState({ tokens: d.tokens ?? [], shapes: d.shapes ?? [], objects: d.objects ?? [], playerNotes: d.playerNotes ?? [], phases: readPhases(d.phases) });
+    setState({ tokens: d.tokens ?? [], shapes: d.shapes ?? [], objects: d.objects ?? [], playerNotes: d.playerNotes ?? [], phases: readPhases(d.phases), instructions: readInstructions(d.instructions) });
     setPitchId(d.pitchId ?? "full");
     setPitchThemeId(d.pitchThemeId ?? "classic");
     setFrames(d.frames ?? []);

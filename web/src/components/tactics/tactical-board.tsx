@@ -44,6 +44,7 @@ import { PhaseToggle } from "@/components/tactics/phase-toggle";
 import { SaveVideoButton } from "@/components/tactics/save-video-button";
 import { DraftRecoveryBanner } from "@/components/tactics/draft-recovery-banner";
 import { ExploitLayer, ExploitLegend } from "@/components/tactics/exploit-layer";
+import { BoardInstructionsPanel } from "@/components/tactics/board-instructions-panel";
 import { PassingLaneLayer, SpaceControlLayer, LinesLayer, ZoneCountLayer, ReachTimeLayer } from "@/components/tactics/analysis-layers";
 import { PlayerJobsList } from "@/components/tactics/player-jobs";
 import { VerdictList } from "@/components/tactics/verdict-list";
@@ -316,6 +317,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   /** The coach's own pick of which tool group is open; undefined = the default for the board's state. */
   const [dock, setDock] = useState<DockTab | "closed" | undefined>(undefined);
   const [overlay, setOverlay] = useState<Overlay>("none");
+  // Runs from "Tell the board", shown dashed until the coach applies them.
+  const [instructionPreview, setInstructionPreview] = useState<Shape[]>([]);
   /** Colour for the next drawn line/zone/label — null keeps each kind's
    *  own default (yellow runs, sky dribbles, …). */
   const [drawColor, setDrawColor] = useState<string | null>(null);
@@ -1967,6 +1970,17 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
         ))}
       </div>
 
+      <BoardInstructionsPanel
+        teamId={teamId}
+        players={state.tokens.filter((t) => t.kind === "player")}
+        opponents={state.tokens.filter((t) => t.kind === "opponent")}
+        onPreview={setInstructionPreview}
+        onApply={(runs, line) => {
+          snapshot();
+          setState((st) => ({ ...st, shapes: [...st.shapes, ...runs], instructions: [...(st.instructions ?? []), line] }));
+        }}
+      />
+
       {/* Coach: tools that do something to the board for you. */}
       <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-card p-2">
         <span className="mr-1 px-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Coach</span>
@@ -2162,6 +2176,9 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               {/* Shapes */}
               {view.shapes.map((sh) => renderShape(sh))}
               {draft && renderShape(draft, true)}
+              {instructionPreview.map((sh) => (
+                <ShapeGlyph key={sh.id} sh={sh} prefix="tb" tokens={view.tokens} isDraft />
+              ))}
 
               {/* Equipment */}
               <EquipmentLayer objects={view.objects} onPointerDown={onObjectDown} />

@@ -33,6 +33,8 @@ jest.mock("@/app/actions/tactic-plays", () => ({
 }));
 jest.mock("@/app/actions/play-roles", () => ({ generatePlayRoles: jest.fn(), approvePlayRoles: jest.fn() }));
 jest.mock("@/app/actions/coach-notes", () => ({ transcribeCoachNote: jest.fn() }));
+const mockInterpret = jest.fn();
+jest.mock("@/app/actions/board-instructions", () => ({ interpretBoardInstructions: (...a: unknown[]) => mockInterpret(...a) }));
 
 import { TacticalBoard } from "@/components/tactics/tactical-board";
 import { useBoardInsightsStore } from "@/store/boardInsightsStore";
@@ -114,6 +116,40 @@ describe("TacticalBoard", () => {
     fireEvent.click(shape.getByRole("button", { name: "With the ball" }));
     expect(avgY("player")).toBeLessThan(ours);
     expect(avgY("opponent")).toBeLessThan(theirs);
+  });
+
+  it("previews what the coach said, draws it only on Apply, and keeps the words with the play", async () => {
+    render(<TacticalBoard teams={[]} />);
+    await act(async () => { await Promise.resolve(); });
+    fireEvent.click(screen.getByText("Set up my XI"));
+    mockInterpret.mockResolvedValue({ instructions: [{ action: "drop", player: 6 }, { action: "stay_wide", player: 1 }], dropped: 0 });
+
+    fireEvent.change(screen.getByLabelText("Tell the board how to move"), { target: { value: "the 10 drops, left back stays wide" } });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Preview" })); });
+    expect(mockInterpret).toHaveBeenCalledTimes(1);
+    expect(mockInterpret.mock.calls[0][0].count).toBe(11);
+    // Previewed, not drawn.
+    expect(screen.getByText(/drops deeper/)).toBeInTheDocument();
+    expect(useBoardStore.getState().state.shapes).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    const st = useBoardStore.getState().state;
+    expect(st.shapes).toHaveLength(2);
+    expect(st.shapes.every((sh) => sh.kind === "run" && sh.fromTokenId)).toBe(true);
+    expect(st.instructions).toEqual(["the 10 drops, left back stays wide"]);
+    expect(screen.queryByRole("button", { name: "Apply" })).not.toBeInTheDocument();
+  });
+
+  it("draws nothing when the coach discards the preview", async () => {
+    render(<TacticalBoard teams={[]} />);
+    await act(async () => { await Promise.resolve(); });
+    fireEvent.click(screen.getByText("Set up my XI"));
+    mockInterpret.mockResolvedValue({ instructions: [{ action: "drop", player: 6 }], dropped: 0 });
+    fireEvent.change(screen.getByLabelText("Tell the board how to move"), { target: { value: "drop" } });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Preview" })); });
+    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
+    expect(useBoardStore.getState().state.shapes).toHaveLength(0);
+    expect(useBoardStore.getState().state.instructions).toBeUndefined();
   });
 
   it("applies an AI counter: switches our shape and draws its moves", async () => {
