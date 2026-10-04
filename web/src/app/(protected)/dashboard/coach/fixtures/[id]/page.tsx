@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, ClipboardList, Star } from "lucide-react";
+import { ArrowLeft, ClipboardList, Printer, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getTrainingAttendanceSummaries } from "@/lib/training-attendance";
 import type { AttendanceSummary } from "@/lib/attendance";
@@ -23,6 +23,7 @@ import { MatchReportPanel } from "@/components/ai/match-report-panel";
 import { fixtureStatusLabel, fixtureStatusVariant, isFixturePast, type FixtureBadgeVariant } from "@/lib/fixtures";
 import { signPlayerPhotoUrls } from "@/lib/player-photo";
 import { formatInTimezone } from "@/lib/time";
+import { cleanPhaseRatings, phaseHighlights, ratedPhases } from "@/lib/match-phases";
 
 /**
  * The status badge on the matchday header uses Badge's `onInk` variant (a
@@ -152,6 +153,23 @@ export default async function FixtureDetailPage({
     }
   }
 
+  // Phase-of-play ratings live on match_results from migration 061; read on
+  // their own so a database without the column still shows the fixture.
+  let phases: ReturnType<typeof ratedPhases> = [];
+  let phaseSummary: ReturnType<typeof phaseHighlights> = null;
+  if (result) {
+    const { data: phaseRow, error: phaseError } = await supabase
+      .from("match_results")
+      .select("phase_ratings")
+      .eq("fixture_id", id)
+      .maybeSingle();
+    if (!phaseError) {
+      const cleaned = cleanPhaseRatings((phaseRow as { phase_ratings?: unknown } | null)?.phase_ratings);
+      phases = ratedPhases(cleaned);
+      phaseSummary = phaseHighlights(cleaned);
+    }
+  }
+
   type MatchAttendanceRecord = { player_id: string; status: "present" | "absent" | "late" | "excused" };
   const existingAttendance: MatchAttendanceRecord[] = (matchAttendanceRaw ?? []) as MatchAttendanceRecord[];
 
@@ -240,6 +258,12 @@ export default async function FixtureDetailPage({
           {fixture.status !== "completed" && (
             <DeleteFixtureButton fixtureId={id} />
           )}
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/print/match/${id}`} target="_blank" rel="noopener">
+              <Printer className="size-4" aria-hidden="true" />
+              {fixture.status === "completed" ? "Match report" : "Team sheet"}
+            </Link>
+          </Button>
         </div>
       </div>
 
@@ -282,6 +306,35 @@ export default async function FixtureDetailPage({
         <p className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-center text-sm text-muted-foreground">
           {result.match_notes}
         </p>
+      )}
+
+      {phases.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold">Phases of play</h2>
+          <Card className="p-4 space-y-3">
+            <ul className="space-y-2">
+              {phases.map((p) => (
+                <li key={p.id} className="flex items-center justify-between gap-3 text-sm">
+                  <span>{p.label}</span>
+                  <span className="flex shrink-0 gap-0.5" aria-label={`${p.rating} out of 5`}>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <Star
+                        key={n}
+                        className={`size-3.5 ${n <= p.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`}
+                        aria-hidden="true"
+                      />
+                    ))}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {phaseSummary && (
+              <p className="text-xs text-muted-foreground">
+                Strongest: {phaseSummary.best}. Work on: {phaseSummary.worst}.
+              </p>
+            )}
+          </Card>
+        </section>
       )}
 
       {/* Appearances + Ratings */}

@@ -440,6 +440,17 @@ required consents and the box is simply not stored.
 
 ---
 
+## 061: play folders and phase ratings
+
+Adds two nullable columns: `tactic_plays.folder` (a coach's folder name for a
+saved play, 1 to 40 characters) and `match_results.phase_ratings` (a JSON object
+of the team's 1 to 5 rating per phase of play). Additive, no policy changes, safe
+to re-run. Until it is run, the board's folder box and the "How did we do in each
+phase?" row still show, plays and results still save, and the folder and phase
+ratings are simply not stored.
+
+---
+
 ## How to apply
 
 Either route works. Take a backup first regardless.

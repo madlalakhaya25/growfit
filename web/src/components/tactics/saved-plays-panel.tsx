@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FolderOpen, ListChecks, Loader2, Mic, Save, Square, Send, Sparkles, Swords, Trash2, Wand2 } from "lucide-react";
+import { Folder, FolderOpen, ListChecks, Loader2, Mic, Save, Square, Send, Sparkles, Swords, Trash2, Wand2 } from "lucide-react";
 import { useBoardStore } from "@/store/boardStore";
 import { useBoardSetupStore } from "@/store/boardSetupStore";
 import { useBoardPlaybackStore } from "@/store/boardPlaybackStore";
 import { useSavedPlaysStore } from "@/store/savedPlaysStore";
 import { useBoardInsightsStore } from "@/store/boardInsightsStore";
-import { savePlay, listPlays, loadPlay, deletePlay, sharePlayToSquad, listLinkTargets } from "@/app/actions/tactic-plays";
+import { savePlay, listPlays, loadPlay, deletePlay, sharePlayToSquad, listLinkTargets, setPlayFolder } from "@/app/actions/tactic-plays";
+import { folderNames, groupByFolder } from "@/lib/play-folders";
 import { describePlay, analyseOpponent } from "@/app/actions/tactics";
 import { generateSessionFromBoard } from "@/app/actions/board-to-session";
 import { generateBoardFromSentence } from "@/app/actions/board-from-text";
@@ -77,6 +78,9 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
   const [description, setDescription] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [voiceUrl, setVoiceUrl] = useState<string | null>(null);
+  // The library: the open play's folder as typed, and which folder the list shows.
+  const [folderDraft, setFolderDraft] = useState("");
+  const [filterFolder, setFilterFolder] = useState("");
   // The three-drill progression made from the board, awaiting "Add to session".
   const [progression, setProgression] = useState<SessionPlanStructured | null>(null);
   // "4-3-3, press high, left back overlapping": drawn as a NEW play, never
@@ -160,6 +164,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
     setProgression(null);
     setAiCounter(null);
     setVoiceUrl(meta?.voice_url ?? null);
+    setFolderDraft(meta?.folder ?? "");
     clearDraft();
     setNotice(`Loaded "${res.name}".`);
   }
@@ -181,7 +186,20 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
     setProgression(null);
     setAiCounter(null);
     setVoiceUrl(null);
+    setFolderDraft("");
     setNotice("Template loaded — press Play under the pitch to watch it, then drag it about and save it as your own.");
+  }
+
+  /** File the open play in a folder (or take it out with an empty box). */
+  async function handleMoveToFolder() {
+    if (!currentPlayId) return;
+    setBusy("folder");
+    const res = await setPlayFolder(currentPlayId, folderDraft);
+    setBusy(null);
+    if (res.error) { setNotice(res.error); return; }
+    setFolderDraft(res.folder ?? "");
+    setNotice(res.folder ? `Moved to "${res.folder}".` : "Taken out of its folder.");
+    void refreshPlays();
   }
 
   /** Turn the board into text the model can reason about. */
@@ -473,11 +491,38 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
           <Send className="size-3" aria-hidden="true" /> Share to squad
         </button>
         {currentPlayId && (
-          <button type="button" onClick={() => { setCurrentPlayId(null); setPlayName(""); setVoiceUrl(null); setAnalysis(null); setAiCounter(null); setDescription(null); setProgression(null); }} className="inline-flex h-10 sm:h-8 items-center rounded-md border border-border bg-background px-2 text-xs hover:bg-muted">
+          <button type="button" onClick={() => { setCurrentPlayId(null); setPlayName(""); setVoiceUrl(null); setFolderDraft(""); setAnalysis(null); setAiCounter(null); setDescription(null); setProgression(null); }} className="inline-flex h-10 sm:h-8 items-center rounded-md border border-border bg-background px-2 text-xs hover:bg-muted">
             New
           </button>
         )}
       </div>
+      {currentPlayId && (
+        <form
+          onSubmit={(e) => { e.preventDefault(); void handleMoveToFolder(); }}
+          className="flex items-center gap-1.5"
+        >
+          <Folder className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <input
+            value={folderDraft}
+            onChange={(e) => setFolderDraft(e.target.value)}
+            list="play-folders"
+            maxLength={40}
+            placeholder="Folder, e.g. Set pieces"
+            aria-label="Folder for this play"
+            className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+          <datalist id="play-folders">
+            {folderNames(plays).map((f) => <option key={f} value={f} />)}
+          </datalist>
+          <button
+            type="submit"
+            disabled={busy !== null}
+            className="inline-flex h-8 shrink-0 items-center rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50"
+          >
+            {busy === "folder" ? "Moving…" : "Move"}
+          </button>
+        </form>
+      )}
       {/* Voice note — the coach's own explanation, heard by players */}
       <VoiceNoteRecorder
         key={`voice-${currentPlayId ?? "new"}`}
@@ -518,40 +563,71 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
       )}
 
       {plays.length > 1 && (
-        <select
-          value={filterConcept}
-          onChange={(e) => setFilterConcept(e.target.value)}
-          aria-label="Filter plays by concept"
-          className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
-        >
-          <option value="">All plays</option>
-          {TACTICAL_CONCEPTS.filter((c) => plays.some((p) => p.concept_ids?.includes(c.id))).map((c) => (
-            <option key={c.id} value={c.id}>{c.label}</option>
-          ))}
-        </select>
+        <div className="flex gap-1.5">
+          {folderNames(plays).length > 0 && (
+            <select
+              value={filterFolder}
+              onChange={(e) => setFilterFolder(e.target.value)}
+              aria-label="Show one folder"
+              className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">All folders</option>
+              {folderNames(plays).map((f) => (
+                <option key={f} value={f}>{f}</option>
+              ))}
+            </select>
+          )}
+          <select
+            value={filterConcept}
+            onChange={(e) => setFilterConcept(e.target.value)}
+            aria-label="Filter plays by concept"
+            className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <option value="">All concepts</option>
+            {TACTICAL_CONCEPTS.filter((c) => plays.some((p) => p.concept_ids?.includes(c.id))).map((c) => (
+              <option key={c.id} value={c.id}>{c.label}</option>
+            ))}
+          </select>
+        </div>
       )}
 
       {plays.length > 0 && (
-        <ul className="space-y-1 pt-1">
-          {plays
-            .filter((p) => !filterConcept || p.concept_ids?.includes(filterConcept))
-            .map((p) => (
-            <li key={p.id} className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => handleLoad(p.id)}
-                className={`flex-1 truncate rounded-md border px-2 py-1 text-left text-xs hover:bg-muted ${
-                  currentPlayId === p.id ? "border-primary bg-primary/10" : "border-border bg-background"
-                }`}
-              >
-                {p.name}
-              </button>
-              <button type="button" onClick={() => handleDelete(p.id)} title="Delete play" className="rounded-md border border-border bg-background px-2 py-2 sm:py-1 hover:bg-muted">
-                <Trash2 className="size-3" aria-hidden="true" />
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-2 pt-1">
+          {groupByFolder(
+            plays.filter((p) => !filterConcept || p.concept_ids?.includes(filterConcept))
+          )
+            .filter((g) => !filterFolder || g.folder?.toLowerCase() === filterFolder.toLowerCase())
+            .map((g) => (
+              <div key={g.folder ?? "__unfiled"}>
+                {/* Headings only once there is a folder to tell apart. */}
+                {folderNames(plays).length > 0 && (
+                  <p className="flex items-center gap-1 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <Folder className="size-3" aria-hidden="true" />
+                    {g.folder ?? "Not in a folder"}
+                    <span className="tabular-nums">({g.plays.length})</span>
+                  </p>
+                )}
+                <ul className="space-y-1">
+                  {g.plays.map((p) => (
+                    <li key={p.id} className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleLoad(p.id)}
+                        className={`flex-1 truncate rounded-md border px-2 py-1 text-left text-xs hover:bg-muted ${
+                          currentPlayId === p.id ? "border-primary bg-primary/10" : "border-border bg-background"
+                        }`}
+                      >
+                        {p.name}
+                      </button>
+                      <button type="button" onClick={() => handleDelete(p.id)} title="Delete play" className="rounded-md border border-border bg-background px-2 py-2 sm:py-1 hover:bg-muted">
+                        <Trash2 className="size-3" aria-hidden="true" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+        </div>
       )}
       {notice && <p className="text-[11px] text-muted-foreground pt-1">{notice}</p>}
     </div>

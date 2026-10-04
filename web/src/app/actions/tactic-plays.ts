@@ -7,6 +7,8 @@ import { isTrustedEmbedUrl } from "@/lib/video-embed";
 import { friendlyError } from "@/lib/friendly-error";
 import { formatDayMonth } from "@/lib/time";
 import { tallyOpponentFormations, type FormationTally } from "@/lib/opponent-counter";
+import { isMissingAttributeColumn } from "@/lib/attributes";
+import { normaliseFolder } from "@/lib/play-folders";
 
 export interface SavedPlaySummary {
   id: string;
@@ -25,6 +27,8 @@ export interface SavedPlaySummary {
    * inside its own `data` blob; this column exists purely so the list view
    * can tell them apart without fetching that (potentially large) blob. */
   surface: "pitch" | "film";
+  /** The coach's folder for this play (migration 061); null when unfiled or before 061 runs. */
+  folder?: string | null;
 }
 
 export interface LinkTarget {
@@ -152,14 +156,36 @@ export async function savePlay(input: {
 export async function listPlays(teamId: string, surface?: "pitch" | "film"): Promise<{ plays?: SavedPlaySummary[]; error?: string }> {
   const { supabase, team } = await requireCoachTeam(teamId);
   if (!team) return { error: "You don't coach this team." };
-  let query = supabase
-    .from("tactic_plays")
-    .select("id, name, notes, team_id, updated_at, concept_ids, session_id, fixture_id, shared, share_token, voice_url, surface")
-    .eq("team_id", teamId);
-  if (surface) query = query.eq("surface", surface);
-  const { data, error } = await query.order("updated_at", { ascending: false });
+  const base = "id, name, notes, team_id, updated_at, concept_ids, session_id, fixture_id, shared, share_token, voice_url, surface";
+  const run = (columns: string) => {
+    let query = supabase.from("tactic_plays").select(columns).eq("team_id", teamId);
+    if (surface) query = query.eq("surface", surface);
+    return query.order("updated_at", { ascending: false });
+  };
+  let { data, error } = await run(`${base}, folder`);
+  // Before migration 061 there is no folder column: list the plays unfiled.
+  if (isMissingAttributeColumn(error)) ({ data, error } = await run(base));
   if (error) return { error: friendlyError(error) };
-  return { plays: (data ?? []) as SavedPlaySummary[] };
+  return { plays: (data ?? []) as unknown as SavedPlaySummary[] };
+}
+
+/**
+ * Put a play in a folder, or take it out with an empty name. Only a play on a
+ * team the caller coaches, the same boundary as every other play write.
+ */
+export async function setPlayFolder(playId: string, folder: string): Promise<{ folder?: string | null; error?: string }> {
+  const { supabase, play } = await requireCoachOfPlay(playId, "id, team_id");
+  if (!play) return { error: NOT_YOUR_PLAY };
+  const name = normaliseFolder(folder);
+  const { error } = await supabase
+    .from("tactic_plays")
+    .update({ folder: name })
+    .eq("id", playId)
+    .eq("team_id", play.team_id as string);
+  if (isMissingAttributeColumn(error)) return { error: "Folders need database update 061. Ask your admin to run it." };
+  if (error) return { error: friendlyError(error) };
+  revalidatePath("/dashboard/coach/tactics/board");
+  return { folder: name };
 }
 
 /** Upcoming sessions and fixtures a play can be attached to. */
