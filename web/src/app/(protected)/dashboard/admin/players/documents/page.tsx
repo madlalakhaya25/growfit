@@ -71,7 +71,7 @@ export default async function DocumentFunnelPage({
 
   const ageGroups = Array.from(
     new Set(allPlayers.map(ageGroupOf).filter((g): g is string => g !== null))
-  ).sort();
+  ).sort((a, b) => a.localeCompare(b));
 
   const visiblePlayers = age ? allPlayers.filter((p) => ageGroupOf(p) === age) : allPlayers;
   const playerIds = visiblePlayers.map((p) => p.id);

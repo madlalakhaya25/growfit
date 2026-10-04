@@ -83,7 +83,7 @@ DECLARE
   v_is_first   BOOLEAN;
   v_needle     TEXT := upper(regexp_replace(coalesce(p_code, ''), '\s', '', 'g'));
 BEGIN
-  IF v_needle = '' THEN
+  IF length(v_needle) = 0 THEN
     RETURN json_build_object('error', 'Enter the coach code for your team.');
   END IF;
 

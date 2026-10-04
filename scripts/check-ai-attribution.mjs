@@ -24,9 +24,17 @@ const GENERATED_SIGNATURE = /generated (with|by)\s+(claude|copilot|chatgpt|codex
 const EMOJI_SIGNATURE = /🤖\s*generated/i;
 const SESSION_TRAILER = /^claude-session:/im;
 
+// Only two hex SHAs joined by ".." ever reach git, never free text.
+if (!/^[0-9a-f]{7,40}\.\.[0-9a-f]{7,40}$/i.test(range)) {
+  console.error("Range must be <base-sha>..<head-sha> (hex SHAs).");
+  process.exit(1);
+}
+
+const GIT = "/usr/bin/git";
+
 function commitsInRange(range) {
   const out = execFileSync(
-    "git",
+    GIT,
     ["log", "--no-merges", "--format=%H%x00%B%x03", range],
     { encoding: "utf8", maxBuffer: 1024 * 1024 * 32 }
   );
