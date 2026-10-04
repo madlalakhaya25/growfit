@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 
 // next/cache's revalidatePath (used by tactic-plays.ts, imported by
 // TacticalBoard) loads Next's server-runtime request/response machinery at
@@ -108,18 +108,31 @@ describe("TacticalBoard", () => {
     expect(screen.getByText(/Switched to 4-2-3-1 and drew 1 suggested move/)).toBeInTheDocument();
   });
 
-  it("keeps the setup cards open on a blank board and folds them once players are placed", async () => {
+  it("opens the Players tools on a blank board and folds them once players are placed", async () => {
     render(<TacticalBoard teams={[]} />);
     await act(async () => { await Promise.resolve(); });
-    const setup = screen.getByText("Set up teams and pitch").closest("details");
-    expect(setup).toHaveProperty("open", true);
+    const dockButton = (name: string) => within(screen.getByRole("navigation", { name: "Board tools" })).getByRole("button", { name });
+    expect(dockButton("Players")).toHaveAttribute("aria-expanded", "true");
     act(() => {
       useBoardStore.getState().setState({
         tokens: [{ id: "p1", label: "1", x: 50, y: 100, kind: "player", group: "Midfielder" }],
         shapes: [], objects: [], playerNotes: [],
       });
     });
-    expect(screen.getByText("Set up teams and pitch").closest("details")).toHaveProperty("open", false);
+    expect(dockButton("Players")).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("opens one group of tools at a time from the dock, and tapping it again closes it", async () => {
+    render(<TacticalBoard teams={[]} />);
+    await act(async () => { await Promise.resolve(); });
+    const dock = within(screen.getByRole("navigation", { name: "Board tools" }));
+    fireEvent.click(dock.getByRole("button", { name: "Coach AI" }));
+    expect(dock.getByRole("button", { name: "Coach AI" })).toHaveAttribute("aria-expanded", "true");
+    expect(dock.getByRole("button", { name: "Players" })).toHaveAttribute("aria-expanded", "false");
+    expect(document.getElementById("dock-ai")).not.toHaveClass("hidden");
+    expect(document.getElementById("dock-draw")).toHaveClass("hidden");
+    fireEvent.click(dock.getByRole("button", { name: "Coach AI" }));
+    expect(document.getElementById("dock-ai")).toHaveClass("hidden");
   });
 
   it("starts a U11 team in nine-a-side shapes and a U15 team in eleven-a-side", async () => {
