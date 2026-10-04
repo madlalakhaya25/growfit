@@ -1,5 +1,7 @@
 import { FamilyMessagesList } from "@/components/development/family-messages-list";
 import { loadApprovedMessages } from "@/lib/family-messages";
+import { loadPlayerHomework } from "@/lib/homework-data";
+import { HomeworkEvidence } from "@/components/homework/homework-evidence";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ChevronRight, Star, FileText } from "lucide-react";
@@ -216,6 +218,7 @@ export default async function ChildDetailPage({
   }
 
   const familyMessages = await loadApprovedMessages(supabase, childId);
+  const homework = await loadPlayerHomework(supabase, childId);
 
   return (
     <div className="space-y-6">
@@ -410,6 +413,8 @@ export default async function ChildDetailPage({
       )}
 
       <FamilyMessagesList messages={familyMessages} />
+
+      <HomeworkEvidence rows={homework.rows} audience="parent" />
 
       <section id="development" className="space-y-3">
         <h2 className="text-lg font-semibold">Development plan</h2>

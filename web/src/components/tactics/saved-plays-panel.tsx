@@ -16,6 +16,7 @@ import { transcribeCoachNote } from "@/app/actions/coach-notes";
 import { useVoiceCapture } from "@/components/tactics/use-voice-capture";
 import { SessionProgression } from "@/components/tactics/session-progression";
 import { PlayRolesPanel } from "@/components/tactics/play-roles-panel";
+import { SendHomeworkButton } from "@/components/homework/send-homework-sheet";
 import type { SessionPlanStructured } from "@/app/actions/session-generator";
 import { SpeakButton } from "@/components/tactics/speak-button";
 import { VoiceNoteRecorder } from "@/components/tactics/voice-note-recorder";
@@ -496,6 +497,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
         <button type="button" onClick={handleShare} disabled={busy !== null} className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
           <Send className="size-3" aria-hidden="true" /> Share to squad
         </button>
+        {currentPlayId && <SendHomeworkButton playId={currentPlayId} playName={playName} onNotice={setNotice} />}
         {currentPlayId && (
           <button type="button" onClick={() => { setCurrentPlayId(null); setPlayName(""); setVoiceUrl(null); setFolderDraft(""); setAnalysis(null); setAiCounter(null); setDescription(null); setProgression(null); }} className="inline-flex h-10 sm:h-8 items-center rounded-md border border-border bg-background px-2 text-xs hover:bg-muted">
             New

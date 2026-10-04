@@ -451,6 +451,31 @@ ratings are simply not stored.
 
 ---
 
+## 063: tactics homework
+
+Adds `homework_assignments` (a saved play sent to a team with 1 to 3
+multiple-choice questions and a due date) and `homework_responses` (one per
+player per assignment: the chosen answer indexes and a score). Additive: two new
+tables, one shape-check function (`homework_questions_valid`) and one trigger
+that works out the score from the assignment's answer key, so a player can never
+write their own score. Coaches of the team and admins of the academy manage
+assignments and read responses; a player reads their active teams' assignments
+and inserts (once) and reads only their own response; a linked parent reads
+both for their child. Deleting the play keeps the homework; erasing a player
+erases their responses. Note the answer key sits in the assignment row a player
+can read (RLS is row-level); the app never sends it before they answer, which is
+fine for practice homework. Safe to re-run. Until it is run, the board's "Send
+as homework" says it needs 063, the coach and player Homework pages say it is
+not set up yet, and the development and parent pages show nothing extra.
+
+Verified on PostgreSQL 16 (full chain 001 to 063): a coach of another team cannot
+create homework for this team; a bad shape (answer index out of range) is
+refused by the check; a player on another team sees none and cannot respond; a
+player cannot respond as someone else or with the wrong number of answers; a
+response sent with `score = 99` is stored as 1 of 2; no updates to a response;
+a parent sees their child's assignment and response; a coach cannot insert a
+response; re-running the file succeeds.
+
 ## 064: skill challenges
 
 Adds `skill_challenge_assignments` (a coach asks a team, or one player in it, to
