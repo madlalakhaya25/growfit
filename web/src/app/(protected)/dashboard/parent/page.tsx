@@ -4,7 +4,12 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RatingRing } from "@/components/ui/rating-ring";
-import { Users } from "lucide-react";
+import { Users, Dumbbell, Trophy, FileSignature, MessageSquareText } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { ListRow, GroupedSection } from "@/components/ui/list-row";
+import { IconTile } from "@/components/ui/icon-tile";
+import { loadParentToday, type ParentTodayChild } from "@/lib/parent-today-data";
+import { formatTime, formatWeekdayDayMonth } from "@/lib/time";
 import { POSITIONS } from "@/lib/types";
 import { calculateAge, getInitials } from "@/lib/player";
 import { LinkChildForm } from "./link-child-form";
@@ -52,9 +57,22 @@ export default async function ParentDashboardPage() {
     return matchRatingAverage(child.player_ratings.map((r) => r.rating));
   }
 
+  const now = new Date();
+  const today = await loadParentToday(
+    supabase,
+    children.map((c) => ({ id: c.id, fullName: c.full_name })),
+    now,
+  );
+
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold">My Children</h1>
+      <PageHeader title="Today" eyebrow={formatWeekdayDayMonth(now)} />
+
+      {children.length > 0 && <TodaySections today={today} />}
+
+      {children.length > 0 && (
+        <p className="-mb-4 px-1 text-[13px] font-normal uppercase tracking-[0.01em] text-muted-foreground">My children</p>
+      )}
 
       {/* Children grid */}
       {children.length === 0 ? (
@@ -126,5 +144,78 @@ export default async function ParentDashboardPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function TodaySections({ today }: Readonly<{ today: ParentTodayChild[] | null }>) {
+  if (!today) {
+    return (
+      <Card className="border-destructive/50 p-4 text-sm">
+        Couldn&apos;t load what&apos;s coming up. This isn&apos;t the same as nothing being on. Try reloading.
+      </Card>
+    );
+  }
+  const several = today.length > 1;
+  const upcoming = today
+    .flatMap((c) => (c.next ? [{ child: c, event: c.next }] : []))
+    .sort((a, b) => a.event.at.localeCompare(b.event.at));
+  const hero = upcoming[0];
+  const withForms = today.filter((c) => c.forms.length > 0);
+  const withNotes = today.filter((c) => c.note);
+  return (
+    <>
+      {hero ? (
+        <Link
+          href={`/dashboard/parent/${hero.child.id}`}
+          className="block rounded-2xl bg-[#a71817] p-5 text-white shadow-[0_12px_28px_rgb(167_24_23/0.25)] transition-transform duration-200 active:scale-[0.99]"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[13px] font-semibold text-white/90">
+              {hero.event.kind === "match" ? "Next match" : "Next training"}
+              {several && ` · ${hero.child.fullName}`}
+            </p>
+            <span className="grid size-9 place-items-center rounded-full bg-white/15">
+              {hero.event.kind === "match" ? <Trophy className="size-4" aria-hidden="true" /> : <Dumbbell className="size-4" aria-hidden="true" />}
+            </span>
+          </div>
+          <p className="mt-1.5 text-[22px] font-bold leading-tight tracking-[-0.01em]">{hero.event.title}</p>
+          <p className="mt-1 text-[15px] text-white/90">
+            {formatWeekdayDayMonth(new Date(hero.event.at))} · {formatTime(new Date(hero.event.at))}
+            {hero.event.place && ` · ${hero.event.place}`}
+          </p>
+        </Link>
+      ) : (
+        <Card className="p-4 text-sm text-muted-foreground">Nothing coming up yet. Matches and training will show here.</Card>
+      )}
+
+      {withForms.length > 0 && (
+        <GroupedSection title="Needs you">
+          {withForms.map((c) => (
+            <ListRow
+              key={c.id}
+              leading={<IconTile tone="orange"><FileSignature aria-hidden="true" /></IconTile>}
+              title={`${c.fullName}: ${c.forms.length} ${c.forms.length === 1 ? "form" : "forms"} to complete`}
+              subtitle={c.forms.slice(0, 2).join(", ") + (c.forms.length > 2 ? ` and ${c.forms.length - 2} more` : "")}
+              href={`/dashboard/parent/${c.id}`}
+            />
+          ))}
+        </GroupedSection>
+      )}
+
+      {withNotes.length > 0 && (
+        <GroupedSection title="This week">
+          {withNotes.map((c) => (
+            <ListRow
+              key={c.id}
+              leading={<IconTile tone="blue"><MessageSquareText aria-hidden="true" /></IconTile>}
+              title={c.fullName}
+              subtitle={c.note}
+              wrapSubtitle
+              href={`/dashboard/parent/${c.id}`}
+            />
+          ))}
+        </GroupedSection>
+      )}
+    </>
   );
 }
