@@ -25,6 +25,7 @@ import {
 import { DOCUMENTS } from "@/lib/document-definitions";
 import { SquadFilters, type SquadFilter } from "./squad-filters";
 import { reportError } from "@/lib/report-error";
+import { loadSeasonMinutes } from "@/lib/match-minutes";
 import { signPlayerPhotoUrls } from "@/lib/player-photo";
 
 /** Every document a player owes per season — the document hub's own list. */
@@ -168,6 +169,9 @@ export default async function SquadPage({
       : Promise.resolve({ data: [] as { id: string; availability_status: string; availability_note: string | null }[], error: null }),
   ]);
 
+  // Minutes played this season (playing-time screen); empty until migration 062.
+  const seasonMinutes = await loadSeasonMinutes(supabase, playerIds, currentSeason);
+
   const sessionIds = (sessions ?? []).map((x: { id: string }) => x.id);
   // Counted `status === "attending"` — migration 005's RSVP vocabulary, which
   // the app has never written. Shares one policy with the welfare page and
@@ -248,6 +252,7 @@ export default async function SquadPage({
       docsOutstanding,
       availability,
       readiness: readinessResult.byPlayer.get(p.id) ?? null,
+      seasonMinutes: seasonMinutes.byPlayer.get(p.id)?.minutes ?? null,
     };
   });
 
@@ -433,6 +438,11 @@ export default async function SquadPage({
                             {player.preferred_foot && (
                               <Badge variant="neutral" className="text-xs capitalize">
                                 {player.preferred_foot}
+                              </Badge>
+                            )}
+                            {player.seasonMinutes !== null && (
+                              <Badge variant="neutral" className="text-xs tabular-nums" title="Minutes played this season">
+                                {player.seasonMinutes}&apos; this season
                               </Badge>
                             )}
                             {/* Only ever flagged when it needs action — red

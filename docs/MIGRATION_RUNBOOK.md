@@ -449,6 +449,15 @@ to re-run. Until it is run, the board's folder box and the "How did we do in eac
 phase?" row still show, plays and results still save, and the folder and phase
 ratings are simply not stored.
 
+## 062: match minutes
+
+Adds a nullable `minutes_played` (0 to 150) to `match_appearances`: the minutes a
+child actually played, saved from the match-day playing-time screen. Also adds
+the table's first UPDATE policy (needed for the upsert), limited to the team's
+coaches and academy admins. Additive, safe to re-run. Until it is run, the
+playing-time planner and live clock still work, but "Save minutes" gives a
+friendly error and the player page shows no season minutes.
+
 ---
 
 ## 063: tactics homework
