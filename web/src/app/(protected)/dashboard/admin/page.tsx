@@ -147,6 +147,11 @@ function RegistrationHero({ compliance }: Readonly<{ compliance: Compliance }>) 
   );
 }
 
+function documentsHref(ageGroup: string | null): string {
+  const base = "/dashboard/admin/players/documents";
+  return ageGroup ? `${base}?age=${encodeURIComponent(ageGroup)}` : base;
+}
+
 function NeedsYou({ compliance, welfareCount }: Readonly<{ compliance: Compliance; welfareCount: number | null }>) {
   const gaps = (compliance?.byTeam ?? []).filter((t) => t.missingDocs > 0);
   const welfare = welfareCount ?? 0;
@@ -159,7 +164,7 @@ function NeedsYou({ compliance, welfareCount }: Readonly<{ compliance: Complianc
           leading={<IconTile tone="orange"><FileCheck2 aria-hidden="true" /></IconTile>}
           title={`${t.name}: ${t.missingDocs} ${t.missingDocs === 1 ? "document" : "documents"} missing`}
           subtitle={`${t.complete} of ${t.players} players fully registered`}
-          href={`/dashboard/admin/players/documents${t.ageGroup ? `?age=${encodeURIComponent(t.ageGroup)}` : ""}`}
+          href={documentsHref(t.ageGroup)}
         />
       ))}
       {welfare > 0 && (
