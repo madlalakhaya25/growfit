@@ -33,6 +33,11 @@ jest.mock("@/app/actions/tactic-plays", () => ({
 }));
 jest.mock("@/app/actions/play-roles", () => ({ generatePlayRoles: jest.fn(), approvePlayRoles: jest.fn() }));
 jest.mock("@/app/actions/coach-notes", () => ({ transcribeCoachNote: jest.fn() }));
+const mockHandout = jest.fn();
+jest.mock("@/lib/play-handout-pdf", () => ({
+  ...jest.requireActual("@/lib/play-handout-pdf"),
+  generatePlayHandoutPdf: (...a: unknown[]) => mockHandout(...a),
+}));
 const mockInterpret = jest.fn();
 jest.mock("@/app/actions/board-instructions", () => ({ interpretBoardInstructions: (...a: unknown[]) => mockInterpret(...a) }));
 
@@ -150,6 +155,48 @@ describe("TacticalBoard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Discard" }));
     expect(useBoardStore.getState().state.shapes).toHaveLength(0);
     expect(useBoardStore.getState().state.instructions).toBeUndefined();
+  });
+
+  it("makes a handout from positions, first names and the coach's words, and downloads it without a share sheet", async () => {
+    mockHandout.mockResolvedValue(new Uint8Array([37, 80, 68, 70]));
+    const createUrl = jest.fn(() => "blob:handout");
+    Object.defineProperty(URL, "createObjectURL", { value: createUrl, configurable: true });
+    Object.defineProperty(URL, "revokeObjectURL", { value: jest.fn(), configurable: true });
+    jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    render(<TacticalBoard teams={[]} />);
+    await act(async () => { await Promise.resolve(); });
+    expect(screen.getByRole("button", { name: "Handout PDF" })).toBeDisabled();
+
+    fireEvent.click(screen.getByText("Set up my XI"));
+    act(() => { useBoardStore.setState((st) => ({ state: { ...st.state, instructions: ["left back overlaps"] } })); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Handout PDF" })); });
+
+    const input = mockHandout.mock.calls[0][0];
+    expect(input.instructions).toEqual(["left back overlaps"]);
+    expect(input.tokens).toHaveLength(11);
+    expect(Object.keys(input.tokens[0]).sort()).toEqual(["group", "kind", "label", "x", "y"]);
+    expect(createUrl).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Handout saved to your downloads.")).toBeInTheDocument();
+  });
+
+  it("holds the finished handout for a tap on Share where the phone has a share sheet", async () => {
+    mockHandout.mockResolvedValue(new Uint8Array([37, 80, 68, 70]));
+    const share = jest.fn().mockResolvedValue(undefined);
+    const nav = Object.getOwnPropertyDescriptor(globalThis, "navigator")!;
+    Object.defineProperty(globalThis, "navigator", { value: { ...globalThis.navigator, share, canShare: () => true }, configurable: true });
+    try {
+      render(<TacticalBoard teams={[]} />);
+      await act(async () => { await Promise.resolve(); });
+      fireEvent.click(screen.getByText("Set up my XI"));
+      await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Handout PDF" })); });
+      expect(share).not.toHaveBeenCalled();
+      await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Share" })); });
+      expect(share).toHaveBeenCalledTimes(1);
+      expect(share.mock.calls[0][0].files[0].type).toBe("application/pdf");
+      expect(screen.queryByRole("button", { name: "Share" })).not.toBeInTheDocument();
+    } finally {
+      Object.defineProperty(globalThis, "navigator", nav);
+    }
   });
 
   it("applies an AI counter: switches our shape and draws its moves", async () => {

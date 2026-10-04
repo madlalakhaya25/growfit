@@ -2,7 +2,7 @@
 
 import { useId, useSyncExternalStore } from "react";
 import { Video } from "lucide-react";
-import { canRecordVideo } from "@/lib/board-video";
+import { canSaveVideo } from "@/lib/board-video";
 
 const noSubscribe = () => () => {};
 
@@ -15,11 +15,11 @@ export interface SaveVideoButtonProps {
   blockedReason?: string | null;
 }
 
-/** "Save as video": records the move to a WebM download. Disabled, with a
+/** "Save as video": saves the move as a portrait MP4 for WhatsApp (a WebM where the browser cannot make one). Disabled, with a
  * short reason, when the browser can't record or the board isn't ready. */
 export function SaveVideoButton({ onSave, recording, disabled: empty, blockedReason }: Readonly<SaveVideoButtonProps>) {
   // Server render can't know; the browser answers on hydration.
-  const supported = useSyncExternalStore(noSubscribe, canRecordVideo, () => false);
+  const supported = useSyncExternalStore(noSubscribe, canSaveVideo, () => false);
   const reason = supported ? blockedReason ?? null : "Your browser can't save video. Try Chrome, Edge or Firefox.";
   const reasonId = useId();
   const disabled = Boolean(empty) || recording || reason !== null;
