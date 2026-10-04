@@ -6,6 +6,50 @@ releases yet. Newest first.
 
 ---
 
+## 2026-10-02 to 2026-10-04 — A tactics board you can talk to, and a Today home for everyone
+
+**Added**
+- **Tactics board**: a dock (Players, Draw, Move, Coach AI); full-pitch formations
+  with attack and defend shapes for both teams (plus 4-3-2-1); with and without
+  ball shapes; a timeline scrubber; play folders; and **Tell the board** by voice
+  or text ("overlap", "press", "shift across"), previewed before it is applied.
+- **Sharing**: a WhatsApp-ready MP4 and a PDF handout of a play. The MP4 encode
+  has not yet been tried on a real phone.
+- **Playing-time planner**, **tactics homework**, **skill challenges**, and an
+  academy **drill library**.
+- **Positions with roles**, and age-relative attribute presets. The presets stay
+  hidden until Buhle approves the wording.
+- **Video analysis consent**: a recorded consent check before any clip of a child
+  is analysed.
+- **Today homes**: admin (registration health, teams to chase, welfare count),
+  parent (next match or training, forms, the coach's weekly note) and player
+  (Today and Passport tabs). Pages with several areas now use URL tabs.
+- **Branding**: the academy's own name and crest across the app.
+- **Error reporting**: Sentry on server, edge and browser, with personal data
+  scrubbed.
+
+**Fixed**
+- `"use server"` files exported non-async values, which broke a build; they now
+  export only async functions and a test guards it.
+- Gemini calls retry, with an optional fallback model (`GEMINI_MODEL_FALLBACK`).
+- Duplicate React keys on the board.
+
+**Changed**
+- Vercel now builds only `main`, so pull requests have no preview URL.
+
+**Needs doing**
+- Migrations `030`-`066` are live in production. Anything new needs running by
+  hand in the SQL editor; see `MIGRATION_RUNBOOK.md`.
+- Buhle to review the video-analysis consent wording and the attribute presets.
+- Try Save as video, and dictation, on a real phone.
+
+**Not done yet**
+- Coach checks (CPR Part B, first aid) on the admin home need a new migration.
+- Kit on the parent home, and the player Schedule, Learn and Me tabs.
+- A live shared board.
+
+---
+
 ## 2026-10-01 — A safeguarding fix, and AI results that are kept
 
 **Fixed**

@@ -1,6 +1,6 @@
 # Product Roadmap
 
-*Last updated 2026-09-06.* Growfit FA is built incrementally for a real
+*Last updated 2026-10-04. Work since 2026-09-21 is tracked in [`BACKLOG.md`](./BACKLOG.md) and [`RELEASE_NOTES.md`](./RELEASE_NOTES.md); the shipped sections below stop at 2026-09-16.* Growfit FA is built incrementally for a real
 academy in Greater Durban. This document was badly out of date before this
 pass — most of what it called "near term" and "medium term" shipped back in
 May/June, and an entire tactics board, a 13-capability AI layer, and a PDF
