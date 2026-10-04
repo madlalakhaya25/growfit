@@ -36,9 +36,9 @@ const TABS = [
  */
 export default async function PlayerDevelopmentPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: Promise<{ tab?: string | string[] }>;
-}) {
+}>) {
   const tab = pickTab(TABS, (await searchParams).tab);
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
