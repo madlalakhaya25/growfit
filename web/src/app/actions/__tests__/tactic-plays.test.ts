@@ -10,7 +10,7 @@ jest.mock("@/lib/auth", () => ({ requireUser: () => mockRequireUser() }));
 const mockCoached = jest.fn();
 jest.mock("@/lib/coached-teams", () => ({ getCoachedTeamIds: (...a: unknown[]) => mockCoached(...a) }));
 
-import { deletePlay, deletePlayVoiceNote, listPlays, loadPlay, savePlay, sharePlayToSquad } from "../tactic-plays";
+import { deletePlay, deletePlayVoiceNote, listPlays, loadPlay, savePlay, setPlayFolder, sharePlayToSquad } from "../tactic-plays";
 import { recordingSupabase } from "@/test-utils/recording-supabase";
 import type { FakeOp, FakeReply } from "@/test-utils/fake-supabase";
 
@@ -79,5 +79,42 @@ describe("team-scoped actions", () => {
     const d = setup((op) => coachedTeam(op) ?? { data: { share_token: "tok" } });
     await sharePlayToSquad({ teamId: MINE, playId: "play-1", playName: "Press" });
     expect(d.filtersOn("tactic_plays", "eq")).toEqual(expect.arrayContaining([["id", "play-1"], ["team_id", MINE]]));
+  });
+});
+
+describe("play folders", () => {
+  it("setPlayFolder changes nothing on another team's play", async () => {
+    const d = setup(() => ({ data: null }));
+    expect((await setPlayFolder("play-1", "Build-up")).error).toMatch(/don't coach its team/);
+    expect(d.calls.some((c) => c.action === "update")).toBe(false);
+  });
+
+  it("setPlayFolder stores the tidied name on a play the caller coaches, scoped to its team", async () => {
+    const d = setup((op) => (op.action === "update" ? { data: null } : { data: { id: "play-1", team_id: MINE } }));
+    expect(await setPlayFolder("play-1", "  Set   pieces ")).toEqual({ folder: "Set pieces" });
+    expect(d.calls.find((c) => c.action === "update")?.payload).toEqual({ folder: "Set pieces" });
+    expect(d.filtersOn("tactic_plays", "eq")).toEqual(expect.arrayContaining([["id", "play-1"], ["team_id", MINE]]));
+  });
+
+  it("setPlayFolder with an empty name takes the play out of its folder", async () => {
+    const d = setup((op) => (op.action === "update" ? { data: null } : { data: { id: "play-1", team_id: MINE } }));
+    expect(await setPlayFolder("play-1", "   ")).toEqual({ folder: null });
+    expect(d.calls.find((c) => c.action === "update")?.payload).toEqual({ folder: null });
+  });
+
+  it("setPlayFolder names the database update when the column is missing", async () => {
+    setup((op) => (op.action === "update" ? { error: { code: "42703" } } : { data: { id: "play-1", team_id: MINE } }));
+    expect((await setPlayFolder("play-1", "Press")).error).toMatch(/061/);
+  });
+
+  it("listPlays still lists plays, unfiled, before the folder column exists", async () => {
+    let selects = 0;
+    setup((op) => {
+      if (op.table === "teams") return { data: { id: MINE, academy_id: "ac-1" } };
+      selects += 1;
+      return selects === 1 ? { error: { code: "42703" } } : { data: [{ id: "p1", name: "Press" }] };
+    });
+    expect(await listPlays(MINE)).toEqual({ plays: [{ id: "p1", name: "Press" }] });
+    expect(selects).toBe(2);
   });
 });

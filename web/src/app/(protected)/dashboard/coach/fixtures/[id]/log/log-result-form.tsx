@@ -9,6 +9,7 @@ import { logMatch } from "@/app/actions/fixtures";
 import { POSITIONS } from "@/lib/types";
 import { getInitials } from "@/lib/player";
 import type { AttendanceSummary } from "@/lib/attendance";
+import { MATCH_PHASES, type PhaseRatings } from "@/lib/match-phases";
 
 type Player = { id: string; full_name: string; position: string | null };
 type PlayerState = { player_id: string; played: boolean; rating: number; note: string };
@@ -48,6 +49,8 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
   const [teamScore, setTeamScore] = useState(0);
   const [oppScore, setOppScore] = useState(0);
   const [matchNotes, setMatchNotes] = useState("");
+  // Optional: how the team did in each phase of play. Untouched phases are not sent.
+  const [phaseRatings, setPhaseRatings] = useState<PhaseRatings>({});
   const [players, setPlayers] = useState<PlayerState[]>(
     squad.map((p) => ({ player_id: p.id, played: false, rating: 3, note: "" }))
   );
@@ -84,6 +87,7 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
         ratings: played.map(({ player_id, rating, note }) => ({
           player_id, rating, note: note || undefined,
         })),
+        phase_ratings: Object.keys(phaseRatings).length ? phaseRatings : undefined,
       });
       // No else branch here — on success `logMatch` calls redirect(), which
       // never returns to this callback; it navigates away instead.
@@ -227,6 +231,55 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
           </div>
         </div>
       )}
+
+      {/* Phase of play — the team, not any one child */}
+      <div className="space-y-3">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            How did we do in each phase? (optional)
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">Rate the team, out of 5. Tap a star again to clear it.</p>
+        </div>
+        <div className="divide-y divide-border rounded-xl border border-border bg-card">
+          {MATCH_PHASES.map((phase) => {
+            const value = phaseRatings[phase.id] ?? 0;
+            return (
+              <div key={phase.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{phase.label}</p>
+                  <p className="text-xs text-muted-foreground">{phase.hint}</p>
+                </div>
+                <div className="flex gap-1" role="group" aria-label={`${phase.label} rating`}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      aria-label={`${phase.label}: ${n} out of 5`}
+                      aria-pressed={value === n}
+                      onClick={() =>
+                        setPhaseRatings((prev) => {
+                          const next = { ...prev };
+                          if (prev[phase.id] === n) delete next[phase.id];
+                          else next[phase.id] = n;
+                          return next;
+                        })
+                      }
+                    >
+                      <Star
+                        className={cn(
+                          "size-5 transition-colors",
+                          n <= value ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30 hover:text-amber-300"
+                        )}
+                        aria-hidden="true"
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Match notes */}
       <div className="space-y-1.5">

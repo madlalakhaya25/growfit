@@ -7,6 +7,8 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { friendlyError } from "@/lib/friendly-error";
+import { isMissingAttributeColumn } from "@/lib/attributes";
+import { cleanPhaseRatings } from "@/lib/match-phases";
 
 // Not redundant with RLS: `fixture_staff_write`/`fixture_staff_update` only
 // check `is_admin_or_coach()` + academy match, not which team a coach
@@ -206,6 +208,7 @@ const logMatchSchema = z.object({
     rating: z.coerce.number().int().min(1).max(5),
     note: z.string().max(200).optional(),
   })),
+  phase_ratings: z.record(z.string(), z.number()).optional(),
 });
 
 export async function logMatch(payload: unknown) {
@@ -217,7 +220,7 @@ export async function logMatch(payload: unknown) {
   const parsed = logMatchSchema.safeParse(payload);
   if (!parsed.success) return { error: "Invalid payload." };
 
-  const { fixture_id, team_score, opponent_score, match_notes, appearances, ratings } = parsed.data;
+  const { fixture_id, team_score, opponent_score, match_notes, appearances, ratings, phase_ratings } = parsed.data;
 
   const { data, error } = await supabase.rpc("log_match_result", {
     p_fixture_id:     fixture_id,
@@ -230,6 +233,21 @@ export async function logMatch(payload: unknown) {
 
   if (error) return { error: friendlyError(error) };
   if ((data as { error?: string } | null)?.error) return { error: (data as { error: string }).error };
+
+  // The phase ratings ride alongside the RPC, which has just confirmed this
+  // coach may log this fixture. Optional and best effort: before migration
+  // 061 the column is missing, and the result itself is already saved.
+  const phases = cleanPhaseRatings(phase_ratings);
+  if (phases) {
+    const { error: phaseError } = await supabase
+      .from("match_results")
+      .update({ phase_ratings: phases })
+      .eq("fixture_id", fixture_id);
+    if (phaseError && !isMissingAttributeColumn(phaseError)) {
+      revalidatePath(`/dashboard/coach/fixtures/${fixture_id}`);
+      return { error: `The result is saved, but the phase ratings weren't: ${friendlyError(phaseError)}` };
+    }
+  }
 
   revalidatePath(`/dashboard/coach/fixtures/${fixture_id}`);
   revalidatePath("/dashboard/coach/fixtures", "page");

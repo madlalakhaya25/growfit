@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Plus, Dumbbell, CalendarRange } from "lucide-react";
+import { Plus, Dumbbell, CalendarRange, CalendarDays } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -124,9 +124,15 @@ export default async function CoachTrainingPage({
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Training</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link href={`/dashboard/coach/training/week?team=${team.id}`}>
+              <CalendarDays className="size-4" aria-hidden="true" />
+              Week plan
+            </Link>
+          </Button>
           <Button asChild variant="outline">
             <Link href={`/dashboard/coach/training/term?team=${team.id}`}>
               <CalendarRange className="size-4" aria-hidden="true" />
