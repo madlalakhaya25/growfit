@@ -60,8 +60,8 @@ export async function generateMetadata({
 
   const title = passport.full_name;
   const description = descriptor
-    ? `${descriptor} — player passport on Growfit FA.`
-    : "Player passport on Growfit FA.";
+    ? `${descriptor} — player passport on Growfit.`
+    : "Player passport on Growfit.";
 
   return {
     title,
@@ -316,7 +316,7 @@ export default async function PublicPassportPage({
       </main>
 
       <footer className="border-t border-border py-8 text-center space-y-2">
-        <p className="text-sm font-semibold text-foreground">Growfit FA</p>
+        <p className="text-sm font-semibold text-foreground">Growfit</p>
         <p className="text-xs text-muted-foreground">
           Youth development platform aligned with FIFA LTPD, SAFA National Development Programme, and CAF development frameworks
         </p>

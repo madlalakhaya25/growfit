@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { getAcademyFeatures } from "@/lib/features";
+import { getAcademyName } from "@/lib/academy-brand";
 
 export default async function ProtectedLayout({
   children,
@@ -21,8 +22,9 @@ export default async function ProtectedLayout({
   // Features and the coach's own teams don't depend on each other -- only
   // the teams query depends on getCoachedTeamIds -- so they run as two
   // concurrent tracks instead of three queries end to end.
-  const [features, teamsResult] = await Promise.all([
+  const [features, academyName, teamsResult] = await Promise.all([
     getAcademyFeatures(supabase, profile.academy_id),
+    getAcademyName(supabase, profile.academy_id),
     // The team switcher (coach only, see dashboard-shell.tsx) needs the list
     // of teams a coach can flip between -- id/name/age_group only, never the
     // roster or fixtures, which the "Ask Growfit" sheet fetches lazily
@@ -45,7 +47,7 @@ export default async function ProtectedLayout({
   const teams = teamsResult.data ?? [];
 
   return (
-    <DashboardShell profile={profile} teams={teams} features={features}>
+    <DashboardShell profile={profile} teams={teams} features={features} academyName={academyName}>
       {children}
     </DashboardShell>
   );

@@ -1,12 +1,20 @@
 import { cn } from "@/lib/utils";
+import { APP_NAME } from "@/lib/academy-brand";
 
-export function Logo({ className }: { className?: string }) {
+/**
+ * The mark and the name. Signed out (login, register) it says "Growfit".
+ * Inside the app an academy passes its own `name`, and "Powered by Growfit"
+ * sits beneath it, so a club's parents see their club's app.
+ */
+export function Logo({ className, name }: Readonly<{ className?: string; name?: string | null }>) {
+  const own = name && name !== APP_NAME ? name : null;
   return (
-    <span className={cn("inline-flex items-center gap-2", className)}>
+    <span className={cn("inline-flex min-w-0 items-center gap-2", className)}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/growfit.png" alt="Growfit FA" width={32} height={32} className="rounded-sm" />
-      <span className="text-lg font-bold tracking-tight">
-        Growfit<span className="text-primary"> FA</span>
+      <img src="/growfit.png" alt={own ?? APP_NAME} width={32} height={32} className="shrink-0 rounded-sm" />
+      <span className="min-w-0">
+        <span className="block truncate text-lg font-bold leading-tight tracking-tight">{own ?? APP_NAME}</span>
+        {own && <span className="block text-[11px] leading-tight text-muted-foreground">Powered by {APP_NAME}</span>}
       </span>
     </span>
   );

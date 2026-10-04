@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { PoweredByGrowfit } from "@/components/powered-by-growfit";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileForm } from "./profile-form";
 import { ChangePasswordForm } from "@/components/settings/change-password-form";
@@ -45,6 +46,7 @@ export default async function CoachSettingsPage() {
         }
       />
       <ChangePasswordForm />
+      <PoweredByGrowfit />
     </div>
   );
 }

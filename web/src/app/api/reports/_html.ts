@@ -20,7 +20,7 @@ export function htmlReport(
   });
   const pageSize = `A4${landscape ? " landscape" : ""}`;
 
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>${title} — Growfit FA</title>
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>${title} — Growfit</title>
 <style>
   @page { size: ${pageSize}; margin: ${landscape ? "15mm 12mm" : "20mm 15mm"}; }
   @media print { .no-print { display: none !important; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
@@ -47,17 +47,17 @@ export function htmlReport(
 <div class="page">
   <div class="header">
     <div class="header-brand">
-      <img src="/growfit.png" alt="Growfit FA" class="header-logo" />
+      <img src="/growfit.png" alt="Growfit" class="header-logo" />
       <div>
         <h1>Growfit Football Academy</h1>
         <p>${title} — ${subtitle}</p>
       </div>
     </div>
-    <div class="meta"><strong>Growfit FA</strong><br>Generated: ${date}</div>
+    <div class="meta"><strong>Growfit</strong><br>Generated: ${date}</div>
   </div>
   ${table}
   <div class="footer">
-    <span>Growfit FA · growfitfa.com${footerNote ? " · " + footerNote : ""}</span>
+    <span>Powered by Growfit · growfitfa.com${footerNote ? " · " + footerNote : ""}</span>
     <span>${date}</span>
   </div>
 </div>
