@@ -37,6 +37,7 @@ import {
 import { EquipmentLayer } from "@/components/tactics/equipment-layer";
 import { SavedPlaysPanel } from "@/components/tactics/saved-plays-panel";
 import { AnimationPanel } from "@/components/tactics/animation-panel";
+import { BoardDock, DockPanel, nextDockChoice, openDockTab, type DockTab } from "@/components/tactics/board-dock";
 import { StepTimeline } from "@/components/tactics/step-timeline";
 import { PhaseToggle } from "@/components/tactics/phase-toggle";
 import { SaveVideoButton } from "@/components/tactics/save-video-button";
@@ -289,6 +290,8 @@ function MeasureLayer({ a, b, pitch }: { a: Point; b: Point; pitch: Pitch }) {
 export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const [mode, setMode] = useState<Mode>("move");
   const [showNames, setShowNames] = useState(true);
+  /** The coach's own pick of which tool group is open; undefined = the default for the board's state. */
+  const [dock, setDock] = useState<DockTab | "closed" | undefined>(undefined);
   const [overlay, setOverlay] = useState<Overlay>("none");
   /** Colour for the next drawn line/zone/label — null keeps each kind's
    *  own default (yellow runs, sky dribbles, …). */
@@ -398,6 +401,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   }, [team]);
 
   const hasOurPlayers = state.tokens.some((t) => t.kind === "player");
+  const dockOpen = openDockTab(dock, hasOurPlayers);
   const placed = new Set(state.tokens.filter((t) => t.playerId).map((t) => t.playerId));
   const bench = roster.filter((p) => !placed.has(p.id));
 
@@ -1578,16 +1582,35 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
         />
       )}
 
-      {/* Setup is collapsed once the pitch has players on it: on a phone the
-          team, opponent and surface cards used to push the board itself below
-          the fold. Open on a blank board, where setting up is the first job. */}
-      <details open={!state.tokens.some((t) => t.kind === "player")} className="group space-y-4">
-        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between rounded-xl border border-border bg-card px-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
-          <span>Set up teams and pitch</span>
-          <span className="text-xs font-normal text-muted-foreground group-open:hidden">Show</span>
-          <span className="hidden text-xs font-normal text-muted-foreground group-open:inline">Hide</span>
-        </summary>
+      {/* Always-visible controls: the few things used on every play. The
+          rest of the tools live behind the four dock buttons below, and
+          the rarely used ones behind "More". */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button type="button" onClick={undo} title="Undo (Ctrl/Cmd+Z)" aria-label="Undo" className="inline-flex h-10 sm:h-9 items-center rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted"><Undo2 className="size-3.5" aria-hidden="true" /></button>
+        <button type="button" onClick={redo} title="Redo (Ctrl/Cmd+Shift+Z)" aria-label="Redo" className="inline-flex h-10 sm:h-9 items-center rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted"><Redo2 className="size-3.5" aria-hidden="true" /></button>
+        <button type="button" onClick={() => setShowNames((v) => !v)} title="Toggle names" className={`inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border px-2.5 text-xs ${showNames ? "bg-muted border-border" : "bg-background border-border"} hover:bg-muted`}>
+          <Tag className="size-3.5" aria-hidden="true" /> Names
+        </button>
+        <button type="button" onClick={mirrorBoard} title="Flip the board left-to-right" className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
+          <FlipHorizontal2 className="size-3.5" aria-hidden="true" /> Mirror
+        </button>
+        <details className="relative">
+          <summary className="inline-flex h-10 sm:h-9 cursor-pointer list-none items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted [&::-webkit-details-marker]:hidden">More</summary>
+          <div className="absolute left-0 z-20 mt-1 flex w-max max-w-[85vw] flex-col gap-1.5 rounded-xl border border-border bg-card p-2 shadow-float">
+        <button type="button" onClick={clearDrawings} className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">Clear lines</button>
+        <button type="button" onClick={clearAll} className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
+          <RotateCcw className="size-3.5" aria-hidden="true" /> Reset
+        </button>
+        <button type="button" onClick={exportPng} className="inline-flex h-10 sm:h-9 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-semibold hover:bg-muted">
+          <Download className="size-3.5 text-primary" aria-hidden="true" /> PNG
+        </button>
+          </div>
+        </details>
+      </div>
 
+      <BoardDock open={dockOpen} onChange={(tab) => setDock(nextDockChoice(dockOpen, tab))} />
+
+      <DockPanel id="players" open={dockOpen}>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-xl border border-border bg-card p-3 space-y-2">
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Your team</p>
@@ -1707,8 +1730,36 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           ))}
         </div>
       </div>
-      </details>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button type="button" onClick={addBall} title="Add ball" className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">⚽ Ball</button>
+        <button type="button" onClick={addOpponent} title="Add one opponent" className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
+          <Circle className="size-3.5" aria-hidden="true" /> +1
+        </button>
+        <span className="mx-1 h-6 w-px bg-border" />
+        <span className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background pl-2 pr-1 text-xs">
+          <select
+            value={equipmentKind}
+            onChange={(e) => setEquipmentKind(e.target.value as EquipmentKind)}
+            aria-label="Equipment"
+            className="bg-transparent py-1 text-xs focus:outline-none"
+          >
+            {Object.values(EQUIPMENT_SPECS).map((spec) => (
+              <option key={spec.kind} value={spec.kind}>{spec.label}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => addEquipment(equipmentKind)}
+            title="Add equipment"
+            className="inline-flex h-7 items-center gap-1 rounded px-1.5 text-xs hover:bg-muted"
+          >
+            <Plus className="size-3.5" aria-hidden="true" /> Add
+          </button>
+        </span>
+      </div>
+      </DockPanel>
 
+      <DockPanel id="draw" open={dockOpen}>
       {/* Tools */}
       <div className="rounded-xl border border-border bg-card p-2 space-y-2">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -1787,52 +1838,24 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           </div>
         </div>
       </div>
+      </DockPanel>
 
-      <div className="flex flex-wrap items-center gap-1.5">
-        <button type="button" onClick={addBall} title="Add ball" className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">⚽ Ball</button>
-        <button type="button" onClick={addOpponent} title="Add one opponent" className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
-          <Circle className="size-3.5" aria-hidden="true" /> +1
-        </button>
-        <span className="mx-1 h-6 w-px bg-border" />
-        <span className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background pl-2 pr-1 text-xs">
-          <select
-            value={equipmentKind}
-            onChange={(e) => setEquipmentKind(e.target.value as EquipmentKind)}
-            aria-label="Equipment"
-            className="bg-transparent py-1 text-xs focus:outline-none"
-          >
-            {Object.values(EQUIPMENT_SPECS).map((spec) => (
-              <option key={spec.kind} value={spec.kind}>{spec.label}</option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={() => addEquipment(equipmentKind)}
-            title="Add equipment"
-            className="inline-flex h-7 items-center gap-1 rounded px-1.5 text-xs hover:bg-muted"
-          >
-            <Plus className="size-3.5" aria-hidden="true" /> Add
-          </button>
-        </span>
-        <span className="mx-1 h-6 w-px bg-border" />
-        <button type="button" onClick={undo} title="Undo (Ctrl/Cmd+Z)" aria-label="Undo" className="inline-flex h-10 sm:h-9 items-center rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted"><Undo2 className="size-3.5" aria-hidden="true" /></button>
-        <button type="button" onClick={redo} title="Redo (Ctrl/Cmd+Shift+Z)" aria-label="Redo" className="inline-flex h-10 sm:h-9 items-center rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted"><Redo2 className="size-3.5" aria-hidden="true" /></button>
-        <button type="button" onClick={() => setShowNames((v) => !v)} title="Toggle names" className={`inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border px-2.5 text-xs ${showNames ? "bg-muted border-border" : "bg-background border-border"} hover:bg-muted`}>
-          <Tag className="size-3.5" aria-hidden="true" /> Names
-        </button>
-        <button type="button" onClick={mirrorBoard} title="Flip the board left-to-right" className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
-          <FlipHorizontal2 className="size-3.5" aria-hidden="true" /> Mirror
-        </button>
-        <span className="mx-1 h-6 w-px bg-border" />
-        <button type="button" onClick={clearDrawings} className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">Clear lines</button>
-        <button type="button" onClick={clearAll} className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs hover:bg-muted">
-          <RotateCcw className="size-3.5" aria-hidden="true" /> Reset
-        </button>
-        <button type="button" onClick={exportPng} className="inline-flex h-10 sm:h-9 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-semibold hover:bg-muted">
-          <Download className="size-3.5 text-primary" aria-hidden="true" /> PNG
-        </button>
-      </div>
+      <DockPanel id="move" open={dockOpen}>
+          <AnimationPanel
+            captureFrame={captureFrame}
+            stopPlayback={stopPlayback}
+            playAnimation={playAnimation}
+            snapshot={snapshot}
+            gotoFrame={gotoFrame}
+            updateFrame={updateFrame}
+            insertFrameAfter={insertFrameAfter}
+            duplicateFrame={duplicateFrame}
+            deleteFrame={deleteFrame}
+            moveFrame={moveFrame}
+          />
+      </DockPanel>
 
+      <DockPanel id="ai" open={dockOpen}>
       {/* Analyse: read the shapes on the pitch — everything here is a view
           over the board, never an edit to it. */}
       <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-card p-2">
@@ -1948,6 +1971,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           </button>
         ))}
       </div>
+      </DockPanel>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_16rem]">
         {/* Pitch.
@@ -2202,19 +2226,6 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
 
         {/* Bench + legend */}
         <div className="space-y-4">
-          <AnimationPanel
-            captureFrame={captureFrame}
-            stopPlayback={stopPlayback}
-            playAnimation={playAnimation}
-            snapshot={snapshot}
-            gotoFrame={gotoFrame}
-            updateFrame={updateFrame}
-            insertFrameAfter={insertFrameAfter}
-            duplicateFrame={duplicateFrame}
-            deleteFrame={deleteFrame}
-            moveFrame={moveFrame}
-          />
-
           <SavedPlaysPanel
             ageGroup={team?.age_group ?? "U15"}
             busy={busy}
