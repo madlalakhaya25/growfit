@@ -517,6 +517,22 @@ the tags are not set up yet; "Share to library" explains the same.
 
 ---
 
+## 066: player positions
+
+Adds `player_positions`: up to three positions per player, each with an
+optional role (`rank` 1 to 3, `position`, `role`, `set_by`), in two lists per
+player: `official` (set by the coach, mirrored into `players.position` and
+`secondary_pos` by the app) and `preferred` (where the player, or their parent,
+likes to play). Six RLS policies: admins and coaches of the player's team read
+both lists and write only `official`; the player and a linked parent read both
+and write only `preferred`. Cascades when a player is erased. Positions and
+roles are children's data under POPIA but are not sensitive. Additive, safe to
+re-run. Until it is run the editors hide themselves and every screen keeps
+reading `players.position`. Attribute level presets stay hidden regardless
+until Buhle approves them (`PRESETS_APPROVED` in `web/src/lib/attribute-presets.ts`).
+
+---
+
 ## How to apply
 
 Either route works. Take a backup first regardless.

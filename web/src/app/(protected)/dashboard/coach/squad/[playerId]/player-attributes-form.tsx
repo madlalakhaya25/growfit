@@ -14,6 +14,11 @@ import {
   type AttrKey,
 } from "@/lib/attributes";
 import { cn } from "@/lib/utils";
+import {
+  LEVELS, LEVEL_LABEL, LEVEL_MEANING, LEVEL_SCORE, PHYSICAL_NOTE, PRESETS_APPROVED, presetFor, type Level,
+} from "@/lib/attribute-presets";
+import { ageBracket } from "@/lib/term-review";
+import { roleLabel, type RoleId } from "@/lib/player-roles";
 
 interface Props {
   playerId: string;
@@ -21,6 +26,10 @@ interface Props {
   /** This coach's own saved note, so a save doesn't silently wipe it. */
   initialNotes?: string | null;
   position?: string | null;
+  /** The main role from the player's official positions, which shapes a preset. */
+  role?: RoleId | null;
+  /** The age group a level is judged against. */
+  ageGroup?: string | null;
   /**
    * The squad's median rating for each of this position's quick-assess
    * attributes (docs/BACKLOG.md 2.6), shown as a tick mark on each slider
@@ -44,7 +53,7 @@ function buildDefaults(
 const SLIDER_MIN = 1;
 const SLIDER_MAX = 99;
 
-export function PlayerAttributesForm({ playerId, initial, initialNotes, position, squadMedians }: Props) {
+export function PlayerAttributesForm({ playerId, initial, initialNotes, position, role, ageGroup, squadMedians }: Props) {
   const [values, setValues] = useState<Record<AttrKey, number>>(() => buildDefaults(initial));
   const [notes, setNotes] = useState(initialNotes ?? "");
   const [rating, setRating] = useState(0);
@@ -63,6 +72,12 @@ export function PlayerAttributesForm({ playerId, initial, initialNotes, position
   function handleChange(key: AttrKey, value: number) {
     setSaved(false);
     setValues((v) => ({ ...v, [key]: value }));
+  }
+
+  // Fills the sliders this form shows; the coach adjusts any of them after.
+  function applyLevel(level: Level) {
+    setSaved(false);
+    setValues((v) => ({ ...v, ...presetFor(level, quickAssess ? quickKeys : shownKeys, role) }));
   }
 
   function groupAvg(keys: AttrKey[]): number {
@@ -218,6 +233,31 @@ export function PlayerAttributesForm({ playerId, initial, initialNotes, position
           />
         </button>
       </div>
+
+      {PRESETS_APPROVED && (
+        <div className="space-y-2 rounded-lg border border-border px-3 py-2" aria-label="Level presets">
+          <p className="text-sm font-medium">
+            Start from a level{role ? ` (${roleLabel(role)})` : ""}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Judged against {ageBracket(ageGroup)} players. Tap one to fill the sliders, then adjust.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {LEVELS.map((level) => (
+              <button
+                key={level}
+                type="button"
+                onClick={() => applyLevel(level)}
+                title={LEVEL_MEANING[level]}
+                className="rounded-full border border-border px-3 py-1 text-xs font-medium hover:bg-muted"
+              >
+                {LEVEL_LABEL[level]} · {LEVEL_SCORE[level]}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">{PHYSICAL_NOTE}</p>
+        </div>
+      )}
 
       {quickAssess ? (
         <div className="space-y-3">

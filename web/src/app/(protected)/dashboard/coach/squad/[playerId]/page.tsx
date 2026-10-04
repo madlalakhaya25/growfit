@@ -21,6 +21,9 @@ import { calculateAge, matchRatingAverage } from "@/lib/player";
 import { RemovePlayerButton } from "../remove-player-button";
 import { RatingEditRow } from "./rating-edit-row";
 import { PlayerAttributesForm } from "./player-attributes-form";
+import { PositionsEditor } from "@/components/player/positions-editor";
+import { getPlayerPositions } from "@/lib/player-positions";
+import { rolesFor } from "@/lib/player-roles";
 import { PlayerCurves } from "@/components/development/player-curves";
 import { loadCurves } from "@/lib/curves-data";
 import { RatingChart } from "@/components/rating-chart";
@@ -224,6 +227,8 @@ export default async function PlayerDetailPage({
     ? await supabase.from("teams").select("age_group").eq("id", teamId).single()
     : { data: null };
 
+  const positions = await getPlayerPositions(supabase, playerId);
+  const mainRole = positions.official[0]?.role ?? null;
   const quickAssessKeys = getQuickAssessKeys(player?.position);
   const squadMedians = computeSquadMedians(squadAttrPlayers, quickAssessKeys);
 
@@ -523,6 +528,14 @@ export default async function PlayerDetailPage({
                       selfRatings={selfRatings}
                     />
                   )}
+                  {positions.available && (
+                    <PositionsEditor
+                      playerId={player.id}
+                      kind="official"
+                      initial={positions.official.length ? positions.official : [player.position, player.secondary_pos].filter((v): v is string => Boolean(v) && rolesFor(v).length > 0).map((position) => ({ position, role: null }))}
+                      other={positions.preferred}
+                    />
+                  )}
                   {/* Ability attributes */}
                   <Card>
                     <CardHeader>
@@ -537,6 +550,8 @@ export default async function PlayerDetailPage({
                         initial={initialAttrs}
                         initialNotes={myNotes}
                         position={player.position}
+                        role={mainRole}
+                        ageGroup={(reviewTeam as { age_group: string | null } | null)?.age_group ?? null}
                         squadMedians={squadMedians}
                       />
                     </CardContent>
