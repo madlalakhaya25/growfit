@@ -93,6 +93,7 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
       key: "academy", label: "Academy", Icon: Building2, mobileHide: true,
       tabs: [
         { href: "/dashboard/admin/academy", label: "Academy" },
+        { href: "/dashboard/admin/drills", label: "Drills" },
         { href: "/dashboard/admin/agent", label: "Agent", feature: "agent" },
       ],
     },
@@ -118,6 +119,7 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
       key: "develop", label: "Develop", Icon: Dumbbell,
       tabs: [
         { href: "/dashboard/coach/training", label: "Training" },
+        { href: "/dashboard/coach/training/drills", label: "Library" },
         { href: "/dashboard/coach/tactics", label: "Tactics", feature: "tactics" },
       ],
     },
