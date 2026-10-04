@@ -14,6 +14,11 @@ import { loadSharedDevelopmentPlan } from "@/lib/shared-development-plan";
 import { loadTermReview, loadSelfRatings } from "@/lib/term-review-data";
 import { SelfRatingCard } from "@/components/development/self-rating-card";
 import { todayIso } from "@/lib/time";
+import { TrophyCabinet } from "@/components/skill-challenges/trophy-cabinet";
+import { loadAttempts } from "@/lib/skill-challenges-data";
+import { skillAgeBand, trophyCabinet, weeklyStreak } from "@/lib/skill-challenges";
+import { loadPlayerHomework } from "@/lib/homework-data";
+import { HomeworkEvidence } from "@/components/homework/homework-evidence";
 
 /**
  * Milestones and the development plan, split out of the passport page.
@@ -68,7 +73,11 @@ export default async function PlayerDevelopmentPage() {
   const ageGroup = (Array.isArray(teams) ? teams[0] : teams)?.age_group ?? null;
 
   const shared = await loadSharedDevelopmentPlan(supabase, player.id);
+  // Ball-skill medals count as evidence for the Technical category. Hidden
+  // until migration 064 has run.
+  const skillAttempts = await loadAttempts(supabase, [player.id]);
   const challenge = shared ? pickHomeChallenge(shared.plan) : null;
+  const homework = await loadPlayerHomework(supabase, player.id);
 
   return (
     <div className="space-y-6">
@@ -92,10 +101,24 @@ export default async function PlayerDevelopmentPage() {
 
       <DevelopmentOverview snapshot={snapshot} audience="player" />
 
+      {skillAttempts.available && (
+        <TrophyCabinet
+          results={trophyCabinet(skillAgeBand(ageGroup), skillAttempts.rows)}
+          streak={weeklyStreak(skillAttempts.rows.map((r) => r.logged_at), todayIso())}
+          heading="Ball-skill medals"
+          emptyMessage="Win a medal in a home challenge and it shows here as proof of your skills."
+          href="/dashboard/player/challenges"
+          showCategory
+        />
+      )}
+
       <section className="space-y-3">
         <h2 className="text-base font-semibold">My journey</h2>
         <MilestoneTimeline snapshot={snapshot} audience="player" />
       </section>
+
+      {/* Evidence for the Tactical category: plays studied at home. */}
+      <HomeworkEvidence rows={homework.rows} audience="player" />
 
       {/* Only a plan a coach has approved is ever shown here; the generator is
           coach-only (Phase 0 of docs/AI_AND_UX_PLAN_2026.md). */}

@@ -449,6 +449,72 @@ to re-run. Until it is run, the board's folder box and the "How did we do in eac
 phase?" row still show, plays and results still save, and the folder and phase
 ratings are simply not stored.
 
+## 062: match minutes
+
+Adds a nullable `minutes_played` (0 to 150) to `match_appearances`: the minutes a
+child actually played, saved from the match-day playing-time screen. Also adds
+the table's first UPDATE policy (needed for the upsert), limited to the team's
+coaches and academy admins. Additive, safe to re-run. Until it is run, the
+playing-time planner and live clock still work, but "Save minutes" gives a
+friendly error and the player page shows no season minutes.
+
+---
+
+## 063: tactics homework
+
+Adds `homework_assignments` (a saved play sent to a team with 1 to 3
+multiple-choice questions and a due date) and `homework_responses` (one per
+player per assignment: the chosen answer indexes and a score). Additive: two new
+tables, one shape-check function (`homework_questions_valid`) and one trigger
+that works out the score from the assignment's answer key, so a player can never
+write their own score. Coaches of the team and admins of the academy manage
+assignments and read responses; a player reads their active teams' assignments
+and inserts (once) and reads only their own response; a linked parent reads
+both for their child. Deleting the play keeps the homework; erasing a player
+erases their responses. Note the answer key sits in the assignment row a player
+can read (RLS is row-level); the app never sends it before they answer, which is
+fine for practice homework. Safe to re-run. Until it is run, the board's "Send
+as homework" says it needs 063, the coach and player Homework pages say it is
+not set up yet, and the development and parent pages show nothing extra.
+
+Verified on PostgreSQL 16 (full chain 001 to 063): a coach of another team cannot
+create homework for this team; a bad shape (answer index out of range) is
+refused by the check; a player on another team sees none and cannot respond; a
+player cannot respond as someone else or with the wrong number of answers; a
+response sent with `score = 99` is stored as 1 of 2; no updates to a response;
+a parent sees their child's assignment and response; a coach cannot insert a
+response; re-running the file succeeds.
+
+## 064: skill challenges
+
+Adds `skill_challenge_assignments` (a coach asks a team, or one player in it, to
+try a ball-skill home challenge by a date) and `skill_challenge_attempts` (one
+logged score: player, challenge key, a whole number, when, who typed it). The
+catalogue and the bronze/silver/gold targets live in the app, not the database.
+Additive: two new tables. Coaches of the team and admins of the academy manage
+assignments; the team's players and linked parents read them. A player logs and
+reads their own scores; a linked parent reads and may log for their child (the
+same rule as the medical form); coaches of the child's team and academy admins
+read. Erasing a player erases their scores (real foreign keys). Safe to re-run.
+Until it is run, the Challenges screens say they are not set up yet, and the
+development page and parent page simply show no medals.
+
+---
+
+## 065: academy drill library
+
+Adds tag columns to `drill_library` so U11, U13 and U15 coaches share one
+method: `age_groups` and `themes` (text arrays, CHECKed against U11/U13/U15 and
+a fixed list of ten themes), `four_corner`, `players_needed` (1 to 40),
+`equipment`, `coaching_points`, `tactic_play_id` (a saved play as the diagram,
+set null if the play is deleted), `source_drill_id` (the session drill it was
+shared from) and `is_academy_method` (default false). A trigger lets only an
+admin set or clear `is_academy_method`, or edit or delete a drill once it is
+the academy method; coaches keep their existing rights on every other drill.
+No children's data. Additive, safe to re-run. Until it is run, the Library page
+lists and adds drills as before, hides the age group and theme chips, and says
+the tags are not set up yet; "Share to library" explains the same.
+
 ---
 
 ## How to apply

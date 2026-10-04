@@ -9,7 +9,6 @@ import {
   Calendar,
   UserCircle,
   LogOut,
-  ChevronRight,
   Megaphone,
   Dumbbell,
   Settings,
@@ -93,6 +92,7 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
       key: "academy", label: "Academy", Icon: Building2, mobileHide: true,
       tabs: [
         { href: "/dashboard/admin/academy", label: "Academy" },
+        { href: "/dashboard/admin/drills", label: "Drills" },
         { href: "/dashboard/admin/agent", label: "Agent", feature: "agent" },
       ],
     },
@@ -118,6 +118,8 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
       key: "develop", label: "Develop", Icon: Dumbbell,
       tabs: [
         { href: "/dashboard/coach/training", label: "Training" },
+        { href: "/dashboard/coach/training/challenges", label: "Challenges" },
+        { href: "/dashboard/coach/training/drills", label: "Library" },
         { href: "/dashboard/coach/tactics", label: "Tactics", feature: "tactics" },
       ],
     },
@@ -144,7 +146,9 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
       key: "learn", label: "Learn", Icon: Lightbulb,
       tabs: [
         { href: "/dashboard/player/tactics", label: "Plays", feature: "tactics" },
+        { href: "/dashboard/player/homework", label: "Homework", feature: "tactics" },
         { href: "/dashboard/player/development", label: "Development" },
+        { href: "/dashboard/player/challenges", label: "Challenges" },
       ],
     },
     { key: "posts", label: "Announcements", mobileLabel: "Posts", Icon: Megaphone, tabs: [{ href: "/dashboard/player/announcements", label: "Posts" }] },
@@ -211,28 +215,30 @@ export function DashboardShell({ profile, teams = [], features, children }: Prop
   return (
     <div className="flex min-h-dvh bg-background">
       {/* ── Sidebar (desktop) ─────────────────────────────────── */}
-      <aside className="sticky top-0 hidden h-dvh w-64 flex-col border-r border-border/60 bg-card/60 lg:flex">
+      <aside className="sticky top-0 hidden h-dvh w-64 flex-col border-r border-border/70 bg-secondary/55 backdrop-blur-xl lg:flex">
         <div className="flex h-16 items-center px-5">
           <Logo />
         </div>
 
-        <nav className="flex-1 space-y-1 px-3 py-4">
+        <nav className="flex-1 space-y-0.5 px-3 py-3">
           {sections.map(({ key, label, Icon, tabs }) => {
             const active = activeSection?.key === key;
             return (
               <Link
                 key={key}
                 href={tabs[0].href}
+                aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-semibold transition-colors",
+                  // A Mac sidebar: the selected row is filled with the
+                  // accent, every other row shows its icon in the accent.
+                  "flex min-h-9 items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[15px] font-medium transition-colors",
                   active
-                    ? "bg-primary/10 text-primary"
-                    : "text-foreground/75 hover:bg-secondary hover:text-foreground"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-foreground hover:bg-foreground/5"
                 )}
               >
-                <Icon className="size-[18px] shrink-0" aria-hidden="true" />
+                <Icon className={cn("size-[18px] shrink-0", !active && "text-primary")} aria-hidden="true" />
                 {label}
-                {active && <ChevronRight className="ml-auto size-3.5 text-primary" aria-hidden="true" />}
               </Link>
             );
           })}
@@ -309,7 +315,7 @@ export function DashboardShell({ profile, teams = [], features, children }: Prop
             the app's controls, not part of the content, and inset from the
             screen edge and home indicator. */}
         <nav
-          className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 flex rounded-full border border-border/60 bg-card/85 px-1.5 py-1 shadow-float backdrop-blur-xl lg:hidden"
+          className="fixed inset-x-4 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 flex rounded-full border border-white/40 bg-card/70 p-1.5 shadow-float backdrop-blur-2xl backdrop-saturate-[1.8] dark:border-white/10 lg:hidden"
           aria-label="Mobile navigation"
         >
           {sections.filter((s) => !s.mobileHide).map(({ key, label, mobileLabel, Icon, tabs }) => {
@@ -319,11 +325,11 @@ export function DashboardShell({ profile, teams = [], features, children }: Prop
                 key={key}
                 href={tabs[0].href}
                 className={cn(
-                  "flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-semibold transition-colors",
-                  active ? "bg-primary/10 text-primary" : "text-muted-foreground"
+                  "flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[10px] font-semibold transition-colors",
+                  active ? "bg-primary/10 text-primary" : "text-foreground/80"
                 )}
               >
-                <Icon className={cn("size-5", active && "text-primary")} aria-hidden="true" />
+                <Icon className={cn("size-[22px]", active && "text-primary")} aria-hidden="true" />
                 {mobileLabel ?? label}
               </Link>
             );

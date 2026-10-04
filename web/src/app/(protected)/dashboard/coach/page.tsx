@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { FixtureTicket } from "@/components/ui/fixture-ticket";
-import { ListRow, ListRowGroup } from "@/components/ui/list-row";
+import { ListRow, GroupedSection } from "@/components/ui/list-row";
+import { IconTile } from "@/components/ui/icon-tile";
 import { Users, Calendar, Plus, Dumbbell, ClipboardList, HeartPulse, CheckCircle2 } from "lucide-react";
 import { CreateTeamForm } from "@/components/create-team-form";
 import { JoinTeamForm } from "@/components/join-team-form";
@@ -189,6 +190,7 @@ export default async function CoachDashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        eyebrow={formatWeekdayDayMonth(new Date())}
         title={`${greeting()}, ${firstName}`}
         action={
           allTeams.length > 0 && (
@@ -311,25 +313,25 @@ export default async function CoachDashboardPage() {
             return (
               <Link
                 href={`/dashboard/coach/training/${nextSession.id}`}
-                className="group block rounded-[1.75rem] bg-gradient-to-br from-[#b81f1d] to-[#8a1110] p-5 text-white shadow-[0_14px_30px_rgb(167_24_23/0.28)] transition-transform duration-200 active:scale-[0.99]"
+                className="group block rounded-2xl bg-[#a71817] p-5 text-white shadow-[0_12px_28px_rgb(167_24_23/0.25)] transition-transform duration-200 active:scale-[0.99]"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-bold uppercase tracking-[0.08em] text-white/85">
+                  <p className="text-[13px] font-semibold text-white/90">
                     {onNow ? "Training now" : `Next training · ${daysLabel}`}
                   </p>
                   <span className="grid size-9 place-items-center rounded-full bg-white/15">
                     <Dumbbell className="size-4" aria-hidden="true" />
                   </span>
                 </div>
-                <p className="mt-2 text-2xl font-extrabold leading-tight tracking-tight">{nextSession.title}</p>
-                <p className="mt-1 text-sm text-white/85">
+                <p className="mt-1.5 text-[22px] font-bold leading-tight tracking-[-0.01em]">{nextSession.title}</p>
+                <p className="mt-1 text-[15px] text-white/90">
                   {formatWeekdayDayMonth(date)}
                   {" · "}
                   {formatTime(date)}
                   {nextSession.location && ` · ${nextSession.location}`}
                   {teamName && ` · ${teamName}`}
                 </p>
-                <span className="mt-4 inline-flex h-11 items-center rounded-full bg-white px-5 text-sm font-bold text-[#8a1110] transition-colors group-hover:bg-white/90">
+                <span className="mt-4 flex h-11 items-center justify-center rounded-full bg-white px-5 text-[17px] font-semibold text-[#a71817] transition-colors group-hover:bg-white/90 sm:inline-flex">
                   {onNow ? "Take the register" : "Open the session"}
                 </span>
               </Link>
@@ -351,11 +353,10 @@ export default async function CoachDashboardPage() {
               </CardContent>
             </Card>
           ) : hasTodos ? (
-            <Card>
-              <ListRowGroup className="px-4">
+            <GroupedSection title="Needs you">
                 {resultsNotLogged > 0 && (
                   <ListRow
-                    leading={<ClipboardList className="size-5 text-primary" aria-hidden="true" />}
+                    leading={<IconTile tone="blue"><ClipboardList aria-hidden="true" /></IconTile>}
                     title={`${resultsNotLogged} result${resultsNotLogged === 1 ? "" : "s"} still to log`}
                     subtitle="Kickoff has passed"
                     href="/dashboard/coach/fixtures"
@@ -363,7 +364,7 @@ export default async function CoachDashboardPage() {
                 )}
                 {registersNotTaken > 0 && (
                   <ListRow
-                    leading={<Dumbbell className="size-5 text-primary" aria-hidden="true" />}
+                    leading={<IconTile tone="orange"><Dumbbell aria-hidden="true" /></IconTile>}
                     title={`${registersNotTaken} register${registersNotTaken === 1 ? "" : "s"} not taken`}
                     subtitle="From the past week"
                     href="/dashboard/coach/training"
@@ -371,14 +372,13 @@ export default async function CoachDashboardPage() {
                 )}
                 {welfareAlerts > 0 && (
                   <ListRow
-                    leading={<HeartPulse className="size-5 text-primary" aria-hidden="true" />}
+                    leading={<IconTile tone="red"><HeartPulse aria-hidden="true" /></IconTile>}
                     title={`${welfareAlerts} welfare check-in${welfareAlerts === 1 ? "" : "s"} needed`}
                     subtitle="Below the 75% attendance threshold"
                     href="/dashboard/coach/welfare"
                   />
                 )}
-              </ListRowGroup>
-            </Card>
+            </GroupedSection>
           ) : (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <CheckCircle2 className="size-4 text-success" aria-hidden="true" />
@@ -387,12 +387,11 @@ export default async function CoachDashboardPage() {
           )}
 
           {/* ── Teams ─────────────────────────────────────────────── */}
-          <Card>
-            <ListRowGroup className="px-4">
+          <GroupedSection title="Your teams">
               {allTeams.map((team) => (
                 <ListRow
                   key={team.id}
-                  leading={<Users className="size-5 text-primary" aria-hidden="true" />}
+                  leading={<IconTile tone="green"><Users aria-hidden="true" /></IconTile>}
                   title={team.name}
                   subtitle={
                     team.squadCount === null || team.upcomingCount === null
@@ -405,8 +404,7 @@ export default async function CoachDashboardPage() {
                   href={`/dashboard/coach/squad?team=${team.id}`}
                 />
               ))}
-            </ListRowGroup>
-          </Card>
+          </GroupedSection>
 
           {allTeams.map((team) => (
             <details key={team.id} className="text-xs text-muted-foreground">

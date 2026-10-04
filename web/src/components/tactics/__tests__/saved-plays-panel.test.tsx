@@ -37,6 +37,8 @@ import { transcribeCoachNote } from "@/app/actions/coach-notes";
 import { generateBoardFromSentence } from "@/app/actions/board-from-text";
 import { SavedPlaysPanel } from "@/components/tactics/saved-plays-panel";
 import { useBoardSetupStore } from "@/store/boardSetupStore";
+import { useBoardStore } from "@/store/boardStore";
+import { loadPlay, savePlay } from "@/app/actions/tactic-plays";
 
 describe("SavedPlaysPanel", () => {
   it("renders the plays card with no team selected, with no network calls needed", async () => {
@@ -99,6 +101,42 @@ describe("SavedPlaysPanel", () => {
     expect(screen.getAllByText("Voice note")).toHaveLength(1);
     expect(errors.mock.calls.filter((c) => String(c[0]).includes("same key"))).toHaveLength(0);
     errors.mockRestore();
+    useBoardSetupStore.setState({ teamId: "" });
+  });
+
+  async function openPlayP1() {
+    useBoardSetupStore.setState({ teamId: "t" });
+    render(<SavedPlaysPanel ageGroup="U15" busy={null} setBusy={jest.fn()} notice={null} setNotice={jest.fn()} snapshot={jest.fn()} clearDraft={jest.fn()} />);
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => { fireEvent.click(screen.getByText("P1")); });
+    await act(async () => { await Promise.resolve(); });
+  }
+
+  it("loads an old play, saved before shapes in and out of possession, with no phases", async () => {
+    useBoardStore.getState().setState({ tokens: [], shapes: [], objects: [], playerNotes: [], phases: { active: "without" } });
+    await openPlayP1();
+    expect(useBoardStore.getState().state.phases).toBeUndefined();
+    useBoardSetupStore.setState({ teamId: "" });
+  });
+
+  it("loads and saves both shapes inside the play's own JSON", async () => {
+    const tok = { id: "p1", label: "1", x: 50, y: 100, kind: "player" as const, group: "Midfielder" };
+    jest.mocked(loadPlay).mockResolvedValueOnce({
+      name: "P1",
+      data: { tokens: [tok], shapes: [], phases: { active: "with", without: [{ id: "p1", x: 50, y: 130 }] } },
+    });
+    await openPlayP1();
+    expect(useBoardStore.getState().state.phases).toEqual({ active: "with", without: [{ id: "p1", x: 50, y: 130 }] });
+
+    jest.mocked(savePlay).mockResolvedValueOnce({ id: "p1" });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Update" })); });
+    const data = jest.mocked(savePlay).mock.calls.at(-1)![0].data as { phases: unknown };
+    expect(data.phases).toEqual({
+      active: "with",
+      with: [{ id: "p1", x: 50, y: 100 }],
+      without: [{ id: "p1", x: 50, y: 130 }],
+    });
     useBoardSetupStore.setState({ teamId: "" });
   });
 });

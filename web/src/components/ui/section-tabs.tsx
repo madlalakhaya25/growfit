@@ -32,7 +32,9 @@ export function SectionTabs({ tabs, className }: SectionTabsProps) {
 
   return (
     <nav
-      className={cn("flex w-fit max-w-full gap-1 overflow-x-auto rounded-full bg-secondary p-1", className)}
+      // An iOS segmented control: a grey track, the current page lifted
+      // out of it as a white segment.
+      className={cn("flex w-fit max-w-full gap-0.5 overflow-x-auto rounded-[10px] bg-secondary p-0.5", className)}
       aria-label="Section navigation"
     >
       {tabs.map(({ href, label }) => {
@@ -42,10 +44,10 @@ export function SectionTabs({ tabs, className }: SectionTabsProps) {
             key={href}
             href={href}
             className={cn(
-              "shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold transition-colors",
+              "flex min-h-8 shrink-0 items-center rounded-[8px] px-4 text-sm transition-colors",
               active
-                ? "bg-card text-foreground shadow-[0_1px_3px_rgb(0_0_0/0.12)]"
-                : "text-muted-foreground hover:text-foreground"
+                ? "bg-card font-semibold text-foreground shadow-[0_2px_6px_rgb(0_0_0/0.12)] dark:bg-[#636366]"
+                : "font-medium text-foreground/80 hover:text-foreground"
             )}
             aria-current={active ? "page" : undefined}
           >

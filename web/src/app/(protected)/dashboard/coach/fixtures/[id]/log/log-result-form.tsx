@@ -98,8 +98,8 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       {/* Scoreline */}
-      <div className="rounded-xl border border-border bg-card p-6">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-muted-foreground">Score</h2>
+      <div className="rounded-2xl bg-card p-5 shadow-card">
+        <h2 className="mb-4 text-[13px] uppercase text-muted-foreground">Score</h2>
         <div className="flex items-center justify-center gap-6">
           <ScoreInput
             label={isHome ? "Us" : opponent}
@@ -316,25 +316,28 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
   );
 }
 
-function ScoreInput({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+function ScoreInput({ label, value, onChange }: Readonly<{ label: string; value: number; onChange: (v: number) => void }>) {
+  // The number big and condensed like a scoreboard, with an iOS stepper
+  // (one grey pill split into − and +) under it.
   return (
-    <div className="flex flex-col items-center gap-2">
-      <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
-      <div className="flex items-center gap-2">
+    <div className="flex flex-col items-center gap-2.5">
+      <p className="text-[15px] font-semibold">{label}</p>
+      <span className="font-display text-6xl font-bold leading-none tabular-nums">{value}</span>
+      <div className="flex items-center rounded-[9px] bg-secondary">
         <button
           type="button"
           onClick={() => onChange(Math.max(0, value - 1))}
-          className="grid size-8 place-items-center rounded-full border border-border text-lg font-bold hover:bg-muted transition-colors"
-          aria-label="Decrease"
+          className="grid h-11 w-12 place-items-center text-xl transition-colors hover:bg-foreground/5 rounded-l-[9px]"
+          aria-label={`One less for ${label}`}
         >
           −
         </button>
-        <span className="w-12 text-center text-4xl font-black tabular-nums">{value}</span>
+        <span className="h-5 w-px bg-border" aria-hidden="true" />
         <button
           type="button"
           onClick={() => onChange(Math.min(30, value + 1))}
-          className="grid size-8 place-items-center rounded-full border border-border text-lg font-bold hover:bg-muted transition-colors"
-          aria-label="Increase"
+          className="grid h-11 w-12 place-items-center text-xl transition-colors hover:bg-foreground/5 rounded-r-[9px]"
+          aria-label={`One more for ${label}`}
         >
           +
         </button>

@@ -97,3 +97,27 @@ export function ListRow({ leading, title, subtitle, wrapSubtitle, trailing, href
 export function ListRowGroup({ children, className }: { children: React.ReactNode; className?: string }) {
   return <div className={cn("divide-y divide-border", className)}>{children}</div>;
 }
+
+/**
+ * An iOS inset grouped list: a small caption over a white rounded block of
+ * rows, with an optional footnote under it. Use instead of a Card when the
+ * card would only hold a list.
+ */
+export function GroupedSection({
+  title,
+  footer,
+  children,
+  className,
+}: Readonly<{ title?: React.ReactNode; footer?: React.ReactNode; children: React.ReactNode; className?: string }>) {
+  return (
+    <section className={className}>
+      {title && (
+        <h2 className="px-4 pb-1.5 text-[13px] font-normal uppercase tracking-[0.01em] text-muted-foreground">{title}</h2>
+      )}
+      <div className="rounded-xl bg-card px-4 py-2.5 shadow-card">
+        <ListRowGroup>{children}</ListRowGroup>
+      </div>
+      {footer && <p className="px-4 pt-1.5 text-[13px] text-muted-foreground">{footer}</p>}
+    </section>
+  );
+}

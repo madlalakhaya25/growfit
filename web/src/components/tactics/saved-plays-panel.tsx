@@ -16,6 +16,7 @@ import { transcribeCoachNote } from "@/app/actions/coach-notes";
 import { useVoiceCapture } from "@/components/tactics/use-voice-capture";
 import { SessionProgression } from "@/components/tactics/session-progression";
 import { PlayRolesPanel } from "@/components/tactics/play-roles-panel";
+import { SendHomeworkButton } from "@/components/homework/send-homework-sheet";
 import type { SessionPlanStructured } from "@/app/actions/session-generator";
 import { SpeakButton } from "@/components/tactics/speak-button";
 import { VoiceNoteRecorder } from "@/components/tactics/voice-note-recorder";
@@ -24,6 +25,7 @@ import { PLAY_TEMPLATES, expandTemplate } from "@/lib/play-templates";
 import { FORMATIONS } from "@/lib/formations";
 import { AiProse } from "@/components/ai/ai-prose";
 import type { BoardState } from "@/store/boardStore";
+import { phasesForSave, readPhases } from "@/lib/board-phases";
 import { getPitch, type Frame } from "@/lib/board-model";
 import { readOpponent, describeReading } from "@/lib/board-analysis";
 
@@ -127,7 +129,12 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
       playId: currentPlayId ?? undefined,
       teamId,
       name,
-      data: { tokens: state.tokens, shapes: state.shapes, objects: state.objects, playerNotes: state.playerNotes, pitchId, pitchThemeId, frames, homeFormationId, awayFormationId },
+      data: {
+        tokens: state.tokens, shapes: state.shapes, objects: state.objects, playerNotes: state.playerNotes,
+        pitchId, pitchThemeId, frames, homeFormationId, awayFormationId,
+        // Undefined (and so left out of the JSON) for a play nobody flipped.
+        phases: phasesForSave(state.tokens, state.phases),
+      },
       conceptIds,
       sessionId: sessionId || null,
       fixtureId: fixtureId || null,
@@ -147,7 +154,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
     if (res.error || !res.data) { setNotice(res.error ?? "Could not load play."); return; }
     const d = res.data as Partial<BoardState & { frames: Frame[]; homeFormationId: string; awayFormationId: string; pitchId: string; pitchThemeId: string }>;
     snapshot();
-    setState({ tokens: d.tokens ?? [], shapes: d.shapes ?? [], objects: d.objects ?? [], playerNotes: d.playerNotes ?? [] });
+    setState({ tokens: d.tokens ?? [], shapes: d.shapes ?? [], objects: d.objects ?? [], playerNotes: d.playerNotes ?? [], phases: readPhases(d.phases) });
     setPitchId(d.pitchId ?? "full");
     setPitchThemeId(d.pitchThemeId ?? "classic");
     setFrames(d.frames ?? []);
@@ -490,6 +497,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
         <button type="button" onClick={handleShare} disabled={busy !== null} className="inline-flex h-10 sm:h-8 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs hover:bg-muted disabled:opacity-50">
           <Send className="size-3" aria-hidden="true" /> Share to squad
         </button>
+        {currentPlayId && <SendHomeworkButton playId={currentPlayId} playName={playName} onNotice={setNotice} />}
         {currentPlayId && (
           <button type="button" onClick={() => { setCurrentPlayId(null); setPlayName(""); setVoiceUrl(null); setFolderDraft(""); setAnalysis(null); setAiCounter(null); setDescription(null); setProgression(null); }} className="inline-flex h-10 sm:h-8 items-center rounded-md border border-border bg-background px-2 text-xs hover:bg-muted">
             New
