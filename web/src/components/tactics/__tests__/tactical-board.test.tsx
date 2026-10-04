@@ -38,6 +38,7 @@ import { TacticalBoard } from "@/components/tactics/tactical-board";
 import { useBoardInsightsStore } from "@/store/boardInsightsStore";
 import { useBoardStore } from "@/store/boardStore";
 import { useBoardSetupStore } from "@/store/boardSetupStore";
+import { useBoardPlaybackStore } from "@/store/boardPlaybackStore";
 
 /**
  * The board's own state now lives in store/boardStore.ts (a zustand
@@ -239,5 +240,59 @@ describe("TacticalBoard", () => {
     expect(screen.getByText(/3D view · switch to 2D to edit/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "2D" }));
     expect(screen.queryByText(/3D view · switch to 2D to edit/)).not.toBeInTheDocument();
+  });
+
+  it("flips our team between its shape with and without the ball", async () => {
+    render(<TacticalBoard teams={[]} />);
+    await act(async () => { await Promise.resolve(); });
+    expect(screen.queryByRole("group", { name: "Our shape" })).not.toBeInTheDocument();
+    act(() => {
+      useBoardStore.getState().setState({
+        tokens: [
+          { id: "p1", label: "1", x: 50, y: 100, kind: "player", group: "Midfielder" },
+          { id: "o1", label: "", x: 50, y: 40, kind: "opponent", group: "Opponent" },
+        ],
+        shapes: [], objects: [], playerNotes: [],
+      });
+    });
+
+    const withBall = screen.getByRole("button", { name: "With the ball" });
+    const withoutBall = screen.getByRole("button", { name: "Without the ball" });
+    expect(withBall).toHaveAttribute("aria-pressed", "true");
+
+    // First time: "without" starts as a copy of the current shape.
+    fireEvent.click(withoutBall);
+    expect(withoutBall).toHaveAttribute("aria-pressed", "true");
+    expect(useBoardStore.getState().state.phases?.active).toBe("without");
+    expect(useBoardStore.getState().state.tokens[0]).toMatchObject({ x: 50, y: 100 });
+
+    // Drop deep while out of possession, then flip back and forth. (Each
+    // flip starts a short glide; end it so the next flip isn't blocked.)
+    act(() => {
+      useBoardPlaybackStore.getState().setPlaying(false);
+      useBoardStore.getState().setState((st) => ({ ...st, tokens: st.tokens.map((t) => (t.id === "p1" ? { ...t, y: 130 } : t)) }));
+    });
+    fireEvent.click(withBall);
+    expect(useBoardStore.getState().state.tokens[0]).toMatchObject({ x: 50, y: 100 });
+    act(() => { useBoardPlaybackStore.getState().setPlaying(false); });
+    fireEvent.click(screen.getByRole("button", { name: "Without the ball" }));
+    expect(useBoardStore.getState().state.tokens[0]).toMatchObject({ x: 50, y: 130 });
+    expect(useBoardStore.getState().state.tokens[1]).toMatchObject({ x: 50, y: 40 });
+  });
+
+  it("puts the step timeline and Save as video under the pitch", async () => {
+    render(<TacticalBoard teams={[]} />);
+    await act(async () => { await Promise.resolve(); });
+    // jsdom has no MediaRecorder, so the button explains instead of failing.
+    expect(screen.getByRole("button", { name: "Save as video" })).toBeDisabled();
+    expect(screen.getByText(/can't save video/i)).toBeInTheDocument();
+
+    act(() => {
+      useBoardPlaybackStore.getState().setFrames([
+        { id: "f1", tokens: [{ id: "p1", x: 50, y: 100 }], shapes: [] },
+        { id: "f2", tokens: [{ id: "p1", x: 50, y: 80 }], shapes: [], durationMs: 2000 },
+      ]);
+    });
+    expect(screen.getByRole("slider", { name: "Scrub through the move" })).toHaveAttribute("max", "2000");
   });
 });

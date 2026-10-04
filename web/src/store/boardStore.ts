@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import type { BoardObject, PlayerNote, Shape, Token } from "@/lib/board-model";
+import type { PhaseShapes } from "@/lib/board-phases";
 
 /**
  * The tactical board's live drawing state: placed tokens, drawn shapes,
@@ -22,6 +23,10 @@ export interface BoardState {
   /** Coach notes about individual players — new, additive, same reasoning
    * as objects above. */
   playerNotes: PlayerNote[];
+  /** Our "With the ball" / "Without the ball" shapes (lib/board-phases.ts)
+   * — new, additive. Kept on the board state so undo, the local draft and
+   * a save all carry it; a board that never flipped has none. */
+  phases?: PhaseShapes;
 }
 
 export const EMPTY_BOARD_STATE: BoardState = { tokens: [], shapes: [], objects: [], playerNotes: [] };

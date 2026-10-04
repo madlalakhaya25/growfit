@@ -24,6 +24,7 @@ import { PLAY_TEMPLATES, expandTemplate } from "@/lib/play-templates";
 import { FORMATIONS } from "@/lib/formations";
 import { AiProse } from "@/components/ai/ai-prose";
 import type { BoardState } from "@/store/boardStore";
+import { phasesForSave, readPhases } from "@/lib/board-phases";
 import { getPitch, type Frame } from "@/lib/board-model";
 import { readOpponent, describeReading } from "@/lib/board-analysis";
 
@@ -127,7 +128,12 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
       playId: currentPlayId ?? undefined,
       teamId,
       name,
-      data: { tokens: state.tokens, shapes: state.shapes, objects: state.objects, playerNotes: state.playerNotes, pitchId, pitchThemeId, frames, homeFormationId, awayFormationId },
+      data: {
+        tokens: state.tokens, shapes: state.shapes, objects: state.objects, playerNotes: state.playerNotes,
+        pitchId, pitchThemeId, frames, homeFormationId, awayFormationId,
+        // Undefined (and so left out of the JSON) for a play nobody flipped.
+        phases: phasesForSave(state.tokens, state.phases),
+      },
       conceptIds,
       sessionId: sessionId || null,
       fixtureId: fixtureId || null,
@@ -147,7 +153,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
     if (res.error || !res.data) { setNotice(res.error ?? "Could not load play."); return; }
     const d = res.data as Partial<BoardState & { frames: Frame[]; homeFormationId: string; awayFormationId: string; pitchId: string; pitchThemeId: string }>;
     snapshot();
-    setState({ tokens: d.tokens ?? [], shapes: d.shapes ?? [], objects: d.objects ?? [], playerNotes: d.playerNotes ?? [] });
+    setState({ tokens: d.tokens ?? [], shapes: d.shapes ?? [], objects: d.objects ?? [], playerNotes: d.playerNotes ?? [], phases: readPhases(d.phases) });
     setPitchId(d.pitchId ?? "full");
     setPitchThemeId(d.pitchThemeId ?? "classic");
     setFrames(d.frames ?? []);
