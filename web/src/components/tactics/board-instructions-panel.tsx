@@ -109,7 +109,7 @@ export function BoardInstructionsPanel({
         </button>
       </form>
       {voice.error && <p role="alert" className="text-xs text-destructive">{voice.error}</p>}
-      {notice && <p role="status" className="text-xs text-muted-foreground">{notice}</p>}
+      {notice && <output className="block text-xs text-muted-foreground">{notice}</output>}
       {plan && (
         <div className="space-y-1.5 rounded-lg border border-dashed border-primary/50 bg-primary/5 p-2">
           <p className="text-[11px] font-medium text-muted-foreground">Dashed on the pitch. Nothing changes until you apply.</p>

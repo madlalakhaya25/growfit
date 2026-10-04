@@ -64,22 +64,26 @@ const isIndex = (v: unknown, count: number): v is number =>
  * left or right, and no more than MAX_INSTRUCTIONS. Anything else is dropped
  * and counted, never drawn.
  */
+function readInstruction(item: unknown, playerCount: number): Instruction | null {
+  const r = item && typeof item === "object" ? (item as Record<string, unknown>) : null;
+  if (!r || typeof r.action !== "string" || !ACTION_SET.has(r.action) || !isIndex(r.player, playerCount)) return null;
+  const ins: Instruction = { action: r.action as InstructionAction, player: r.player };
+  if (isIndex(r.target, playerCount) && r.target !== r.player) ins.target = r.target;
+  if (r.direction === "left" || r.direction === "right") ins.direction = r.direction;
+  if (ins.action === "cover" && ins.target === undefined) return null;
+  if (ins.action === "shift_across" && !ins.direction) return null;
+  return ins;
+}
+
 export function validateInstructions(raw: Record<string, unknown> | null, playerCount: number): InstructionResult {
   if (!raw) return { ok: false, error: "Could not read the AI's answer. Try rewording it." };
   const offered = Array.isArray(raw.instructions) ? raw.instructions : [];
   const out: Instruction[] = [];
   let dropped = 0;
   for (const item of offered) {
-    if (out.length >= MAX_INSTRUCTIONS) { dropped++; continue; }
-    const r = item && typeof item === "object" ? (item as Record<string, unknown>) : null;
-    if (!r || typeof r.action !== "string" || !ACTION_SET.has(r.action) || !isIndex(r.player, playerCount)) { dropped++; continue; }
-    const action = r.action as InstructionAction;
-    const ins: Instruction = { action, player: r.player };
-    if (isIndex(r.target, playerCount) && r.target !== r.player) ins.target = r.target;
-    if (r.direction === "left" || r.direction === "right") ins.direction = r.direction;
-    if (action === "cover" && ins.target === undefined) { dropped++; continue; }
-    if (action === "shift_across" && !ins.direction) { dropped++; continue; }
-    out.push(ins);
+    const ins = out.length < MAX_INSTRUCTIONS ? readInstruction(item, playerCount) : null;
+    if (ins) out.push(ins);
+    else dropped++;
   }
   if (out.length === 0) {
     return { ok: false, error: "Couldn't find a movement in that. Try something like \"left back overlaps, the 10 drops\"." };
@@ -102,6 +106,7 @@ export interface InstructionPlan {
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+const ctx = (ins: Instruction, p: Token, mates: Token[], opponents: Token[], target: Token | null): Ctx => ({ ins, p, mates, opponents, target });
 const MIN_RUN = 3;
 
 /** -1 toward the left touchline, +1 toward the right: the way "outside" points
@@ -135,51 +140,59 @@ function nearestOpponent(p: Token, opponents: Token[]): Token | null {
 
 interface Move { to: { x: number; y: number }; kind: "run" | "press"; verb: string }
 
-/** Where an action takes a player, or why it cannot (a string). */
-function moveFor(ins: Instruction, p: Token, mates: Token[], opponents: Token[], target: Token | null): Move | string {
-  const side = outward(p.x);
-  switch (ins.action) {
-    case "overlap": {
-      const t = target ?? wideTeammateAhead(p, mates);
-      if (!t) return `${name(p)} has nobody wide ahead to overlap. Name the player.`;
-      const out = isCentral(t.x) ? side : outward(t.x);
-      return { kind: "run", verb: `overlaps ${name(t)}`, to: { x: clamp(t.x + out * 7, 6, BOARD_W - 6), y: clamp(t.y - 9, 4, BOARD_H - 4) } };
-    }
-    case "underlap": {
-      const t = target ?? wideTeammateAhead(p, mates);
-      if (!t) return `${name(p)} has nobody wide ahead to underlap. Name the player.`;
-      const out = isCentral(t.x) ? side : outward(t.x);
-      return { kind: "run", verb: `underlaps ${name(t)}`, to: { x: clamp(t.x - out * 9, 6, BOARD_W - 6), y: clamp(t.y - 7, 4, BOARD_H - 4) } };
-    }
-    case "drop":
-      return { kind: "run", verb: "drops deeper", to: { x: p.x, y: clamp(p.y + 14, 4, BOARD_H - 14) } };
-    case "invert":
-      if (isCentral(p.x)) return `${name(p)} is already in the middle.`;
-      return { kind: "run", verb: "moves inside", to: { x: clamp(p.x - side * 16, 6, BOARD_W - 6), y: clamp(p.y - 4, 4, BOARD_H - 4) } };
-    case "stay_wide":
-      if (isCentral(p.x)) return `${name(p)} is in the middle, so there is no touchline to hold.`;
-      return { kind: "run", verb: "stays wide", to: { x: side < 0 ? 8 : BOARD_W - 8, y: p.y } };
-    case "attack_box":
-      return { kind: "run", verb: "attacks the box", to: { x: 50 + clamp((p.x - 50) * 0.3, -12, 12), y: 18 } };
-    case "press": {
-      const o = nearestOpponent(p, opponents);
-      if (!o) return { kind: "press", verb: "presses", to: { x: p.x, y: clamp(p.y - 14, 4, BOARD_H - 4) } };
-      return { kind: "press", verb: "presses", to: { x: p.x + (o.x - p.x) * 0.75, y: p.y + (o.y - p.y) * 0.75 } };
-    }
-    case "cover": {
-      if (!target) return `${name(p)} needs a teammate to cover.`;
-      return {
-        kind: "run",
-        verb: `covers ${name(target)}`,
-        to: { x: clamp(target.x + (BOARD_W / 2 - target.x) * 0.2, 6, BOARD_W - 6), y: clamp(target.y + 10, 4, BOARD_H - 4) },
-      };
-    }
-    case "shift_across":
-      return { kind: "run", verb: `shifts ${ins.direction}`, to: { x: clamp(p.x + (ins.direction === "left" ? -12 : 12), 6, BOARD_W - 6), y: p.y } };
-    default:
-      return "Nothing to draw for that.";
-  }
+/** Everything a movement rule can look at. */
+interface Ctx {
+  ins: Instruction;
+  p: Token;
+  mates: Token[];
+  opponents: Token[];
+  target: Token | null;
 }
+
+type Rule = (c: Ctx) => Move | string;
+
+const run = (verb: string, x: number, y: number): Move => ({ kind: "run", verb, to: { x, y } });
+const lane = (x: number) => clamp(x, 6, BOARD_W - 6);
+const row = (y: number) => clamp(y, 4, BOARD_H - 4);
+
+/** The teammate an overlap or underlap is made around: the named one, else the
+ * nearest wide teammate ahead. */
+const aroundTeammate = (c: Ctx) => c.target ?? wideTeammateAhead(c.p, c.mates);
+
+const RULES: Record<Exclude<InstructionAction, "hold">, Rule> = {
+  overlap: (c) => {
+    const t = aroundTeammate(c);
+    if (!t) return `${name(c.p)} has nobody wide ahead to overlap. Name the player.`;
+    const out = isCentral(t.x) ? outward(c.p.x) : outward(t.x);
+    return run(`overlaps ${name(t)}`, lane(t.x + out * 7), row(t.y - 9));
+  },
+  underlap: (c) => {
+    const t = aroundTeammate(c);
+    if (!t) return `${name(c.p)} has nobody wide ahead to underlap. Name the player.`;
+    const out = isCentral(t.x) ? outward(c.p.x) : outward(t.x);
+    return run(`underlaps ${name(t)}`, lane(t.x - out * 9), row(t.y - 7));
+  },
+  drop: ({ p }) => run("drops deeper", p.x, clamp(p.y + 14, 4, BOARD_H - 14)),
+  invert: ({ p }) => {
+    if (isCentral(p.x)) return `${name(p)} is already in the middle.`;
+    return run("moves inside", lane(p.x - outward(p.x) * 16), row(p.y - 4));
+  },
+  stay_wide: ({ p }) => {
+    if (isCentral(p.x)) return `${name(p)} is in the middle, so there is no touchline to hold.`;
+    return run("stays wide", outward(p.x) < 0 ? 8 : BOARD_W - 8, p.y);
+  },
+  attack_box: ({ p }) => run("attacks the box", 50 + clamp((p.x - 50) * 0.3, -12, 12), 18),
+  press: ({ p, opponents }) => {
+    const o = nearestOpponent(p, opponents);
+    const to = o ? { x: p.x + (o.x - p.x) * 0.75, y: p.y + (o.y - p.y) * 0.75 } : { x: p.x, y: row(p.y - 14) };
+    return { kind: "press", verb: "presses", to };
+  },
+  cover: ({ p, target }) => {
+    if (!target) return `${name(p)} needs a teammate to cover.`;
+    return run(`covers ${name(target)}`, lane(target.x + (BOARD_W / 2 - target.x) * 0.2), row(target.y + 10));
+  },
+  shift_across: ({ ins, p }) => run(`shifts ${ins.direction}`, lane(p.x + (ins.direction === "left" ? -12 : 12)), p.y),
+};
 
 /**
  * The runs a list of instructions draws on this board. `players` is the same
@@ -198,7 +211,7 @@ export function planInstructions(players: Token[], opponents: Token[], instructi
       continue;
     }
     const target = ins.target === undefined ? null : (players[ins.target] ?? null);
-    const move = moveFor(ins, p, players, opponents, target);
+    const move = RULES[ins.action](ctx(ins, p, players, opponents, target));
     if (typeof move === "string") { skipped.push(move); continue; }
     const to = { x: Math.round(move.to.x * 10) / 10, y: Math.round(move.to.y * 10) / 10 };
     if (Math.hypot(to.x - p.x, to.y - p.y) < MIN_RUN) { skipped.push(`${name(p)} is already there, so there is no run to draw.`); continue; }
@@ -214,9 +227,17 @@ export function planInstructions(players: Token[], opponents: Token[], instructi
 /** The players as the model sees them: a number, the label on the token, the
  * line they play in, and where they stand in words. No coordinates. */
 export function playersMenu(players: Token[]): string {
-  const zone = (y: number) => (y < 50 ? "attacking third" : y < 100 ? "middle third" : "defensive third");
-  const side = (x: number) => (x < 33 ? "left" : x > 67 ? "right" : "central");
-  return players.map((p, i) => `${i} = ${name(p)} (${p.group}, ${side(p.x)}, ${zone(p.y)})`).join("\n");
+  return players.map((p, i) => `${i} = ${name(p)} (${p.group}, ${sideWord(p.x)}, ${thirdWord(p.y)})`).join("\n");
+}
+
+function thirdWord(y: number): string {
+  if (y < 50) return "attacking third";
+  return y < 100 ? "middle third" : "defensive third";
+}
+
+function sideWord(x: number): string {
+  if (x < 33) return "left";
+  return x > 67 ? "right" : "central";
 }
 
 /** What the model is told each action means, one per line. */
