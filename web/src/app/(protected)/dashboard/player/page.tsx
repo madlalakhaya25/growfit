@@ -93,6 +93,30 @@ async function loadAttributes(supabase: Awaited<ReturnType<typeof createClient>>
   return { data: core.data as Partial<Record<AttrKey, number | null>>[] | null, error: core.error };
 }
 
+/** Age band for the positional guide: the next odd year up (U11, U13, U15), U15 with no date of birth. */
+function ageGroupFor(age: number | null): string {
+  if (!age) return "U15";
+  return `U${age % 2 === 1 ? age : age + 1}`;
+}
+
+/** Documents still outstanding and milestone progress, for the passport's progress strip. */
+function passportProgress(
+  documents: { status: string }[] | null,
+  templates: { id: string }[] | null,
+  completions: { template_id: string }[] | null,
+) {
+  const docsSigned = (documents ?? []).filter((d) => d.status === "signed" || d.status === "uploaded").length;
+  const done = new Set((completions ?? []).map((c) => c.template_id));
+  const milestoneTotal = (templates ?? []).length;
+  const milestoneDone = (templates ?? []).filter((t) => done.has(t.id)).length;
+  return {
+    docsOutstanding: Math.max(0, 6 - docsSigned),
+    milestoneTotal,
+    milestoneDone,
+    milestonePct: milestoneTotal > 0 ? Math.round((milestoneDone / milestoneTotal) * 100) : 0,
+  };
+}
+
 type RawMediaUpload = {
   id: string;
   url: string;
@@ -248,21 +272,16 @@ export default async function PlayerDashboardPage({
   // Age band for the positional guide: round up to the next odd year, giving
   // U11 / U13 / U15 etc. Falls back to U15 when we have no date of birth.
   const positions = await getPlayerPositions(supabase, player.id);
-  const playerAgeGroup = age ? `U${age % 2 === 1 ? age : age + 1}` : "U15";
+  const playerAgeGroup = ageGroupFor(age);
 
   const taggedMediaItems = normalizeTaggedMedia(myMediaTags);
 
   const needsRegistration = !player.mysafa_number && !player.id_number;
-  const docsSigned = (myDocuments ?? []).filter(
-    (d: { status: string }) => d.status === "signed" || d.status === "uploaded"
-  ).length;
-  const docsOutstanding = Math.max(0, 6 - docsSigned);
-  const milestoneTotal = (milestoneTemplates ?? []).length;
-  const milestoneDone = (() => {
-    const done = new Set(((myCompletions ?? []) as { template_id: string }[]).map((c) => c.template_id));
-    return ((milestoneTemplates ?? []) as { id: string }[]).filter((t) => done.has(t.id)).length;
-  })();
-  const milestonePct = milestoneTotal > 0 ? Math.round((milestoneDone / milestoneTotal) * 100) : 0;
+  const { docsOutstanding, milestoneTotal, milestoneDone, milestonePct } = passportProgress(
+    myDocuments,
+    milestoneTemplates,
+    myCompletions,
+  );
 
   const familyMessages = await loadApprovedMessages(supabase, player.id);
 
