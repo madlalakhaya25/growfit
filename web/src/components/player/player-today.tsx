@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { BookOpenCheck, Dumbbell, Medal, Target, Trophy as TrophyIcon } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -7,7 +6,7 @@ import { IconTile } from "@/components/ui/icon-tile";
 import { listMyHomework } from "@/app/actions/homework";
 import { loadChallengeBoard, loadPlayerTeams } from "@/lib/skill-challenges-data";
 import { TROPHY_LABELS } from "@/lib/skill-challenges";
-import { challengeToBeat, homeworkDue, latestMedal } from "@/lib/player-today";
+import { challengeSubtitle, challengeToBeat, homeworkDue, latestMedal, streakLabel } from "@/lib/player-today";
 import { nextEventFor, type TodayEvent } from "@/lib/parent-today";
 import { formatTime, formatWeekdayDayMonth, todayIso } from "@/lib/time";
 
@@ -92,11 +91,7 @@ export async function PlayerToday({ supabase, playerId }: Readonly<{ supabase: C
               href="/dashboard/player/challenges"
               leading={<IconTile tone="orange"><Target aria-hidden="true" /></IconTile>}
               title={beat.name}
-              subtitle={
-                beat.next
-                  ? `Beat ${beat.next.target} for ${TROPHY_LABELS[beat.next.trophy]}${beat.best === null ? "" : ` (your best: ${beat.best})`}`
-                  : `Gold won, best ${beat.best}`
-              }
+              subtitle={challengeSubtitle(beat)}
             />
           )}
         </GroupedSection>
@@ -108,7 +103,7 @@ export async function PlayerToday({ supabase, playerId }: Readonly<{ supabase: C
             href="/dashboard/player/challenges"
             leading={<IconTile tone="green"><Medal aria-hidden="true" /></IconTile>}
             title={`${TROPHY_LABELS[medal.trophy]}: ${medal.challenge.name}`}
-            subtitle={board.streak > 0 ? `${board.streak} ${board.streak === 1 ? "week" : "weeks"} in a row` : undefined}
+            subtitle={streakLabel(board.streak)}
           />
         </GroupedSection>
       )}

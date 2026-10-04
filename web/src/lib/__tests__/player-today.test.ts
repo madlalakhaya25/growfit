@@ -1,5 +1,5 @@
 import { SKILL_CHALLENGES, resultFor, type ChallengeResult } from "@/lib/skill-challenges";
-import { challengeToBeat, homeworkDue, latestMedal } from "@/lib/player-today";
+import { challengeSubtitle, challengeToBeat, homeworkDue, latestMedal, streakLabel } from "@/lib/player-today";
 
 const hw = (id: string, dueDate: string, done = false) => ({ id, title: id, dueDate, done });
 
@@ -43,5 +43,25 @@ describe("latestMedal", () => {
   it("skips results with no trophy and is null for none", () => {
     expect(latestMedal([{ challenge: a, best: null, trophy: null, attempts: 0, lastLoggedAt: null }])).toBeNull();
     expect(latestMedal([])).toBeNull();
+  });
+});
+
+describe("challengeSubtitle", () => {
+  it("names the target and the player's best", () => {
+    expect(challengeSubtitle({ best: 9, next: { trophy: "silver", target: 12 } })).toBe("Beat 12 for Silver (your best: 9)");
+  });
+  it("leaves the best out when there is none", () => {
+    expect(challengeSubtitle({ best: null, next: { trophy: "bronze", target: 5 } })).toBe("Beat 5 for Bronze");
+  });
+  it("says gold is won when there is no next target", () => {
+    expect(challengeSubtitle({ best: 30, next: null })).toBe("Gold won, best 30");
+  });
+});
+
+describe("streakLabel", () => {
+  it("is empty for no streak and pluralises weeks", () => {
+    expect(streakLabel(0)).toBeUndefined();
+    expect(streakLabel(1)).toBe("1 week in a row");
+    expect(streakLabel(3)).toBe("3 weeks in a row");
   });
 });

@@ -2,7 +2,7 @@
 // the homework due, a challenge to beat and the latest medal. Pure, and only ever
 // about the player's own results: no comparison with a teammate.
 
-import { nextTarget, type ChallengeResult, type SkillAgeBand, type Trophy } from "@/lib/skill-challenges";
+import { TROPHY_LABELS, nextTarget, type ChallengeResult, type SkillAgeBand, type Trophy } from "@/lib/skill-challenges";
 
 export interface HomeworkLike {
   id: string;
@@ -13,9 +13,11 @@ export interface HomeworkLike {
 
 /** The open homework due soonest (YYYY-MM-DD dates), or null. */
 export function homeworkDue<T extends HomeworkLike>(items: readonly T[]): T | null {
-  const open = items.filter((i) => !i.done);
-  if (open.length === 0) return null;
-  return open.reduce((a, b) => (b.dueDate < a.dueDate ? b : a));
+  let soonest: T | null = null;
+  for (const i of items) {
+    if (!i.done && (soonest === null || i.dueDate < soonest.dueDate)) soonest = i;
+  }
+  return soonest;
 }
 
 export interface ChallengeToBeat {
@@ -50,4 +52,17 @@ export function latestMedal(cabinet: readonly ChallengeResult[]): ChallengeResul
     if (!latest || r.lastLoggedAt > (latest.lastLoggedAt ?? "")) latest = r;
   }
   return latest;
+}
+
+/** "Beat 12 for Silver (your best: 9)", or the gold line once it is won. */
+export function challengeSubtitle(c: Pick<ChallengeToBeat, "best" | "next">): string {
+  if (!c.next) return `Gold won, best ${c.best}`;
+  const label = `Beat ${c.next.target} for ${TROPHY_LABELS[c.next.trophy]}`;
+  return c.best === null ? label : `${label} (your best: ${c.best})`;
+}
+
+/** "3 weeks in a row", or undefined when there is no streak. */
+export function streakLabel(weeks: number): string | undefined {
+  if (weeks <= 0) return undefined;
+  return `${weeks} ${weeks === 1 ? "week" : "weeks"} in a row`;
 }

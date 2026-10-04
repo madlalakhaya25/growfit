@@ -43,6 +43,56 @@ const TABS = [
   { id: "passport", label: "Passport" },
 ] as const;
 
+function PlayerUnlinked({ playerError }: Readonly<{ playerError: { code?: string } | null }>) {
+  // .single() also errors (PGRST116) when it simply finds no matching row —
+  // that's the genuine "this account isn't linked to a player yet" case.
+  // Any other error means the query itself failed (RLS, network, a lagging
+  // migration), and showing the same "waiting to be added" screen for that
+  // is exactly the bug this page was already fixed for once: a real query
+  // failure made a genuinely linked player look unclaimed.
+  const notYetLinked = !playerError || playerError.code === "PGRST116";
+  if (!notYetLinked) {
+    reportError(playerError, { scope: "player dashboard", extra: { query: "players" } });
+  }
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">My Passport</h1>
+
+      {notYetLinked ? (
+        <>
+          <div className="rounded-xl border border-border bg-card p-6 space-y-2">
+            <p className="text-base font-semibold">You&apos;re all set — waiting to be added</p>
+            <p className="text-sm text-muted-foreground">
+              Your account is ready. As soon as your coach adds you to a squad, your
+              passport, ratings and fixtures appear here automatically. If your coach
+              has already given you a share token, enter it below to link your profile now.
+            </p>
+          </div>
+
+          <ClaimProfileForm />
+        </>
+      ) : (
+        <div className="rounded-xl border border-destructive/50 bg-card p-6 space-y-2">
+          <p className="text-base font-semibold">Couldn&apos;t load your passport</p>
+          <p className="text-sm text-muted-foreground">
+            Something went wrong loading your profile. Try refreshing the
+            page — if it keeps happening, let your coach or administrator know.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+async function loadAttributes(supabase: Awaited<ReturnType<typeof createClient>>, playerId: string) {
+  const wide = await supabase.from("player_attributes").select(ALL_ATTR_SELECT).eq("player_id", playerId);
+  if (!isMissingAttributeColumn(wide.error)) {
+    return { data: wide.data as Partial<Record<AttrKey, number | null>>[] | null, error: wide.error };
+  }
+  const core = await supabase.from("player_attributes").select(CORE_ATTR_SELECT).eq("player_id", playerId);
+  return { data: core.data as Partial<Record<AttrKey, number | null>>[] | null, error: core.error };
+}
+
 export default async function PlayerDashboardPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<{ tab?: string }> }>) {
@@ -72,46 +122,7 @@ export default async function PlayerDashboardPage({
     .eq("profile_id", user.id)
     .single();
 
-  if (!player) {
-    // .single() also errors (PGRST116) when it simply finds no matching row —
-    // that's the genuine "this account isn't linked to a player yet" case.
-    // Any other error means the query itself failed (RLS, network, a lagging
-    // migration), and showing the same "waiting to be added" screen for that
-    // is exactly the bug this page was already fixed for once: a real query
-    // failure made a genuinely linked player look unclaimed.
-    const notYetLinked = !playerError || playerError.code === "PGRST116";
-    if (!notYetLinked) {
-      reportError(playerError, { scope: "player dashboard", extra: { query: "players" } });
-    }
-    return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold">My Passport</h1>
-
-        {notYetLinked ? (
-          <>
-            <div className="rounded-xl border border-border bg-card p-6 space-y-2">
-              <p className="text-base font-semibold">You&apos;re all set — waiting to be added</p>
-              <p className="text-sm text-muted-foreground">
-                Your account is ready. As soon as your coach adds you to a squad, your
-                passport, ratings and fixtures appear here automatically. If your coach
-                has already given you a share token, enter it below to link your profile now.
-              </p>
-            </div>
-
-            <ClaimProfileForm />
-          </>
-        ) : (
-          <div className="rounded-xl border border-destructive/50 bg-card p-6 space-y-2">
-            <p className="text-base font-semibold">Couldn&apos;t load your passport</p>
-            <p className="text-sm text-muted-foreground">
-              Something went wrong loading your profile. Try refreshing the
-              page — if it keeps happening, let your coach or administrator know.
-            </p>
-          </div>
-        )}
-      </div>
-    );
-  }
+  if (!player) return <PlayerUnlinked playerError={playerError} />;
 
   if (tab === "today") {
     return (
@@ -125,27 +136,8 @@ export default async function PlayerDashboardPage({
 
   const photoUrl = await signPlayerPhotoUrl(supabase, player.photo_url);
 
-  const wideAttrs = await supabase
-    .from("player_attributes")
-    .select(ALL_ATTR_SELECT)
-    .eq("player_id", player.id);
-
-  let attrsData: Partial<Record<AttrKey, number | null>>[] | null = wideAttrs.data;
-  let attrsError = wideAttrs.error;
-  if (isMissingAttributeColumn(wideAttrs.error)) {
-    const coreAttrs = await supabase
-      .from("player_attributes")
-      .select(CORE_ATTR_SELECT)
-      .eq("player_id", player.id);
-    attrsData = coreAttrs.data;
-    attrsError = coreAttrs.error;
-  }
+  const { data: attrsData, error: attrsError } = await loadAttributes(supabase, player.id);
   if (attrsError) {
-    // Not a missing-column case (that's handled above) — a genuine failure.
-    // Degrade to "no attribute ratings shown" rather than taking the whole
-    // passport down, but don't drop it silently: log it, and say so near the
-    // attribute summary below rather than rendering it identically to "no
-    // assessment yet".
     reportError(attrsError, { scope: "player dashboard", extra: { query: "player_attributes" } });
   }
 
