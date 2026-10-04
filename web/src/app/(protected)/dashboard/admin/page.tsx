@@ -4,11 +4,17 @@ import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatTile } from "@/components/ui/stat-tile";
-import { ListRow, ListRowGroup } from "@/components/ui/list-row";
-import { Users, Shield, Calendar, Star, UserPlus, Settings, BarChart2 } from "lucide-react";
+import { ListRow, ListRowGroup, GroupedSection } from "@/components/ui/list-row";
+import { IconTile } from "@/components/ui/icon-tile";
+import { Users, Shield, Calendar, Star, UserPlus, Settings, BarChart2, FileCheck2, HeartPulse } from "lucide-react";
 import { reportError } from "@/lib/report-error";
+import { DOCUMENTS } from "@/lib/document-definitions";
+import { summariseCompliance } from "@/lib/admin-today";
+import { loadWelfareAlerts } from "@/lib/welfare-alerts";
+import { formatWeekdayDayMonth } from "@/lib/time";
 
 export default async function AdminDashboardPage() {
+  let welfareCount: number | null = null;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
@@ -23,11 +29,14 @@ export default async function AdminDashboardPage() {
 
   const academyId = profile.academy_id;
 
-  const [players, teams, fixtures, ratings] = await Promise.all([
+  const season = new Date().getFullYear().toString();
+  const [players, teams, fixtures, ratings, members, docRows] = await Promise.all([
     supabase.from("players").select("id", { count: "exact" }).eq("academy_id", academyId).eq("active", true),
     supabase.from("teams").select("id", { count: "exact" }).eq("academy_id", academyId).eq("active", true),
     supabase.from("fixtures").select("id", { count: "exact" }).eq("status", "upcoming").gte("fixture_date", new Date().toISOString()),
     supabase.from("player_ratings").select("id", { count: "exact" }),
+    supabase.from("team_members").select("player_id, team_id, players!inner(academy_id, active)").eq("active", true).eq("players.academy_id", academyId).eq("players.active", true),
+    supabase.from("player_documents").select("player_id, document_type, status").eq("season", season),
   ]);
 
   // A failed count and a genuine zero must not render the same way — "0
@@ -37,6 +46,8 @@ export default async function AdminDashboardPage() {
     ["teams", teams],
     ["fixtures", fixtures],
     ["ratings", ratings],
+    ["team members", members],
+    ["documents", docRows],
   ] as const) {
     if (result.error) {
       reportError(result.error, { scope: "admin overview", extra: { query } });
@@ -50,6 +61,31 @@ export default async function AdminDashboardPage() {
     { label: "Ratings logged",    value: ratings.error  ? null : ratings.count  ?? 0, Icon: Star,     href: "/dashboard/admin/reports" },
   ];
 
+  // Registration health: the six documents per player, rolled up per team. A
+  // failed load shows "couldn't check", never a reassuring 100%.
+  const complianceLoaded = !players.error && !teams.error && !members.error && !docRows.error;
+  let compliance: ReturnType<typeof summariseCompliance> | null = null;
+  if (complianceLoaded) {
+    const docsByPlayer = new Map<string, Map<string, string>>();
+    for (const r of (docRows.data ?? []) as { player_id: string; document_type: string; status: string }[]) {
+      const m = docsByPlayer.get(r.player_id) ?? new Map<string, string>();
+      m.set(r.document_type, r.status);
+      docsByPlayer.set(r.player_id, m);
+    }
+    const teamOf = new Map<string, string>();
+    for (const m of (members.data ?? []) as { player_id: string; team_id: string }[]) {
+      if (!teamOf.has(m.player_id)) teamOf.set(m.player_id, m.team_id);
+    }
+    const activeTeams = ((await supabase.from("teams").select("id, name, age_group").eq("academy_id", academyId).eq("active", true)).data ?? []) as { id: string; name: string; age_group: string | null }[];
+    const playerIds = new Set(teamOf.keys());
+    compliance = summariseCompliance(
+      [...playerIds].map((id) => ({ id, teamId: teamOf.get(id) ?? null, docStatus: docsByPlayer.get(id) ?? new Map() })),
+      activeTeams.map((t) => ({ id: t.id, name: t.name, ageGroup: t.age_group })),
+    );
+    const welfare = await loadWelfareAlerts(supabase, activeTeams.map((t) => t.id));
+    welfareCount = "alerts" in welfare ? welfare.alerts.length : null;
+  }
+
   const quickActions = [
     { label: "Add player",       href: "/dashboard/admin/players",   Icon: UserPlus },
     { label: "Manage teams",     href: "/dashboard/admin/teams",     Icon: Shield },
@@ -59,7 +95,52 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Academy Overview" />
+      <PageHeader title="Today" eyebrow={formatWeekdayDayMonth(new Date())} />
+
+      {/* Hero: registration health */}
+      {compliance ? (
+        <Link
+          href="/dashboard/admin/players/documents"
+          className="block rounded-2xl bg-[#a71817] p-5 text-white shadow-[0_12px_28px_rgb(167_24_23/0.25)] transition-transform duration-200 active:scale-[0.99]"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[13px] font-semibold text-white/90">Registration this season</p>
+            <span className="grid size-9 place-items-center rounded-full bg-white/15">
+              <FileCheck2 className="size-4" aria-hidden="true" />
+            </span>
+          </div>
+          <p className="mt-1.5 text-[34px] font-bold leading-tight tracking-[-0.02em] tabular-nums">{compliance.pct}%</p>
+          <p className="mt-1 text-[15px] text-white/90">
+            {compliance.complete} of {compliance.players} players have all {DOCUMENTS.length} documents in
+          </p>
+        </Link>
+      ) : (
+        <Card className="border-destructive/50 p-4 text-sm">
+          Couldn&apos;t check registration right now. This isn&apos;t the same as everyone being registered. Try reloading.
+        </Card>
+      )}
+
+      {/* Needs you */}
+      {compliance && (compliance.byTeam.some((t) => t.missingDocs > 0) || (welfareCount ?? 0) > 0) && (
+        <GroupedSection title="Needs you">
+          {compliance.byTeam.filter((t) => t.missingDocs > 0).map((t) => (
+            <ListRow
+              key={t.teamId}
+              leading={<IconTile tone="orange"><FileCheck2 aria-hidden="true" /></IconTile>}
+              title={`${t.name}: ${t.missingDocs} ${t.missingDocs === 1 ? "document" : "documents"} missing`}
+              subtitle={`${t.complete} of ${t.players} players fully registered`}
+              href={t.ageGroup ? `/dashboard/admin/players/documents?age=${encodeURIComponent(t.ageGroup)}` : "/dashboard/admin/players/documents"}
+            />
+          ))}
+          {(welfareCount ?? 0) > 0 && (
+            <ListRow
+              leading={<IconTile tone="red"><HeartPulse aria-hidden="true" /></IconTile>}
+              title={`${welfareCount} ${welfareCount === 1 ? "player" : "players"} below 75% attendance`}
+              subtitle="Welfare check-in due, your coaches see these on their Today page"
+            />
+          )}
+        </GroupedSection>
+      )}
 
       {/* Stat tiles */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
