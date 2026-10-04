@@ -53,7 +53,7 @@ function buildDefaults(
 const SLIDER_MIN = 1;
 const SLIDER_MAX = 99;
 
-export function PlayerAttributesForm({ playerId, initial, initialNotes, position, role, ageGroup, squadMedians }: Props) {
+export function PlayerAttributesForm({ playerId, initial, initialNotes, position, role, ageGroup, squadMedians }: Readonly<Props>) {
   const [values, setValues] = useState<Record<AttrKey, number>>(() => buildDefaults(initial));
   const [notes, setNotes] = useState(initialNotes ?? "");
   const [rating, setRating] = useState(0);

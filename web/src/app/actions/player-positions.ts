@@ -6,11 +6,9 @@ import { friendlyError } from "@/lib/friendly-error";
 import { isMissingPositionsTable, type PositionKind } from "@/lib/player-positions";
 import { validateSlots } from "@/lib/player-roles";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Db = any;
-
 async function replaceSlots(
-  supabase: Db,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
   userId: string,
   playerId: string,
   kind: PositionKind,

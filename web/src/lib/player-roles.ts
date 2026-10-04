@@ -82,7 +82,7 @@ export function roleLabel(role: string | null | undefined): string | null {
 
 export function positionLabel(position: string | null | undefined): string {
   const full = POSITIONS.find((p) => p.value === position)?.label ?? "";
-  return full.replace(/\s*\([A-Z]+\)$/, "") || "Not set";
+  return full.replace(/ \([A-Z]+\)$/, "") || "Not set";
 }
 
 /** One of a player's up to three slots. `role` is null when none is chosen. */
@@ -93,6 +93,15 @@ export interface PositionSlot {
 
 export type SlotsResult = { ok: true; slots: PositionSlot[] } | { ok: false; error: string };
 
+function readSlot(item: unknown, taken: readonly PositionSlot[]): PositionSlot | string {
+  const r = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+  if (!isPickablePosition(r.position)) return "That position isn't one we know.";
+  if (taken.some((s) => s.position === r.position)) return "Each position can be picked once.";
+  const role = r.role === null || r.role === undefined || r.role === "" ? null : r.role;
+  if (role !== null && !isRoleFor(r.position, role)) return "That role doesn't fit the position.";
+  return { position: r.position, role };
+}
+
 /**
  * Believe only what can be stored: at most three slots, each a pickable
  * position, no position twice, and a role that belongs to that position.
@@ -102,12 +111,9 @@ export function validateSlots(raw: unknown): SlotsResult {
   if (raw.length > MAX_POSITION_SLOTS) return { ok: false, error: `Choose up to ${MAX_POSITION_SLOTS} positions.` };
   const slots: PositionSlot[] = [];
   for (const item of raw) {
-    const r = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
-    if (!isPickablePosition(r.position)) return { ok: false, error: "That position isn't one we know." };
-    if (slots.some((s) => s.position === r.position)) return { ok: false, error: "Each position can be picked once." };
-    const role = r.role === null || r.role === undefined || r.role === "" ? null : r.role;
-    if (role !== null && !isRoleFor(r.position, role)) return { ok: false, error: "That role doesn't fit the position." };
-    slots.push({ position: r.position, role });
+    const slot = readSlot(item, slots);
+    if (typeof slot === "string") return { ok: false, error: slot };
+    slots.push(slot);
   }
   if (slots.length === 0) return { ok: false, error: "Choose at least one position." };
   return { ok: true, slots };

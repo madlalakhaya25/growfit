@@ -22,7 +22,7 @@ function describe(slots: PositionSlot[]): string {
   return slots.map((s) => [positionLabel(s.position), roleLabel(s.role)].filter(Boolean).join(" · ")).join(", ");
 }
 
-export function PositionsEditor({ playerId, kind, initial, other }: Props) {
+export function PositionsEditor({ playerId, kind, initial, other }: Readonly<Props>) {
   const [slots, setSlots] = useState<PositionSlot[]>(initial);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -61,7 +61,7 @@ export function PositionsEditor({ playerId, kind, initial, other }: Props) {
       </p>
       <ul className="space-y-2">
         {slots.map((slot, i) => (
-          <li key={i} className="flex flex-wrap items-center gap-2">
+          <li key={`slot-${RANK_NAMES[i]}`} className="flex flex-wrap items-center gap-2">
             <span className="w-14 text-xs font-medium text-muted-foreground">{RANK_NAMES[i]}</span>
             <select
               aria-label={`${RANK_NAMES[i]} position`}
