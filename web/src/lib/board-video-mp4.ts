@@ -112,10 +112,16 @@ export async function makeMp4Video(opts: MakeMp4Options): Promise<{ blob: Blob; 
   await output.start();
 
   const times = videoFrameTimes(totalDurationMs(opts.frames), VIDEO_FPS, VIDEO_HOLD_MS);
-  for (let i = 0; i < times.length; i++) {
-    drawPortraitFrame(ctx, { ...opts, ms: times[i] });
-    await source.add(i / VIDEO_FPS, 1 / VIDEO_FPS);
-  }
+  // One frame at a time, in order: the encoder wants them that way and a
+  // frame is drawn on the same canvas the previous one was read from.
+  await times.reduce(
+    (previous, ms, i) =>
+      previous.then(() => {
+        drawPortraitFrame(ctx, { ...opts, ms });
+        return source.add(i / VIDEO_FPS, 1 / VIDEO_FPS);
+      }),
+    Promise.resolve()
+  );
   await output.finalize();
   if (!target.buffer) return null;
   return { blob: new Blob([target.buffer], { type: "video/mp4" }), mime: "video/mp4" };

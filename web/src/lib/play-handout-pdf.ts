@@ -83,15 +83,8 @@ export function wrapLines(font: PDFFont, text: string, size: number, maxWidth: n
 const px = (x: number) => PITCH_X + x * SCALE;
 const py = (y: number) => PITCH_TOP - y * SCALE;
 
-function line(page: PDFPage, x1: number, y1: number, x2: number, y2: number, thickness = 1.2, color = WHITE, dash?: number[]) {
-  page.drawLine({
-    start: { x: px(x1), y: py(y1) },
-    end: { x: px(x2), y: py(y2) },
-    thickness,
-    color,
-    opacity: 0.9,
-    ...(dash ? { dashArray: dash } : {}),
-  });
+function line(page: PDFPage, a: { x: number; y: number }, b: { x: number; y: number }, thickness = 1.2, color = WHITE) {
+  page.drawLine({ start: { x: px(a.x), y: py(a.y) }, end: { x: px(b.x), y: py(b.y) }, thickness, color, opacity: 0.9 });
 }
 
 function box(page: PDFPage, x: number, y: number, w: number, h: number) {
@@ -106,7 +99,7 @@ function drawPitch(page: PDFPage) {
     page.drawRectangle({ x: PITCH_X, y: py((i + 1) * band), width: PITCH_W, height: band * SCALE, color: rgb(0.09, 0.48, 0.23) });
   }
   box(page, 2, 2, BOARD_W - 4, BOARD_H - 4);
-  line(page, 2, BOARD_H / 2, BOARD_W - 2, BOARD_H / 2);
+  line(page, { x: 2, y: BOARD_H / 2 }, { x: BOARD_W - 2, y: BOARD_H / 2 });
   page.drawCircle({ x: px(BOARD_W / 2), y: py(BOARD_H / 2), size: 13.5 * SCALE, borderColor: WHITE, borderWidth: 1.2, borderOpacity: 0.9 });
   // Penalty areas (59 x 24 units) and goal areas (27 x 8) at both ends.
   box(page, (BOARD_W - 59) / 2, 2, 59, 24);
@@ -145,11 +138,12 @@ function drawShapes(page: PDFPage, shapes: Shape[]) {
     if (ARROW_SHAPE_KINDS.has(sh.kind) && sh.pts.length >= 2) {
       arrow(page, sh);
     } else if (sh.kind === "zone" && sh.pts.length >= 3) {
-      const d = `M ${sh.pts.map((p) => `${p.x} ${p.y}`).join(" L ")} Z`;
+      const corners = sh.pts.map((p) => [p.x, p.y].join(" "));
+      const d = ["M", corners.join(" L "), "Z"].join(" ");
       page.drawSvgPath(d, { x: px(0), y: py(0), scale: SCALE, color: hexColor(shapeColor(sh)), opacity: 0.25, borderColor: hexColor(shapeColor(sh)), borderWidth: 1 });
     } else if (sh.kind === "free" && sh.pts.length >= 2) {
       for (let i = 1; i < sh.pts.length; i++) {
-        line(page, sh.pts[i - 1].x, sh.pts[i - 1].y, sh.pts[i].x, sh.pts[i].y, 1.6, hexColor(shapeColor(sh)));
+        line(page, sh.pts[i - 1], sh.pts[i], 1.6, hexColor(shapeColor(sh)));
       }
     }
   }
@@ -161,11 +155,17 @@ function badge(label: string): string {
   return /^\d{1,2}$/.test(t) ? t : t[0].toUpperCase();
 }
 
+function tokenFill(tok: HandoutInput["tokens"][number]): string {
+  if (tok.kind === "opponent") return GROUP_COLOR.Opponent;
+  if (tok.kind === "ball") return GROUP_COLOR.Ball;
+  return GROUP_COLOR[tok.group] ?? GROUP_COLOR.Midfielder;
+}
+
 function drawTokens(page: PDFPage, tokens: HandoutInput["tokens"], bold: PDFFont, regular: PDFFont) {
   for (const tok of tokens) {
     const isBall = tok.kind === "ball";
     const r = (isBall ? 2.4 : 4.2) * SCALE;
-    const fill = tok.kind === "opponent" ? GROUP_COLOR.Opponent : isBall ? GROUP_COLOR.Ball : (GROUP_COLOR[tok.group] ?? GROUP_COLOR.Midfielder);
+    const fill = tokenFill(tok);
     page.drawCircle({ x: px(tok.x), y: py(tok.y), size: r, color: hexColor(fill), borderColor: WHITE, borderWidth: 1.4 });
     if (isBall) continue;
     const b = printable(bold, badge(tok.label));
@@ -223,8 +223,7 @@ export async function generatePlayHandoutPdf(input: HandoutInput): Promise<Uint8
 
 /** "High Press!" becomes "high-press-handout.pdf". Falls back to the team, then "play". */
 export function handoutFileName(playName: string | null | undefined, teamName: string | null | undefined): string {
-  const base = [playName, teamName]
-    .map((s) => (s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""))
-    .find((s) => s.length > 0) ?? "play";
+  const slug = (v: string | null | undefined) => (v ?? "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).join("-");
+  const base = [playName, teamName].map(slug).find((v) => v.length > 0) ?? "play";
   return `${base.slice(0, 50)}-handout.pdf`;
 }
