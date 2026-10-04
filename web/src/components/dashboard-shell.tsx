@@ -211,8 +211,8 @@ export function DashboardShell({ profile, teams = [], features, children }: Prop
   return (
     <div className="flex min-h-dvh bg-background">
       {/* ── Sidebar (desktop) ─────────────────────────────────── */}
-      <aside className="hidden w-60 flex-col border-r border-border bg-background lg:flex">
-        <div className="flex h-16 items-center px-5 border-b border-border">
+      <aside className="sticky top-0 hidden h-dvh w-64 flex-col border-r border-border/60 bg-card/60 lg:flex">
+        <div className="flex h-16 items-center px-5">
           <Logo />
         </div>
 
@@ -224,21 +224,21 @@ export function DashboardShell({ profile, teams = [], features, children }: Prop
                 key={key}
                 href={tabs[0].href}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-semibold transition-colors",
                   active
                     ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    : "text-foreground/75 hover:bg-secondary hover:text-foreground"
                 )}
               >
-                <Icon className="size-4 shrink-0" aria-hidden="true" />
+                <Icon className="size-[18px] shrink-0" aria-hidden="true" />
                 {label}
-                {active && <ChevronRight className="ml-auto size-3 text-primary" aria-hidden="true" />}
+                {active && <ChevronRight className="ml-auto size-3.5 text-primary" aria-hidden="true" />}
               </Link>
             );
           })}
         </nav>
 
-        <div className="border-t border-border p-3 space-y-2">
+        <div className="border-t border-border/60 p-3 space-y-2">
           <div className="flex items-center gap-3 px-3 py-2">
             <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand text-brand-foreground text-xs font-bold">
               {profile.full_name.slice(0, 2).toUpperCase()}
@@ -268,8 +268,8 @@ export function DashboardShell({ profile, teams = [], features, children }: Prop
       {/* ── Main ──────────────────────────────────────────────── */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top bar */}
-        <header className="flex h-14 items-center justify-between gap-2 border-b border-border px-4 lg:px-6">
-          <p className="min-w-0 truncate text-base font-semibold lg:hidden">
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-border/60 bg-background/80 px-4 backdrop-blur-xl lg:px-8">
+          <p className="min-w-0 truncate text-[17px] font-bold tracking-tight lg:hidden">
             {activeSection?.label ?? ""}
           </p>
           <div className="hidden lg:block" />
@@ -294,17 +294,24 @@ export function DashboardShell({ profile, teams = [], features, children }: Prop
         {/* Section sub-navigation — only when the active section has more
             than one real destination (e.g. Matchday's Fixtures/Film). */}
         {activeSection && activeSection.tabs.length > 1 && (
-          <div className="border-b border-border px-4 lg:px-6">
-            <SectionTabs tabs={activeSection.tabs} className="border-b-0" />
+          <div className="px-4 pt-4 lg:px-8">
+            <SectionTabs tabs={activeSection.tabs} />
           </div>
         )}
 
-        <main className="flex-1 overflow-y-auto px-4 py-6 lg:px-6">
+        {/* Bottom padding on phones keeps the last card clear of the floating tab bar. */}
+        <main className="flex-1 overflow-y-auto px-4 pt-6 pb-32 lg:px-8 lg:pb-10">
           {children}
         </main>
 
         {/* ── Mobile bottom nav ─────────────────────────────── */}
-        <nav className="flex border-t border-border bg-background lg:hidden" aria-label="Mobile navigation">
+        {/* A floating, frosted tab bar: lifted off the page so it reads as
+            the app's controls, not part of the content, and inset from the
+            screen edge and home indicator. */}
+        <nav
+          className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 flex rounded-full border border-border/60 bg-card/85 px-1.5 py-1 shadow-float backdrop-blur-xl lg:hidden"
+          aria-label="Mobile navigation"
+        >
           {sections.filter((s) => !s.mobileHide).map(({ key, label, mobileLabel, Icon, tabs }) => {
             const active = activeSection?.key === key;
             return (
@@ -312,8 +319,8 @@ export function DashboardShell({ profile, teams = [], features, children }: Prop
                 key={key}
                 href={tabs[0].href}
                 className={cn(
-                  "flex flex-1 flex-col items-center gap-1 py-2 text-[10px] font-medium transition-colors",
-                  active ? "text-primary" : "text-muted-foreground"
+                  "flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-semibold transition-colors",
+                  active ? "bg-primary/10 text-primary" : "text-muted-foreground"
                 )}
               >
                 <Icon className={cn("size-5", active && "text-primary")} aria-hidden="true" />

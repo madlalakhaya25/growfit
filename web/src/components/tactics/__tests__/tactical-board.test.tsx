@@ -224,7 +224,7 @@ describe("TacticalBoard", () => {
     expect(screen.getByText(/Put the ball at an opponent's feet first/)).toBeInTheDocument();
   });
 
-  it("switches the pitch look and the broadcast view", async () => {
+  it("switches the pitch look and the 3D view", async () => {
     render(<TacticalBoard teams={[]} />);
     await act(async () => { await Promise.resolve(); });
     const floodlit = screen.getByRole("radio", { name: /Floodlit/ });
@@ -232,7 +232,12 @@ describe("TacticalBoard", () => {
     expect(floodlit).toHaveAttribute("aria-checked", "true");
     expect(useBoardSetupStore.getState().pitchThemeId).toBe("night");
 
-    fireEvent.click(screen.getByRole("button", { name: "Broadcast view" }));
-    expect(screen.getByText(/Broadcast view · tap the camera to edit/)).toBeInTheDocument();
+    const threeD = screen.getByRole("button", { name: "3D" });
+    expect(threeD).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(threeD);
+    expect(threeD).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText(/3D view · switch to 2D to edit/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "2D" }));
+    expect(screen.queryByText(/3D view · switch to 2D to edit/)).not.toBeInTheDocument();
   });
 });
