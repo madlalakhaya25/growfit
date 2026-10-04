@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { StatBar } from "@/components/ui/stat-bar";
 import { POSITIONS } from "@/lib/types";
 import { calculateAge, matchRatingAverage } from "@/lib/player";
-import { formatDayMonth } from "@/lib/time";
+import { formatDayMonth, formatWeekdayDayMonth } from "@/lib/time";
 import { RemovePlayerPhotoButton } from "@/components/remove-player-photo-button";
 import { CopyButton } from "@/components/copy-button";
 import { AttributeSummary } from "@/components/player/attribute-summary";
@@ -31,10 +31,122 @@ import {
 } from "@/lib/attributes";
 import { reportError } from "@/lib/report-error";
 import { signPlayerPhotoUrl } from "@/lib/player-photo";
+import { PageHeader } from "@/components/ui/page-header";
+import { QueryTabs } from "@/components/ui/query-tabs";
+import { PlayerToday } from "@/components/player/player-today";
+import { pickTab } from "@/lib/tabs";
 
 
 
-export default async function PlayerDashboardPage() {
+const TABS = [
+  { id: "today", label: "Today" },
+  { id: "passport", label: "Passport" },
+] as const;
+
+function PlayerUnlinked({ playerError }: Readonly<{ playerError: { code?: string } | null }>) {
+  // .single() also errors (PGRST116) when it simply finds no matching row —
+  // that's the genuine "this account isn't linked to a player yet" case.
+  // Any other error means the query itself failed (RLS, network, a lagging
+  // migration), and showing the same "waiting to be added" screen for that
+  // is exactly the bug this page was already fixed for once: a real query
+  // failure made a genuinely linked player look unclaimed.
+  const notYetLinked = !playerError || playerError.code === "PGRST116";
+  if (!notYetLinked) {
+    reportError(playerError, { scope: "player dashboard", extra: { query: "players" } });
+  }
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">My Passport</h1>
+
+      {notYetLinked ? (
+        <>
+          <div className="rounded-xl border border-border bg-card p-6 space-y-2">
+            <p className="text-base font-semibold">You&apos;re all set — waiting to be added</p>
+            <p className="text-sm text-muted-foreground">
+              Your account is ready. As soon as your coach adds you to a squad, your
+              passport, ratings and fixtures appear here automatically. If your coach
+              has already given you a share token, enter it below to link your profile now.
+            </p>
+          </div>
+
+          <ClaimProfileForm />
+        </>
+      ) : (
+        <div className="rounded-xl border border-destructive/50 bg-card p-6 space-y-2">
+          <p className="text-base font-semibold">Couldn&apos;t load your passport</p>
+          <p className="text-sm text-muted-foreground">
+            Something went wrong loading your profile. Try refreshing the
+            page — if it keeps happening, let your coach or administrator know.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+async function loadAttributes(supabase: Awaited<ReturnType<typeof createClient>>, playerId: string) {
+  const wide = await supabase.from("player_attributes").select(ALL_ATTR_SELECT).eq("player_id", playerId);
+  if (!isMissingAttributeColumn(wide.error)) {
+    return { data: wide.data as Partial<Record<AttrKey, number | null>>[] | null, error: wide.error };
+  }
+  const core = await supabase.from("player_attributes").select(CORE_ATTR_SELECT).eq("player_id", playerId);
+  return { data: core.data as Partial<Record<AttrKey, number | null>>[] | null, error: core.error };
+}
+
+/** Age band for the positional guide: the next odd year up (U11, U13, U15), U15 with no date of birth. */
+function ageGroupFor(age: number | null): string {
+  if (!age) return "U15";
+  return `U${age % 2 === 1 ? age : age + 1}`;
+}
+
+/** Documents still outstanding and milestone progress, for the passport's progress strip. */
+function passportProgress(
+  documents: { status: string }[] | null,
+  templates: { id: string }[] | null,
+  completions: { template_id: string }[] | null,
+) {
+  const docsSigned = (documents ?? []).filter((d) => d.status === "signed" || d.status === "uploaded").length;
+  const done = new Set((completions ?? []).map((c) => c.template_id));
+  const milestoneTotal = (templates ?? []).length;
+  const milestoneDone = (templates ?? []).filter((t) => done.has(t.id)).length;
+  return {
+    docsOutstanding: Math.max(0, 6 - docsSigned),
+    milestoneTotal,
+    milestoneDone,
+    milestonePct: milestoneTotal > 0 ? Math.round((milestoneDone / milestoneTotal) * 100) : 0,
+  };
+}
+
+type RawMediaUpload = {
+  id: string;
+  url: string;
+  media_type: string;
+  caption: string | null;
+  created_at: string;
+} | null;
+type RawMediaTag = { media_uploads: RawMediaUpload | RawMediaUpload[] };
+
+/** The media a player is tagged in, flattened to what the gallery shows. */
+function normalizeTaggedMedia(tags: RawMediaTag[] | null) {
+  return (tags ?? []).flatMap((tag) => {
+    const mu = tag.media_uploads;
+    if (!mu) return [];
+    const items = Array.isArray(mu) ? mu : [mu];
+    return items.filter((item): item is NonNullable<RawMediaUpload> => item !== null).map((item) => ({
+      id: item.id,
+      url: item.url,
+      media_type: item.media_type,
+      caption: item.caption,
+      created_at: item.created_at,
+      tagged_players: [],
+    }));
+  });
+}
+
+export default async function PlayerDashboardPage({
+  searchParams,
+}: Readonly<{ searchParams: Promise<{ tab?: string }> }>) {
+  const tab = pickTab(TABS, (await searchParams).tab);
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
@@ -60,70 +172,22 @@ export default async function PlayerDashboardPage() {
     .eq("profile_id", user.id)
     .single();
 
-  if (!player) {
-    // .single() also errors (PGRST116) when it simply finds no matching row —
-    // that's the genuine "this account isn't linked to a player yet" case.
-    // Any other error means the query itself failed (RLS, network, a lagging
-    // migration), and showing the same "waiting to be added" screen for that
-    // is exactly the bug this page was already fixed for once: a real query
-    // failure made a genuinely linked player look unclaimed.
-    const notYetLinked = !playerError || playerError.code === "PGRST116";
-    if (!notYetLinked) {
-      reportError(playerError, { scope: "player dashboard", extra: { query: "players" } });
-    }
+  if (!player) return <PlayerUnlinked playerError={playerError} />;
+
+  if (tab === "today") {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">My Passport</h1>
-
-        {notYetLinked ? (
-          <>
-            <div className="rounded-xl border border-border bg-card p-6 space-y-2">
-              <p className="text-base font-semibold">You&apos;re all set — waiting to be added</p>
-              <p className="text-sm text-muted-foreground">
-                Your account is ready. As soon as your coach adds you to a squad, your
-                passport, ratings and fixtures appear here automatically. If your coach
-                has already given you a share token, enter it below to link your profile now.
-              </p>
-            </div>
-
-            <ClaimProfileForm />
-          </>
-        ) : (
-          <div className="rounded-xl border border-destructive/50 bg-card p-6 space-y-2">
-            <p className="text-base font-semibold">Couldn&apos;t load your passport</p>
-            <p className="text-sm text-muted-foreground">
-              Something went wrong loading your profile. Try refreshing the
-              page — if it keeps happening, let your coach or administrator know.
-            </p>
-          </div>
-        )}
+        <PageHeader title="Today" eyebrow={formatWeekdayDayMonth(new Date())} />
+        <QueryTabs tabs={TABS} active={tab} basePath="/dashboard/player" />
+        <PlayerToday supabase={supabase} playerId={player.id} />
       </div>
     );
   }
 
   const photoUrl = await signPlayerPhotoUrl(supabase, player.photo_url);
 
-  const wideAttrs = await supabase
-    .from("player_attributes")
-    .select(ALL_ATTR_SELECT)
-    .eq("player_id", player.id);
-
-  let attrsData: Partial<Record<AttrKey, number | null>>[] | null = wideAttrs.data;
-  let attrsError = wideAttrs.error;
-  if (isMissingAttributeColumn(wideAttrs.error)) {
-    const coreAttrs = await supabase
-      .from("player_attributes")
-      .select(CORE_ATTR_SELECT)
-      .eq("player_id", player.id);
-    attrsData = coreAttrs.data;
-    attrsError = coreAttrs.error;
-  }
+  const { data: attrsData, error: attrsError } = await loadAttributes(supabase, player.id);
   if (attrsError) {
-    // Not a missing-column case (that's handled above) — a genuine failure.
-    // Degrade to "no attribute ratings shown" rather than taking the whole
-    // passport down, but don't drop it silently: log it, and say so near the
-    // attribute summary below rather than rendering it identically to "no
-    // assessment yet".
     reportError(attrsError, { scope: "player dashboard", extra: { query: "player_attributes" } });
   }
 
@@ -208,48 +272,23 @@ export default async function PlayerDashboardPage() {
   // Age band for the positional guide: round up to the next odd year, giving
   // U11 / U13 / U15 etc. Falls back to U15 when we have no date of birth.
   const positions = await getPlayerPositions(supabase, player.id);
-  const playerAgeGroup = age ? `U${age % 2 === 1 ? age : age + 1}` : "U15";
+  const playerAgeGroup = ageGroupFor(age);
 
-  // Normalize media tag items
-  type RawMediaUpload = {
-    id: string;
-    url: string;
-    media_type: string;
-    caption: string | null;
-    created_at: string;
-  } | null;
-  type RawMediaTag = { media_uploads: RawMediaUpload | RawMediaUpload[] };
-  const taggedMediaItems = (myMediaTags ?? []).flatMap((tag: RawMediaTag) => {
-    const mu = tag.media_uploads;
-    if (!mu) return [];
-    const items = Array.isArray(mu) ? mu : [mu];
-    return items.filter((item): item is NonNullable<RawMediaUpload> => item !== null).map((item) => ({
-      id: item.id,
-      url: item.url,
-      media_type: item.media_type,
-      caption: item.caption,
-      created_at: item.created_at,
-      tagged_players: [],
-    }));
-  });
+  const taggedMediaItems = normalizeTaggedMedia(myMediaTags);
 
   const needsRegistration = !player.mysafa_number && !player.id_number;
-  const docsSigned = (myDocuments ?? []).filter(
-    (d: { status: string }) => d.status === "signed" || d.status === "uploaded"
-  ).length;
-  const docsOutstanding = Math.max(0, 6 - docsSigned);
-  const milestoneTotal = (milestoneTemplates ?? []).length;
-  const milestoneDone = (() => {
-    const done = new Set(((myCompletions ?? []) as { template_id: string }[]).map((c) => c.template_id));
-    return ((milestoneTemplates ?? []) as { id: string }[]).filter((t) => done.has(t.id)).length;
-  })();
-  const milestonePct = milestoneTotal > 0 ? Math.round((milestoneDone / milestoneTotal) * 100) : 0;
+  const { docsOutstanding, milestoneTotal, milestoneDone, milestonePct } = passportProgress(
+    myDocuments,
+    milestoneTemplates,
+    myCompletions,
+  );
 
   const familyMessages = await loadApprovedMessages(supabase, player.id);
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">My Passport</h1>
+      <QueryTabs tabs={TABS} active={tab} basePath="/dashboard/player" />
 
       {needsRegistration && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-4 py-3 flex items-start gap-3">
