@@ -501,6 +501,22 @@ development page and parent page simply show no medals.
 
 ---
 
+## 065: academy drill library
+
+Adds tag columns to `drill_library` so U11, U13 and U15 coaches share one
+method: `age_groups` and `themes` (text arrays, CHECKed against U11/U13/U15 and
+a fixed list of ten themes), `four_corner`, `players_needed` (1 to 40),
+`equipment`, `coaching_points`, `tactic_play_id` (a saved play as the diagram,
+set null if the play is deleted), `source_drill_id` (the session drill it was
+shared from) and `is_academy_method` (default false). A trigger lets only an
+admin set or clear `is_academy_method`, or edit or delete a drill once it is
+the academy method; coaches keep their existing rights on every other drill.
+No children's data. Additive, safe to re-run. Until it is run, the Library page
+lists and adds drills as before, hides the age group and theme chips, and says
+the tags are not set up yet; "Share to library" explains the same.
+
+---
+
 ## How to apply
 
 Either route works. Take a backup first regardless.

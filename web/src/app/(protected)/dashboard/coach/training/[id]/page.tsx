@@ -21,6 +21,8 @@ import { DrillDetailsView } from "@/components/training/drill-details-view";
 import { sanitiseDrillDetails } from "@/lib/drill-details";
 import { loadCoachNotes } from "@/lib/coach-notes";
 import { CoachNotesBox } from "@/components/development/coach-notes-box";
+import { ShareToLibraryButton } from "@/components/training/drill-library/share-to-library-button";
+import { ageGroupFromTeam } from "@/lib/drill-library";
 
 const TYPE_STYLES: Record<string, { label: string; chip: string; header: string }> = {
   general:    { label: "General",    chip: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",       header: "bg-slate-500/10" },
@@ -46,7 +48,7 @@ export default async function CoachTrainingSessionPage({
   // `coach_id = user.id` here 404'd a session's own co-coach out of it).
   const { data: session } = await supabase
     .from("training_sessions")
-    .select("id, team_id, title, session_date, location, session_type, notes, teams ( name )")
+    .select("id, team_id, title, session_date, location, session_type, notes, teams ( name, age_group )")
     .eq("id", id)
     .in("team_id", await getCoachedTeamIds(supabase, user.id))
     .single();
@@ -108,6 +110,9 @@ export default async function CoachTrainingSessionPage({
     : (session.teams as { name: string } | null)?.name;
 
   const typeStyle = TYPE_STYLES[session.session_type] ?? TYPE_STYLES.general;
+  const teamAgeGroup = ageGroupFromTeam(
+    (Array.isArray(session.teams) ? session.teams[0] : (session.teams as { age_group: string | null } | null))?.age_group
+  );
 
   // Flatten squad players from nested join
   type SquadMemberRaw = { players: { id: string; full_name: string } | { id: string; full_name: string }[] | null };
@@ -315,6 +320,7 @@ export default async function CoachTrainingSessionPage({
                     </a>
                   )}
                 </div>
+                <ShareToLibraryButton sessionDrillId={drill.id} drillTitle={drill.title} teamAgeGroup={teamAgeGroup} />
                 <DeleteDrillButton drillId={drill.id} sessionId={id} />
               </div>
               );
