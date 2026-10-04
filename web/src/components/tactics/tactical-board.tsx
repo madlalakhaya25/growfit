@@ -14,12 +14,13 @@ import { PITCH_THEME_LIST } from "@/lib/pitch-themes";
 import { passingLanes, spaceControl, offsideLines, zoneCounts } from "@/lib/board-overlays";
 import { shiftToBall, reachTimes, pressingPlan, playerJobs } from "@/lib/board-coaching";
 import { counterExploits, counterRunShapes, type OpponentCounter } from "@/lib/opponent-counter";
-import { drawBoard, pickRecorderMime } from "@/lib/board-render";
+import { recordMoveVideo, videoFileName, downloadBlob } from "@/lib/board-video";
+import { activePhase, switchPhase, phaseGlideFrames, type Phase } from "@/lib/board-phases";
 import { framesFromShapes } from "@/lib/play-motion";
 import { addOpponentReaction } from "@/lib/opponent-reaction";
 import {
   BOARD_W, BOARD_H, polyPath, interpolateFrames, totalDurationMs, zonePolygon, simplifyPath, type ZoneShape,
-  getPitch, pitchForAge, PITCHES, toBoardSpace, EQUIPMENT_SPECS, RECORDABLE_SHAPE_KINDS,
+  getPitch, pitchForAge, PITCHES, toBoardSpace, EQUIPMENT_SPECS,
   GROUP_COLOR, attachArrow, followAttached, groupOf, shortLabel, uid, assignToSlots, compress,
   DRAW_COLORS, SHAPE_STROKE, distanceMetres, teamShape, mirrorPoint, type Pitch,
   type EquipmentKind, type Point, type BoardObject, type BoardPlayer, type BoardTeam,
@@ -36,6 +37,9 @@ import {
 import { EquipmentLayer } from "@/components/tactics/equipment-layer";
 import { SavedPlaysPanel } from "@/components/tactics/saved-plays-panel";
 import { AnimationPanel } from "@/components/tactics/animation-panel";
+import { StepTimeline } from "@/components/tactics/step-timeline";
+import { PhaseToggle } from "@/components/tactics/phase-toggle";
+import { SaveVideoButton } from "@/components/tactics/save-video-button";
 import { DraftRecoveryBanner } from "@/components/tactics/draft-recovery-banner";
 import { ExploitLayer, ExploitLegend } from "@/components/tactics/exploit-layer";
 import { PassingLaneLayer, SpaceControlLayer, LinesLayer, ZoneCountLayer, ReachTimeLayer } from "@/components/tactics/analysis-layers";
@@ -339,7 +343,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   // directly here, by recordAnimation/scrubTo/endScrub.
   const {
     frames, setFrames, playing, setPlaying, setScrubMs,
-    setScrubbing, setRecording, anim, setAnim,
+    setScrubbing, recording, setRecording, anim, setAnim,
     reset: resetPlayback,
   } = useBoardPlaybackStore();
   // Blank the board once on mount — plain useState gave this for free (a
@@ -393,6 +397,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     return rs;
   }, [team]);
 
+  const hasOurPlayers = state.tokens.some((t) => t.kind === "player");
   const placed = new Set(state.tokens.filter((t) => t.playerId).map((t) => t.playerId));
   const bench = roster.filter((p) => !placed.has(p.id));
 
@@ -681,6 +686,9 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       const { tokens, shapes } = interpolateFrames(state.tokens, seqFrames, clamped);
 
       setAnim({ tokens, shapes });
+      // The step timeline under the board follows the move as it plays; a
+      // phase glide (the only caller passing its own frames) is not the move.
+      if (!override) setScrubMs(clamped);
 
       if (elapsed < total) {
         rafRef.current = requestAnimationFrame(tick);
@@ -694,6 +702,18 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   }
 
   useEffect(() => () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); }, []);
+
+  /** Flip our team between "With the ball" and "Without the ball". The
+   *  board takes the new shape at once (one undo step); the players glide
+   *  there through the same playback machinery as a played step. */
+  function flipPhase(target: Phase) {
+    if (playing || recording) return;
+    const from = state.tokens;
+    const next = switchPhase(from, state.phases, target);
+    snapshot();
+    setState((st) => ({ ...st, tokens: next.tokens, phases: next.phases }));
+    playAnimation(phaseGlideFrames(from, next.tokens, state.shapes));
+  }
 
   /** Delete key: take the selected token off the pitch. Returns whether
    *  anything was removed, so the key handler only swallows Backspace
@@ -901,92 +921,46 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   }
 
   /**
-   * Record the play sequence to a video file. The board is redrawn to an
-   * offscreen canvas each animation frame and MediaRecorder captures that
-   * canvas stream, so the export matches exactly what playback shows.
+   * "Save as video": play the move onto an offscreen canvas and record it to
+   * a WebM download (lib/board-video.ts). Uses the same interpolateFrames()
+   * as on-screen playback, so the video moves exactly as Play does,
+   * per-step durations included.
    */
   async function recordAnimation() {
-    // drawBoard() (board-render.ts) always paints the fixed full-pitch
-    // background — it has no idea a training grid exists — so recording on
-    // one would silently composite the wrong surface behind the drill.
-    // Rather than ship that mismatch, video export stays full-pitch-only
-    // until the canvas recorder is taught about Pitch too.
+    // drawBoard() (board-render.ts) always paints the full pitch, so a
+    // training grid would come out on the wrong surface — the button is
+    // disabled there; this guards the keyboard path too.
     if (!pitch.supportsFormations) {
-      setNotice("Video recording is only available on the full pitch for now — export a PNG instead.");
+      setNotice("Video needs the full pitch for now. Export a PNG instead.");
       return;
     }
     let seqFrames = frames;
     if (seqFrames.length < 2) {
       const derived = deriveFrames();
       if (derived.length < 2) {
-        setNotice("Draw runs and passes, or capture steps, before recording.");
+        setNotice("Draw runs and passes, or capture steps, before saving a video.");
         return;
       }
       seqFrames = derived;
       setFrames(derived);
     }
-    const mime = pickRecorderMime();
-    if (!mime) {
-      setNotice("This browser can't record video. Try Chrome, or use PNG export.");
-      return;
-    }
 
     stopPlayback();
     setRecording(true);
-    setNotice("Recording…");
-
-    const scale = 6;
-    const canvas = document.createElement("canvas");
-    canvas.width = W * scale;
-    canvas.height = H * scale;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) { setRecording(false); return; }
-
-    const stream = canvas.captureStream(30);
-    const rec = new MediaRecorder(stream, { mimeType: mime });
-    const chunks: BlobPart[] = [];
-    rec.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-    const stopped = new Promise<void>((res) => { rec.onstop = () => res(); });
-    rec.start();
-
-    // Same interpolateFrames() as playAnimation() and the shared viewer use
-    // — the recording now matches on-screen playback exactly, including any
-    // per-step timing a future timeline editor sets.
-    const total = totalDurationMs(seqFrames);
-    let startedAt: number | null = null;
-
-    await new Promise<void>((resolve) => {
-      const tick = (now: number) => {
-        if (startedAt === null) startedAt = now;
-        const elapsed = Math.min(Math.max(0, now - startedAt), total);
-        const { tokens, shapes } = interpolateFrames(state.tokens, seqFrames, elapsed);
-        // drawBoard() has no polygon/text rendering (see RECORDABLE_SHAPE_KINDS)
-        // — a zone or a label would draw as a stray line without this filter.
-        const recordable = shapes.filter((sh) => RECORDABLE_SHAPE_KINDS.has(sh.kind));
-
-        drawBoard(ctx, { tokens, shapes: recordable, overlay, showNames, scale });
-
-        if (now - startedAt < total) requestAnimationFrame(tick);
-        else resolve();
-      };
-      requestAnimationFrame(tick);
-    });
-
-    // Hold the final frame briefly so the video doesn't cut dead on the last step.
-    await new Promise((r) => setTimeout(r, 500));
-    rec.stop();
-    await stopped;
-
-    const blob = new Blob(chunks, { type: mime });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    const ext = mime.includes("mp4") ? "mp4" : "webm";
-    a.download = `${(playName || team?.name || "play").trim()}.${ext}`.replace(/\s+/g, "-").toLowerCase();
-    a.click();
-    URL.revokeObjectURL(a.href);
-
-    setRecording(false);
-    setNotice("Recording saved to your downloads.");
+    setNotice("Saving the video. It plays through once…");
+    try {
+      const video = await recordMoveVideo({ baseTokens: state.tokens, frames: seqFrames, overlay, showNames });
+      if (!video) {
+        setNotice("This browser can't save video. Try Chrome, or use PNG export.");
+        return;
+      }
+      downloadBlob(video.blob, videoFileName(playName, team?.name, video.mime));
+      setNotice("Video saved to your downloads.");
+    } catch {
+      setNotice("Couldn't save the video. Try again, or use PNG export.");
+    } finally {
+      setRecording(false);
+    }
   }
 
   // ── Coordinates ────────────────────────────────────────────────
@@ -2147,14 +2121,20 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
             </div>
             </div>
           </div>
+          {/* Our two shapes: in and out of possession. */}
+          {hasOurPlayers && (
+            <div className="mt-3 flex justify-center">
+              <PhaseToggle value={activePhase(state.phases)} onChange={flipPhase} disabled={playing || recording} />
+            </div>
+          )}
           {/* Playback sits with the pitch — it is the first thing wanted after
               loading a template or drawing a play. */}
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+          <div className="mt-3 flex flex-wrap items-start justify-center gap-2">
             {playing ? (
               <button
                 type="button"
                 onClick={stopPlayback}
-                className="inline-flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground"
+                className="inline-flex h-11 sm:h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground"
               >
                 <Square className="size-4" aria-hidden="true" /> Stop
               </button>
@@ -2163,17 +2143,25 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                 type="button"
                 onClick={() => playAnimation()}
                 disabled={state.tokens.length === 0}
-                className="inline-flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                className="inline-flex h-11 sm:h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
               >
                 <Play className="size-4" aria-hidden="true" /> Play the move
               </button>
             )}
-            {frames.length > 0 && (
-              <span className="text-xs text-muted-foreground">
-                {frames.length} step{frames.length === 1 ? "" : "s"}
-              </span>
-            )}
+            <SaveVideoButton
+              onSave={() => { void recordAnimation(); }}
+              recording={recording}
+              disabled={state.tokens.length === 0 || playing}
+              blockedReason={pitch.supportsFormations ? null : "Video needs the full pitch."}
+            />
           </div>
+          <StepTimeline
+            scrubTo={scrubTo}
+            endScrub={endScrub}
+            gotoFrame={gotoFrame}
+            setFrameDuration={setFrameDuration}
+            snapshot={snapshot}
+          />
 
           <p className="mt-2 text-center text-xs text-muted-foreground">
             {mode === "move" && "Drag players, opponents and the ball to position them."}
@@ -2218,12 +2206,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
             captureFrame={captureFrame}
             stopPlayback={stopPlayback}
             playAnimation={playAnimation}
-            recordAnimation={recordAnimation}
             snapshot={snapshot}
-            scrubTo={scrubTo}
-            endScrub={endScrub}
             gotoFrame={gotoFrame}
-            setFrameDuration={setFrameDuration}
             updateFrame={updateFrame}
             insertFrameAfter={insertFrameAfter}
             duplicateFrame={duplicateFrame}
