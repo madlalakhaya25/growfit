@@ -82,7 +82,7 @@ export default async function DocumentPrintPage({
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div className="header-brand">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/growfit.png" alt="Growfit FA" className="header-logo" />
+            <img src="/growfit.png" alt="Growfit" className="header-logo" />
             <div>
               <h1>Growfit Football Academy</h1>
               <h2>{def.label}</h2>
@@ -129,7 +129,7 @@ export default async function DocumentPrintPage({
             <div className="sig-name">{doc.signer_name}</div>
             {signedAt && <div className="sig-meta">Signed: {signedAt}</div>}
             <div className="sig-meta" style={{ marginTop: 4 }}>
-              This digital signature was captured via the Growfit FA platform and is legally binding in terms of the
+              This digital signature was captured via the Growfit platform and is legally binding in terms of the
               Electronic Communications and Transactions Act 25 of 2002 (ECTA).
             </div>
           </div>
@@ -152,7 +152,7 @@ export default async function DocumentPrintPage({
 
         {/* Footer */}
         <div className="footer">
-          <span>Growfit FA · growfitfa.com</span>
+          <span>Powered by Growfit · growfitfa.com</span>
           <span>Generated: {generatedAt}</span>
         </div>
       </div>

@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Growfit FA",
-    short_name: "Growfit FA",
+    name: "Growfit",
+    short_name: "Growfit",
     description:
       "Build the next generation of footballers through structured training, performance ratings, and digital player passports.",
     start_url: "/dashboard",

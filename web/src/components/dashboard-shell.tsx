@@ -165,10 +165,12 @@ interface Props {
   profile: { role: string; full_name: string; avatar_url: string | null };
   teams?: { id: string; name: string; age_group: string | null }[];
   features?: Partial<Record<FeatureKey, boolean>>;
+  /** The academy's own name, shown in the header instead of the app name. */
+  academyName?: string | null;
   children: React.ReactNode;
 }
 
-export function DashboardShell({ profile, teams = [], features, children }: Props) {
+export function DashboardShell({ profile, teams = [], features, academyName, children }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -217,7 +219,7 @@ export function DashboardShell({ profile, teams = [], features, children }: Prop
       {/* ── Sidebar (desktop) ─────────────────────────────────── */}
       <aside className="sticky top-0 hidden h-dvh w-64 flex-col border-r border-border/70 bg-secondary/55 backdrop-blur-xl lg:flex">
         <div className="flex h-16 items-center px-5">
-          <Logo />
+          <Logo name={academyName} />
         </div>
 
         <nav className="flex-1 space-y-0.5 px-3 py-3">

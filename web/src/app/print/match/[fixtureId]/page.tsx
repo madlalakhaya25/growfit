@@ -146,7 +146,7 @@ export default async function MatchSheetPrintPage({ params }: Readonly<{ params:
       <div className="page">
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/growfit.png" alt="Growfit FA" className="header-logo" />
+          <img src="/growfit.png" alt="Growfit" className="header-logo" />
           <div>
             <h1>Growfit Football Academy</h1>
             <h2>{sheet.title}{sheet.teamLine}</h2>

@@ -27,22 +27,22 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Growfit FA",
-    template: "%s · Growfit FA",
+    default: "Growfit",
+    template: "%s · Growfit",
   },
   description:
     "Track development, build digital player passports, and connect coaches, players, and parents.",
-  applicationName: "Growfit FA",
+  applicationName: "Growfit",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Growfit FA",
+    title: "Growfit",
   },
   formatDetection: { telephone: false },
   openGraph: {
     type: "website",
-    siteName: "Growfit FA",
-    title: "Growfit FA — Football Development Platform",
+    siteName: "Growfit",
+    title: "Growfit — Football Development Platform",
     description: "Build the next generation of footballers through structured training and digital player passports.",
   },
 };

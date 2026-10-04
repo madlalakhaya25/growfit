@@ -207,7 +207,7 @@ export default async function TermReportPrintPage({
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div className="header-brand">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/growfit.png" alt="Growfit FA" className="header-logo" />
+            <img src="/growfit.png" alt="Growfit" className="header-logo" />
             <div>
               <h1>Growfit Football Academy</h1>
               <h2>Term Report</h2>
@@ -339,7 +339,7 @@ export default async function TermReportPrintPage({
         </div>
 
         <div className="footer">
-          <span>Growfit FA · growfitfa.com</span>
+          <span>Powered by Growfit · growfitfa.com</span>
           <span>Generated: {generatedAt}</span>
         </div>
       </div>
