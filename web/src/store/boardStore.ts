@@ -27,6 +27,9 @@ export interface BoardState {
    * — new, additive. Kept on the board state so undo, the local draft and
    * a save all carry it; a board that never flipped has none. */
   phases?: PhaseShapes;
+  /** What the coach told the board (components/tactics/board-instructions-panel.tsx),
+   * kept with the play. New, additive: a play saved before has none. */
+  instructions?: string[];
 }
 
 export const EMPTY_BOARD_STATE: BoardState = { tokens: [], shapes: [], objects: [], playerNotes: [] };
