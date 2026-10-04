@@ -170,7 +170,7 @@ interface Props {
   children: React.ReactNode;
 }
 
-export function DashboardShell({ profile, teams = [], features, academyName, children }: Props) {
+export function DashboardShell({ profile, teams = [], features, academyName, children }: Readonly<Props>) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
