@@ -88,7 +88,10 @@ const PLANNED_LOAD: Record<string, Load> = {
 /** How hard a session is: the recorded effort when there is one, else what its type implies. */
 export function sessionLoad(s: Pick<PlanSession, "session_type" | "rpe">): { load: Load; from: "planned" | "recorded" } {
   if (typeof s.rpe === "number" && Number.isFinite(s.rpe)) {
-    return { load: s.rpe <= 3 ? 1 : s.rpe <= 6 ? 2 : 3, from: "recorded" };
+    let load: Load = 3;
+    if (s.rpe <= 3) load = 1;
+    else if (s.rpe <= 6) load = 2;
+    return { load, from: "recorded" };
   }
   return { load: PLANNED_LOAD[s.session_type] ?? 2, from: "planned" };
 }

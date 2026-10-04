@@ -32,9 +32,9 @@ const startOfDay = (day: string) => new Date(`${day}T00:00:00+02:00`).toISOStrin
  */
 export default async function TrainingWeekPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: Promise<{ team?: string; week?: string }>;
-}) {
+}>) {
   const { team: teamParam, week } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -150,9 +150,9 @@ export default async function TrainingWeekPage({
       {/* Load across the week at a glance */}
       <div className="rounded-xl border border-border bg-card p-4">
         <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Load</p>
-        <div className="grid grid-cols-7 items-end gap-1.5" role="list" aria-label="Load per day">
+        <ul className="m-0 grid list-none grid-cols-7 items-end gap-1.5 p-0" aria-label="Load per day">
           {plan.days.map((d) => (
-            <div key={d.date} role="listitem" className="flex flex-col items-center gap-1" aria-label={`${dayHeading(d.date)}: ${LOAD_LABEL[d.load]}`}>
+            <li key={d.date} className="flex flex-col items-center gap-1" aria-label={`${dayHeading(d.date)}: ${LOAD_LABEL[d.load]}`}>
               <div className="flex h-16 w-full items-end rounded bg-muted/40">
                 <div className={cn("w-full rounded", LOAD_BAR[d.load])} style={{ height: `${Math.max(d.load, 0.25) * 33.3}%` }} />
               </div>
@@ -160,9 +160,9 @@ export default async function TrainingWeekPage({
                 {formatInTimezone(startOfDay(d.date), { weekday: "narrow" })}
               </span>
               {d.matchDay && <span className="text-[10px] font-semibold text-primary">{d.matchDay}</span>}
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
         <p className="mt-3 text-xs text-muted-foreground">
           From the effort you recorded after a session, or from its type until you do. A match counts as hard.
         </p>
@@ -233,7 +233,7 @@ export default async function TrainingWeekPage({
   );
 }
 
-function PlayList({ plays }: { plays: PlanPlay[] }) {
+function PlayList({ plays }: Readonly<{ plays: PlanPlay[] }>) {
   return (
     <span className="mt-1.5 flex flex-wrap gap-1">
       {plays.map((p) => (

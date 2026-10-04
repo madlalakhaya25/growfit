@@ -249,7 +249,8 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
                   <p className="text-sm font-medium">{phase.label}</p>
                   <p className="text-xs text-muted-foreground">{phase.hint}</p>
                 </div>
-                <div className="flex gap-1" role="group" aria-label={`${phase.label} rating`}>
+                <fieldset className="m-0 flex gap-1 border-0 p-0">
+                  <legend className="sr-only">{`${phase.label} rating`}</legend>
                   {[1, 2, 3, 4, 5].map((n) => (
                     <button
                       key={n}
@@ -274,7 +275,7 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
                       />
                     </button>
                   ))}
-                </div>
+                </fieldset>
               </div>
             );
           })}

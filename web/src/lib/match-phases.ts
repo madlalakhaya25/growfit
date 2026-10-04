@@ -43,8 +43,8 @@ export function ratedPhases(ratings: PhaseRatings | null): { id: MatchPhaseId; l
 export function phaseHighlights(ratings: PhaseRatings | null): { best: string; worst: string } | null {
   const rated = ratedPhases(ratings);
   if (rated.length < 2) return null;
-  const best = rated.reduce((a, b) => (b.rating > a.rating ? b : a));
-  const worst = rated.reduce((a, b) => (b.rating < a.rating ? b : a));
+  const best = rated.reduce((a, b) => (b.rating > a.rating ? b : a), rated[0]);
+  const worst = rated.reduce((a, b) => (b.rating < a.rating ? b : a), rated[0]);
   if (best.rating === worst.rating) return null;
   return { best: best.label, worst: worst.label };
 }

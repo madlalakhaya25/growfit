@@ -23,13 +23,20 @@ export interface SheetRow {
   note: string | null;
 }
 
+function availabilityLabel(status: string | undefined): string | null {
+  if (!status || status === "available") return null;
+  return status === "injured" ? "Injured" : "Unavailable";
+}
+
 const POSITION_ORDER = new Map(POSITIONS.map((p, i) => [p.value as string, i]));
 
 /** "Centre Back (CB)" → "CB"; unknown values pass through upper-cased. */
 export function positionCode(position: string | null): string {
   if (!position) return "";
-  const label = POSITIONS.find((p) => p.value === position)?.label;
-  return /\(([^)]+)\)\s*$/.exec(label ?? "")?.[1] ?? position.toUpperCase();
+  const label = (POSITIONS.find((p) => p.value === position)?.label ?? "").trim();
+  const open = label.lastIndexOf("(");
+  if (open === -1 || !label.endsWith(")")) return position.toUpperCase();
+  return label.slice(open + 1, -1);
 }
 
 /**
@@ -59,7 +66,7 @@ export function buildSheetRows(input: {
       id: p.id,
       name: p.full_name,
       position: positionCode(p.position),
-      availability: status && status !== "available" ? (status === "injured" ? "Injured" : "Unavailable") : null,
+      availability: availabilityLabel(status),
       played: after ? played.get(p.id) ?? null : null,
       rating: after ? rating?.rating ?? null : null,
       note: after ? rating?.note ?? null : null,
@@ -67,7 +74,10 @@ export function buildSheetRows(input: {
     };
   });
 
-  const first = (r: SheetRow) => (after ? (r.played ? 0 : 1) : r.availability ? 1 : 0);
+  const first = (r: SheetRow) => {
+    if (after) return r.played ? 0 : 1;
+    return r.availability ? 1 : 0;
+  };
   rows.sort((a, b) => first(a) - first(b) || a.order - b.order || a.name.localeCompare(b.name));
   return rows.map(({ order: _order, ...r }) => r);
 }
@@ -84,7 +94,7 @@ export interface SheetPlan {
 const text = (v: unknown, max = 400): string | null =>
   typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null;
 const list = (v: unknown): string[] =>
-  Array.isArray(v) ? v.flatMap((x) => (text(x, 300) ? [text(x, 300)!] : [])).slice(0, 8) : [];
+  Array.isArray(v) ? [...new Set(v.flatMap((x) => (text(x, 300) ? [text(x, 300)!] : [])))].slice(0, 8) : [];
 
 /**
  * The parts of a saved match plan (fixture_match_plans.data, unvalidated

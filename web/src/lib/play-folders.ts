@@ -7,7 +7,7 @@ export const FOLDER_MAX = 40;
 /** The stored form of a typed folder name: trimmed, single-spaced, capped, or null for none. */
 export function normaliseFolder(raw: string | null | undefined): string | null {
   const name = (raw ?? "").replace(/\s+/g, " ").trim().slice(0, FOLDER_MAX).trim();
-  return name ? name : null;
+  return name || null;
 }
 
 /** Every folder in use, A to Z, each listed once regardless of letter case. */
