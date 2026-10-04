@@ -45,25 +45,25 @@ export function FixtureTicket({
     <Wrapper
       {...(wrapperProps as { href: string })}
       className={cn(
-        "group flex items-stretch gap-4 rounded-xl border border-border bg-card px-4 py-4 text-card-foreground shadow-sm",
-        href && "transition-transform hover:-translate-y-0.5",
+        "group flex items-stretch gap-4 rounded-2xl border border-border/60 bg-card px-4 py-4 text-card-foreground shadow-card",
+        href && "transition-transform duration-200 hover:-translate-y-0.5 active:scale-[0.99]",
         className
       )}
     >
-      <div className="flex flex-col items-center justify-center border-r border-ink-foreground/15 pr-4 text-center leading-none">
-        <span className="text-xs font-medium uppercase tracking-wide text-ink-foreground/60">{weekday}</span>
+      <div className="flex flex-col items-center justify-center border-r border-border pr-4 text-center leading-none">
+        <span className="text-xs font-bold uppercase tracking-wide text-primary">{weekday}</span>
         <span className="font-display text-3xl">{day}</span>
-        <span className="text-xs font-medium uppercase tracking-wide text-ink-foreground/60">{month}</span>
+        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{month}</span>
       </div>
       <div className="min-w-0 flex-1 space-y-1">
-        <p className="text-xs font-medium uppercase tracking-wide text-ink-foreground/60">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {competition}
           {teamName && ` · ${teamName}`}
         </p>
-        <p className="truncate font-display text-xl leading-tight">
+        <p className="truncate text-lg font-extrabold leading-tight tracking-tight">
           {isHome ? "vs" : "@"} {opponent}
         </p>
-        <p className="text-sm text-ink-foreground/70">
+        <p className="text-sm text-muted-foreground">
           {time}
           {venue && ` · ${venue}`}
         </p>

@@ -1,18 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { Barlow, Barlow_Condensed, Geist_Mono } from "next/font/google";
+import { Barlow_Condensed, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ServiceWorkerRegistration } from "@/components/service-worker";
 import { InstallPrompt } from "@/components/install-prompt";
 import { Toaster } from "sonner";
 
-// "Matchday" type system — see globals.css and
-// docs/AI_FEATURES_AND_IA.md Part 4. Barlow for body copy, Barlow
-// Condensed (bold) for titles, scorelines and stat numbers.
-const barlow = Barlow({
-  variable: "--font-barlow",
+// Type system — see globals.css. Plus Jakarta Sans for words, Barlow
+// Condensed (bold) for scorelines, shirt numbers and stat numbers.
+const jakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 const barlowCondensed = Barlow_Condensed({
@@ -65,7 +64,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${barlow.variable} ${barlowCondensed.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${jakarta.variable} ${barlowCondensed.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full">
         <ThemeProvider>{children}</ThemeProvider>

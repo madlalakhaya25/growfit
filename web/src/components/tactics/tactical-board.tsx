@@ -6,7 +6,7 @@ import {
   Pencil, Download, Tag, Grid3x3,
   Play, Square, Plus, Trash2,
   Target, MessageSquare, Type, Ruler,
-  FlipHorizontal2, Maximize2, Minimize2, Hexagon, Video, Magnet, Timer, ListChecks, Gauge, Crosshair, Share2, Map as MapIcon, AlignVerticalSpaceAround, Hash,
+  FlipHorizontal2, Maximize2, Minimize2, Hexagon, Magnet, Timer, ListChecks, Gauge, Crosshair, Share2, Map as MapIcon, AlignVerticalSpaceAround, Hash,
 } from "lucide-react";
 import { FORMATIONS, FORMATION_SIZES, firstFormationOfSize, formatSizeForAge, type Formation } from "@/lib/formations";
 import { readOpponent } from "@/lib/board-analysis";
@@ -26,7 +26,8 @@ import {
   type Token, type Shape, type Frame as ModelFrame,
 } from "@/lib/board-model";
 import { PitchLayer } from "@/components/tactics/pitch-layer";
-import { TokenDefs, TokenGlyph } from "@/components/tactics/token-glyph";
+import { KIT, TokenDefs, TokenGlyph } from "@/components/tactics/token-glyph";
+import { StandingTokens, TILT_DEG } from "@/components/tactics/standing-tokens";
 import { ShapeDefs, ShapeGlyph } from "@/components/tactics/shape-glyph";
 import {
   RunIcon, PassIcon, DribbleIcon, ShotIcon, PressIcon, StraightIcon, CurveIcon, CurveRightIcon,
@@ -2009,7 +2010,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               assumes the viewBox fills this box exactly, so a wrong ratio
               also means every click lands at the wrong coordinate. */}
           <div
-            className={`relative w-full overflow-hidden rounded-xl border border-border shadow-lg shadow-black/20 ring-1 ring-black/5 ${tilted ? "bg-gradient-to-b from-slate-950 via-slate-900 to-emerald-950" : ""}`}
+            className={`relative w-full overflow-hidden rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.06),0_16px_40px_rgba(0,0,0,0.12)] ring-1 ring-black/5 ${tilted ? "bg-[radial-gradient(120%_90%_at_50%_0%,#2b3a55_0%,#0d1220_70%)]" : ""}`}
             style={{
               aspectRatio: `${pitch.w} / ${pitch.h}`,
               // Full screen: as big as the screen allows at this pitch's ratio,
@@ -2026,19 +2027,30 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
             >
               {isFullscreen ? <Minimize2 className="size-4" aria-hidden="true" /> : <Maximize2 className="size-4" aria-hidden="true" />}
             </button>
-            <button
-              type="button"
-              onClick={() => setTilted((v) => !v)}
-              aria-pressed={tilted}
-              title={tilted ? "Back to the flat board (to edit)" : "Broadcast view — tilt the pitch for presenting"}
-              aria-label="Broadcast view"
-              className={`absolute right-11 top-2 z-10 inline-flex size-8 items-center justify-center rounded-md text-white backdrop-blur-sm ${tilted ? "bg-primary" : "bg-black/45 hover:bg-black/65"}`}
+            {/* 2D to edit, 3D to present: the pitch tilts like a broadcast
+                camera and the players stand up on it. View-only, since the
+                pointer maths assumes a flat board. */}
+            <div
+              role="group"
+              aria-label="Board view"
+              className="absolute left-2 top-2 z-10 flex rounded-full bg-black/45 p-0.5 text-xs font-bold text-white backdrop-blur-md"
             >
-              <Video className="size-4" aria-hidden="true" />
-            </button>
+              {([["2D", false], ["3D", true]] as const).map(([label, is3d]) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => setTilted(is3d)}
+                  aria-pressed={tilted === is3d}
+                  title={is3d ? "3D view: tilt the pitch for presenting" : "2D view: edit the board"}
+                  className={`h-8 min-w-11 rounded-full px-3 transition-colors ${tilted === is3d ? "bg-white text-slate-900 shadow-sm" : "hover:bg-white/15"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             {tilted && (
-              <span className="absolute left-2 top-2 z-10 rounded-md bg-black/55 px-2 py-1 text-[11px] font-medium text-white backdrop-blur-sm">
-                Broadcast view · tap the camera to edit
+              <span className="absolute bottom-2 left-1/2 z-10 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1 text-[11px] font-medium text-white backdrop-blur-md">
+                3D view · switch to 2D to edit
               </span>
             )}
             {textAt && (
@@ -2058,11 +2070,20 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                 style={{ left: `${(textAt.x / pitch.w) * 100}%`, top: `${(textAt.y / pitch.h) * 100}%` }}
               />
             )}
+            <div className="absolute inset-0" style={{ perspective: "1200px", perspectiveOrigin: "50% 25%" }}>
+            <div
+              className="absolute inset-0 transition-transform duration-700 ease-[cubic-bezier(.2,.8,.2,1)]"
+              style={{
+                transformStyle: "preserve-3d",
+                transformOrigin: "50% 50%",
+                transform: tilted ? `rotateX(${TILT_DEG}deg) scale(0.82)` : "none",
+                pointerEvents: tilted ? "none" : undefined,
+              }}
+            >
             <svg
               ref={svgRef}
               viewBox={`0 0 ${pitch.w} ${pitch.h}`}
-              className="h-full w-full touch-none select-none transition-transform duration-500 ease-out"
-              style={tilted ? { transform: "perspective(900px) rotateX(40deg) scale(0.9)", transformOrigin: "50% 70%", pointerEvents: "none" } : undefined}
+              className="h-full w-full touch-none select-none"
               onPointerDown={onSvgDown}
               onPointerMove={onSvgMove}
               onPointerUp={onSvgUp}
@@ -2093,8 +2114,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               {/* Equipment */}
               <EquipmentLayer objects={view.objects} onPointerDown={onObjectDown} />
 
-              {/* Tokens */}
-              {view.tokens.map((tok) => (
+              {/* Tokens (in 3D they stand up in the layer below instead) */}
+              {!tilted && view.tokens.map((tok) => (
                 <g
                   key={tok.id}
                   transform={`translate(${tok.x} ${tok.y})`}
@@ -2114,6 +2135,17 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               {times && <ReachTimeLayer times={times} />}
               {mode === "measure" && measure && <MeasureLayer a={measure.a} b={measure.b} pitch={pitch} />}
             </svg>
+            {tilted && (
+              <StandingTokens
+                tokens={view.tokens}
+                pitch={pitch}
+                prefix="tb-tok"
+                showNames={showNames}
+                selectedId={selectedTokenId}
+              />
+            )}
+            </div>
+            </div>
           </div>
           {/* Playback sits with the pitch — it is the first thing wanted after
               loading a template or drawing a play. */}
@@ -2362,9 +2394,9 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Legend</p>
             <div className="space-y-1.5 text-xs text-muted-foreground">
-              {["Goalkeeper", "Defender", "Midfielder", "Forward", "Opponent"].map((g) => (
+              {([["Our players", KIT.home], ["Goalkeeper", KIT.keeper], ["Opponent", KIT.opponent]] as const).map(([g, color]) => (
                 <div key={g} className="flex items-center gap-2">
-                  <span className="inline-block size-2.5 rounded-full" style={{ background: GROUP_COLOR[g] }} />
+                  <span className="inline-block size-2.5 rounded-full" style={{ background: color }} />
                   {g}
                 </div>
               ))}

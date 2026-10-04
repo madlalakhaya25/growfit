@@ -309,25 +309,29 @@ export default async function CoachDashboardPage() {
             const onNow = isHappeningNow(nextSession.session_date, new Date(now).getTime());
             const daysLabel = days <= 0 ? "Today" : days === 1 ? "Tomorrow" : `In ${days} days`;
             return (
-              <Link href={`/dashboard/coach/training/${nextSession.id}`}>
-                <div className="group flex h-full items-start gap-3 overflow-hidden rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                    <Dumbbell className="size-5 text-primary" aria-hidden="true" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                      {onNow ? "Training now" : `Next training · ${daysLabel}`}
-                    </p>
-                    <p className="mt-1 font-semibold leading-snug">{nextSession.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {formatWeekdayDayMonth(date)}
-                      {" · "}
-                      {formatTime(date)}
-                      {nextSession.location && ` · ${nextSession.location}`}
-                      {teamName && ` · ${teamName}`}
-                    </p>
-                  </div>
+              <Link
+                href={`/dashboard/coach/training/${nextSession.id}`}
+                className="group block rounded-[1.75rem] bg-gradient-to-br from-[#b81f1d] to-[#8a1110] p-5 text-white shadow-[0_14px_30px_rgb(167_24_23/0.28)] transition-transform duration-200 active:scale-[0.99]"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-bold uppercase tracking-[0.08em] text-white/85">
+                    {onNow ? "Training now" : `Next training · ${daysLabel}`}
+                  </p>
+                  <span className="grid size-9 place-items-center rounded-full bg-white/15">
+                    <Dumbbell className="size-4" aria-hidden="true" />
+                  </span>
                 </div>
+                <p className="mt-2 text-2xl font-extrabold leading-tight tracking-tight">{nextSession.title}</p>
+                <p className="mt-1 text-sm text-white/85">
+                  {formatWeekdayDayMonth(date)}
+                  {" · "}
+                  {formatTime(date)}
+                  {nextSession.location && ` · ${nextSession.location}`}
+                  {teamName && ` · ${teamName}`}
+                </p>
+                <span className="mt-4 inline-flex h-11 items-center rounded-full bg-white px-5 text-sm font-bold text-[#8a1110] transition-colors group-hover:bg-white/90">
+                  {onNow ? "Take the register" : "Open the session"}
+                </span>
               </Link>
             );
           })()}
