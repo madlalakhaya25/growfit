@@ -21,9 +21,9 @@ export function Switch({ name, defaultChecked = false, label, description, disab
   const [checked, setChecked] = useState(defaultChecked);
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-border px-4 py-3">
+    <div className="flex min-h-11 items-center justify-between gap-3 rounded-xl bg-card px-4 py-2.5 shadow-card">
       <div className="min-w-0">
-        <p className="text-sm font-medium">{label}</p>
+        <p className="text-[15px]">{label}</p>
         {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
       </div>
       <button
@@ -34,13 +34,15 @@ export function Switch({ name, defaultChecked = false, label, description, disab
         disabled={disabled}
         onClick={() => setChecked((v) => !v)}
         className={cn(
-          "relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50",
-          checked ? "bg-primary" : "bg-muted"
+          // iOS proportions (51×31) and its green "on", which reads as a
+          // setting rather than a brand-red call to action.
+          "relative h-[31px] w-[51px] shrink-0 rounded-full transition-colors duration-200 disabled:opacity-50",
+          checked ? "bg-[#248a3d] dark:bg-[#30d158]" : "bg-[#e9e9ea] dark:bg-[#39393d]"
         )}
       >
         <span
           className={cn(
-            "absolute top-0.5 size-5 rounded-full bg-background shadow transition-transform",
+            "absolute left-0 top-0.5 size-[27px] rounded-full bg-white shadow-[0_3px_8px_rgb(0_0_0/0.15),0_1px_1px_rgb(0_0_0/0.16)] transition-transform duration-200",
             checked ? "translate-x-[22px]" : "translate-x-0.5"
           )}
         />

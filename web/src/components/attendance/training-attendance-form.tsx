@@ -46,27 +46,11 @@ interface Props {
  * stated purpose is triggering a welfare conversation, and neither of those
  * is the thing it is looking for.
  */
-const STATUS_STYLE: Record<AttendanceStatus, { active: string; idle: string; Icon: typeof CheckCircle2 }> = {
-  present: {
-    active: "border-green-500 bg-green-500/10 text-green-700 dark:text-green-400",
-    idle: "border-border text-muted-foreground hover:border-green-400 hover:text-green-600",
-    Icon: CheckCircle2,
-  },
-  late: {
-    active: "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-400",
-    idle: "border-border text-muted-foreground hover:border-amber-400 hover:text-amber-600",
-    Icon: Clock,
-  },
-  excused: {
-    active: "border-sky-500 bg-sky-500/10 text-sky-700 dark:text-sky-400",
-    idle: "border-border text-muted-foreground hover:border-sky-400 hover:text-sky-600",
-    Icon: ShieldCheck,
-  },
-  absent: {
-    active: "border-destructive bg-destructive/10 text-destructive",
-    idle: "border-border text-muted-foreground hover:border-destructive/50 hover:text-destructive",
-    Icon: XCircle,
-  },
+const STATUS_STYLE: Record<AttendanceStatus, { active: string; Icon: typeof CheckCircle2 }> = {
+  present: { active: "bg-[#1f7a36] text-white", Icon: CheckCircle2 },
+  late: { active: "bg-[#b25000] text-white", Icon: Clock },
+  excused: { active: "bg-[#0a63d6] text-white", Icon: ShieldCheck },
+  absent: { active: "bg-[#c4161c] text-white", Icon: XCircle },
 };
 
 function PlayerRow({
@@ -83,8 +67,8 @@ function PlayerRow({
   const [pending, startTransition] = useTransition();
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
-      <span className="text-sm font-medium">
+    <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2">
+      <span className="text-[17px]">
         {player.full_name}
         {rsvp && (
           <span className={cn("ml-2 rounded-full px-1.5 py-0.5 text-[11px] font-normal", rsvp === "going" ? "bg-green-500/10 text-green-700 dark:text-green-400" : "bg-muted text-muted-foreground")}>
@@ -92,13 +76,15 @@ function PlayerRow({
           </span>
         )}
       </span>
+      {/* An iOS segmented control: one grey track, the chosen status
+          filled with its colour. */}
       <div
         role="group"
         aria-label={`Attendance for ${player.full_name}`}
-        className="flex flex-wrap gap-1.5"
+        className="flex rounded-[10px] bg-secondary p-0.5"
       >
         {ATTENDANCE_STATUSES.map((status) => {
-          const { active, idle, Icon } = STATUS_STYLE[status];
+          const { active, Icon } = STATUS_STYLE[status];
           const isActive = currentStatus === status;
           return (
             <button
@@ -108,8 +94,8 @@ function PlayerRow({
               aria-pressed={isActive}
               onClick={() => startTransition(() => onMark(player.id, status))}
               className={cn(
-                "flex min-h-11 items-center gap-1 rounded-md border px-3 text-sm font-medium transition-colors sm:min-h-9 sm:px-2.5 sm:text-xs",
-                isActive ? active : idle,
+                "flex min-h-11 items-center gap-1 rounded-[8px] px-2.5 text-[13px] font-semibold transition-colors sm:min-h-9",
+                isActive ? cn(active, "shadow-[0_2px_6px_rgb(0_0_0/0.15)]") : "text-foreground/75 hover:text-foreground",
                 pending && "cursor-wait opacity-50"
               )}
             >
@@ -214,7 +200,7 @@ export function TrainingAttendanceForm({ sessionId, players, existing, rsvps, la
   if (players.length === 0) return null;
 
   return (
-    <section className="rounded-xl border border-border bg-card overflow-hidden">
+    <section className="overflow-hidden rounded-xl bg-card shadow-card">
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-border">
         <div>
           <h2 className="text-base font-semibold">Attendance</h2>

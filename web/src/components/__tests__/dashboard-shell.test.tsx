@@ -31,7 +31,7 @@ describe("DashboardShell", () => {
         <p>content</p>
       </DashboardShell>
     );
-    expect(screen.getByRole("link", { name: /overview/i })).toHaveClass("text-primary");
+    expect(screen.getByRole("link", { name: /overview/i })).toHaveAttribute("aria-current", "page");
     expect(screen.queryByRole("link", { name: "Players" })).not.toBeInTheDocument();
   });
 
