@@ -10,8 +10,8 @@
 
 import { execFileSync } from "node:child_process";
 
-const range = process.argv[2];
-if (!range) {
+const rawRange = process.argv[2];
+if (!rawRange) {
   console.error("Usage: node scripts/check-ai-attribution.mjs <base-sha>..<head-sha>");
   process.exit(1);
 }
@@ -25,17 +25,20 @@ const EMOJI_SIGNATURE = /🤖\s*generated/i;
 const SESSION_TRAILER = /^claude-session:/im;
 
 // Only two hex SHAs joined by ".." ever reach git, never free text.
-if (!/^[0-9a-f]{7,40}\.\.[0-9a-f]{7,40}$/i.test(range)) {
+const rangeMatch = /^([0-9a-f]{7,40})\.\.([0-9a-f]{7,40})$/i.exec(rawRange);
+if (!rangeMatch) {
   console.error("Range must be <base-sha>..<head-sha> (hex SHAs).");
   process.exit(1);
 }
+// Rebuilt from the matched hex groups, so nothing else from argv reaches git.
+const range = `${rangeMatch[1]}..${rangeMatch[2]}`;
 
 const GIT = "/usr/bin/git";
 
 function commitsInRange(range) {
   const out = execFileSync(
     GIT,
-    ["log", "--no-merges", "--format=%H%x00%B%x03", range],
+    ["log", "--no-merges", "--format=%H%x00%B%x03", "--end-of-options", range],
     { encoding: "utf8", maxBuffer: 1024 * 1024 * 32 }
   );
   return out
