@@ -29,6 +29,29 @@ This repository holds three separate workspaces:
 
 ---
 
+## Page structure, Today homes and tabs (added 2026-10-04)
+
+Each role's dashboard root is a **Today** home. The pattern is the same for
+admin, parent and player:
+
+- a pure module (`lib/admin-today.ts`, `parent-today.ts`, `player-today.ts`)
+  decides what to show from plain inputs, with unit tests;
+- a `*-data.ts` loader (admin and parent) fetches those inputs through the
+  user's own Supabase session, so RLS limits what a parent or player can ever
+  load, and a missing table or column degrades to an empty section;
+- the page only renders.
+
+Pages with several areas use URL tabs: `lib/tabs.ts` (`pickTab`, `tabHref`) reads
+`?tab=` from the async `searchParams`, and `QueryTabs` renders the strip, so a
+tab is a real link. The academy's name and crest come from `lib/academy-brand.ts`.
+
+Operational facts worth knowing: Vercel builds only `main` (`ignoreCommand` in
+`web/vercel.json`), Sentry runs on server, edge and browser with personal data
+scrubbed in `beforeSend`, and Gemini calls go through `ai-resilient.ts`
+(retry, optional `GEMINI_MODEL_FALLBACK`) and are stored via `ai-artefacts.ts`.
+
+---
+
 ## High-level system diagram
 
 ```

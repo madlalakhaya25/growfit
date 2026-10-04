@@ -62,7 +62,7 @@ export function CoachAssistantPanel({
   // render (no sessionStorage/cookie) and the client's first render agree
   // before either fills in — see askGrowfitStore.ts.
   useEffect(() => {
-    (async () => {
+    void (async () => {
       await useAskGrowfitStore.persist.rehydrate();
       const stored = useAskGrowfitStore.getState();
       if (!stored.teamId) {

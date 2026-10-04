@@ -225,7 +225,7 @@ DECLARE
   v_needle TEXT := regexp_replace(upper(coalesce(p_code, '')), '[^A-Z0-9]', '', 'g');
   v_kind   TEXT;
 BEGIN
-  IF v_needle = '' THEN RETURN json_build_object('valid', FALSE); END IF;
+  IF length(v_needle) = 0 THEN RETURN json_build_object('valid', FALSE); END IF;
 
   SELECT 'team_coach' INTO v_kind FROM teams WHERE upper(coach_code) = v_needle AND active = TRUE;
   IF v_kind IS NOT NULL THEN RETURN json_build_object('valid', TRUE, 'kind', v_kind); END IF;

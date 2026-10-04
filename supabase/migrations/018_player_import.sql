@@ -32,7 +32,7 @@ DECLARE
   v_academy_id  UUID;
   v_needle      TEXT := upper(regexp_replace(coalesce(p_number, ''), '\s', '', 'g'));
 BEGIN
-  IF v_needle = '' OR p_date_of_birth IS NULL THEN
+  IF length(v_needle) = 0 OR p_date_of_birth IS NULL THEN
     RETURN json_build_object('error', 'Enter your registration number and date of birth.');
   END IF;
 

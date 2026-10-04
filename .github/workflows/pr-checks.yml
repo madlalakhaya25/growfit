@@ -30,7 +30,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Before `npm install`, because it needs nothing and should fail fast.
+      # Before `npm ci`, because it needs nothing and should fail fast.
       # The range is the pull request's own commits, so this can't fail on
       # history already on main.
       - name: Check for AI attribution
@@ -47,10 +47,10 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci --ignore-scripts
 
       - name: Typecheck
-        run: npx tsc --noEmit
+        run: ./node_modules/.bin/tsc --noEmit
 
       - name: Unit tests
         run: npm test
@@ -67,7 +67,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: dummy
 
       - name: Install Playwright's browser
-        run: npx playwright install --with-deps chromium
+        run: ./node_modules/.bin/playwright install --with-deps chromium
 
       - name: Playwright smoke suite
         run: npm run test:e2e
