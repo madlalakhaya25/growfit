@@ -82,6 +82,40 @@ describe("TacticalBoard", () => {
     expect(legend).toHaveTextContent(/Pocket between their defence and midfield/);
   });
 
+  it("lays both teams out on the full pitch and flips both between attack and defence", async () => {
+    render(<TacticalBoard teams={[]} />);
+    await act(async () => { await Promise.resolve(); });
+    fireEvent.click(screen.getByText("Set up my XI"));
+    fireEvent.click(screen.getByText("Set up opponent XI"));
+
+    // Both teams are up, shown as the formation, with the three shapes offered.
+    const shape = within(screen.getByRole("group", { name: "Our shape" }));
+    expect(shape.getByRole("button", { name: "Formation" })).toHaveAttribute("aria-pressed", "true");
+    expect(shape.getByRole("button", { name: "With the ball" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show both shapes" })).toBeInTheDocument();
+
+    // Nobody stands on anybody.
+    const { tokens } = useBoardStore.getState().state;
+    const people = tokens.filter((t) => t.kind !== "ball");
+    expect(people).toHaveLength(22);
+    for (let i = 0; i < people.length; i++) {
+      for (let j = i + 1; j < people.length; j++) {
+        expect(Math.hypot(people[i].x - people[j].x, (people[i].y - people[j].y) * 2)).toBeGreaterThan(8);
+      }
+    }
+
+    // With the ball: we are further up the pitch and they are further back.
+    const avgY = (kind: string, all = useBoardStore.getState().state.tokens) => {
+      const ts = all.filter((t) => t.kind === kind);
+      return ts.reduce((n, t) => n + t.y, 0) / ts.length;
+    };
+    const ours = avgY("player");
+    const theirs = avgY("opponent");
+    fireEvent.click(shape.getByRole("button", { name: "With the ball" }));
+    expect(avgY("player")).toBeLessThan(ours);
+    expect(avgY("opponent")).toBeLessThan(theirs);
+  });
+
   it("applies an AI counter: switches our shape and draws its moves", async () => {
     render(<TacticalBoard teams={[]} />);
     await act(async () => { await Promise.resolve(); });

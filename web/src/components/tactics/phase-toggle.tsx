@@ -1,19 +1,21 @@
 "use client";
 
-import { PHASES, type Phase } from "@/lib/board-phases";
+import { type Phase, type PhaseShapes, phaseOptions } from "@/lib/board-phases";
 
 export interface PhaseToggleProps {
   value: Phase;
+  /** The board's stored shapes, which decide whether "Formation" is offered. */
+  phases?: PhaseShapes;
   onChange: (phase: Phase) => void;
   disabled?: boolean;
 }
 
-/** "With the ball" / "Without the ball": flips our team between its two
- * shapes. An iOS-style two-segment control. */
-export function PhaseToggle({ value, onChange, disabled }: Readonly<PhaseToggleProps>) {
+/** "Formation" / "With the ball" / "Without the ball": flips both teams
+ * between their shapes. An iOS-style segmented control. */
+export function PhaseToggle({ value, phases, onChange, disabled }: Readonly<PhaseToggleProps>) {
   return (
     <div role="group" aria-label="Our shape" className="inline-flex rounded-[10px] bg-secondary p-0.5">
-      {PHASES.map((p) => {
+      {phaseOptions(phases).map((p) => {
         const selected = p.id === value;
         return (
           <button

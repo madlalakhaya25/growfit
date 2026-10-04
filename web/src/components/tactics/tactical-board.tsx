@@ -15,7 +15,8 @@ import { passingLanes, spaceControl, offsideLines, zoneCounts } from "@/lib/boar
 import { shiftToBall, reachTimes, pressingPlan, playerJobs } from "@/lib/board-coaching";
 import { counterExploits, counterRunShapes, type OpponentCounter } from "@/lib/opponent-counter";
 import { recordMoveVideo, videoFileName, downloadBlob } from "@/lib/board-video";
-import { activePhase, switchPhase, phaseGlideFrames, type Phase } from "@/lib/board-phases";
+import { activePhase, switchPhase, phaseGlideFrames, phaseTourFrames, phasesFromLayouts, type Phase } from "@/lib/board-phases";
+import { layoutTeams } from "@/lib/formation-layout";
 import { framesFromShapes } from "@/lib/play-motion";
 import { addOpponentReaction } from "@/lib/opponent-reaction";
 import {
@@ -285,6 +286,28 @@ function MeasureLayer({ a, b, pitch }: { a: Point; b: Point; pitch: Pitch }) {
       </g>
     </g>
   );
+}
+
+/** Our formation's spots on the whole pitch, as drawn - when we are the only team. */
+function wholePitchSpots(f: Formation) {
+  return f.slots;
+}
+
+/** Our formation squeezed into our own half, when there is an opponent. */
+function halfPitchSpots(f: Formation) {
+  return f.slots.map((slot) => compress(slot, "home"));
+}
+
+/** Both teams' spots for every phase of play, laid out on the full pitch so
+ *  nobody stands on anybody (lib/formation-layout.ts). */
+function layoutsFor(homeF: Formation | null, awayF: Formation | null) {
+  const h = homeF?.slots ?? null;
+  const a = awayF?.slots ?? null;
+  return {
+    base: layoutTeams(h, a, "base"),
+    attack: layoutTeams(h, a, "attack"),
+    defend: layoutTeams(h, a, "defend"),
+  };
 }
 
 export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
@@ -719,6 +742,16 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     playAnimation(phaseGlideFrames(from, next.tokens, state.shapes));
   }
 
+  /** "Show both shapes": the formation, then both teams moving into the
+   *  attack against a defence, then into the defence against an attack. */
+  function playShapesTour() {
+    if (playing || recording || !state.phases?.base) return;
+    const next = switchPhase(state.tokens, state.phases, "without");
+    snapshot();
+    setState((st) => ({ ...st, tokens: next.tokens, phases: next.phases }));
+    playAnimation(phaseTourFrames(next.phases, state.tokens, state.shapes));
+  }
+
   /** Delete key: take the selected token off the pitch. Returns whether
    *  anything was removed, so the key handler only swallows Backspace
    *  when it actually did something. */
@@ -980,54 +1013,75 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   /** Our XI in formation `f`, real players assigned to the slots that match
    *  how they play. Squeezed into our own half when the opponent is up too,
    *  so the two shapes face each other instead of interleaving. */
-  function homeTokens(f: Formation, vsOpponent: boolean): Token[] {
+  function homeTokens(f: Formation, spots: readonly { x: number; y: number }[]): Token[] {
     const assigned = assignToSlots(f, roster);
     return f.slots.map((slot, i) => {
       const p = assigned[i];
-      const pos = vsOpponent ? compress(slot, "home") : slot;
       return {
         id: uid("h"),
         label: p ? shortLabel(p.full_name) : String(i + 1),
-        x: pos.x, y: pos.y,
+        x: spots[i].x, y: spots[i].y,
         kind: "player" as const,
         group: p ? groupOf(p.position) : groupOf(slot.role),
         playerId: p?.id,
       };
     });
   }
+  function awayTokens(f: Formation, spots: readonly { x: number; y: number }[]): Token[] {
+    return f.slots.map((_, i) => ({
+      id: uid("a"),
+      label: String(i + 1),
+      x: spots[i].x, y: spots[i].y,
+      kind: "opponent" as const,
+      group: "Opponent",
+    }));
+  }
   function setUpHome() {
     const f = FORMATIONS.find((x) => x.id === homeFormationId)!;
+    const opponents = state.tokens.filter((t) => t.kind === "opponent");
+    const awayF = FORMATIONS.find((x) => x.id === awayFormationId)!;
+    // Opponents who were set up from the chosen formation are laid out with
+    // us; anything else (hand-placed opponents) is left exactly as it is.
+    if (opponents.length > 0 && opponents.length !== awayF.slots.length) {
+      snapshot();
+      setState((st) => ({
+        ...st,
+        tokens: [...st.tokens.filter((t) => t.kind !== "player"), ...homeTokens(f, halfPitchSpots(f))],
+        phases: undefined,
+      }));
+      return;
+    }
     snapshot();
-    setState((st) => ({
-      ...st,
-      // Only use the full pitch when we're the only team on the board.
-      tokens: [...st.tokens.filter((t) => t.kind !== "player"), ...homeTokens(f, st.tokens.some((t) => t.kind === "opponent"))],
-    }));
+    setState((st) => {
+      if (opponents.length === 0) {
+        // Only use the full pitch when we're the only team on the board.
+        return { ...st, tokens: [...st.tokens.filter((t) => t.kind !== "player"), ...homeTokens(f, wholePitchSpots(f))], phases: undefined };
+      }
+      const layouts = layoutsFor(f, awayF);
+      const home = homeTokens(f, layouts.base.home);
+      const away = opponents.map((t, i) => ({ ...t, x: layouts.base.away[i].x, y: layouts.base.away[i].y }));
+      return {
+        ...st,
+        tokens: [...st.tokens.filter((t) => t.kind !== "player" && t.kind !== "opponent"), ...home, ...away],
+        phases: phasesFromLayouts({ home: home.map((t) => t.id), away: away.map((t) => t.id) }, layouts),
+      };
+    });
   }
   function setUpAway(formationId: string = awayFormationId) {
     const f = FORMATIONS.find((x) => x.id === formationId)!;
-    const home = FORMATIONS.find((x) => x.id === homeFormationId)!;
+    const homeF = FORMATIONS.find((x) => x.id === homeFormationId)!;
     snapshot();
     setState((st) => {
       const hadHome = st.tokens.some((t) => t.kind === "player");
+      const layouts = layoutsFor(hadHome ? homeF : null, f);
+      // With both teams up, each side is laid out on the whole pitch for every
+      // phase of play, so the shapes face each other without clashing.
+      const home = hadHome ? homeTokens(homeF, layouts.base.home) : [];
+      const away = awayTokens(f, layouts.base.away);
       return {
         ...st,
-        tokens: [
-          ...st.tokens.filter((t) => t.kind !== "opponent" && t.kind !== "player"),
-          // With both teams up, each side is compressed into its own half so
-          // the shapes face each other instead of interleaving through midfield.
-          ...(hadHome ? homeTokens(home, true) : []),
-          ...f.slots.map((slot, i) => {
-            const c = compress(slot, "away");
-            return {
-              id: uid("a"),
-              label: String(i + 1),
-              x: c.x, y: c.y,
-              kind: "opponent" as const,
-              group: "Opponent",
-            };
-          }),
-        ],
+        tokens: [...st.tokens.filter((t) => t.kind !== "opponent" && t.kind !== "player"), ...home, ...away],
+        phases: hadHome ? phasesFromLayouts({ home: home.map((t) => t.id), away: away.map((t) => t.id) }, layouts) : undefined,
       };
     });
   }
@@ -1069,11 +1123,11 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     const current = stateRef.current;
     const reshape = !!f && pitch.supportsFormations;
     const tokens = reshape
-      ? [...current.tokens.filter((t) => t.kind !== "player"), ...homeTokens(f!, current.tokens.some((t) => t.kind === "opponent"))]
+      ? [...current.tokens.filter((t) => t.kind !== "player"), ...homeTokens(f!, (current.tokens.some((t) => t.kind === "opponent") ? halfPitchSpots(f!) : wholePitchSpots(f!)))]
       : current.tokens;
     const runs = counterRunShapes(counter.counterRuns, tokens);
     snapshot();
-    setState({ ...current, tokens, shapes: [...current.shapes, ...runs] });
+    setState({ ...current, tokens, shapes: [...current.shapes, ...runs], ...(reshape ? { phases: undefined } : {}) });
     if (reshape) setHomeFormationId(f!.id);
     setNotice(
       `${reshape ? `Switched to ${f!.label}` : "Kept your shape"} and drew ${runs.length} suggested move${runs.length === 1 ? "" : "s"} — press Play to watch, or drag them to adjust. Undo reverts it.`
@@ -2147,8 +2201,19 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           </div>
           {/* Our two shapes: in and out of possession. */}
           {hasOurPlayers && (
-            <div className="mt-3 flex justify-center">
-              <PhaseToggle value={activePhase(state.phases)} onChange={flipPhase} disabled={playing || recording} />
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+              <PhaseToggle value={activePhase(state.phases)} phases={state.phases} onChange={flipPhase} disabled={playing || recording} />
+              {state.phases?.base && (
+                <button
+                  type="button"
+                  onClick={playShapesTour}
+                  disabled={playing || recording}
+                  title="Plays the formation, then the attack against their defence, then the defence against their attack"
+                  className="inline-flex h-11 sm:h-9 items-center gap-1.5 rounded-[10px] bg-secondary px-3 text-sm font-medium hover:bg-muted disabled:opacity-50"
+                >
+                  <Play className="size-4" aria-hidden="true" /> Show both shapes
+                </button>
+              )}
             </div>
           )}
           {/* Playback sits with the pitch — it is the first thing wanted after

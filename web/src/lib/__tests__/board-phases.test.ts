@@ -1,5 +1,5 @@
 import {
-  activePhase, applyShape, phaseGlideFrames, phasesForSave, readPhases, shapeOf, switchPhase, PHASE_GLIDE_MS,
+  activePhase, applyShape, phaseGlideFrames, phaseOptions, phaseTourFrames, phasesForSave, phasesFromLayouts, readPhases, shapeOf, switchPhase, PHASE_GLIDE_MS,
   type PhaseShapes,
 } from "@/lib/board-phases";
 import { interpolateFrames, type Token } from "@/lib/board-model";
@@ -20,8 +20,8 @@ describe("activePhase", () => {
 });
 
 describe("shapeOf / applyShape", () => {
-  it("keeps only our own players", () => {
-    expect(shapeOf(board())).toEqual([{ id: "a", x: 10, y: 100 }, { id: "b", x: 50, y: 110 }]);
+  it("keeps our players and the opposition, but not the ball", () => {
+    expect(shapeOf(board())).toEqual([{ id: "a", x: 10, y: 100 }, { id: "b", x: 50, y: 110 }, { id: "o", x: 50, y: 40 }]);
   });
   it("moves tokens the shape knows and leaves the rest", () => {
     const out = applyShape(board(), [{ id: "a", x: 20, y: 90 }, { id: "gone", x: 1, y: 1 }]);
@@ -49,21 +49,23 @@ describe("switchPhase", () => {
     const back = switchPhase(deep, first.phases, "with");
     expect(back.phases.active).toBe("with");
     expect(back.tokens.find((t) => t.id === "a")).toMatchObject({ x: 10, y: 100 });
-    expect(back.phases.without).toEqual([{ id: "a", x: 10, y: 120 }, { id: "b", x: 50, y: 130 }]);
+    expect(back.phases.without).toEqual([{ id: "a", x: 10, y: 120 }, { id: "b", x: 50, y: 130 }, { id: "o", x: 50, y: 40 }]);
 
     // ...and flipping again restores the deep shape.
     const again = switchPhase(back.tokens, back.phases, "without");
     expect(again.tokens.find((t) => t.id === "b")).toMatchObject({ x: 50, y: 130 });
   });
 
-  it("never moves the opposition or the ball", () => {
+  it("moves the opposition with us, but never the ball", () => {
     const first = switchPhase(board(), undefined, "without");
     // The coach drags an opponent and the ball while "without" is showing.
     const moved = first.tokens.map((t) => (t.kind === "player" ? t : { ...t, x: t.x + 5 }));
     const back = switchPhase(moved, first.phases, "with");
-    expect(back.tokens.find((t) => t.id === "o")).toMatchObject({ x: 55, y: 40 });
+    // The opponent goes back to where "with" had them; the ball stays put.
+    expect(back.tokens.find((t) => t.id === "o")).toMatchObject({ x: 50, y: 40 });
     expect(back.tokens.find((t) => t.id === "ball")).toMatchObject({ x: 55, y: 75 });
-    expect(back.phases.without?.map((p) => p.id)).toEqual(["a", "b"]);
+    expect(back.phases.without?.map((p) => p.id)).toEqual(["a", "b", "o"]);
+    expect(back.phases.without?.find((p) => p.id === "o")).toMatchObject({ x: 55 });
   });
 
   it("is a no-op on the tokens when the phase is already showing", () => {
@@ -112,5 +114,40 @@ describe("phaseGlideFrames", () => {
     expect(mid.x).toBeCloseTo(20);
     const end = interpolateFrames(from, frames, PHASE_GLIDE_MS).tokens.find((t) => t.id === "a")!;
     expect(end.x).toBeCloseTo(30);
+  });
+});
+
+describe("phasesFromLayouts and phaseTourFrames", () => {
+  const spot = (x: number, y: number) => ({ x, y });
+  const layouts = {
+    base: { home: [spot(10, 100)], away: [spot(90, 50)] },
+    attack: { home: [spot(10, 70)], away: [spot(90, 20)] },
+    defend: { home: [spot(10, 120)], away: [spot(90, 80)] },
+  };
+  const phases = phasesFromLayouts({ home: ["h1"], away: ["a1"] }, layouts);
+
+  it("stores the formation, then each team's shape for attack and defence", () => {
+    expect(phases.active).toBe("base");
+    expect(phases.base).toEqual([{ id: "h1", x: 10, y: 100 }, { id: "a1", x: 90, y: 50 }]);
+    expect(phases.with).toEqual([{ id: "h1", x: 10, y: 70 }, { id: "a1", x: 90, y: 20 }]);
+    expect(phases.without).toEqual([{ id: "h1", x: 10, y: 120 }, { id: "a1", x: 90, y: 80 }]);
+  });
+
+  it("offers Formation only when the board has one", () => {
+    expect(phaseOptions(undefined).map((p) => p.id)).toEqual(["with", "without"]);
+    expect(phaseOptions(phases).map((p) => p.id)).toEqual(["base", "with", "without"]);
+  });
+
+  it("tours formation, attack, defence in three frames", () => {
+    const tokens = [{ id: "h1", x: 10, y: 100 }, { id: "a1", x: 90, y: 50 }];
+    const frames = phaseTourFrames(phases, tokens, []);
+    expect(frames).toHaveLength(3);
+    expect(frames[1].tokens).toEqual([{ id: "h1", x: 10, y: 70 }, { id: "a1", x: 90, y: 20 }]);
+    expect(frames[2].tokens).toEqual([{ id: "h1", x: 10, y: 120 }, { id: "a1", x: 90, y: 80 }]);
+    expect(frames[1].durationMs).toBeGreaterThan(0);
+  });
+
+  it("round-trips the formation through saved JSON", () => {
+    expect(readPhases(JSON.parse(JSON.stringify(phases)))).toEqual(phases);
   });
 });
