@@ -18,6 +18,8 @@ import { signPlayerPhotoUrl } from "@/lib/player-photo";
 import { MedicalForm } from "@/components/records/medical-form";
 import { DocumentHub } from "@/components/records/document-hub";
 import { AttributeSummary } from "@/components/player/attribute-summary";
+import { PositionsEditor } from "@/components/player/positions-editor";
+import { getPlayerPositions } from "@/lib/player-positions";
 import { DevelopmentPlanReadonly } from "@/components/development/development-plan-readonly";
 import { HomeChallengeCard } from "@/components/development/home-challenge-card";
 import { pickHomeChallenge } from "@/lib/home-challenge";
@@ -88,6 +90,7 @@ export default async function ChildDetailPage({
     : null;
 
   const sharedPlan = await loadSharedDevelopmentPlan(supabase, player.id);
+  const positions = await getPlayerPositions(supabase, player.id);
   const homeChallenge = sharedPlan ? pickHomeChallenge(sharedPlan.plan) : null;
   const skillBoard = await loadChallengeBoard(supabase, player.id, todayIso());
 
@@ -411,6 +414,8 @@ export default async function ChildDetailPage({
       {termReview?.term && (
         <TermGrowthCard termName={termReview.term.name} current={termReview.current} last={termReview.last} />
       )}
+
+      {positions.available && <PositionsEditor playerId={player.id} kind="preferred" initial={positions.preferred} other={positions.official} />}
 
       <FamilyMessagesList messages={familyMessages} />
 

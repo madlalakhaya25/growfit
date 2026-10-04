@@ -19,6 +19,8 @@ import { ClaimProfileForm } from "./claim-profile-form";
 import { RatingChart } from "@/components/rating-chart";
 import { MediaGallery } from "@/components/media/media-gallery";
 import { MyPositionPanel } from "@/components/tactics/my-position-panel";
+import { PositionsEditor } from "@/components/player/positions-editor";
+import { getPlayerPositions } from "@/lib/player-positions";
 import {
   ALL_ATTR_SELECT,
   CORE_ATTR_SELECT,
@@ -205,6 +207,7 @@ export default async function PlayerDashboardPage() {
   const age = calculateAge(player.date_of_birth);
   // Age band for the positional guide: round up to the next odd year, giving
   // U11 / U13 / U15 etc. Falls back to U15 when we have no date of birth.
+  const positions = await getPlayerPositions(supabase, player.id);
   const playerAgeGroup = age ? `U${age % 2 === 1 ? age : age + 1}` : "U15";
 
   // Normalize media tag items
@@ -374,6 +377,10 @@ export default async function PlayerDashboardPage() {
             ageGroup={playerAgeGroup}
           />
         </section>
+      )}
+
+      {positions.available && (
+        <PositionsEditor playerId={player.id} kind="preferred" initial={positions.preferred} other={positions.official} />
       )}
 
       <FamilyMessagesList messages={familyMessages} />
