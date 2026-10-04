@@ -119,6 +119,31 @@ export function opposite(phase: ShapePhase): ShapePhase {
   return "base";
 }
 
+/** Nudge one pair that stands too close apart, sideways first. A fixed
+ * player stays put and the other takes the whole move. Returns whether the
+ * pair needed moving. */
+function pushApart(a: Spot, b: Spot, index: number, aFixed: boolean, bFixed: boolean, min: number): boolean {
+  const dist = gapBetween(a, b);
+  if (dist >= min) return false;
+  const need = min - dist;
+  // Two players on the very same spot go opposite ways, alternating by pair.
+  let ux = index % 2 === 0 ? 1 : -1;
+  let uy = 0;
+  if (dist > 0) {
+    ux = (b.x - a.x) / dist;
+    uy = ((b.y - a.y) * LENGTH_WEIGHT) / dist;
+  }
+  let shareA = 0.5;
+  let shareB = 0.5;
+  if (bFixed) { shareA = 1; shareB = 0; }
+  if (aFixed) { shareA = 0; shareB = 1; }
+  a.x -= ux * need * shareA;
+  a.y -= (uy * need * shareA) / LENGTH_WEIGHT;
+  b.x += ux * need * shareB;
+  b.y += (uy * need * shareB) / LENGTH_WEIGHT;
+  return true;
+}
+
 /** Move players that stand too close apart, sideways first, so a line stays a
  * line. The goalkeepers do not move. Deterministic: the same input always
  * gives the same spots. */
@@ -128,22 +153,7 @@ export function separate(spots: readonly Spot[], fixed: ReadonlySet<number> = ne
     let moved = false;
     for (let i = 0; i < out.length; i++) {
       for (let j = i + 1; j < out.length; j++) {
-        const dx = out[j].x - out[i].x;
-        const dy = out[j].y - out[i].y;
-        const dist = gapBetween(out[i], out[j]);
-        if (dist >= min) continue;
-        moved = true;
-        const need = min - dist;
-        const ux = dist === 0 ? (i % 2 === 0 ? 1 : -1) : dx / dist;
-        const uy = dist === 0 ? 0 : (dy * LENGTH_WEIGHT) / dist;
-        const fi = fixed.has(i);
-        const fj = fixed.has(j);
-        const shareI = fj ? 1 : fi ? 0 : 0.5;
-        const shareJ = fi ? 1 : fj ? 0 : 0.5;
-        out[i].x -= ux * need * shareI;
-        out[i].y -= (uy * need * shareI) / LENGTH_WEIGHT;
-        out[j].x += ux * need * shareJ;
-        out[j].y += (uy * need * shareJ) / LENGTH_WEIGHT;
+        if (pushApart(out[i], out[j], i, fixed.has(i), fixed.has(j), min)) moved = true;
       }
     }
     for (let i = 0; i < out.length; i++) {

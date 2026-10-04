@@ -288,6 +288,28 @@ function MeasureLayer({ a, b, pitch }: { a: Point; b: Point; pitch: Pitch }) {
   );
 }
 
+/** Our formation's spots on the whole pitch, as drawn - when we are the only team. */
+function wholePitchSpots(f: Formation) {
+  return f.slots;
+}
+
+/** Our formation squeezed into our own half, when there is an opponent. */
+function halfPitchSpots(f: Formation) {
+  return f.slots.map((slot) => compress(slot, "home"));
+}
+
+/** Both teams' spots for every phase of play, laid out on the full pitch so
+ *  nobody stands on anybody (lib/formation-layout.ts). */
+function layoutsFor(homeF: Formation | null, awayF: Formation | null) {
+  const h = homeF?.slots ?? null;
+  const a = awayF?.slots ?? null;
+  return {
+    base: layoutTeams(h, a, "base"),
+    attack: layoutTeams(h, a, "attack"),
+    defend: layoutTeams(h, a, "defend"),
+  };
+}
+
 export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const [mode, setMode] = useState<Mode>("move");
   const [showNames, setShowNames] = useState(true);
@@ -1005,10 +1027,6 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       };
     });
   }
-  /** Our formation's spots: the whole pitch alone, squeezed into our half when there is an opponent. */
-  function homeSpots(f: Formation, vsOpponent: boolean) {
-    return vsOpponent ? f.slots.map((slot) => compress(slot, "home")) : f.slots;
-  }
   function awayTokens(f: Formation, spots: readonly { x: number; y: number }[]): Token[] {
     return f.slots.map((_, i) => ({
       id: uid("a"),
@@ -1017,17 +1035,6 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       kind: "opponent" as const,
       group: "Opponent",
     }));
-  }
-  /** Both teams' spots for every phase of play, laid out on the full pitch
-   *  so nobody stands on anybody (lib/formation-layout.ts). */
-  function layoutsFor(homeF: Formation | null, awayF: Formation | null) {
-    const h = homeF?.slots ?? null;
-    const a = awayF?.slots ?? null;
-    return {
-      base: layoutTeams(h, a, "base"),
-      attack: layoutTeams(h, a, "attack"),
-      defend: layoutTeams(h, a, "defend"),
-    };
   }
   function setUpHome() {
     const f = FORMATIONS.find((x) => x.id === homeFormationId)!;
@@ -1039,7 +1046,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       snapshot();
       setState((st) => ({
         ...st,
-        tokens: [...st.tokens.filter((t) => t.kind !== "player"), ...homeTokens(f, homeSpots(f, true))],
+        tokens: [...st.tokens.filter((t) => t.kind !== "player"), ...homeTokens(f, halfPitchSpots(f))],
         phases: undefined,
       }));
       return;
@@ -1048,7 +1055,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setState((st) => {
       if (opponents.length === 0) {
         // Only use the full pitch when we're the only team on the board.
-        return { ...st, tokens: [...st.tokens.filter((t) => t.kind !== "player"), ...homeTokens(f, homeSpots(f, false))], phases: undefined };
+        return { ...st, tokens: [...st.tokens.filter((t) => t.kind !== "player"), ...homeTokens(f, wholePitchSpots(f))], phases: undefined };
       }
       const layouts = layoutsFor(f, awayF);
       const home = homeTokens(f, layouts.base.home);
@@ -1116,7 +1123,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     const current = stateRef.current;
     const reshape = !!f && pitch.supportsFormations;
     const tokens = reshape
-      ? [...current.tokens.filter((t) => t.kind !== "player"), ...homeTokens(f!, homeSpots(f!, current.tokens.some((t) => t.kind === "opponent")))]
+      ? [...current.tokens.filter((t) => t.kind !== "player"), ...homeTokens(f!, (current.tokens.some((t) => t.kind === "opponent") ? halfPitchSpots(f!) : wholePitchSpots(f!)))]
       : current.tokens;
     const runs = counterRunShapes(counter.counterRuns, tokens);
     snapshot();
