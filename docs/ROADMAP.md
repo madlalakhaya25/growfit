@@ -456,6 +456,14 @@ Phases 1 ("See the space") and 2 (analysis overlays) have shipped, see above. Pl
     is scored against the coach's next frame.
   - Read receipts on shared plays.
   - A printable match-day pack.
+- **Phase 6: Live shared board** (Khaya, 2026-10-04; idea from Tactico).
+  - Up to three coaches edit one board together in real time, each with
+    their own cursor colour.
+  - Players join as viewers for a remote team talk before Sunday, with the
+    coach's voice over the board.
+  - The session saves as a replay link the squad can rewatch.
+  - Watch mobile data: viewers should get board updates, not a video
+    stream, so it works on a prepaid phone bundle.
 
 ### Long term
 
