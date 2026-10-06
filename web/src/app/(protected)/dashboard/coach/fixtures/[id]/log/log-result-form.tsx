@@ -11,6 +11,7 @@ import { getInitials } from "@/lib/player";
 import type { AttendanceSummary } from "@/lib/attendance";
 import { MATCH_PHASES, type MatchPhaseId, type PhaseRatings } from "@/lib/match-phases";
 import { presetKeyFor, problemsFor } from "@/lib/match-problems";
+import { ThinkItThrough } from "@/components/ai/think-it-through";
 import {
   MAX_OPEN_OBJECTIVES, phaseLabel, suggestPhase,
   type FollowUpPrompt, type SeenAgain,
@@ -429,6 +430,7 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
                 </fieldset>
               )}
             </div>
+            <ThinkItThrough problem={focusProblem} ageGroup={ageGroup} />
           </div>
         </div>
       )}

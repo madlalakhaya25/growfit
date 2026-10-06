@@ -8,6 +8,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 const mockLog = jest.fn();
 jest.mock("@/app/actions/fixtures", () => ({ logMatch: (...a: unknown[]) => mockLog(...a) }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), back: jest.fn(), refresh: jest.fn() }) }));
+jest.mock("@/app/actions/copilot", () => ({ thinkItThrough: jest.fn() }));
 jest.mock("sonner", () => ({ toast: { error: jest.fn(), success: jest.fn() } }));
 
 import { LogResultForm } from "../log-result-form";
