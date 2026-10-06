@@ -214,6 +214,25 @@ const logMatchSchema = z.object({
   objective: z.unknown().optional(),
 });
 
+/** Opens the weekly-focus objective for the fixture's team. Returns a note for the coach when it wasn't saved. */
+async function saveWeeklyFocus(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  args: { userId: string; teamIds: string[]; fixtureId: string; raw: unknown },
+): Promise<string | null> {
+  if (args.raw === undefined || args.raw === null) return null;
+  const { data: fixture } = await supabase
+    .from("fixtures")
+    .select("team_id")
+    .eq("id", args.fixtureId)
+    .in("team_id", args.teamIds)
+    .single();
+  if (!fixture) return null;
+  const made = await createMatchObjective(supabase, {
+    userId: args.userId, teamId: fixture.team_id, fixtureId: args.fixtureId, raw: args.raw,
+  });
+  return made.created ? null : (made.note ?? null);
+}
+
 export async function logMatch(payload: unknown) {
   const { supabase, user } = await requireUser();
 
@@ -254,22 +273,10 @@ export async function logMatch(payload: unknown) {
 
   // The weekly focus rides on the same save. The result is already stored, so
   // a problem here is reported, not rolled back.
-  if (objective !== undefined && objective !== null) {
-    const { data: fixture } = await supabase
-      .from("fixtures")
-      .select("team_id")
-      .eq("id", fixture_id)
-      .in("team_id", teamIds)
-      .single();
-    if (fixture) {
-      const made = await createMatchObjective(supabase, {
-        userId: user.id, teamId: fixture.team_id, fixtureId: fixture_id, raw: objective,
-      });
-      if (!made.created && made.note) {
-        revalidatePath(`/dashboard/coach/fixtures/${fixture_id}`);
-        return { error: `The result is saved. ${made.note}` };
-      }
-    }
+  const focusNote = await saveWeeklyFocus(supabase, { userId: user.id, teamIds, fixtureId: fixture_id, raw: objective });
+  if (focusNote) {
+    revalidatePath(`/dashboard/coach/fixtures/${fixture_id}`);
+    return { error: `The result is saved. ${focusNote}` };
   }
 
   revalidatePath(`/dashboard/coach/fixtures/${fixture_id}`);

@@ -44,7 +44,7 @@ interface Props {
   openObjectives?: number;
 }
 
-export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, trainingAttendance, playerAvailability, openObjectives = 0 }: Props) {
+export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, trainingAttendance, playerAvailability, openObjectives = 0 }: Readonly<Props>) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +59,7 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
   const [focusPhase, setFocusPhase] = useState<MatchPhaseId | "none" | null>(null);
   const [focusProblem, setFocusProblem] = useState("");
   const suggested = suggestPhase(phaseRatings);
-  const chosenPhase = focusPhase === null ? suggested : focusPhase === "none" ? null : focusPhase;
+  const chosenPhase = chooseFocusPhase(focusPhase, suggested);
   const [players, setPlayers] = useState<PlayerState[]>(
     squad.map((p) => ({ player_id: p.id, played: false, rating: 3, note: "" }))
   );
@@ -369,6 +369,12 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
       </div>
     </form>
   );
+}
+
+/** The picked phase, else the suggestion; "none" is an explicit "Not sure". */
+function chooseFocusPhase(picked: MatchPhaseId | "none" | null, suggested: MatchPhaseId | null): MatchPhaseId | null {
+  if (picked === null) return suggested;
+  return picked === "none" ? null : picked;
 }
 
 function ScoreInput({ label, value, onChange }: Readonly<{ label: string; value: number; onChange: (v: number) => void }>) {
