@@ -6,7 +6,7 @@
 
 import { parseLessons } from "@/lib/lessons";
 
-const LESSON_TEXT = String.raw`
+const LESSON_TEXT = `
 problem: ip-lose-playing-out
 slug: playing-out-from-the-back
 area: tactical
