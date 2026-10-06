@@ -64,3 +64,19 @@ export function adminCardsFor(hats: readonly StaffHat[]): AdminCard[] {
     return wanted === "core" || wanted.some((h) => hats.includes(h));
   });
 }
+
+/** The cards a coach's hats add to their Today page, on top of their own teams. */
+const COACH_EXTRA_CARDS = ["fixtures", "objectives", "coverage", "sessions"] as const satisfies readonly AdminCard[];
+
+/**
+ * Coaches always see their own teams. A hat adds the academy-wide cards that hat
+ * is for (the same director cards the admin page shows, by the same rules). No
+ * hats, or hats with no academy-wide cards (finance, equipment), add nothing, so
+ * a coach with no hats sees exactly what they saw before.
+ */
+export function coachCardsFor(hats: readonly StaffHat[]): AdminCard[] {
+  return COACH_EXTRA_CARDS.filter((card) => {
+    const wanted = ADMIN_CARD_HATS[card];
+    return wanted !== "core" && wanted.some((h) => hats.includes(h));
+  });
+}

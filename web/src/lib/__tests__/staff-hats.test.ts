@@ -1,4 +1,4 @@
-import { ADMIN_CARDS, adminCardsFor, cleanHats, isStaffHat } from "../staff-hats";
+import { ADMIN_CARDS, adminCardsFor, cleanHats, coachCardsFor, isStaffHat } from "../staff-hats";
 
 describe("isStaffHat / cleanHats", () => {
   it("accepts only known hats", () => {
@@ -35,5 +35,19 @@ describe("adminCardsFor", () => {
 
   it("gives the technical director the curriculum cards and not the registration ones", () => {
     expect(adminCardsFor(["technical_director"])).toEqual(["objectives", "coverage", "sessions", "stats", "quick_actions"]);
+  });
+});
+
+describe("coachCardsFor", () => {
+  it("adds nothing for a coach with no hats, as before hats existed", () => {
+    expect(coachCardsFor([])).toEqual([]);
+  });
+  it("gives a director the match and objective cards, and a technical director the coaching cards", () => {
+    expect(coachCardsFor(["director"])).toEqual(["fixtures", "objectives"]);
+    expect(coachCardsFor(["technical_director"])).toEqual(["objectives", "coverage", "sessions"]);
+  });
+  it("combines hats without repeating a card, and never adds admin-only cards", () => {
+    expect(coachCardsFor(["director", "technical_director"])).toEqual(["fixtures", "objectives", "coverage", "sessions"]);
+    expect(coachCardsFor(["registration", "safeguarding", "finance", "fundraising", "equipment"])).toEqual([]);
   });
 });
