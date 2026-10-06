@@ -11,7 +11,6 @@ import {
   coverageHeadlines, objectivesByTeam, sessionsByTeam,
   type CoverageHeadline, type TeamObjectiveLine, type TeamRef, type TeamSessionLine,
 } from "@/lib/director-cards";
-import { addDays } from "@/lib/week-plan";
 import { todayIso } from "@/lib/time";
 import type { AdminCard } from "@/lib/staff-hats";
 
