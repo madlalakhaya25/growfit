@@ -28,6 +28,8 @@ export interface Lesson {
   summary: string;
   /** Short paragraphs, about a two-minute read in all. */
   body: readonly string[];
+  /** Match problem keys (lib/match-problems.ts) this lesson helps with. */
+  problemKeys?: readonly string[];
   /** Set only after Buhle has approved this exact wording. */
   approved: boolean;
   /** Where the lesson follows a published framework, named so the coach can read the source. */
@@ -59,4 +61,10 @@ export function groupLessons(lessons: readonly Lesson[]): LessonGroup[] {
 /** One approved lesson by its address, or null (a draft is "not found", never leaked). */
 export function findLesson(lessons: readonly Lesson[], slug: string): Lesson | null {
   return approvedLessons(lessons).find((l) => l.slug === slug) ?? null;
+}
+
+/** Approved lessons that name this match problem, for a "read the lesson" link under it. */
+export function lessonsForProblem(lessons: readonly Lesson[], problemKey: string | null | undefined): Lesson[] {
+  if (!problemKey) return [];
+  return approvedLessons(lessons).filter((l) => l.problemKeys?.includes(problemKey));
 }

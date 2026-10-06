@@ -1,6 +1,6 @@
 # Learning hub for coaches
 
-*Status: **screen and structure built** (2026-10-06); lessons not written yet. Brief section 23. Approved by Khaya on 2026-10-06.*
+*Status: **built** (2026-10-06); the first 20 lessons are in, approved by Khaya's reply "Approved" to the draft. Brief section 23. Approved by Khaya on 2026-10-06.*
 
 ## What it is
 
@@ -13,11 +13,12 @@ A **Learn** tab (under Develop) with short lessons, about a two-minute read each
 - Every screen says it is Growfit guidance, not endorsed by SAFA, CAF or FIFA, and awards no licence. A lesson that follows a published framework names it in `source`.
 - Nothing here is sent to a child or parent.
 
-## First batch (not yet written)
+## First batch (in)
 
-One lesson per approved match problem (20), then safeguarding basics. Claude drafts, Buhle edits and approves, then the lessons are added with `approved: true`. Until then the screen says no lessons yet.
+One lesson per approved match problem (20), each with four parts: what you see, why it happens, what to try, what to watch for next match. Under a tapped problem on the match result form, a "Read the lesson" link opens it. Safeguarding basics (two adults, changing rooms, photos, transport) are the second batch and are not written yet.
+
+Buhle has not been recorded as reading these; if he edits the wording, change it in `lib/lessons-content.ts` in a pull request.
 
 ## Not done
 
-- A "read more" link from a match problem to its lesson (add when the first lessons exist).
 - Parent tips (dropped by Khaya on 2026-10-06).

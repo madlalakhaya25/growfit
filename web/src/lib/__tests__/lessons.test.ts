@@ -33,3 +33,29 @@ describe("lessons", () => {
     expect(new Set(LESSONS.map((l) => l.slug)).size).toBe(LESSONS.length);
   });
 });
+
+import { lessonsForProblem } from "@/lib/lessons";
+import { MATCH_PROBLEMS } from "@/lib/match-problems";
+
+describe("lessonsForProblem", () => {
+  const SET2: Lesson[] = [
+    lesson({ slug: "a", problemKeys: ["ip-no-shot"] }),
+    lesson({ slug: "b", problemKeys: ["ip-no-shot"], approved: false }),
+    lesson({ slug: "c" }),
+  ];
+  it("returns approved lessons that name the problem, and nothing for no key", () => {
+    expect(lessonsForProblem(SET2, "ip-no-shot").map((l) => l.slug)).toEqual(["a"]);
+    expect(lessonsForProblem(SET2, null)).toEqual([]);
+    expect(lessonsForProblem(SET2, "other")).toEqual([]);
+  });
+});
+
+describe("the shipped lessons", () => {
+  it("cover every approved match problem exactly once, all approved, with four parts each", () => {
+    for (const p of MATCH_PROBLEMS) {
+      expect(lessonsForProblem(LESSONS, p.key)).toHaveLength(1);
+    }
+    expect(LESSONS.every((l) => l.approved && l.body.length === 4)).toBe(true);
+    expect(LESSONS.flatMap((l) => l.problemKeys ?? []).every((k) => MATCH_PROBLEMS.some((p) => p.key === k))).toBe(true);
+  });
+});
