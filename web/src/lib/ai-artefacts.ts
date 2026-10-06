@@ -409,14 +409,10 @@ export async function deleteAgeRewritesMentioning(
   const first = full.split(/\s+/)[0] ?? "";
   const names = [...new Set([full, first].filter((n) => n.length > 0))];
   try {
+    const patterns = names.map((name) => "%" + name.replace(/[\\%_]/g, String.raw`\$&`) + "%");
     const results = await Promise.all(
-      names.map((name) =>
-        supabase
-          .from("ai_artefacts")
-          .delete()
-          .eq("academy_id", academyId)
-          .eq("kind", "age_rewrite")
-          .ilike("prose", `%${name.replace(/[\\%_]/g, String.raw`\$&`)}%`)
+      patterns.map((pattern) =>
+        supabase.from("ai_artefacts").delete().eq("academy_id", academyId).eq("kind", "age_rewrite").ilike("prose", pattern)
       )
     );
     for (const { error } of results) {
