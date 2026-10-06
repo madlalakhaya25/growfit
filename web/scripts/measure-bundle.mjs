@@ -5,7 +5,6 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 import { join, relative } from "node:path";
-import vm from "node:vm";
 
 const root = new URL("../.next/", import.meta.url).pathname;
 const appDir = join(root, "server/app");
@@ -31,10 +30,11 @@ function sizeOf(file) {
 
 const rows = [];
 for (const manifestPath of walk(appDir)) {
-  const sandbox = { globalThis: {} };
-  sandbox.globalThis = sandbox;
-  vm.runInNewContext(readFileSync(manifestPath, "utf8"), sandbox);
-  for (const [key, manifest] of Object.entries(sandbox.__RSC_MANIFEST ?? {})) {
+  // The file is `globalThis.__RSC_MANIFEST["<page>"] = {json};`, so read the JSON rather than run it.
+  const text = readFileSync(manifestPath, "utf8");
+  const assignments = text.matchAll(/__RSC_MANIFEST\["([^"]+)"\]\s*=\s*(\{.*\});?\s*$/gm);
+  for (const [, key, body] of assignments) {
+    const manifest = JSON.parse(body);
     const entries = manifest.entryJSFiles ?? {};
     const pageKey = Object.keys(entries).find((k) => k.endsWith("/page"));
     if (!pageKey) continue;
