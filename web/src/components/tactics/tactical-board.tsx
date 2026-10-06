@@ -16,7 +16,6 @@ import { shiftToBall, reachTimes, pressingPlan, playerJobs } from "@/lib/board-c
 import { counterExploits, counterRunShapes, type OpponentCounter } from "@/lib/opponent-counter";
 import { videoFileName, downloadBlob } from "@/lib/board-video";
 import { makeShareVideo } from "@/lib/board-video-mp4";
-import { generatePlayHandoutPdf, handoutFileName } from "@/lib/play-handout-pdf";
 import { canShareFile } from "@/lib/share-file";
 import { activePhase, switchPhase, phaseGlideFrames, phaseTourFrames, phasesFromLayouts, type Phase } from "@/lib/board-phases";
 import { layoutTeams } from "@/lib/formation-layout";
@@ -1032,6 +1031,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     }
     setMakingHandout(true);
     try {
+      // pdf-lib is big and only needed when a coach taps Handout, so it loads then.
+      const { generatePlayHandoutPdf, handoutFileName } = await import("@/lib/play-handout-pdf");
       const bytes = await generatePlayHandoutPdf({
         title: playName.trim() || "Play",
         subtitle: [team?.name, team?.age_group].filter(Boolean).join(" · "),

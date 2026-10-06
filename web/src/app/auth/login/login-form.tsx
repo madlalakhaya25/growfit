@@ -2,12 +2,12 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
-import { loginSchema, type LoginInput } from "@/lib/validation";
+import type { LoginInput } from "@/lib/validation";
+import { loginResolver } from "@/lib/login-resolver";
 import { createClient } from "@/lib/supabase/client";
 import { rememberSignIn } from "@/lib/auth-cookies";
 
@@ -40,7 +40,7 @@ export function LoginForm() {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<LoginInput>({
-    resolver: zodResolver(loginSchema),
+    resolver: loginResolver,
   });
 
   async function onSubmit({ email, password }: LoginInput) {

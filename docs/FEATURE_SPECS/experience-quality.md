@@ -53,7 +53,7 @@ tap-target consistency).
 2. **Budgets. Done.** (See "Budgets in force" below.) Agree numbers from step 1 (for example: coach home under a stated
    JS size and load time on a throttled phone; zero serious axe issues). Add a CI
    check that fails when a budget is broken.
-3. **Cheap performance wins.** Load pdf-lib, recharts and the other large,
+3. **Cheap performance wins. Mostly done** (charts, handout PDF and the sign-in form load lazily or lighter; images and Sentry left).  Load pdf-lib, recharts and the other large,
    rarely-used libraries only on the screens that need them; switch the 11
    `<img>` tags to `next/image`; check Sentry's size and sample rate.
 4. **Accessibility fixes.** Whatever axe finds, worst first: labels, contrast,
@@ -84,11 +84,9 @@ broken. Ceilings are gzipped JavaScript the browser loads for a route.
 |---|---|---|
 | Any route not listed below | 150 KB | all but eight are under it |
 | Median route (the shared base) | 130 KB | 120 KB |
-| Tactics board | 370 KB | 351 KB |
-| Player passport (coach) | 285 KB | 268 KB |
-| Player home | 250 KB | 238 KB |
-| Admin analytics | 250 KB | 237 KB |
-| Login, register and password pages | 185 KB each | 173 to 175 KB |
+| Tactics board | 190 KB | 179 KB (was 351) |
+| Player passport (coach) | 170 KB | 159 KB (was 268) |
+| Register, forgot and reset password | 185 KB each | 173 to 175 KB |
 
 The listed routes are the ones step 3 should make lighter. When a PR lowers one,
 it lowers its number in the same PR, so the gain cannot be lost again. Raising a
