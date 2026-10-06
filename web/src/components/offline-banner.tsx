@@ -25,12 +25,12 @@ export function useOnline(): boolean {
 export function OfflineBanner() {
   if (useOnline()) return null;
   return (
-    <div role="status" className="mb-4 flex items-start gap-3 rounded-xl bg-warning/15 px-4 py-3 text-sm text-foreground">
+    <output className="mb-4 flex items-start gap-3 rounded-xl bg-warning/15 px-4 py-3 text-sm text-foreground">
       <WifiOff className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
       <p>
         <span className="font-semibold">You&apos;re offline.</span> Attendance marks will send when you&apos;re back online.
         Other changes won&apos;t save until then.
       </p>
-    </div>
+    </output>
   );
 }
