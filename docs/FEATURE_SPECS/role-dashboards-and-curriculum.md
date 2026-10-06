@@ -48,10 +48,10 @@ A role dashboard answers "what do I need to know and do today?" for one person. 
 
 Finish the slice's remaining PRs first, since they create the objective data these views need, then:
 
-1. Curriculum table and rules, with tests. Migration approved by decision card before it runs.
-2. Admin curriculum screen (empty until Buhle starts it).
-3. Curriculum picker on sessions and on the match focus step.
-4. Coverage view.
+1. Curriculum table and rules, with tests. Migration 068 run. **Done (#131).**
+2. Admin curriculum screen. **Done (#133).** Buhle's starter list (60 items) is loaded.
+3. Curriculum picker on sessions and on a team's open objectives. **Done (#134 to #136).**
+4. Coverage view in Academy settings. **Done (#137, #138).**
 5. Staff hats and the card picker.
 6. Director and technical director cards.
 
