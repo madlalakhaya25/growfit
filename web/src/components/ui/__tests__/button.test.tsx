@@ -60,4 +60,9 @@ describe("Button", () => {
     render(<Button className="my-custom">Test</Button>);
     expect(screen.getByRole("button")).toHaveClass("my-custom");
   });
+
+  it("keeps the small size at least 44 px tall on a touch screen", () => {
+    render(<Button size="sm">Small</Button>);
+    expect(screen.getByRole("button")).toHaveClass("h-9", "pointer-coarse:h-11");
+  });
 });

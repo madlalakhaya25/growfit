@@ -66,7 +66,7 @@
   --color-secondary:            #e3e3e8;
   --color-secondary-foreground: #000000;
   --color-muted:                #eeeef0;
-  --color-muted-foreground:     #6c6c70;
+  --color-muted-foreground:     #636366;
   --color-accent:               #fbeaea;
   --color-accent-foreground:    #7d1110;
 
@@ -159,9 +159,14 @@
   --color-ink:                  var(--color-foreground);
   --color-ink-foreground:       var(--color-background);
 
-  --color-primary:              #e24b49;
+  /* Red cannot be both a fill that white text reads on (5:1 needs a darker red)
+     and text that reads on black (needs a lighter one). So the fill is the
+     darker red, and red text in dark mode uses --color-primary-text through the
+     .dark .text-primary rule in @layer utilities below. Both pass 4.5:1. */
+  --color-primary:              #cf3a38;
   --color-primary-foreground:   #ffffff;
-  --color-brand:                #e24b49;
+  --color-primary-text:         #f06462;
+  --color-brand:                #cf3a38;
   --color-brand-foreground:     #ffffff;
 
   --color-secondary:            #2c2c2e;
@@ -241,6 +246,11 @@
 }
 
 @layer utilities {
+  .dark .text-primary,
+  .dark .hover\:text-primary:hover {
+    color: var(--color-primary-text);
+  }
+
   /* Display type — page titles, scorelines, jersey numbers, big stat
      numbers. Condensed weights read as "matchday poster", not "admin
      dashboard". Use sparingly: body copy stays on --font-sans. */

@@ -62,7 +62,7 @@
 | 64, 65 | Feature rationalisation, roadmap | Built | Audit page; roadmap pointers |
 | 66 | Vertical slice | Built | Match to Training: PRs #122 to #125 and #127 merged; migration 067 still to run |
 | 67 | AI cost control | Partly | Per-user budget and caching exist; no plan for scale or paid tier |
-| 68 | Security | Partly | Four audit debts open (offline cache after sign-out, shared-play notes read, no ESLint in CI, age-rewrite erasure gap) |
+| 68 | Security | Built | The four audit debts are fixed: sign-out clears the device, erasure removes simplified notes naming the child, lint runs in CI, and players no longer read shared plays' private notes (migration 070 to run) |
 | 69 | Testing | Partly | Strong unit tests; no accessibility or performance tests |
 | 70 | Documentation | Built | Engineering docs, coach guide `docs/guides/match-to-training.md`, release notes |
 | 71 | Docusaurus user docs | Deferred | When a second academy joins |

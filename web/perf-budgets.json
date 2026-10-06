@@ -1,0 +1,12 @@
+{
+  "_note": "Gzipped JavaScript per route, in KB. See docs/FEATURE_SPECS/experience-quality.md step 2. Lower a route's number in the PR that makes it lighter.",
+  "defaultGzipKb": 150,
+  "medianGzipKb": 130,
+  "routes": {
+    "/dashboard/coach/tactics/board": 190,
+    "/dashboard/coach/squad/[playerId]": 170,
+    "/auth/register": 185,
+    "/auth/reset-password": 185,
+    "/auth/forgot-password": 185
+  }
+}

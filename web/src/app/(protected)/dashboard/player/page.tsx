@@ -16,7 +16,7 @@ import { CopyButton } from "@/components/copy-button";
 import { AttributeSummary } from "@/components/player/attribute-summary";
 import { PlayerPassportCard } from "@/components/player/player-passport-card";
 import { ClaimProfileForm } from "./claim-profile-form";
-import { RatingChart } from "@/components/rating-chart";
+import { RatingChart } from "@/components/lazy-charts";
 import { MediaGallery } from "@/components/media/media-gallery";
 import { MyPositionPanel } from "@/components/tactics/my-position-panel";
 import { PositionsEditor } from "@/components/player/positions-editor";

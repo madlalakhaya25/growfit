@@ -125,8 +125,9 @@ describe("listCoachHomework", () => {
   });
 });
 
-function playerDb(over: { player?: unknown; assignment?: unknown; response?: unknown; insertError?: { code?: string } | null } = {}) {
+function playerDb(over: { player?: unknown; assignment?: unknown; response?: unknown; insertError?: { code?: string } | null; tokenReply?: FakeReply } = {}) {
   return setup((op) => {
+    if (op.table === "rpc:shared_play_token") return over.tokenReply ?? { data: "tok" };
     if (op.table === "players") return { data: "player" in over ? over.player : { id: "player-1" } };
     if (op.table === "team_members") return { data: [{ team_id: MINE }] };
     if (op.table === "homework_assignments") {
@@ -186,6 +187,28 @@ describe("getMyHomework", () => {
     expect(homework?.result).toBeNull();
     expect(JSON.stringify(homework?.questions)).not.toMatch(/correct|explanation|arrive late/);
     expect(homework?.play).toEqual({ name: "Overlap", notes: null, data: { tokens: [] } });
+    expect(mockSharedPlay).toHaveBeenCalledWith("tok");
+  });
+
+  it("gets the play's token from the function, never by reading the play row", async () => {
+    const d = playerDb();
+    await getMyHomework("hw-1");
+    expect(d.calls.some((c) => c.table === "rpc:shared_play_token" && c.payload?.p_play_id === "play-1")).toBe(true);
+    expect(d.calls.some((c) => c.table === "tactic_plays")).toBe(false);
+  });
+
+  it("shows no play, and reads no row, when the function says it is not shared with this player", async () => {
+    const d = playerDb({ tokenReply: { data: null } });
+    const { homework } = await getMyHomework("hw-1");
+    expect(homework?.play).toBeNull();
+    expect(mockSharedPlay).not.toHaveBeenCalled();
+    expect(d.calls.some((c) => c.table === "tactic_plays")).toBe(false);
+  });
+
+  it("falls back to reading the row only while migration 070 has not run", async () => {
+    const d = playerDb({ tokenReply: { error: { code: "PGRST202", message: "no function" } } });
+    await getMyHomework("hw-1");
+    expect(d.calls.some((c) => c.table === "tactic_plays")).toBe(true);
     expect(mockSharedPlay).toHaveBeenCalledWith("tok");
   });
 

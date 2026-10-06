@@ -52,6 +52,11 @@ jobs:
       - name: Typecheck
         run: ./node_modules/.bin/tsc --noEmit
 
+      # Lint was never in CI, so errors piled up unseen. Warnings fail too, so
+      # a stale suppression or an unused import is caught the day it appears.
+      - name: Lint
+        run: npm run lint -- --max-warnings=0
+
       - name: Unit tests
         run: npm test
 
@@ -65,6 +70,11 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://x.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy
           SUPABASE_SERVICE_ROLE_KEY: dummy
+
+      # Experience quality, step 2: fails when a route's JavaScript grows past
+      # web/perf-budgets.json. Needs the build above.
+      - name: Performance budgets
+        run: npm run check:budgets
 
       - name: Install Playwright's browser
         run: ./node_modules/.bin/playwright install --with-deps chromium
