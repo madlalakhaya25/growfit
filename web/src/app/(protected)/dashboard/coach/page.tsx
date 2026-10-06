@@ -18,6 +18,8 @@ import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { getWelfareAlerts } from "@/app/actions/welfare";
 import { reportError } from "@/lib/report-error";
 import { RetryButton } from "@/components/ui/retry-button";
+import { ThisWeekObjectives } from "@/components/this-week-objectives";
+import { loadOpenObjectives } from "@/lib/objectives-data";
 import { currentHourInTimezone, formatInTimezone, formatTime, formatWeekdayDayMonth } from "@/lib/time";
 
 function greeting() {
@@ -179,6 +181,9 @@ export default async function CoachDashboardPage() {
     registersNotTaken = recentSessionIds.filter((id) => !takenSet.has(id)).length;
   }
 
+  const openObjectives = await loadOpenObjectives(supabase, teamIds);
+  const teamNames = Object.fromEntries(rawTeams.map((t) => [t.id, t.name]));
+
   const resultsNotLogged = unloggedFixtures?.length ?? 0;
   const welfareError = "error" in welfareResult;
   const welfareAlerts = "alerts" in welfareResult ? welfareResult.alerts.length : 0;
@@ -337,6 +342,8 @@ export default async function CoachDashboardPage() {
               </Link>
             );
           })()}
+
+          <ThisWeekObjectives objectives={openObjectives} teamNames={multiTeam ? teamNames : undefined} />
 
           {/* ── To-do ─────────────────────────────────────────────── */}
           {todoError ? (

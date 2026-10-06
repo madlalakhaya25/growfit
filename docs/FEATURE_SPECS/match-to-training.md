@@ -181,7 +181,7 @@ fails. It is not queued in this slice.
 1. Migration and pure modules with tests. **Migration approved with you first,
    by decision card, before it runs in production.**
 2. "What do we work on this week?" step on the match log. *Built (PR 2): free text plus a phase picker that defaults to the lowest-rated phase; presets wait for Buhle's wording. Hidden when the team already has two open.*
-3. The objective on the coach home and the week plan, the session generator prefill, and linking.
+3. The objective on the coach home and the week plan, the session generator prefill, and linking. *Built (PR 3): a "This week" list on the coach home and the week plan; "Plan a session" opens the new-session page with the focus prefilled and the objective carried, and the saved session is linked. Linking a tactics-board play comes with the play editor later.*
 4. The follow-up question at the next match, the verdict, and history on Squad Review.
 5. The family note line, plus a user guide page and release notes.
 6. (Later, separate) The AI "Why might this be happening?" helper, once AI terms are settled.

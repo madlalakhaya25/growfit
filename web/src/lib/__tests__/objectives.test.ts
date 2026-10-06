@@ -3,6 +3,9 @@ import {
   canOpenObjective,
   cleanObjectiveInput,
   defaultObjectiveText,
+  linkedLabel,
+  phaseLabel,
+  planSessionHref,
   objectiveDebt,
   suggestPhase,
   verdictFromSeenAgain,
@@ -150,5 +153,32 @@ describe("objectiveDebt", () => {
   it("ignores closed objectives and ones that already have a verdict", () => {
     expect(objectiveDebt([open({ status: "closed" })], [match({})], "2026-10-30")).toEqual([]);
     expect(objectiveDebt([open({ verdict: "partly", linkedCount: 1 })], [match({})], "2026-10-30")).toEqual([]);
+  });
+});
+
+describe("screen helpers", () => {
+  const o = { id: "obj-1", teamId: "team-1", problem: "We lose it playing out from the back." };
+
+  it("sends the coach to the new-session page with the team, objective and a cleaned focus", () => {
+    const url = new URL(planSessionHref(o), "https://x.test");
+    expect(url.pathname).toBe("/dashboard/coach/training/new");
+    expect(url.searchParams.get("team")).toBe("team-1");
+    expect(url.searchParams.get("objective")).toBe("obj-1");
+    expect(url.searchParams.get("focus")).toBe("We lose it playing out from the back");
+  });
+
+  it("leaves the focus out when the problem has nothing usable in it", () => {
+    expect(new URL(planSessionHref({ ...o, problem: "?" }), "https://x.test").searchParams.has("focus")).toBe(false);
+  });
+
+  it("says what has been planned", () => {
+    expect(linkedLabel(0)).toBe("Nothing planned yet");
+    expect(linkedLabel(1)).toBe("1 session or play planned");
+    expect(linkedLabel(3)).toBe("3 sessions or plays planned");
+  });
+
+  it("names the phase, or nothing", () => {
+    expect(phaseLabel("in_possession")).toBe("In possession");
+    expect(phaseLabel(null)).toBeNull();
   });
 });
