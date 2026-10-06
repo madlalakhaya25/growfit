@@ -3,6 +3,11 @@
 *Written 2026-09-21. Everything not yet done, from all three planning docs,
 deduplicated and put in one order.*
 
+> **Strategy, 2026-10-06.** What to build next and why now lives in
+> [`PRODUCT_STRATEGY.md`](./PRODUCT_STRATEGY.md), with sourced research in
+> [`research/`](./research/) and slice specs in [`FEATURE_SPECS/`](./FEATURE_SPECS/).
+> The first slice is [Match → Training → Follow-up](./FEATURE_SPECS/match-to-training.md).
+
 Three documents were each describing part of the remaining work and
 overlapping badly — `IMPROVEMENT_PLAN.md` item 14 and `FEATURE_PROPOSALS.md`
 proposal 4 are the same job; the design pass appears in two places;

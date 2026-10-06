@@ -13,6 +13,11 @@ memory of what was planned.
 > is and is not built; the backlog puts them in one order alongside the
 > improvement plan and the feature proposals.
 
+> **Strategy, 2026-10-06.** What to build next and why now lives in
+> [`PRODUCT_STRATEGY.md`](./PRODUCT_STRATEGY.md), with sourced research in
+> [`research/`](./research/) and slice specs in [`FEATURE_SPECS/`](./FEATURE_SPECS/).
+> The first slice is [Match → Training → Follow-up](./FEATURE_SPECS/match-to-training.md).
+
 ---
 
 ## Shipped ✅
