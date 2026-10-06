@@ -13,6 +13,8 @@ import { pickTab } from "@/lib/tabs";
 import { loadCurriculum, loadCoverageInputs } from "@/lib/curriculum-data";
 import { CurriculumCard } from "./curriculum-card";
 import { CoverageView } from "./coverage-view";
+import { StaffHatsCard } from "./staff-hats-card";
+import { loadStaffWithHats } from "@/lib/staff-hats-data";
 import { computeCoverage, coverageWindow } from "@/lib/curriculum-coverage";
 
 const TABS = [
@@ -20,6 +22,7 @@ const TABS = [
   { id: "terms", label: "Terms" },
   { id: "curriculum", label: "Curriculum" },
   { id: "coverage", label: "Coverage" },
+  { id: "staff", label: "Staff" },
   { id: "features", label: "Features" },
 ] as const;
 
@@ -69,6 +72,7 @@ export default async function AcademySettingsPage({
   const coverage = coverageInputs && curriculum
     ? computeCoverage(curriculum.items, coverageInputs.links, coverageInputs.sessions, coverageSpan)
     : [];
+  const staffLoad = tab === "staff" ? await loadStaffWithHats(supabase, academy.id) : null;
   const year = Number(today.slice(0, 4));
 
   return (
@@ -169,6 +173,22 @@ export default async function AcademySettingsPage({
           <CoverageView groups={coverage} span={coverageSpan} />
         ) : (
           <p className="rounded-md bg-muted px-3 py-2 text-sm">Curriculum is not set up yet.</p>
+        )}
+      </section>
+      )}
+
+      {tab === "staff" && staffLoad && (
+      <section className="rounded-xl border border-border bg-card p-6 space-y-4">
+        <div>
+          <h2 className="text-base font-semibold">Staff hats</h2>
+          <p className="text-sm text-muted-foreground">
+            A hat only chooses which cards someone sees on their Today page. It gives no extra access. Someone with two hats sees both sets.
+          </p>
+        </div>
+        {staffLoad.available ? (
+          <StaffHatsCard staff={staffLoad.staff} />
+        ) : (
+          <p className="rounded-md bg-muted px-3 py-2 text-sm">Staff hats are not set up yet.</p>
         )}
       </section>
       )}
