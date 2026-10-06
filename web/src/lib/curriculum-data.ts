@@ -6,7 +6,6 @@
 import type { createClient } from "@/lib/supabase/server";
 import { MILESTONE_CATEGORIES } from "@/lib/development-categories";
 import type { CurriculumItem, CurriculumLinkType } from "@/lib/curriculum";
-import { todayIso } from "@/lib/time";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -68,32 +67,4 @@ export async function loadLinkedItemIds(
     .eq("link_id", linkId);
   if (error) return [];
   return ((data ?? []) as { item_id: string }[]).map((r) => r.item_id);
-}
-
-export interface CoverageInputs {
-  links: { itemId: string; linkType: string; linkId: string }[];
-  sessions: { id: string; date: string }[];
-}
-
-/**
- * Every session and objective link the caller may see, with the day of each
- * linked session, for the coverage view. A missing table reads as no links.
- */
-export async function loadCoverageInputs(supabase: Supabase): Promise<CoverageInputs> {
-  const { data, error } = await supabase
-    .from("curriculum_links")
-    .select("item_id, link_type, link_id");
-  if (error) return { links: [], sessions: [] };
-  const links = ((data ?? []) as { item_id: string; link_type: string; link_id: string }[])
-    .map((r) => ({ itemId: r.item_id, linkType: r.link_type, linkId: r.link_id }));
-
-  const sessionIds = [...new Set(links.filter((l) => l.linkType === "session").map((l) => l.linkId))];
-  if (sessionIds.length === 0) return { links, sessions: [] };
-  const { data: rows } = await supabase
-    .from("training_sessions")
-    .select("id, session_date")
-    .in("id", sessionIds);
-  const sessions = ((rows ?? []) as { id: string; session_date: string }[])
-    .map((r) => ({ id: r.id, date: todayIso(new Date(r.session_date)) }));
-  return { links, sessions };
 }

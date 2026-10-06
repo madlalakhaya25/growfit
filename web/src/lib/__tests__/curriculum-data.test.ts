@@ -59,26 +59,3 @@ describe("loadLinkedItemIds", () => {
     expect(await loadLinkedItemIds(missing.client as never, "session", "s1")).toEqual([]);
   });
 });
-
-describe("loadCoverageInputs", () => {
-  it("maps links and looks up only the linked sessions' days", async () => {
-    const { loadCoverageInputs } = await import("../curriculum-data");
-    const f = fakeSupabase((op) =>
-      op.table === "curriculum_links"
-        ? { data: [{ item_id: "a", link_type: "session", link_id: "s1" }, { item_id: "a", link_type: "objective", link_id: "o1" }] }
-        : { data: [{ id: "s1", session_date: "2026-09-10T13:00:00Z" }] });
-    const r = await loadCoverageInputs(f.client as never);
-    expect(r.links).toEqual([{ itemId: "a", linkType: "session", linkId: "s1" }, { itemId: "a", linkType: "objective", linkId: "o1" }]);
-    expect(r.sessions).toEqual([{ id: "s1", date: "2026-09-10" }]);
-    expect(f.calls.filter((c) => c.table === "training_sessions")).toHaveLength(1);
-  });
-
-  it("skips the session lookup with no session links, and reads a missing table as nothing", async () => {
-    const { loadCoverageInputs } = await import("../curriculum-data");
-    const none = fakeSupabase(() => ({ data: [{ item_id: "a", link_type: "objective", link_id: "o1" }] }));
-    expect((await loadCoverageInputs(none.client as never)).sessions).toEqual([]);
-    expect(none.calls.filter((c) => c.table === "training_sessions")).toHaveLength(0);
-    const missing = fakeSupabase(() => ({ error: { code: "PGRST205" } }));
-    expect(await loadCoverageInputs(missing.client as never)).toEqual({ links: [], sessions: [] });
-  });
-});
