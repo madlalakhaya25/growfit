@@ -8,6 +8,7 @@ import type { AttendanceSummary } from "@/lib/attendance";
 import { isMissingAttributeColumn } from "@/lib/attributes";
 import { isFixturePast } from "@/lib/fixtures";
 import { formatDayMonthYear } from "@/lib/time";
+import { countOpenObjectives } from "@/lib/objectives-data";
 import { LogResultForm } from "./log-result-form";
 
 export default async function LogResultPage({
@@ -70,6 +71,8 @@ export default async function LogResultPage({
     }
   }
 
+  const openObjectives = await countOpenObjectives(supabase, fixture.team_id);
+
   return (
     <div className="space-y-6 max-w-2xl">
       <Button asChild variant="ghost" size="sm">
@@ -92,6 +95,7 @@ export default async function LogResultPage({
         opponent={fixture.opponent}
         trainingAttendance={trainingAttendance}
         playerAvailability={playerAvailability}
+        openObjectives={openObjectives}
       />
     </div>
   );

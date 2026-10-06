@@ -16,7 +16,7 @@ export type FakeOp = {
   payload?: Record<string, unknown>;
   one: boolean;
 };
-export type FakeReply = { data?: unknown; error?: { code?: string; message?: string } | null };
+export type FakeReply = { data?: unknown; error?: { code?: string; message?: string } | null; count?: number };
 
 export function fakeSupabase(handler: (op: FakeOp) => FakeReply) {
   const calls: FakeOp[] = [];
@@ -31,7 +31,7 @@ export function fakeSupabase(handler: (op: FakeOp) => FakeReply) {
               return (resolve: (v: unknown) => void) => {
                 calls.push({ ...op });
                 const r = handler(op);
-                resolve({ data: r.data ?? null, error: r.error ?? null });
+                resolve({ data: r.data ?? null, error: r.error ?? null, count: r.count ?? null });
               };
             }
             if (prop === "insert" || prop === "update" || prop === "upsert") {

@@ -9,6 +9,7 @@ import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { friendlyError } from "@/lib/friendly-error";
 import { isMissingAttributeColumn } from "@/lib/attributes";
 import { cleanPhaseRatings } from "@/lib/match-phases";
+import { createMatchObjective } from "@/lib/objectives-data";
 
 // Not redundant with RLS: `fixture_staff_write`/`fixture_staff_update` only
 // check `is_admin_or_coach()` + academy match, not which team a coach
@@ -209,7 +210,28 @@ const logMatchSchema = z.object({
     note: z.string().max(200).optional(),
   })),
   phase_ratings: z.record(z.string(), z.number()).optional(),
+  // "What do we work on this week?" Cleaned again in createMatchObjective.
+  objective: z.unknown().optional(),
 });
+
+/** Opens the weekly-focus objective for the fixture's team. Returns a note for the coach when it wasn't saved. */
+async function saveWeeklyFocus(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  args: { userId: string; teamIds: string[]; fixtureId: string; raw: unknown },
+): Promise<string | null> {
+  if (args.raw === undefined || args.raw === null) return null;
+  const { data: fixture } = await supabase
+    .from("fixtures")
+    .select("team_id")
+    .eq("id", args.fixtureId)
+    .in("team_id", args.teamIds)
+    .single();
+  if (!fixture) return null;
+  const made = await createMatchObjective(supabase, {
+    userId: args.userId, teamId: fixture.team_id, fixtureId: args.fixtureId, raw: args.raw,
+  });
+  return made.created ? null : (made.note ?? null);
+}
 
 export async function logMatch(payload: unknown) {
   const { supabase, user } = await requireUser();
@@ -220,7 +242,7 @@ export async function logMatch(payload: unknown) {
   const parsed = logMatchSchema.safeParse(payload);
   if (!parsed.success) return { error: "Invalid payload." };
 
-  const { fixture_id, team_score, opponent_score, match_notes, appearances, ratings, phase_ratings } = parsed.data;
+  const { fixture_id, team_score, opponent_score, match_notes, appearances, ratings, phase_ratings, objective } = parsed.data;
 
   const { data, error } = await supabase.rpc("log_match_result", {
     p_fixture_id:     fixture_id,
@@ -247,6 +269,14 @@ export async function logMatch(payload: unknown) {
       revalidatePath(`/dashboard/coach/fixtures/${fixture_id}`);
       return { error: `The result is saved, but the phase ratings weren't: ${friendlyError(phaseError)}` };
     }
+  }
+
+  // The weekly focus rides on the same save. The result is already stored, so
+  // a problem here is reported, not rolled back.
+  const focusNote = await saveWeeklyFocus(supabase, { userId: user.id, teamIds, fixtureId: fixture_id, raw: objective });
+  if (focusNote) {
+    revalidatePath(`/dashboard/coach/fixtures/${fixture_id}`);
+    return { error: `The result is saved. ${focusNote}` };
   }
 
   revalidatePath(`/dashboard/coach/fixtures/${fixture_id}`);
