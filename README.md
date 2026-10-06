@@ -184,6 +184,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design.
 
 - [System design and architecture](docs/ARCHITECTURE.md)
 - [Release notes](docs/RELEASE_NOTES.md)
+- [Product strategy](docs/PRODUCT_STRATEGY.md), its [research](docs/research/) and [feature specs](docs/FEATURE_SPECS/)
 - [Product roadmap](docs/ROADMAP.md) and [outstanding work](docs/BACKLOG.md)
 - [AI and UX plan](docs/AI_AND_UX_PLAN_2026.md)
 - [Migration runbook](docs/MIGRATION_RUNBOOK.md)
