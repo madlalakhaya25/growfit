@@ -409,18 +409,20 @@ export async function deleteAgeRewritesMentioning(
   const first = full.split(/\s+/)[0] ?? "";
   const names = [...new Set([full, first].filter((n) => n.length > 0))];
   try {
-    for (const name of names) {
-      const pattern = `%${name.replace(/[\\%_]/g, "\\$&")}%`;
-      const { error } = await supabase
-        .from("ai_artefacts")
-        .delete()
-        .eq("academy_id", academyId)
-        .eq("kind", "age_rewrite")
-        .ilike("prose", pattern);
-      if (error) {
-        if (isMissingAiArtefactsTable(error)) return { deleted: true };
-        return { deleted: false, error: error.message };
-      }
+    const results = await Promise.all(
+      names.map((name) =>
+        supabase
+          .from("ai_artefacts")
+          .delete()
+          .eq("academy_id", academyId)
+          .eq("kind", "age_rewrite")
+          .ilike("prose", `%${name.replace(/[\\%_]/g, String.raw`\$&`)}%`)
+      )
+    );
+    for (const { error } of results) {
+      if (!error) continue;
+      if (isMissingAiArtefactsTable(error)) return { deleted: true };
+      return { deleted: false, error: error.message };
     }
     return { deleted: true };
   } catch (e) {

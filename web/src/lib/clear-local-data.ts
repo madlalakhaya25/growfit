@@ -37,12 +37,14 @@ function clearStorage(store: Storage) {
 
 async function clearPageCache() {
   if (typeof caches === "undefined") return;
-  for (const name of await caches.keys()) {
-    const cache = await caches.open(name);
-    for (const req of await cache.keys()) {
-      if (!keepCachedPath(new URL(req.url).pathname)) await cache.delete(req);
-    }
-  }
+  const names = await caches.keys();
+  await Promise.all(
+    names.map(async (name) => {
+      const cache = await caches.open(name);
+      const requests = await cache.keys();
+      await Promise.all(requests.filter((r) => !keepCachedPath(new URL(r.url).pathname)).map((r) => cache.delete(r)));
+    })
+  );
 }
 
 function clearOfflineQueue(): Promise<void> {

@@ -14,6 +14,17 @@ import {
 } from "../ai-artefacts";
 import { isMissingAttributeColumn } from "../attributes";
 
+function recording(reply: { error?: { code?: string; message?: string } | null } = {}) {
+  const calls: [string, ...unknown[]][] = [];
+  const chain: Record<string, unknown> = new Proxy({}, {
+    get(_t, prop: string) {
+      if (prop === "then") return (resolve: (v: unknown) => void) => resolve({ data: null, error: reply.error ?? null });
+      return (...args: unknown[]) => { calls.push([prop, ...args]); return chain; };
+    },
+  });
+  return { calls, client: { from: (t: string) => { calls.push(["from", t]); return chain; } } as never };
+}
+
 const NOW = new Date("2026-10-10T12:00:00Z");
 const fresh = {
   kind: "development_plan" as const,
@@ -199,17 +210,6 @@ describe("summariseAiUsage aggregation", () => {
 });
 
 describe("deletePlayRolesForPlayer", () => {
-  function recording(reply: { error?: { code?: string; message?: string } | null } = {}) {
-    const calls: [string, ...unknown[]][] = [];
-    const chain: Record<string, unknown> = new Proxy({}, {
-      get(_t, prop: string) {
-        if (prop === "then") return (resolve: (v: unknown) => void) => resolve({ data: null, error: reply.error ?? null });
-        return (...args: unknown[]) => { calls.push([prop, ...args]); return chain; };
-      },
-    });
-    return { calls, client: { from: (t: string) => { calls.push(["from", t]); return chain; } } as never };
-  }
-
   it("deletes only the play_roles sets whose entries include the player", async () => {
     const r = recording();
     await expect(deletePlayRolesForPlayer(r.client, "p-1")).resolves.toEqual({ deleted: true });
@@ -229,17 +229,6 @@ describe("deletePlayRolesForPlayer", () => {
 });
 
 describe("deleteAgeRewritesMentioning", () => {
-  function recording(reply: { error?: { code?: string; message?: string } | null } = {}) {
-    const calls: [string, ...unknown[]][] = [];
-    const chain: Record<string, unknown> = new Proxy({}, {
-      get(_t, prop: string) {
-        if (prop === "then") return (resolve: (v: unknown) => void) => resolve({ data: null, error: reply.error ?? null });
-        return (...args: unknown[]) => { calls.push([prop, ...args]); return chain; };
-      },
-    });
-    return { calls, client: { from: (t: string) => { calls.push(["from", t]); return chain; } } as never };
-  }
-
   it("deletes this academy's rewrites that mention the full name or the first name", async () => {
     const r = recording();
     await expect(deleteAgeRewritesMentioning(r.client, "ac", "Sipho Dlamini")).resolves.toEqual({ deleted: true });
