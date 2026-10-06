@@ -1,4 +1,4 @@
-import { LESSON_AREAS, approvedLessons, findLesson, groupLessons, type Lesson } from "@/lib/lessons";
+import { LESSON_AREAS, approvedLessons, findLesson, groupLessons, parseLessons, type Lesson } from "@/lib/lessons";
 import { LESSONS } from "@/lib/lessons-content";
 
 const lesson = (over: Partial<Lesson>): Lesson => ({
@@ -57,5 +57,26 @@ describe("the shipped lessons", () => {
     }
     expect(LESSONS.every((l) => l.approved && l.body.length === 4)).toBe(true);
     expect(LESSONS.flatMap((l) => l.problemKeys ?? []).every((k) => MATCH_PROBLEMS.some((p) => p.key === k))).toBe(true);
+  });
+});
+
+
+describe("parseLessons", () => {
+  const block = (slug: string, extra = "") =>
+    `problem: p-${slug}\nslug: ${slug}\narea: tactical\ntitle: T ${slug}\nsummary: S\nsee: A\nwhy: B\ntry: C\nwatch: D${extra}`;
+  it("reads blocks into approved lessons with four parts in order", () => {
+    const out = parseLessons(`\n${block("one")}\n\n${block("two")}\n`);
+    expect(out.map((l) => l.slug)).toEqual(["one", "two"]);
+    expect(out[0]).toMatchObject({ area: "tactical", title: "T one", problemKeys: ["p-one"], approved: true });
+    expect(out[0].body).toEqual(["What you see: A", "Why it happens: B", "What to try: C", "Watch for next match: D"]);
+  });
+  it("keeps a colon inside the text", () => {
+    expect(parseLessons(block("x").replace("try: C", "try: Say: look first"))[0].body[2]).toBe("What to try: Say: look first");
+  });
+  it("drops a block with a missing field, an unknown area or a repeated slug", () => {
+    const noWhy = block("a").replace("why: B\n", "");
+    const badArea = block("b").replace("area: tactical", "area: nope");
+    const out = parseLessons([noWhy, badArea, block("c"), block("c")].join("\n\n"));
+    expect(out.map((l) => l.slug)).toEqual(["c"]);
   });
 });

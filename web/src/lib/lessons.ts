@@ -68,3 +68,36 @@ export function lessonsForProblem(lessons: readonly Lesson[], problemKey: string
   if (!problemKey) return [];
   return approvedLessons(lessons).filter((l) => l.problemKeys?.includes(problemKey));
 }
+
+const FIELDS = ["problem", "slug", "area", "title", "summary", "see", "why", "try", "watch"] as const;
+
+/**
+ * Reads lessons written as blocks of "name: text" lines, a blank line between blocks.
+ * A block missing a field, repeating a slug or naming an unknown area is dropped, so
+ * a typo hides one lesson and never shows half of one. Every lesson read this way is
+ * marked approved: the text file is the approved wording.
+ */
+export function parseLessons(text: string): Lesson[] {
+  const areas = new Set<string>(LESSON_AREAS.map((a) => a.key));
+  const seen = new Set<string>();
+  const lessons: Lesson[] = [];
+  for (const block of text.split(/\n\s*\n/)) {
+    const f: Record<string, string> = {};
+    for (const line of block.split("\n")) {
+      const at = line.indexOf(": ");
+      if (at > 0) f[line.slice(0, at).trim()] = line.slice(at + 2).trim();
+    }
+    if (!FIELDS.every((k) => f[k]) || !areas.has(f.area) || seen.has(f.slug)) continue;
+    seen.add(f.slug);
+    lessons.push({
+      slug: f.slug,
+      area: f.area as LessonAreaKey,
+      title: f.title,
+      summary: f.summary,
+      problemKeys: [f.problem],
+      body: [`What you see: ${f.see}`, `Why it happens: ${f.why}`, `What to try: ${f.try}`, `Watch for next match: ${f.watch}`],
+      approved: true,
+    });
+  }
+  return lessons;
+}
