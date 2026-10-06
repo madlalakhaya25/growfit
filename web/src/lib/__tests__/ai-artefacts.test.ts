@@ -1,6 +1,7 @@
 import {
   AI_ARTEFACT_TTL,
   deleteAiArtefactsForSubject,
+  deleteAgeRewritesMentioning,
   deletePlayRolesForPlayer,
   fingerprintBrief,
   getLatestAiArtefact,
@@ -222,6 +223,39 @@ describe("deletePlayRolesForPlayer", () => {
   it("is not blocked by the missing table, and surfaces any other error", async () => {
     await expect(deletePlayRolesForPlayer(recording({ error: { code: "PGRST205", message: "no table" } }).client, "p")).resolves.toEqual({ deleted: true });
     await expect(deletePlayRolesForPlayer(recording({ error: { code: "42501", message: "denied" } }).client, "p")).resolves.toEqual({
+      deleted: false, error: "denied",
+    });
+  });
+});
+
+describe("deleteAgeRewritesMentioning", () => {
+  function recording(reply: { error?: { code?: string; message?: string } | null } = {}) {
+    const calls: [string, ...unknown[]][] = [];
+    const chain: Record<string, unknown> = new Proxy({}, {
+      get(_t, prop: string) {
+        if (prop === "then") return (resolve: (v: unknown) => void) => resolve({ data: null, error: reply.error ?? null });
+        return (...args: unknown[]) => { calls.push([prop, ...args]); return chain; };
+      },
+    });
+    return { calls, client: { from: (t: string) => { calls.push(["from", t]); return chain; } } as never };
+  }
+
+  it("deletes this academy's rewrites that mention the full name or the first name", async () => {
+    const r = recording();
+    await expect(deleteAgeRewritesMentioning(r.client, "ac", "Sipho Dlamini")).resolves.toEqual({ deleted: true });
+    expect(r.calls).toEqual([
+      ["from", "ai_artefacts"], ["delete"], ["eq", "academy_id", "ac"], ["eq", "kind", "age_rewrite"], ["ilike", "prose", "%Sipho Dlamini%"],
+      ["from", "ai_artefacts"], ["delete"], ["eq", "academy_id", "ac"], ["eq", "kind", "age_rewrite"], ["ilike", "prose", "%Sipho%"],
+    ]);
+  });
+  it("escapes LIKE wildcards so a name cannot match everything", async () => {
+    const r = recording();
+    await deleteAgeRewritesMentioning(r.client, "ac", "100%_x");
+    expect(r.calls.filter((c) => c[0] === "ilike")).toEqual([["ilike", "prose", "%100\\%\\_x%"]]);
+  });
+  it("is not blocked by the missing table, and surfaces any other error", async () => {
+    await expect(deleteAgeRewritesMentioning(recording({ error: { code: "42P01" } }).client, "ac", "A B")).resolves.toEqual({ deleted: true });
+    await expect(deleteAgeRewritesMentioning(recording({ error: { code: "42501", message: "denied" } }).client, "ac", "A B")).resolves.toEqual({
       deleted: false, error: "denied",
     });
   });

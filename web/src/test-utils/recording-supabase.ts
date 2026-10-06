@@ -13,6 +13,7 @@ export function recordingSupabase(handler: (op: FakeOp) => FakeReply) {
   const filters: RecordedFilter[] = [];
   type Builder = Record<string, (...a: unknown[]) => unknown>;
   const client = {
+    rpc: f.client.rpc,
     from(table: string) {
       const wrap = (target: Builder): unknown =>
         new Proxy(target, {

@@ -28,10 +28,10 @@ const order = (ops: FakeOp[]) => ops.filter((o) => o.action === "delete").map((o
 beforeEach(() => jest.clearAllMocks());
 
 describe("deletePlayerRecord", () => {
-  it("erases the player's artefacts, then the 'my job in this play' sets that name them, then the player", async () => {
+  it("erases the player's artefacts, then the 'my job in this play' sets that name them, and the simplified notes that name them, then the player", async () => {
     const { ops } = setup();
     await expect(deletePlayerRecord("p1", "Sipho Dlamini")).rejects.toThrow("NEXT_REDIRECT");
-    expect(order(ops)).toEqual(["ai_artefacts", "ai_artefacts", "coach_notes", "players"]);
+    expect(order(ops)).toEqual(["ai_artefacts", "ai_artefacts", "ai_artefacts", "ai_artefacts", "coach_notes", "players"]);
   });
   it("stops, deleting nothing more, if the play-role sets can't be erased", async () => {
     const { ops } = setup({ artefactDeletes: [null, { code: "42501", message: "denied" }] });
@@ -39,6 +39,13 @@ describe("deletePlayerRecord", () => {
       error: "Couldn't erase this player's saved AI output — nothing was deleted.",
     });
     expect(order(ops)).toEqual(["ai_artefacts", "ai_artefacts"]);
+  });
+  it("stops, deleting no player, if the simplified notes that name them can't be erased", async () => {
+    const { ops } = setup({ artefactDeletes: [null, null, { code: "42501", message: "denied" }] });
+    expect(await deletePlayerRecord("p1", "Sipho Dlamini")).toEqual({
+      error: "Couldn't erase this player's saved AI output — nothing was deleted.",
+    });
+    expect(order(ops)).not.toContain("players");
   });
   it("stops before deleting the player if the coach notes about them can't be erased", async () => {
     const { ops } = setup({ notesError: { code: "42501", message: "denied" } });

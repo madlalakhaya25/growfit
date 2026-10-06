@@ -6,6 +6,16 @@ releases yet. Newest first.
 
 ---
 
+## 2026-10-06 — Four security fixes
+
+**Fixed**
+- **Signing out now clears the phone.** The offline attendance queue, unsaved board and minutes drafts, the Ask Growfit conversation and the saved copies of dashboard pages are removed, so the next person on a shared phone cannot open the last coach's pages. Attendance marks still waiting to send are lost if you sign out before reconnecting.
+- **Erasing a player also removes simplified notes that name them.** Coach notes rewritten for a child are stored by their text, not by player, so erasure missed them. It now deletes any that mention the child's full name or first name.
+- **Lint runs on every pull request** and fails on any warning. Four existing errors and two stale suppressions were fixed to start clean.
+- **A player can no longer read a teammate's private coaching notes** by asking the database for a shared play directly (migration 070; the app works before it is run, but the gap closes only when it is).
+
+---
+
 ## 2026-10-06 — Staff hats, director cards and problem presets
 
 **Added**
