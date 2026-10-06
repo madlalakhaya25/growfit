@@ -10,7 +10,10 @@ import { POSITIONS } from "@/lib/types";
 import { getInitials } from "@/lib/player";
 import type { AttendanceSummary } from "@/lib/attendance";
 import { MATCH_PHASES, type MatchPhaseId, type PhaseRatings } from "@/lib/match-phases";
-import { MAX_OPEN_OBJECTIVES, suggestPhase } from "@/lib/objectives";
+import {
+  MAX_OPEN_OBJECTIVES, phaseLabel, suggestPhase,
+  type FollowUpPrompt, type SeenAgain,
+} from "@/lib/objectives";
 
 type Player = { id: string; full_name: string; position: string | null };
 type PlayerState = { player_id: string; played: boolean; rating: number; note: string };
@@ -42,9 +45,11 @@ interface Props {
   playerAvailability?: Record<string, { status: string; note: string | null }>;
   /** Objectives this team already has open. At two, the weekly focus step is hidden. */
   openObjectives?: number;
+  /** Objectives set at an earlier match, to ask "did we see it again?" about. */
+  followUps?: FollowUpPrompt[];
 }
 
-export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, trainingAttendance, playerAvailability, openObjectives = 0 }: Readonly<Props>) {
+export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, trainingAttendance, playerAvailability, openObjectives = 0, followUps = [] }: Readonly<Props>) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +65,10 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
   const [focusProblem, setFocusProblem] = useState("");
   const suggested = suggestPhase(phaseRatings);
   const chosenPhase = chooseFocusPhase(focusPhase, suggested);
+  // Answers to "did we see the problem again?", by objective id.
+  const [seenAgain, setSeenAgain] = useState<Record<string, SeenAgain>>({});
+  // Answering closes an objective, which frees a place for a new focus.
+  const openAfterAnswers = openObjectives - Object.keys(seenAgain).length;
   const [players, setPlayers] = useState<PlayerState[]>(
     squad.map((p) => ({ player_id: p.id, played: false, rating: 3, note: "" }))
   );
@@ -97,6 +106,7 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
           player_id, rating, note: note || undefined,
         })),
         phase_ratings: Object.keys(phaseRatings).length ? phaseRatings : undefined,
+        follow_ups: Object.entries(seenAgain).map(([objectiveId, answer]) => ({ objectiveId, answer })),
         objective: focusProblem.trim() ? { phase: chosenPhase, problem: focusProblem } : undefined,
       });
       // No else branch here — on success `logMatch` calls redirect(), which
@@ -242,6 +252,72 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
         </div>
       )}
 
+      {/* Follow-up: did the problem we trained for come back? */}
+      {followUps.length > 0 && (
+        <div className="space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+              Did we see the problem again?
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              You set this earlier. Your answer closes it and goes in the team history. Coaches only.
+            </p>
+          </div>
+          <div className="space-y-2">
+            {followUps.map((f) => {
+              const answer = seenAgain[f.id];
+              const label = phaseLabel(f.phase);
+              return (
+                <fieldset key={f.id} className="m-0 rounded-xl border border-border bg-card p-4">
+                  <legend className="sr-only">{`Did we see "${f.problem}" again?`}</legend>
+                  <p className="text-sm font-medium">{f.objective}</p>
+                  {label && f.before && (
+                    <p className="mt-0.5 text-xs text-muted-foreground">{label} was rated {f.before} out of 5 last time.</p>
+                  )}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {(["no", "a_bit", "yes"] as const).map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-pressed={answer === value}
+                        onClick={() =>
+                          setSeenAgain((prev) => {
+                            const next = { ...prev };
+                            if (prev[f.id] === value) delete next[f.id];
+                            else next[f.id] = value;
+                            return next;
+                          })
+                        }
+                        className={cn(
+                          "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                          answer === value
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border text-muted-foreground hover:border-primary/50"
+                        )}
+                      >
+                        {{ no: "No, it's gone", a_bit: "A bit", yes: "Yes, still there" }[value]}
+                      </button>
+                    ))}
+                  </div>
+                  {(answer === "a_bit" || answer === "yes") && (
+                    <button
+                      type="button"
+                      className="mt-3 text-xs font-medium text-primary underline-offset-2 hover:underline"
+                      onClick={() => {
+                        setFocusProblem(f.problem);
+                        setFocusPhase(f.phase ?? "none");
+                      }}
+                    >
+                      Keep working on it this week
+                    </button>
+                  )}
+                </fieldset>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Phase of play — the team, not any one child */}
       <div className="space-y-3">
         <div>
@@ -293,7 +369,7 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
       </div>
 
       {/* Weekly focus: one problem to train for before the next match */}
-      {openObjectives < MAX_OPEN_OBJECTIVES && (
+      {openAfterAnswers < MAX_OPEN_OBJECTIVES && (
         <div className="space-y-3">
           <div>
             <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">

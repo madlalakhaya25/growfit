@@ -1,12 +1,16 @@
 import {
   MAX_OPEN_OBJECTIVES,
   canOpenObjective,
+  cleanFollowUps,
   cleanObjectiveInput,
   defaultObjectiveText,
   linkedLabel,
   phaseLabel,
   planSessionHref,
   objectiveDebt,
+  objectivesToCheck,
+  phaseChange,
+  phaseChangeText,
   suggestPhase,
   verdictFromSeenAgain,
   verdictLabel,
@@ -180,5 +184,59 @@ describe("screen helpers", () => {
   it("names the phase, or nothing", () => {
     expect(phaseLabel("in_possession")).toBe("In possession");
     expect(phaseLabel(null)).toBeNull();
+  });
+});
+
+describe("follow-up at the next match", () => {
+  const open = [
+    { createdAt: "2026-10-04T18:00:00Z", sourceFixtureId: "f1" },
+    { createdAt: "2026-10-04T18:00:00Z", sourceFixtureId: "f2" },
+    { createdAt: "2026-10-12T09:00:00Z", sourceFixtureId: "f3" },
+    { createdAt: "2026-10-04T18:00:00Z", sourceFixtureId: null },
+  ];
+
+  it("asks about objectives set before this match, not the one set at it or after it", () => {
+    const asked = objectivesToCheck(open, "f2", "2026-10-11T13:00:00Z");
+    expect(asked.map((o) => o.sourceFixtureId)).toEqual(["f1", null]);
+  });
+
+  it("asks about nothing when every open objective is newer than the match", () => {
+    expect(objectivesToCheck(open, "f9", "2026-10-01T13:00:00Z")).toEqual([]);
+  });
+
+  const A = "11111111-1111-4111-8111-111111111111";
+  const B = "22222222-2222-4222-8222-222222222222";
+  const C = "33333333-3333-4333-8333-333333333333";
+
+  it("keeps real ids with known answers, one each, at most two", () => {
+    const clean = cleanFollowUps([
+      { objectiveId: A, answer: "no" },
+      { objectiveId: A, answer: "yes" },
+      { objectiveId: "nope", answer: "no" },
+      { objectiveId: B, answer: "maybe" },
+      { objectiveId: C, answer: "a_bit" },
+      { objectiveId: B, answer: "yes" },
+    ]);
+    expect(clean).toEqual([{ objectiveId: A, answer: "no" }, { objectiveId: C, answer: "a_bit" }]);
+  });
+
+  it("returns nothing for anything that is not a list of answers", () => {
+    expect(cleanFollowUps(undefined)).toEqual([]);
+    expect(cleanFollowUps({ objectiveId: A, answer: "no" })).toEqual([]);
+    expect(cleanFollowUps([null, 3, "x"])).toEqual([]);
+  });
+
+  it("compares one phase across two matches only when both were rated", () => {
+    expect(phaseChange({ in_possession: 2 }, { in_possession: 4 }, "in_possession")).toEqual({ before: 2, after: 4 });
+    expect(phaseChange({ in_possession: 2 }, { set_pieces: 4 }, "in_possession")).toBeNull();
+    expect(phaseChange(null, { in_possession: 4 }, "in_possession")).toBeNull();
+    expect(phaseChange({ in_possession: 2 }, { in_possession: 4 }, null)).toBeNull();
+  });
+
+  it("says in words how the rating moved", () => {
+    expect(phaseChangeText("in_possession", { before: 2, after: 4 })).toBe("In possession went from 2 to 4 out of 5.");
+    expect(phaseChangeText("set_pieces", { before: 3, after: 3 })).toBe("Set pieces stayed at 3 out of 5.");
+    expect(phaseChangeText(null, { before: 2, after: 4 })).toBeNull();
+    expect(phaseChangeText("in_possession", null)).toBeNull();
   });
 });

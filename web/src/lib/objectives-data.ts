@@ -5,8 +5,11 @@
 
 import type { createClient } from "@/lib/supabase/server";
 import { friendlyError } from "@/lib/friendly-error";
-import { canOpenObjective, cleanObjectiveInput, type OpenObjective } from "@/lib/objectives";
-import { MATCH_PHASES } from "@/lib/match-phases";
+import {
+  canOpenObjective, cleanObjectiveInput, objectivesToCheck, phaseChange, verdictFromSeenAgain,
+  type FollowUpAnswer, type FollowUpPrompt, type ObjectiveHistoryItem, type ObjectiveVerdict, type OpenObjective,
+} from "@/lib/objectives";
+import { MATCH_PHASES, cleanPhaseRatings, type MatchPhaseId, type PhaseRatings } from "@/lib/match-phases";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -74,9 +77,11 @@ export async function createMatchObjective(
 }
 
 const PHASE_IDS = new Set<string>(MATCH_PHASES.map((p) => p.id));
+const asPhase = (v: string | null): MatchPhaseId | null => (v && PHASE_IDS.has(v) ? (v as MatchPhaseId) : null);
 
 type ObjectiveRowDb = {
   id: string; subject_id: string; phase: string | null; problem: string; objective: string; created_at: string;
+  source_fixture_id: string | null;
   development_objective_links: { link_id: string }[] | null;
 };
 
@@ -90,7 +95,7 @@ export async function loadOpenObjectives(supabase: Supabase, teamIds: string[]):
   // On an error `data` is null, which reads as none.
   const { data } = await supabase
     .from("development_objectives")
-    .select("id, subject_id, phase, problem, objective, created_at, development_objective_links ( link_id )")
+    .select("id, subject_id, phase, problem, objective, created_at, source_fixture_id, development_objective_links ( link_id )")
     .eq("subject_type", "team")
     .in("subject_id", teamIds)
     .eq("status", "open")
@@ -98,10 +103,11 @@ export async function loadOpenObjectives(supabase: Supabase, teamIds: string[]):
   return ((data ?? []) as ObjectiveRowDb[]).map((r) => ({
     id: r.id,
     teamId: r.subject_id,
-    phase: r.phase && PHASE_IDS.has(r.phase) ? (r.phase as OpenObjective["phase"]) : null,
+    phase: asPhase(r.phase),
     problem: r.problem,
     objective: r.objective,
     createdAt: r.created_at,
+    sourceFixtureId: r.source_fixture_id,
     linkedCount: r.development_objective_links?.length ?? 0,
   }));
 }
@@ -111,4 +117,104 @@ export async function linkSessionToObjective(supabase: Supabase, objectiveId: st
   await supabase
     .from("development_objective_links")
     .upsert({ objective_id: objectiveId, link_type: "session", link_id: sessionId });
+}
+
+/** The team's phase ratings per match, for the given matches. A missing column or table reads as no ratings. */
+async function loadPhaseRatings(supabase: Supabase, fixtureIds: string[]): Promise<Map<string, PhaseRatings | null>> {
+  const out = new Map<string, PhaseRatings | null>();
+  if (fixtureIds.length === 0) return out;
+  const { data } = await supabase.from("match_results").select("fixture_id, phase_ratings").in("fixture_id", fixtureIds);
+  for (const r of (data ?? []) as { fixture_id: string; phase_ratings: unknown }[]) {
+    out.set(r.fixture_id, cleanPhaseRatings(r.phase_ratings));
+  }
+  return out;
+}
+
+/**
+ * What to ask the coach when this match is logged: each open objective that
+ * was set before it, with the rating the phase had last time.
+ */
+export async function loadFollowUpPrompts(
+  supabase: Supabase,
+  args: { teamId: string; fixtureId: string; fixtureDate: string },
+): Promise<FollowUpPrompt[]> {
+  const open = objectivesToCheck(await loadOpenObjectives(supabase, [args.teamId]), args.fixtureId, args.fixtureDate);
+  if (open.length === 0) return [];
+  const ratings = await loadPhaseRatings(supabase, open.flatMap((o) => (o.sourceFixtureId ? [o.sourceFixtureId] : [])));
+  return open.map((o) => ({
+    id: o.id,
+    problem: o.problem,
+    objective: o.objective,
+    phase: o.phase,
+    before: o.phase && o.sourceFixtureId ? (ratings.get(o.sourceFixtureId)?.[o.phase] ?? null) : null,
+  }));
+}
+
+/**
+ * Close the objectives the coach answered about at this match, recording the
+ * verdict and the match. Only open objectives of this team are touched.
+ * Returns how many could not be saved.
+ */
+export async function closeObjectivesWithVerdict(
+  supabase: Supabase,
+  args: { teamId: string; fixtureId: string; answers: FollowUpAnswer[]; now: Date },
+): Promise<number> {
+  let failed = 0;
+  for (const a of args.answers) {
+    const { data, error } = await supabase
+      .from("development_objectives")
+      .update({
+        status: "closed",
+        verdict: verdictFromSeenAgain(a.answer),
+        follow_up_fixture_id: args.fixtureId,
+        closed_at: args.now.toISOString(),
+      })
+      .eq("id", a.objectiveId)
+      .eq("subject_type", "team")
+      .eq("subject_id", args.teamId)
+      .eq("status", "open")
+      .select("id");
+    if (error || !data?.length) failed += 1;
+  }
+  return failed;
+}
+
+type ClosedRowDb = {
+  id: string; phase: string | null; objective: string; verdict: string | null; closed_at: string | null;
+  source_fixture_id: string | null; follow_up_fixture_id: string | null;
+  development_objective_links: { link_id: string }[] | null;
+};
+
+const VERDICTS = new Set<string>(["improved", "partly", "not_yet"]);
+
+/** The team's closed objectives, newest first, each with sessions linked and the phase rating before and after. */
+export async function loadClosedObjectives(supabase: Supabase, teamId: string, limit = 10): Promise<ObjectiveHistoryItem[]> {
+  const { data } = await supabase
+    .from("development_objectives")
+    .select("id, phase, objective, verdict, closed_at, source_fixture_id, follow_up_fixture_id, development_objective_links ( link_id )")
+    .eq("subject_type", "team")
+    .eq("subject_id", teamId)
+    .eq("status", "closed")
+    .order("closed_at", { ascending: false })
+    .limit(limit);
+  const rows = (data ?? []) as ClosedRowDb[];
+  if (rows.length === 0) return [];
+  const ids = rows.flatMap((r) => [r.source_fixture_id, r.follow_up_fixture_id].filter((x): x is string => Boolean(x)));
+  const ratings = await loadPhaseRatings(supabase, [...new Set(ids)]);
+  return rows.map((r) => {
+    const phase = asPhase(r.phase);
+    return {
+      id: r.id,
+      objective: r.objective,
+      phase,
+      verdict: r.verdict && VERDICTS.has(r.verdict) ? (r.verdict as ObjectiveVerdict) : null,
+      closedAt: r.closed_at,
+      linkedCount: r.development_objective_links?.length ?? 0,
+      change: phaseChange(
+        r.source_fixture_id ? (ratings.get(r.source_fixture_id) ?? null) : null,
+        r.follow_up_fixture_id ? (ratings.get(r.follow_up_fixture_id) ?? null) : null,
+        phase,
+      ),
+    };
+  });
 }

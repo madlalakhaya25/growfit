@@ -18,12 +18,13 @@ import { fakeSupabase, type FakeOp, type FakeReply } from "@/test-utils/fake-sup
 
 const FIXTURE = "5b6f3c3e-8a51-4f0a-9d7e-0c1f7e2a9b11";
 
-function setup(opts: { rpc?: FakeReply; open?: number; countError?: { code: string }; insertError?: { code: string } } = {}) {
+function setup(opts: { rpc?: FakeReply; open?: number; countError?: { code: string }; insertError?: { code: string }; closeMatches?: boolean } = {}) {
   const f = fakeSupabase((op: FakeOp): FakeReply => {
     if (op.table === "teams") return { data: op.one ? { academy_id: "acad-1" } : [{ id: "team-1" }] };
     if (op.table === "fixtures") return { data: { team_id: "team-1" } };
     if (op.table === "development_objectives") {
       if (op.action === "insert") return { error: opts.insertError ?? null };
+      if (op.action === "update") return { data: opts.closeMatches === false ? [] : [{ id: "obj" }] };
       return { data: null, error: opts.countError ?? null, count: opts.open ?? 0 };
     }
     return { data: null };
@@ -34,9 +35,10 @@ function setup(opts: { rpc?: FakeReply; open?: number; countError?: { code: stri
   return { calls: f.calls };
 }
 
-const payload = (objective?: unknown) => ({
+const payload = (objective?: unknown, follow_ups?: unknown) => ({
   fixture_id: FIXTURE, team_score: 1, opponent_score: 0, appearances: [], ratings: [],
   ...(objective === undefined ? {} : { objective }),
+  ...(follow_ups === undefined ? {} : { follow_ups }),
 });
 const inserts = (calls: FakeOp[]) => calls.filter((c) => c.table === "development_objectives" && c.action === "insert");
 
@@ -87,4 +89,43 @@ it("still saves the result before migration 067 creates the table", async () => 
   expect(res).toBeUndefined();
   expect(inserts(calls)).toHaveLength(0);
   expect(mockRedirect).toHaveBeenCalled();
+});
+
+describe("follow-up answers", () => {
+  const OBJ = "44444444-4444-4444-8444-444444444444";
+  const updates = (calls: FakeOp[]) => calls.filter((c) => c.table === "development_objectives" && c.action === "update");
+  const order = (calls: FakeOp[]) => calls.filter((c) => c.table === "development_objectives" && c.action !== "select").map((c) => c.action);
+
+  it("closes the answered objective with the verdict and this match", async () => {
+    const { calls } = setup();
+    await logMatch(payload(undefined, [{ objectiveId: OBJ, answer: "a_bit" }]));
+    expect(updates(calls)).toHaveLength(1);
+    expect(updates(calls)[0].payload).toMatchObject({ status: "closed", verdict: "partly", follow_up_fixture_id: FIXTURE });
+    expect(mockRedirect).toHaveBeenCalled();
+  });
+
+  it("closes before it opens the new focus, so the place it frees can be used", async () => {
+    const { calls } = setup();
+    await logMatch(payload({ problem: "Same again" }, [{ objectiveId: OBJ, answer: "yes" }]));
+    expect(order(calls)).toEqual(["update", "insert"]);
+  });
+
+  it("ignores answers that are malformed", async () => {
+    const { calls } = setup();
+    await logMatch(payload(undefined, [{ objectiveId: "nope", answer: "no" }, { objectiveId: OBJ, answer: "maybe" }]));
+    expect(updates(calls)).toHaveLength(0);
+  });
+
+  it("writes no answers when the RPC refuses the result", async () => {
+    const { calls } = setup({ rpc: { data: { error: "Not your fixture." } } });
+    await logMatch(payload(undefined, [{ objectiveId: OBJ, answer: "no" }]));
+    expect(updates(calls)).toHaveLength(0);
+  });
+
+  it("says the result is saved when an answer could not be saved", async () => {
+    setup({ closeMatches: false });
+    const res = await logMatch(payload(undefined, [{ objectiveId: OBJ, answer: "no" }]));
+    expect(res).toEqual({ error: expect.stringContaining("The result is saved. 1 follow-up answer wasn't saved.") });
+    expect(mockRedirect).not.toHaveBeenCalled();
+  });
 });

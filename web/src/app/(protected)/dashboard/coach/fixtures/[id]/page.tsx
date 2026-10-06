@@ -23,7 +23,7 @@ import { MatchReportPanel } from "@/components/ai/match-report-panel";
 import { fixtureStatusLabel, fixtureStatusVariant, isFixturePast, type FixtureBadgeVariant } from "@/lib/fixtures";
 import { signPlayerPhotoUrls } from "@/lib/player-photo";
 import { formatInTimezone } from "@/lib/time";
-import { countOpenObjectives } from "@/lib/objectives-data";
+import { countOpenObjectives, loadFollowUpPrompts } from "@/lib/objectives-data";
 import { cleanPhaseRatings, phaseHighlights, ratedPhases } from "@/lib/match-phases";
 import { QueryTabs } from "@/components/ui/query-tabs";
 import { pickTab } from "@/lib/tabs";
@@ -341,6 +341,7 @@ export default async function FixtureDetailPage({
             trainingAttendance={trainingAttendance}
             playerAvailability={playerAvailability}
             openObjectives={await countOpenObjectives(supabase, fixture.team_id)}
+            followUps={await loadFollowUpPrompts(supabase, { teamId: fixture.team_id, fixtureId: id, fixtureDate: fixture.fixture_date })}
           />
         </section>
       )}

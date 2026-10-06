@@ -7,6 +7,8 @@ import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { loadSquadReview } from "@/lib/term-review-data";
 import { todayIso } from "@/lib/time";
 import { loadCoachNotes } from "@/lib/coach-notes";
+import { ObjectiveHistory } from "@/components/objective-history";
+import { loadClosedObjectives } from "@/lib/objectives-data";
 import { SquadReview } from "@/components/development/squad-review";
 
 export default async function SquadReviewPage({ searchParams }: Readonly<{ searchParams: Promise<{ team?: string }> }>) {
@@ -29,6 +31,8 @@ export default async function SquadReviewPage({ searchParams }: Readonly<{ searc
   const team = (await resolveCurrentTeamFromCookies(allTeams, teamParam)) ?? allTeams[0];
   const snapshot = await loadSquadReview(supabase, team.id, profile.academy_id as string, todayIso());
 
+  const objectiveHistory = await loadClosedObjectives(supabase, team.id);
+
   const notes = await loadCoachNotes(supabase, user.id, "player", snapshot.players.map((p) => p.id));
 
   return (
@@ -39,6 +43,8 @@ export default async function SquadReviewPage({ searchParams }: Readonly<{ searc
         </Link>
         <h1 className="mt-2 text-2xl font-bold">Term review: {team.name}</h1>
       </div>
+
+      <ObjectiveHistory items={objectiveHistory} />
 
       {!snapshot.available && (
         <p className="text-sm text-muted-foreground">Term review is not switched on yet. Ask your administrator to finish setting it up.</p>
