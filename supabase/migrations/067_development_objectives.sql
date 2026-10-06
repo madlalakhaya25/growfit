@@ -96,6 +96,17 @@ CREATE TRIGGER development_objectives_guard_trg
   BEFORE INSERT OR UPDATE ON development_objectives
   FOR EACH ROW EXECUTE FUNCTION development_objectives_guard();
 
+-- One place for "may the caller manage this team's objectives": the subject is
+-- a team of the caller's academy that they coach, or they are an admin of it.
+CREATE OR REPLACE FUNCTION can_manage_team_objective(
+  p_academy_id UUID, p_subject_type TEXT, p_subject_id UUID
+) RETURNS BOOLEAN LANGUAGE sql STABLE
+SECURITY DEFINER SET search_path = public, pg_temp AS $$
+  SELECT p_academy_id = auth_academy_id()
+     AND p_subject_type = 'team'
+     AND (is_team_coach(p_subject_id) OR auth_role() = 'admin');
+$$;
+
 ALTER TABLE development_objectives      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE development_objective_links ENABLE ROW LEVEL SECURITY;
 
@@ -106,33 +117,19 @@ DROP POLICY IF EXISTS "development_objectives_admin_delete" ON development_objec
 
 CREATE POLICY "development_objectives_coach_read" ON development_objectives
   FOR SELECT TO authenticated
-  USING (
-    academy_id = auth_academy_id()
-    AND subject_type = 'team'
-    AND (is_team_coach(subject_id) OR auth_role() = 'admin')
-  );
+  USING (can_manage_team_objective(academy_id, subject_type, subject_id));
 
 CREATE POLICY "development_objectives_coach_write" ON development_objectives
   FOR INSERT TO authenticated
   WITH CHECK (
-    academy_id = auth_academy_id()
-    AND subject_type = 'team'
-    AND created_by = auth.uid()
-    AND (is_team_coach(subject_id) OR auth_role() = 'admin')
+    created_by = auth.uid()
+    AND can_manage_team_objective(academy_id, subject_type, subject_id)
   );
 
 CREATE POLICY "development_objectives_coach_update" ON development_objectives
   FOR UPDATE TO authenticated
-  USING (
-    academy_id = auth_academy_id()
-    AND subject_type = 'team'
-    AND (is_team_coach(subject_id) OR auth_role() = 'admin')
-  )
-  WITH CHECK (
-    academy_id = auth_academy_id()
-    AND subject_type = 'team'
-    AND (is_team_coach(subject_id) OR auth_role() = 'admin')
-  );
+  USING (can_manage_team_objective(academy_id, subject_type, subject_id))
+  WITH CHECK (can_manage_team_objective(academy_id, subject_type, subject_id));
 
 CREATE POLICY "development_objectives_admin_delete" ON development_objectives
   FOR DELETE TO authenticated
@@ -146,18 +143,14 @@ CREATE POLICY "development_objective_links_coach_all" ON development_objective_l
     EXISTS (
       SELECT 1 FROM development_objectives o
        WHERE o.id = development_objective_links.objective_id
-         AND o.academy_id = auth_academy_id()
-         AND o.subject_type = 'team'
-         AND (is_team_coach(o.subject_id) OR auth_role() = 'admin')
+         AND can_manage_team_objective(o.academy_id, o.subject_type, o.subject_id)
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM development_objectives o
        WHERE o.id = development_objective_links.objective_id
-         AND o.academy_id = auth_academy_id()
-         AND o.subject_type = 'team'
-         AND (is_team_coach(o.subject_id) OR auth_role() = 'admin')
+         AND can_manage_team_objective(o.academy_id, o.subject_type, o.subject_id)
     )
   );
 

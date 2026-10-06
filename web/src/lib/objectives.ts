@@ -59,7 +59,8 @@ export function canOpenObjective(openCount: number): boolean {
 
 /** The objective sentence when the coach only typed the problem. */
 export function defaultObjectiveText(problem: string): string {
-  const p = problem.trim().replace(/[.!?]+$/, "");
+  let p = problem.trim();
+  while (p.length > 0 && ".!?".includes(p[p.length - 1])) p = p.slice(0, -1);
   return `Work on: ${p}`.slice(0, 200);
 }
 
@@ -85,6 +86,23 @@ function text(v: unknown, max: number): string | null {
   return t.length >= 1 && t.length <= max ? t : null;
 }
 
+function cleanObjectiveText(raw: unknown, problem: string): string | null {
+  if (raw === undefined || raw === null) return defaultObjectiveText(problem);
+  if (typeof raw === "string" && raw.trim() === "") return defaultObjectiveText(problem);
+  return text(raw, 200);
+}
+
+function cleanDetail(raw: unknown): ObjectiveDetail | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const d = raw as Record<string, unknown>;
+  const out: ObjectiveDetail = {};
+  for (const key of DETAIL_KEYS) {
+    const v = text(d[key], 200);
+    if (v) out[key] = v;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
 /**
  * What is worth saving from anything sent to the create action: a problem of
  * 1 to 200 characters, a known phase or none, an objective (made from the
@@ -96,31 +114,11 @@ export function cleanObjectiveInput(raw: unknown): CleanObjectiveInput | null {
   const r = raw as Record<string, unknown>;
   const problem = text(r.problem, 200);
   if (!problem) return null;
+  const objective = cleanObjectiveText(r.objective, problem);
+  if (!objective) return null;
 
   const phase = typeof r.phase === "string" && PHASE_IDS.has(r.phase) ? (r.phase as MatchPhaseId) : null;
-  const problemKey = text(r.problemKey, 60);
-
-  let objective: string;
-  if (r.objective === undefined || r.objective === null || (typeof r.objective === "string" && r.objective.trim() === "")) {
-    objective = defaultObjectiveText(problem);
-  } else {
-    const o = text(r.objective, 200);
-    if (!o) return null;
-    objective = o;
-  }
-
-  let detail: ObjectiveDetail | null = null;
-  if (r.detail && typeof r.detail === "object" && !Array.isArray(r.detail)) {
-    const d = r.detail as Record<string, unknown>;
-    const out: ObjectiveDetail = {};
-    for (const key of DETAIL_KEYS) {
-      const v = text(d[key], 200);
-      if (v) out[key] = v;
-    }
-    if (Object.keys(out).length > 0) detail = out;
-  }
-
-  return { phase, problem, problemKey, objective, detail };
+  return { phase, problem, problemKey: text(r.problemKey, 60), objective, detail: cleanDetail(r.detail) };
 }
 
 export interface ObjectiveRow {

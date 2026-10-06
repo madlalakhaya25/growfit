@@ -543,7 +543,7 @@ characters), an optional phase of play, the objective, a status (`open` or
 from and the match that followed. Links point to the sessions and plays done
 about it. `subject_type` is `'team'` for now so the same shape can later hold
 player and coach objectives. A trigger checks the team belongs to the academy and refuses a
-third open objective per team. Four policies on objectives and one on links:
+third open objective per team. A helper function, `can_manage_team_objective`, backs four policies on objectives and one on links:
 coaches of the team and admins read and write, only admins delete, and **parents
 and players have no access**. No personal data about a child is stored in this
 slice. Additive, safe to re-run. Until it is run, none of the new screens appear.

@@ -60,7 +60,7 @@ describe("defaultObjectiveText", () => {
   });
 
   it("never exceeds 200 characters", () => {
-    expect(defaultObjectiveText("x".repeat(200)).length).toBe(200);
+    expect(defaultObjectiveText("x".repeat(200))).toHaveLength(200);
   });
 });
 
