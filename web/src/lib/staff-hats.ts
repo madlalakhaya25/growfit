@@ -36,11 +36,16 @@ export function cleanHats(raw: unknown): StaffHat[] {
 }
 
 /** The cards on the admin Today page. Core cards show for everyone. */
-export type AdminCard = "registration" | "welfare" | "stats" | "quick_actions";
+export type AdminCard =
+  | "registration" | "welfare" | "fixtures" | "objectives" | "coverage" | "sessions" | "stats" | "quick_actions";
 
 const ADMIN_CARD_HATS: Record<AdminCard, readonly StaffHat[] | "core"> = {
   registration: ["director", "registration"],
   welfare: ["director", "safeguarding"],
+  fixtures: ["director"],
+  objectives: ["director", "technical_director"],
+  coverage: ["technical_director"],
+  sessions: ["technical_director"],
   stats: ["director", "technical_director", "finance", "fundraising"],
   quick_actions: "core",
 };

@@ -30,6 +30,10 @@ describe("adminCardsFor", () => {
 
   it("joins the cards of two hats without repeating one", () => {
     expect(adminCardsFor(["registration", "safeguarding"])).toEqual(["registration", "welfare", "quick_actions"]);
-    expect(adminCardsFor(["director"])).toEqual(ADMIN_CARDS);
+    expect(adminCardsFor(["director"])).toEqual(["registration", "welfare", "fixtures", "objectives", "stats", "quick_actions"]);
+  });
+
+  it("gives the technical director the curriculum cards and not the registration ones", () => {
+    expect(adminCardsFor(["technical_director"])).toEqual(["objectives", "coverage", "sessions", "stats", "quick_actions"]);
   });
 });

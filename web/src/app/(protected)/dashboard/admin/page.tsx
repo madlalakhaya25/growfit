@@ -13,6 +13,8 @@ import { loadAdminToday, type AdminTodayRows } from "@/lib/admin-today-data";
 import { formatWeekdayDayMonth } from "@/lib/time";
 import { adminCardsFor } from "@/lib/staff-hats";
 import { loadOwnHats } from "@/lib/staff-hats-data";
+import { loadDirectorCards } from "@/lib/director-data";
+import { DirectorCardList } from "./director-cards";
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient();
@@ -75,6 +77,9 @@ export default async function AdminDashboardPage() {
   const compliance = today?.compliance ?? null;
   const welfareCount = today?.welfareCount ?? null;
 
+  const activeTeams = ((await supabase.from("teams").select("id, name").eq("academy_id", academyId).eq("active", true).order("name")).data ?? []) as { id: string; name: string }[];
+  const director = await loadDirectorCards(supabase, activeTeams, cards);
+
   const quickActions = [
     { label: "Add player",       href: "/dashboard/admin/players",   Icon: UserPlus },
     { label: "Manage teams",     href: "/dashboard/admin/teams",     Icon: Shield },
@@ -91,6 +96,8 @@ export default async function AdminDashboardPage() {
         compliance={cards.includes("registration") ? compliance : null}
         welfareCount={cards.includes("welfare") ? welfareCount : null}
       />
+
+      <DirectorCardList cards={cards} data={director} />
 
       {/* Stat tiles */}
       {cards.includes("stats") && <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
