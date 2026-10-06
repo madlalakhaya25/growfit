@@ -25,6 +25,9 @@ import { ShareToLibraryButton } from "@/components/training/drill-library/share-
 import { ageGroupFromTeam } from "@/lib/drill-library";
 import { QueryTabs } from "@/components/ui/query-tabs";
 import { pickTab } from "@/lib/tabs";
+import { CurriculumPicker } from "@/components/curriculum/curriculum-picker";
+import { curriculumAgeGroupFromTeam, groupForAgeGroup } from "@/lib/curriculum";
+import { loadCurriculum, loadLinkedItemIds } from "@/lib/curriculum-data";
 
 const TABS = [
   { id: "plan", label: "Plan" },
@@ -174,6 +177,16 @@ export default async function CoachTrainingSessionPage({
     }),
   }));
 
+  // Optional "what is this about?" list from the academy's curriculum. Empty
+  // (and so hidden) when the academy has written none for this age group, or
+  // when migration 068 has not been run.
+  const teamRow = Array.isArray(session.teams) ? session.teams[0] : (session.teams as { age_group: string | null } | null);
+  const curriculumAge = curriculumAgeGroupFromTeam(teamRow?.age_group);
+  const curriculumGroups = onPlan && curriculumAge
+    ? groupForAgeGroup((await loadCurriculum(supabase)).items, curriculumAge)
+    : [];
+  const linkedItemIds = curriculumGroups.some((g) => g.items.length > 0) ? await loadLinkedItemIds(supabase, "session", id) : [];
+
   const sessionNotes = onNotes ? await loadCoachNotes(supabase, user.id, "session", [id]) : null;
 
   return (
@@ -245,6 +258,8 @@ export default async function CoachTrainingSessionPage({
         <>
       {/* Pitch-side view: one drill at a time with a stopwatch. */}
       <SessionRunner drills={(drills ?? []).map((d) => ({ id: d.id, title: d.title, description: d.description, details: sanitiseDrillDetails(d.details) }))} />
+
+      <CurriculumPicker linkType="session" linkId={id} groups={curriculumGroups} initialIds={linkedItemIds} />
 
       {/* Drills */}
       <section className="space-y-4">
