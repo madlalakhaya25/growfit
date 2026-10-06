@@ -99,3 +99,28 @@ export function nextSortOrder(items: readonly CurriculumItem[], ageGroup: string
 export function curriculumIsEmpty(items: readonly CurriculumItem[]): boolean {
   return !items.some((i) => i.active);
 }
+
+/**
+ * Moving an item up or down swaps places with its neighbour in the same age
+ * group and category, among active items only. Returns the two new positions
+ * to write, or null when the item is not there, retired, or already at that end.
+ */
+export function swapWithNeighbour(
+  items: readonly CurriculumItem[],
+  id: string,
+  direction: "up" | "down",
+): { id: string; sortOrder: number }[] | null {
+  const item = items.find((i) => i.id === id);
+  if (!item?.active) return null;
+  const list = groupForAgeGroup(items, item.ageGroup).find((g) => g.category === item.category)?.items ?? [];
+  const at = list.findIndex((i) => i.id === id);
+  const other = list[direction === "up" ? at - 1 : at + 1];
+  if (at < 0 || !other) return null;
+  const neighbourAt = direction === "up" ? at - 1 : at + 1;
+  // Equal positions would make the swap a no-op, so fall back to list places.
+  const tied = item.sortOrder === other.sortOrder;
+  return [
+    { id: item.id, sortOrder: tied ? neighbourAt : other.sortOrder },
+    { id: other.id, sortOrder: tied ? at : item.sortOrder },
+  ];
+}
