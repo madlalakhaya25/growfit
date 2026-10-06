@@ -10,6 +10,7 @@ import { POSITIONS } from "@/lib/types";
 import { getInitials } from "@/lib/player";
 import type { AttendanceSummary } from "@/lib/attendance";
 import { MATCH_PHASES, type MatchPhaseId, type PhaseRatings } from "@/lib/match-phases";
+import { presetKeyFor, problemsFor } from "@/lib/match-problems";
 import {
   MAX_OPEN_OBJECTIVES, phaseLabel, suggestPhase,
   type FollowUpPrompt, type SeenAgain,
@@ -47,9 +48,11 @@ interface Props {
   openObjectives?: number;
   /** Objectives set at an earlier match, to ask "did we see it again?" about. */
   followUps?: FollowUpPrompt[];
+  /** The team's age group, so the tap-to-fill problems fit the age. */
+  ageGroup?: string | null;
 }
 
-export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, trainingAttendance, playerAvailability, openObjectives = 0, followUps = [] }: Readonly<Props>) {
+export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, trainingAttendance, playerAvailability, openObjectives = 0, followUps = [], ageGroup = null }: Readonly<Props>) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +68,7 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
   const [focusProblem, setFocusProblem] = useState("");
   const suggested = suggestPhase(phaseRatings);
   const chosenPhase = chooseFocusPhase(focusPhase, suggested);
+  const presets = problemsFor(chosenPhase, ageGroup);
   // Answers to "did we see the problem again?", by objective id.
   const [seenAgain, setSeenAgain] = useState<Record<string, SeenAgain>>({});
   // Answering closes an objective, which frees a place for a new focus.
@@ -107,7 +111,7 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
         })),
         phase_ratings: Object.keys(phaseRatings).length ? phaseRatings : undefined,
         follow_ups: Object.entries(seenAgain).map(([objectiveId, answer]) => ({ objectiveId, answer })),
-        objective: focusProblem.trim() ? { phase: chosenPhase, problem: focusProblem } : undefined,
+        objective: focusProblem.trim() ? { phase: chosenPhase, problem: focusProblem, problemKey: presetKeyFor(focusProblem) } : undefined,
       });
       // No else branch here — on success `logMatch` calls redirect(), which
       // never returns to this callback; it navigates away instead.
@@ -408,6 +412,22 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
                 placeholder="e.g. We lost the ball when playing out from the back"
                 className="mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
+              {presets.length > 0 && (
+                <fieldset className="mt-2 flex flex-wrap gap-2">
+                  <legend className="sr-only">Common problems, tap to use</legend>
+                  {presets.map((p) => (
+                    <button
+                      key={p.key}
+                      type="button"
+                      aria-pressed={focusProblem.trim() === p.text}
+                      onClick={() => setFocusProblem(p.text)}
+                      className="rounded-full border border-border bg-background px-3 py-1.5 text-left text-xs transition-colors hover:border-primary/40 aria-pressed:border-primary aria-pressed:bg-primary/10"
+                    >
+                      {p.text}
+                    </button>
+                  ))}
+                </fieldset>
+              )}
             </div>
           </div>
         </div>
