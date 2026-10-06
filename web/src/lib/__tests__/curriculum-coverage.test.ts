@@ -54,6 +54,10 @@ describe("computeCoverage", () => {
     expect(only(r, "U15").coveragePercent).toBe(100);
   });
 
+  it("leaves out an age group whose items are all retired", () => {
+    expect(computeCoverage([item("a"), item("z", { ageGroup: "U11", active: false })], [], [], W).map((g) => g.ageGroup)).toEqual(["U13"]);
+  });
+
   it("returns nothing for an empty curriculum", () => {
     expect(computeCoverage([], [link("a", "s1")], [sess("s1", "2026-08-05")], W)).toEqual([]);
   });
