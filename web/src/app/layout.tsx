@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ServiceWorkerRegistration } from "@/components/service-worker";
 import { InstallPrompt } from "@/components/install-prompt";
 import { Toaster } from "sonner";
+import { Analytics } from "@vercel/analytics/next";
 
 // Type system — see globals.css. Plus Jakarta Sans for words, Barlow
 // Condensed (bold) for scorelines, shirt numbers and stat numbers.
@@ -71,6 +72,7 @@ export default function RootLayout({
         <ServiceWorkerRegistration />
         <InstallPrompt />
         <Toaster richColors position="top-right" />
+        <Analytics />
       </body>
     </html>
   );
