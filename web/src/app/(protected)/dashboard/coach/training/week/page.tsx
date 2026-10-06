@@ -10,6 +10,9 @@ import { formatInTimezone, formatTime, todayIso } from "@/lib/time";
 import { sessionEffort, effortLabel } from "@/lib/session-effort";
 import { ThisWeekObjectives } from "@/components/this-week-objectives";
 import { loadOpenObjectives } from "@/lib/objectives-data";
+import { CurriculumPicker } from "@/components/curriculum/curriculum-picker";
+import { curriculumAgeGroupFromTeam, groupForAgeGroup } from "@/lib/curriculum";
+import { loadCurriculum, loadLinkedItemIds } from "@/lib/curriculum-data";
 import {
   addDays, buildWeekPlan, mondayOf, parseDay,
   type Load, type PlanFixture, type PlanPlay, type PlanSession,
@@ -102,6 +105,16 @@ export default async function TrainingWeekPage({
 
   const objectives = await loadOpenObjectives(supabase, [team.id]);
 
+  // Optional "which curriculum items is this about?" for each open objective.
+  // Hidden when the academy has written none for this age group or migration 068 is missing.
+  const curriculumAge = curriculumAgeGroupFromTeam(team.age_group);
+  const curriculumGroups = objectives.length > 0 && curriculumAge
+    ? groupForAgeGroup((await loadCurriculum(supabase)).items, curriculumAge)
+    : [];
+  const objectivePickers = curriculumGroups.some((g) => g.items.length > 0)
+    ? await Promise.all(objectives.map(async (o) => ({ objective: o, linked: await loadLinkedItemIds(supabase, "objective", o.id) })))
+    : [];
+
   const href = (w: string) => `/dashboard/coach/training/week?team=${team.id}&week=${w}`;
   const dayHeading = (day: string) =>
     formatInTimezone(startOfDay(day), { weekday: "short", day: "numeric", month: "short" });
@@ -141,6 +154,16 @@ export default async function TrainingWeekPage({
       </div>
 
       <ThisWeekObjectives objectives={objectives} />
+      {objectivePickers.map(({ objective, linked }) => (
+        <CurriculumPicker
+          key={objective.id}
+          linkType="objective"
+          linkId={objective.id}
+          groups={curriculumGroups}
+          initialIds={linked}
+          title={`Curriculum for: ${objective.objective}`}
+        />
+      ))}
 
       {plan.warnings.length > 0 && (
         <ul className="space-y-2">
