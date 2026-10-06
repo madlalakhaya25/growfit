@@ -1,6 +1,6 @@
 # Experience quality: UI and performance
 
-*Status: **plan, awaiting Khaya's approval**. Written 2026-10-06. Covers the
+*Status: **plan approved 2026-10-06; step 1 (measure) in progress**. Written 2026-10-06. Covers the
 master brief's UX/UI, design system, accessibility and performance-budget
 sections (51 to 55), which had not been scheduled.*
 
@@ -21,6 +21,23 @@ numbers, then fixes the worst things in small PRs.
 | Client components | 168 files marked `"use client"` |
 | Images | 11 plain `<img>` tags, 3 files use `next/image` |
 | Accessibility attributes | 757 `aria-` uses, so the work has started; not yet audited |
+
+### Per route (step 1, `npm run build` then `npm run measure:bundle`)
+
+JavaScript the browser loads for one page, gzipped. 77 routes; median 120 KB, heaviest 351 KB.
+
+| Route | Gzipped | What stands out |
+|---|---|---|
+| /dashboard/coach/tactics/board | 351 KB | The heaviest page; expected for a canvas editor, but it ships video and PDF export code up front |
+| /dashboard/coach/squad/[playerId] | 267 KB | Player profile, charts |
+| /dashboard/player, /dashboard/admin/analytics | 237 KB | Both carry the charts library |
+| /auth/login, /register, /forgot-password, /reset-password | 173 to 175 KB | **The first page every user sees is heavier than most dashboards** |
+| Everything else in the top 25 | 122 to 141 KB | Shared base of about 120 KB on every page |
+
+Reading it: the app has a shared base of about 120 KB on every page (framework,
+Supabase client, form validation, Sentry), and a handful of pages add charts,
+PDF or video code on top. The login page is the cheapest win: it loads
+about 50 KB more than the base it needs.
 
 Not measured yet, and needed before any budget is set: real load times on a
 mid-range phone over a throttled connection, a Lighthouse and axe scan of the
