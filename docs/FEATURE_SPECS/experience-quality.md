@@ -50,7 +50,7 @@ tap-target consistency).
 1. **Measure.** Script that records per-route JS size, plus a Lighthouse (mobile,
    throttled) and axe scan of the ten busiest screens. Output: a table in this
    file. No app changes.
-2. **Budgets.** Agree numbers from step 1 (for example: coach home under a stated
+2. **Budgets. Done.** (See "Budgets in force" below.) Agree numbers from step 1 (for example: coach home under a stated
    JS size and load time on a throttled phone; zero serious axe issues). Add a CI
    check that fails when a budget is broken.
 3. **Cheap performance wins.** Load pdf-lib, recharts and the other large,
@@ -72,3 +72,25 @@ A redesign. A new component library. Native apps.
 
 Budgets from step 2 met on every PR; axe serious and critical issues at zero;
 coaches' own view of whether the match log and attendance feel fast.
+
+## Budgets in force (step 2)
+
+Set from the step 1 baseline with about 5% headroom, so nothing that works today
+fails, but any growth does. The numbers live in `web/perf-budgets.json`; CI runs
+`npm run check:budgets` after the build and fails the pull request when one is
+broken. Ceilings are gzipped JavaScript the browser loads for a route.
+
+| Rule | Budget | Today |
+|---|---|---|
+| Any route not listed below | 150 KB | all but eight are under it |
+| Median route (the shared base) | 130 KB | 120 KB |
+| Tactics board | 370 KB | 351 KB |
+| Player passport (coach) | 285 KB | 268 KB |
+| Player home | 250 KB | 238 KB |
+| Admin analytics | 250 KB | 237 KB |
+| Login, register and password pages | 185 KB each | 173 to 175 KB |
+
+The listed routes are the ones step 3 should make lighter. When a PR lowers one,
+it lowers its number in the same PR, so the gain cannot be lost again. Raising a
+number needs a reason in the PR. A load-time and accessibility budget waits for a
+seeded test project (steps 1 and 4 note why).
