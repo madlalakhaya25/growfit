@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { PositionPieChart } from "@/components/analytics/position-pie-chart";
-import { RatingTrendChart } from "@/components/analytics/rating-trend-chart";
+import { PositionPieChart, RatingTrendChart } from "@/components/lazy-charts";
 import { ComplianceBar } from "@/components/analytics/compliance-bar";
 import { AcademyHealthPanel } from "@/components/ai/academy-health-panel";
 import { AiUsageCard } from "@/components/ai/ai-usage-card";

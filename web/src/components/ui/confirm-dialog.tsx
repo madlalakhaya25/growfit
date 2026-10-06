@@ -180,7 +180,7 @@ function ConfirmDialog({
             ref={cancelRef}
             type="button"
             onClick={() => onResolve(false)}
-            className="inline-flex h-10 items-center justify-center rounded-lg border border-border bg-background px-4 text-sm font-semibold hover:bg-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex h-11 items-center justify-center rounded-lg border border-border bg-background px-4 text-sm font-semibold hover:bg-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {cancelLabel}
           </button>
@@ -188,7 +188,7 @@ function ConfirmDialog({
             type="button"
             onClick={() => onResolve(true)}
             className={cn(
-              "inline-flex h-10 items-center justify-center rounded-lg px-4 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "inline-flex h-11 items-center justify-center rounded-lg px-4 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               destructive
                 ? "bg-destructive text-destructive-foreground hover:opacity-90"
                 : "bg-primary text-primary-foreground hover:opacity-90"

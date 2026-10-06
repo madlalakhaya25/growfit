@@ -8,7 +8,9 @@ import type { DirectorCards } from "@/lib/director-data";
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** The director and technical director cards on the admin's Today page. A card with no data (not loaded, or nothing to say) is simply absent. */
-export function DirectorCardList({ cards, data }: Readonly<{ cards: readonly AdminCard[]; data: DirectorCards }>) {
+export function DirectorCardList({
+  cards, data, coverageHref = "/dashboard/admin/academy?tab=coverage",
+}: Readonly<{ cards: readonly AdminCard[]; data: DirectorCards; /** Where a coverage row goes; null for a coach, who cannot open the admin page. */ coverageHref?: string | null }>) {
   return (
     <>
       {cards.includes("fixtures") && data.fixtures && data.fixtures.length > 0 && (
@@ -43,7 +45,7 @@ export function DirectorCardList({ cards, data }: Readonly<{ cards: readonly Adm
               leading={<IconTile tone="orange"><GraduationCap aria-hidden="true" /></IconTile>}
               title={`${c.ageGroup}: ${c.percent}% trained`}
               subtitle={`${c.notTouched} of ${c.items} not touched yet`}
-              href="/dashboard/admin/academy?tab=coverage"
+              href={coverageHref ?? undefined}
             />
           ))}
         </GroupedSection>

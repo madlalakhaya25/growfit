@@ -11,7 +11,7 @@ describe("Logo", () => {
 
   it("renders the brand mark", () => {
     render(<Logo />);
-    expect(screen.getByAltText("Growfit")).toHaveAttribute("src", "/growfit.png");
+    expect(screen.getByAltText("Growfit")).toHaveAttribute("src", expect.stringContaining(encodeURIComponent("/growfit.png")));
   });
 
   it("shows the academy's own name with Powered by Growfit beneath it", () => {

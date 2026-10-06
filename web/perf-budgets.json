@@ -3,12 +3,9 @@
   "defaultGzipKb": 150,
   "medianGzipKb": 130,
   "routes": {
-    "/dashboard/coach/tactics/board": 370,
-    "/dashboard/coach/squad/[playerId]": 285,
-    "/dashboard/player": 250,
-    "/dashboard/admin/analytics": 250,
+    "/dashboard/coach/tactics/board": 190,
+    "/dashboard/coach/squad/[playerId]": 170,
     "/auth/register": 185,
-    "/auth/login": 185,
     "/auth/reset-password": 185,
     "/auth/forgot-password": 185
   }

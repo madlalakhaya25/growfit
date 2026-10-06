@@ -20,6 +20,10 @@ import { reportError } from "@/lib/report-error";
 import { RetryButton } from "@/components/ui/retry-button";
 import { ThisWeekObjectives } from "@/components/this-week-objectives";
 import { loadOpenObjectives } from "@/lib/objectives-data";
+import { coachCardsFor } from "@/lib/staff-hats";
+import { loadOwnHats } from "@/lib/staff-hats-data";
+import { loadDirectorCards } from "@/lib/director-data";
+import { DirectorCardList } from "../admin/director-cards";
 import { currentHourInTimezone, formatInTimezone, formatTime, formatWeekdayDayMonth } from "@/lib/time";
 
 function greeting() {
@@ -182,6 +186,16 @@ export default async function CoachDashboardPage() {
   }
 
   const openObjectives = await loadOpenObjectives(supabase, teamIds);
+
+  // A coach with a hat (director, technical director) also sees that hat's
+  // academy-wide cards. No hats, or the table missing, adds nothing.
+  const hatCards = coachCardsFor(await loadOwnHats(supabase, user.id));
+  let hatTeams: { id: string; name: string }[] = [];
+  if (hatCards.length > 0 && profile?.academy_id) {
+    const { data } = await supabase.from("teams").select("id, name").eq("academy_id", profile.academy_id).eq("active", true);
+    hatTeams = (data ?? []) as { id: string; name: string }[];
+  }
+  const hatData = hatCards.length > 0 ? await loadDirectorCards(supabase, hatTeams, hatCards) : null;
   const teamNames = Object.fromEntries(rawTeams.map((t) => [t.id, t.name]));
 
   const resultsNotLogged = unloggedFixtures?.length ?? 0;
@@ -344,6 +358,8 @@ export default async function CoachDashboardPage() {
           })()}
 
           <ThisWeekObjectives objectives={openObjectives} teamNames={multiTeam ? teamNames : undefined} />
+
+          {hatData && <DirectorCardList cards={hatCards} data={hatData} coverageHref={null} />}
 
           {/* ── To-do ─────────────────────────────────────────────── */}
           {todoError ? (
