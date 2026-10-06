@@ -197,6 +197,8 @@ export interface OpenObjective {
   problem: string;
   objective: string;
   createdAt: string;
+  /** The match it came from, when it came from one. */
+  sourceFixtureId: string | null;
   /** Sessions and plays linked so far. */
   linkedCount: number;
 }
@@ -221,4 +223,84 @@ export function planSessionHref(o: Pick<OpenObjective, "id" | "teamId" | "proble
 export function linkedLabel(count: number): string {
   if (count <= 0) return "Nothing planned yet";
   return count === 1 ? "1 session or play planned" : `${count} sessions or plays planned`;
+}
+
+/** What a coach is asked at the next match: did the problem come back? */
+export interface FollowUpPrompt {
+  id: string;
+  problem: string;
+  objective: string;
+  phase: MatchPhaseId | null;
+  /** The team's rating for that phase at the match the objective came from. */
+  before: number | null;
+}
+
+/**
+ * The open objectives worth asking about at this match: opened before it was
+ * played, and not opened at this very match.
+ */
+export function objectivesToCheck<T extends Pick<OpenObjective, "createdAt" | "sourceFixtureId">>(
+  open: T[],
+  fixtureId: string,
+  fixtureDate: string,
+): T[] {
+  const kickoff = Date.parse(fixtureDate);
+  return open.filter((o) => o.sourceFixtureId !== fixtureId && Date.parse(o.createdAt) < kickoff);
+}
+
+export interface FollowUpAnswer {
+  objectiveId: string;
+  answer: SeenAgain;
+}
+
+const SEEN_AGAIN = new Set<SeenAgain>(["no", "a_bit", "yes"]);
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The usable answers from anything sent to the match-log action: known answers, real ids, one per objective, at most two. */
+export function cleanFollowUps(raw: unknown): FollowUpAnswer[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: FollowUpAnswer[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const { objectiveId, answer } = item as Record<string, unknown>;
+    if (typeof objectiveId !== "string" || !UUID.test(objectiveId) || seen.has(objectiveId)) continue;
+    if (typeof answer !== "string" || !SEEN_AGAIN.has(answer as SeenAgain)) continue;
+    seen.add(objectiveId);
+    out.push({ objectiveId, answer: answer as SeenAgain });
+    if (out.length === MAX_OPEN_OBJECTIVES) break;
+  }
+  return out;
+}
+
+export interface PhaseChange {
+  before: number;
+  after: number;
+}
+
+/** The team's rating for one phase at two matches, or null unless both were rated. */
+export function phaseChange(before: PhaseRatings | null, after: PhaseRatings | null, phase: MatchPhaseId | null): PhaseChange | null {
+  if (!phase) return null;
+  const b = before?.[phase];
+  const a = after?.[phase];
+  return b && a ? { before: b, after: a } : null;
+}
+
+/** "In possession went from 2 to 4 out of 5." */
+export function phaseChangeText(phase: MatchPhaseId | null, change: PhaseChange | null): string | null {
+  const label = phaseLabel(phase);
+  if (!label || !change) return null;
+  if (change.after === change.before) return `${label} stayed at ${change.after} out of 5.`;
+  return `${label} went from ${change.before} to ${change.after} out of 5.`;
+}
+
+/** A closed objective with its verdict and the two matches' ratings, for the history list. */
+export interface ObjectiveHistoryItem {
+  id: string;
+  objective: string;
+  phase: MatchPhaseId | null;
+  verdict: ObjectiveVerdict | null;
+  closedAt: string | null;
+  linkedCount: number;
+  change: PhaseChange | null;
 }
