@@ -100,12 +100,12 @@ export function computeCoverage(
 
   const coverageOf = (item: CurriculumItem): ItemCoverage => {
     const ids = trained.get(item.id) ?? new Set<string>();
-    const days = [...ids].map((id) => dayOf.get(id)!).sort();
+    const days = [...ids].map((id) => dayOf.get(id)!).sort((a, b) => a.localeCompare(b));
     return {
       item,
       sessions: ids.size,
       objectives: objectives.get(item.id)?.size ?? 0,
-      lastTrained: days.length ? days[days.length - 1] : null,
+      lastTrained: days.at(-1) ?? null,
     };
   };
 
