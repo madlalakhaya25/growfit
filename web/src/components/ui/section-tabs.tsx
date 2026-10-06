@@ -44,7 +44,7 @@ export function SectionTabs({ tabs, className }: SectionTabsProps) {
             key={href}
             href={href}
             className={cn(
-              "flex min-h-8 shrink-0 items-center rounded-[8px] px-4 text-sm transition-colors",
+              "flex min-h-8 pointer-coarse:min-h-11 shrink-0 items-center rounded-[8px] px-4 text-sm transition-colors",
               active
                 ? "bg-card font-semibold text-foreground shadow-[0_2px_6px_rgb(0_0_0/0.12)] dark:bg-[#636366]"
                 : "font-medium text-foreground/80 hover:text-foreground"
