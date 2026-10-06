@@ -56,7 +56,7 @@ tap-target consistency).
 3. **Cheap performance wins.** Load pdf-lib, recharts and the other large,
    rarely-used libraries only on the screens that need them; switch the 11
    `<img>` tags to `next/image`; check Sentry's size and sample rate.
-4. **Accessibility fixes.** Whatever axe finds, worst first: labels, contrast,
+4. **Accessibility fixes. Started** (signed-out screens done, see "Accessibility scan" below; signed-in screens wait for a seeded test project). Whatever axe finds, worst first: labels, contrast,
    focus order, tap targets of at least 44 px, keyboard use of the tactics board
    alternatives.
 5. **Design system.** Write `STYLE_GUIDE.md` from what the app already does,
@@ -94,3 +94,21 @@ The listed routes are the ones step 3 should make lighter. When a PR lowers one,
 it lowers its number in the same PR, so the gain cannot be lost again. Raising a
 number needs a reason in the PR. A load-time and accessibility budget waits for a
 seeded test project (steps 1 and 4 note why).
+
+## Accessibility scan (step 4, signed-out screens)
+
+`web/e2e/accessibility.spec.ts` runs axe (WCAG 2.0, 2.1 and 2.2 AA rules) on the
+six screens a visitor can reach, on a phone-sized screen, in light and dark mode,
+and fails the pull request on any serious or critical finding. First run found
+contrast failures only, all from the colour tokens:
+
+- Dark mode: white text on the red button was 3.9:1 (needs 4.5). The fill red is now
+  darker (`#cf3a38`, 4.9:1), and red text in dark mode uses a lighter red
+  (`#f06462`, 5.4:1 on the card colour) through one rule in `globals.css`.
+- Dark mode: the red tag on the home page was 3.7:1; fixed by the same rule.
+- Light mode: grey helper text on the pale panel was 4.3:1; the grey is now `#636366` (4.9:1).
+
+Also added a main landmark to the sign-in, register, offline and register-club
+screens so a screen reader can jump to the content. Not scanned: any signed-in
+screen, tap-target sizes there (no 44 px findings on the public screens), focus
+order, and the tactics board's keyboard alternatives.
