@@ -8,6 +8,7 @@
 // match whether the problem showed up again.
 
 import { MATCH_PHASES, type MatchPhaseId, type PhaseRatings } from "@/lib/match-phases";
+import { cleanFocus } from "@/lib/squad-focus";
 
 /** A team works on at most this many things at once. Also enforced in the database. */
 export const MAX_OPEN_OBJECTIVES = 2;
@@ -186,4 +187,38 @@ export function objectiveDebt(
     }
   }
   return out;
+}
+
+/** An objective as the coach screens show it. */
+export interface OpenObjective {
+  id: string;
+  teamId: string;
+  phase: MatchPhaseId | null;
+  problem: string;
+  objective: string;
+  createdAt: string;
+  /** Sessions and plays linked so far. */
+  linkedCount: number;
+}
+
+/** The phase's coach-facing name, or null when the objective has none. */
+export function phaseLabel(phase: MatchPhaseId | null): string | null {
+  return MATCH_PHASES.find((p) => p.id === phase)?.label ?? null;
+}
+
+/**
+ * The new-session page for an objective: team chosen, the focus prefilled from
+ * the problem, and the objective id carried so the saved session is linked to it.
+ */
+export function planSessionHref(o: Pick<OpenObjective, "id" | "teamId" | "problem">): string {
+  const params = new URLSearchParams({ team: o.teamId, objective: o.id });
+  const focus = cleanFocus(o.problem);
+  if (focus) params.set("focus", focus);
+  return `/dashboard/coach/training/new?${params.toString()}`;
+}
+
+/** "Not planned yet", "1 session or play planned", "3 sessions or plays planned". */
+export function linkedLabel(count: number): string {
+  if (count <= 0) return "Nothing planned yet";
+  return count === 1 ? "1 session or play planned" : `${count} sessions or plays planned`;
 }

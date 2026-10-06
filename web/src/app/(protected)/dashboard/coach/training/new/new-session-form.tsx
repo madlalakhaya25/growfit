@@ -65,6 +65,7 @@ export function NewSessionForm({
   backHref,
   suggestedSquadSizes = {},
   defaultFocus,
+  objectiveId,
 }: {
   teamId: string;
   teams: { id: string; name: string; age_group: string | null }[];
@@ -73,6 +74,8 @@ export function NewSessionForm({
   suggestedSquadSizes?: Record<string, number>;
   /** A focus to start the session generator on, e.g. what the squad's plans share. */
   defaultFocus?: string;
+  /** The team objective this session is being planned for; the saved session is linked to it. */
+  objectiveId?: string;
 }) {
   const router = useRouter();
 
@@ -203,6 +206,7 @@ export function NewSessionForm({
         location: location || undefined,
         session_type: sessionType,
         notes: notes || undefined,
+        objective_id: objectiveId,
         drills: drills.map(({ title, description, video_url, details }) => ({
           title,
           description: description || undefined,

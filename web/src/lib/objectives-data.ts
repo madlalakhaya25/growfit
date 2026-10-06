@@ -5,7 +5,8 @@
 
 import type { createClient } from "@/lib/supabase/server";
 import { friendlyError } from "@/lib/friendly-error";
-import { canOpenObjective, cleanObjectiveInput } from "@/lib/objectives";
+import { canOpenObjective, cleanObjectiveInput, type OpenObjective } from "@/lib/objectives";
+import { MATCH_PHASES } from "@/lib/match-phases";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -70,4 +71,44 @@ export async function createMatchObjective(
   if (isMissingObjectivesTable(error)) return { created: false };
   if (error) return { created: false, note: `The focus wasn't saved: ${friendlyError(error)}` };
   return { created: true };
+}
+
+const PHASE_IDS = new Set<string>(MATCH_PHASES.map((p) => p.id));
+
+type ObjectiveRowDb = {
+  id: string; subject_id: string; phase: string | null; problem: string; objective: string; created_at: string;
+  development_objective_links: { link_id: string }[] | null;
+};
+
+/**
+ * Open objectives for these teams, oldest first, each with how many sessions and
+ * plays are linked. Empty when there are none, when the table is missing or when
+ * the read fails: the screens that show them are never blocked by this.
+ */
+export async function loadOpenObjectives(supabase: Supabase, teamIds: string[]): Promise<OpenObjective[]> {
+  if (teamIds.length === 0) return [];
+  // On an error `data` is null, which reads as none.
+  const { data } = await supabase
+    .from("development_objectives")
+    .select("id, subject_id, phase, problem, objective, created_at, development_objective_links ( link_id )")
+    .eq("subject_type", "team")
+    .in("subject_id", teamIds)
+    .eq("status", "open")
+    .order("created_at", { ascending: true });
+  return ((data ?? []) as ObjectiveRowDb[]).map((r) => ({
+    id: r.id,
+    teamId: r.subject_id,
+    phase: r.phase && PHASE_IDS.has(r.phase) ? (r.phase as OpenObjective["phase"]) : null,
+    problem: r.problem,
+    objective: r.objective,
+    createdAt: r.created_at,
+    linkedCount: r.development_objective_links?.length ?? 0,
+  }));
+}
+
+/** Records that a session was planned for an objective. Best effort: a failure never blocks the session. */
+export async function linkSessionToObjective(supabase: Supabase, objectiveId: string, sessionId: string): Promise<void> {
+  await supabase
+    .from("development_objective_links")
+    .upsert({ objective_id: objectiveId, link_type: "session", link_id: sessionId });
 }

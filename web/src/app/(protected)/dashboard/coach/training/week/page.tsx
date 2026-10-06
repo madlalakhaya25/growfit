@@ -8,6 +8,8 @@ import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { resolveCurrentTeamFromCookies } from "@/lib/current-team-server";
 import { formatInTimezone, formatTime, todayIso } from "@/lib/time";
 import { sessionEffort, effortLabel } from "@/lib/session-effort";
+import { ThisWeekObjectives } from "@/components/this-week-objectives";
+import { loadOpenObjectives } from "@/lib/objectives-data";
 import {
   addDays, buildWeekPlan, mondayOf, parseDay,
   type Load, type PlanFixture, type PlanPlay, type PlanSession,
@@ -98,6 +100,8 @@ export default async function TrainingWeekPage({
     plays: (playRows ?? []) as PlanPlay[],
   });
 
+  const objectives = await loadOpenObjectives(supabase, [team.id]);
+
   const href = (w: string) => `/dashboard/coach/training/week?team=${team.id}&week=${w}`;
   const dayHeading = (day: string) =>
     formatInTimezone(startOfDay(day), { weekday: "short", day: "numeric", month: "short" });
@@ -135,6 +139,8 @@ export default async function TrainingWeekPage({
           </Button>
         </div>
       </div>
+
+      <ThisWeekObjectives objectives={objectives} />
 
       {plan.warnings.length > 0 && (
         <ul className="space-y-2">

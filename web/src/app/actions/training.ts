@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { friendlyError } from "@/lib/friendly-error";
 import { sanitiseDrillDetails } from "@/lib/drill-details";
+import { linkSessionToObjective } from "@/lib/objectives-data";
 
 const sessionSchema = z.object({
   team_id: z.string().uuid("Invalid team"),
@@ -87,6 +88,8 @@ export async function createTrainingSessionWithDrills(params: {
   session_type: string;
   notes?: string;
   drills: { title: string; description?: string; video_url?: string; details?: unknown }[];
+  /** The team objective this session was planned for, when it came from one. */
+  objective_id?: string;
 }): Promise<{ id?: string; error?: string }> {
   const { supabase, user } = await requireUser();
 
@@ -136,7 +139,11 @@ export async function createTrainingSessionWithDrills(params: {
     if (drillError) return { error: friendlyError(drillError) };
   }
 
+  const objectiveId = z.string().uuid().safeParse(params.objective_id);
+  if (objectiveId.success) await linkSessionToObjective(supabase, objectiveId.data, data.id);
+
   revalidatePath("/dashboard/coach/training", "page");
+  revalidatePath("/dashboard/coach");
   return { id: data.id };
 }
 

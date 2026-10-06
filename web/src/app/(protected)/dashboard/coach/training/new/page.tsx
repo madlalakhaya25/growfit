@@ -7,13 +7,14 @@ import { NewSessionForm } from "./new-session-form";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { recentTurnout } from "@/lib/recent-turnout";
 import { cleanFocus } from "@/lib/squad-focus";
+import { z } from "zod";
 
 export default async function NewTrainingSessionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ team?: string; focus?: string }>;
+  searchParams: Promise<{ team?: string; focus?: string; objective?: string }>;
 }) {
-  const { team: teamParam, focus: focusParam } = await searchParams;
+  const { team: teamParam, focus: focusParam, objective: objectiveParam } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
@@ -59,6 +60,7 @@ export default async function NewTrainingSessionPage({
         backHref={`/dashboard/coach/training?team=${team.id}`}
         suggestedSquadSizes={suggestedSquadSizes}
         defaultFocus={cleanFocus(focusParam)}
+        objectiveId={z.string().uuid().safeParse(objectiveParam).data}
       />
     </div>
   );
