@@ -9,6 +9,7 @@ import { formatDayMonth } from "@/lib/time";
 import { tallyOpponentFormations, type FormationTally } from "@/lib/opponent-counter";
 import { isMissingAttributeColumn } from "@/lib/attributes";
 import { normaliseFolder } from "@/lib/play-folders";
+import { isMissingFunction, type SharedPlayRow } from "@/lib/shared-plays";
 
 export interface SavedPlaySummary {
   id: string;
@@ -424,6 +425,20 @@ export async function listSharedPlaysForMe(): Promise<{
 }> {
   const { supabase, user } = await requireUser();
 
+  // Preferred: the function from migration 070, which never returns `data`
+  // (and with it the other players' private notes).
+  const viaFn = await supabase.rpc("list_my_shared_plays");
+  if (!viaFn.error) {
+    return {
+      plays: ((viaFn.data ?? []) as SharedPlayRow[]).map((p) => ({
+        id: p.id, name: p.name, notes: p.notes, share_token: p.share_token,
+        concept_ids: p.concept_ids ?? [], voice_url: p.voice_url, updated_at: p.updated_at, team_name: p.team_name ?? "",
+      })),
+    };
+  }
+  if (!isMissingFunction(viaFn.error)) return { error: friendlyError(viaFn.error) };
+
+  // 070 has not run yet: the old direct read.
   const { data: player } = await supabase
     .from("players")
     .select("id")

@@ -606,6 +606,24 @@ the file that failed. `036` wraps its data translation and constraint swap in
 a single `BEGIN`/`COMMIT`, so it either fully applies or does not apply at
 all — there is no half-migrated attendance state to clean up.
 
+### 070 — shared_play_notes_row_read
+
+Closes a leak 029 left open. A player could `SELECT` a shared play's row
+directly (policy `tactic_play_player_read_shared`, 051) and read
+`data.playerNotes`, every teammate's private coaching notes, because row
+security cannot hide one field. 070 adds `list_my_shared_plays()` and
+`shared_play_token(uuid)` (both SECURITY DEFINER, neither returns `data`),
+grants them to `authenticated` only, and drops the player read policy. Staff
+reads and `get_shared_play()` are unchanged.
+
+Verified on local PostgreSQL 16, 2026-10-06: before 070 a player's
+`select data from tactic_plays` returned the notes; after it the same query
+returns 0 rows, the list function returns only plays shared with the
+caller's active team, `shared_play_token` returns null for an unshared play
+and for a stranger, `anon` is refused, and a second run is a no-op. The app
+works either side of this migration (it falls back to the direct read while the
+functions are missing), so the hole closes only when 070 is run.
+
 ---
 
 ## Reproducing this verification

@@ -2397,7 +2397,6 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                         {/* Same false-positive shape as onShapeDown above:
                             deletePlayerNote() reads a ref via snapshot(),
                             but only once this onClick actually fires. */}
-                        {/* eslint-disable-next-line react-hooks/refs */}
                         <button type="button" onClick={() => deletePlayerNote(n.id)} title="Delete note" className="text-muted-foreground hover:text-destructive">
                           <Trash2 className="size-3" aria-hidden="true" />
                         </button>
@@ -2415,7 +2414,6 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                         // Same false-positive shape as onShapeDown above:
                         // addPlayerNote() reads a ref via snapshot(), only
                         // once this Enter keydown actually fires.
-                        // eslint-disable-next-line react-hooks/refs
                         addPlayerNote(playerId, noteDraft);
                         setNoteDraft("");
                       }

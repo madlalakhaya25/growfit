@@ -23,6 +23,13 @@ export function fakeSupabase(handler: (op: FakeOp) => FakeReply) {
   return {
     calls,
     client: {
+      /** A stored-function call: the handler sees table `rpc:<name>` and the args as payload. */
+      rpc(name: string, args?: Record<string, unknown>) {
+        const op: FakeOp = { table: `rpc:${name}`, action: "select", payload: args, one: false };
+        calls.push({ ...op });
+        const r = handler(op);
+        return Promise.resolve({ data: r.data ?? null, error: r.error ?? null });
+      },
       from(table: string) {
         const op: FakeOp = { table, action: "select", one: false };
         const chain: Record<string, unknown> = new Proxy({}, {
