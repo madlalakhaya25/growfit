@@ -5,6 +5,7 @@
 
 import type { createClient } from "@/lib/supabase/server";
 import { MILESTONE_CATEGORIES } from "@/lib/development-categories";
+import { curriculumAgeGroupFromTeam, groupForAgeGroup } from "@/lib/curriculum";
 import type { CurriculumItem, CurriculumLinkType } from "@/lib/curriculum";
 import { todayIso } from "@/lib/time";
 
@@ -96,4 +97,14 @@ export async function loadCoverageInputs(supabase: Supabase): Promise<CoverageIn
   const sessions = ((rows ?? []) as { id: string; session_date: string }[])
     .map((r) => ({ id: r.id, date: todayIso(new Date(r.session_date)) }));
   return { links, sessions };
+}
+
+/** What a picker needs for one team's session or objective: the curriculum
+ * groups for the team's age group and the item ids already linked. Empty when
+ * there is no age group, no items, or migration 068 has not been run. */
+export async function loadPickerData(supabase: Supabase, teamAgeGroup: string | null | undefined, linkType: CurriculumLinkType, linkId: string) {
+  const age = curriculumAgeGroupFromTeam(teamAgeGroup);
+  const groups = age ? groupForAgeGroup((await loadCurriculum(supabase)).items, age) : [];
+  const linkedIds = groups.some((g) => g.items.length > 0) ? await loadLinkedItemIds(supabase, linkType, linkId) : [];
+  return { groups, linkedIds };
 }
