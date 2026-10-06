@@ -55,7 +55,7 @@
     "eslint-config-next": "16.2.6",
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",
-    "sharp": "^0.35.4",
+    "sharp": "^0.35.5",
     "ts-node": "^10.9.2",
     "typescript": "^5"
   }
