@@ -10,13 +10,16 @@ import { TermsCard } from "./terms-card";
 import { overlappingTerms } from "@/lib/school-terms";
 import { QueryTabs } from "@/components/ui/query-tabs";
 import { pickTab } from "@/lib/tabs";
-import { loadCurriculum } from "@/lib/curriculum-data";
+import { loadCurriculum, loadCoverageInputs } from "@/lib/curriculum-data";
 import { CurriculumCard } from "./curriculum-card";
+import { CoverageView } from "./coverage-view";
+import { computeCoverage, coverageWindow } from "@/lib/curriculum-coverage";
 
 const TABS = [
   { id: "profile", label: "Profile" },
   { id: "terms", label: "Terms" },
   { id: "curriculum", label: "Curriculum" },
+  { id: "coverage", label: "Coverage" },
   { id: "features", label: "Features" },
 ] as const;
 
@@ -50,17 +53,22 @@ export default async function AcademySettingsPage({
 
   // Absent until migration 053 is run: the card then just offers setup and
   // the page keeps working.
-  const { data: termRows } = tab === "terms"
+  const { data: termRows } = tab === "terms" || tab === "coverage"
     ? await supabase
         .from("academy_terms")
         .select("id, name, starts_on, ends_on")
         .eq("academy_id", academy.id)
         .order("starts_on")
     : { data: [] };
-  const curriculum = tab === "curriculum" ? await loadCurriculum(supabase) : null;
+  const curriculum = tab === "curriculum" || tab === "coverage" ? await loadCurriculum(supabase) : null;
   const terms = (termRows ?? []) as { id: string; name: string; starts_on: string; ends_on: string }[];
   const overlaps = overlappingTerms(terms);
   const today = todayIso();
+  const coverageSpan = coverageWindow(terms, today);
+  const coverageInputs = tab === "coverage" && curriculum?.available ? await loadCoverageInputs(supabase) : null;
+  const coverage = coverageInputs && curriculum
+    ? computeCoverage(curriculum.items, coverageInputs.links, coverageInputs.sessions, coverageSpan)
+    : [];
   const year = Number(today.slice(0, 4));
 
   return (
@@ -143,6 +151,22 @@ export default async function AcademySettingsPage({
         </div>
         {curriculum.available ? (
           <CurriculumCard items={curriculum.items} />
+        ) : (
+          <p className="rounded-md bg-muted px-3 py-2 text-sm">Curriculum is not set up yet.</p>
+        )}
+      </section>
+      )}
+
+      {tab === "coverage" && curriculum && (
+      <section className="rounded-xl border border-border bg-card p-6 space-y-4">
+        <div>
+          <h2 className="text-base font-semibold">Curriculum coverage</h2>
+          <p className="text-sm text-muted-foreground">
+            What has been trained this term against what the academy teaches, from what coaches ticked on their sessions.
+          </p>
+        </div>
+        {curriculum.available ? (
+          <CoverageView groups={coverage} span={coverageSpan} />
         ) : (
           <p className="rounded-md bg-muted px-3 py-2 text-sm">Curriculum is not set up yet.</p>
         )}
