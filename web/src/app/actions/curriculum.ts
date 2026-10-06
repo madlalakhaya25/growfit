@@ -1,6 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { requireUser } from "@/lib/auth";
+import { adminContext } from "@/lib/admin-context";
 import { friendlyError } from "@/lib/friendly-error";
 import { cleanCurriculumInput, nextSortOrder, swapWithNeighbour } from "@/lib/curriculum";
 import { loadCurriculum } from "@/lib/curriculum-data";
@@ -10,19 +10,6 @@ const PATH = "/dashboard/admin/academy";
 function text(formData: FormData, key: string): string {
   const v = formData.get(key);
   return typeof v === "string" ? v : "";
-}
-
-// Writing is for admins only; row security says the same, this just gives a
-// plain answer instead of a database error.
-async function adminContext() {
-  const { supabase, user } = await requireUser();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("academy_id, role")
-    .eq("id", user.id)
-    .single();
-  if (!profile?.academy_id || profile.role !== "admin") return null;
-  return { supabase, userId: user.id, academyId: profile.academy_id as string };
 }
 
 /** Add one item to the end of its age group and category. The academy writes every word. */
