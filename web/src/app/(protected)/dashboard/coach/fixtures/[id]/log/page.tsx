@@ -71,6 +71,8 @@ export default async function LogResultPage({
     }
   }
 
+  const { data: team } = await supabase.from("teams").select("age_group").eq("id", fixture.team_id).single();
+
   const [openObjectives, followUps] = await Promise.all([
     countOpenObjectives(supabase, fixture.team_id),
     loadFollowUpPrompts(supabase, { teamId: fixture.team_id, fixtureId: id, fixtureDate: fixture.fixture_date }),
@@ -100,6 +102,7 @@ export default async function LogResultPage({
         playerAvailability={playerAvailability}
         openObjectives={openObjectives}
         followUps={followUps}
+        ageGroup={team?.age_group ?? null}
       />
     </div>
   );
