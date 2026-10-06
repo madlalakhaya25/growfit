@@ -45,8 +45,8 @@ export function copilotBrief(opts: { problem: string; ageGroup: string | null; c
 export function stripMarkup(text: string): string {
   return text
     .replaceAll(/\*+/g, "")
-    .replaceAll(/^#+\s*/gm, "")
-    .replaceAll(/^\s*[-•]\s+/gm, "- ")
+    .replaceAll(/^#+[ \t]*/gm, "")
+    .replaceAll(/^[ \t]*[-•][ \t]+/gm, "- ")
     .trim();
 }
 
