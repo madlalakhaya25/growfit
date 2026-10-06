@@ -35,7 +35,7 @@ const buttonVariants = cva(
           "border border-ink-foreground/25 bg-ink-foreground/10 text-ink-foreground hover:bg-ink-foreground/20",
       },
       size: {
-        sm: "h-9 px-4",
+        sm: "h-9 px-4 pointer-coarse:h-11",
         md: "h-11 px-5",
         lg: "h-12 px-7 text-base",
         icon: "size-11",

@@ -59,7 +59,7 @@ tap-target consistency).
 4. **Accessibility fixes.** Whatever axe finds, worst first: labels, contrast,
    focus order, tap targets of at least 44 px, keyboard use of the tactics board
    alternatives.
-5. **Design system.** Write `STYLE_GUIDE.md` from what the app already does,
+5. **Design system. Started.** `web/STYLE_GUIDE.md` written with its gap list; shared controls now 44 px on touch. Write `STYLE_GUIDE.md` from what the app already does,
    list the places that break it, and fix the shared components first.
 6. **Phone feel.** Loading and empty states, offline messages, and the screens
    coaches use on the touchline (match log, attendance, week plan).
