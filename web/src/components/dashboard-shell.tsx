@@ -122,6 +122,7 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
         { href: "/dashboard/coach/training", label: "Training" },
         { href: "/dashboard/coach/training/challenges", label: "Challenges" },
         { href: "/dashboard/coach/training/drills", label: "Library" },
+        { href: "/dashboard/coach/learn", label: "Learn" },
         { href: "/dashboard/coach/tactics", label: "Tactics", feature: "tactics" },
       ],
     },
