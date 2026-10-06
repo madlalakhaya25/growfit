@@ -6,6 +6,7 @@ import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { friendlyError } from "@/lib/friendly-error";
 import { todayIso } from "@/lib/time";
 import { getSharedPlay } from "@/app/actions/tactic-plays";
+import { isMissingFunction } from "@/lib/shared-plays";
 import {
   feedbackFor, forPlayer, isMissingHomeworkTable, resultMessage, scoreAnswers, summariseHomework,
   validateAnswers, validateDueDate, validateQuestions, validateTitle,
@@ -241,8 +242,13 @@ export async function listMyHomework(): Promise<{ available: boolean; items: MyH
 
 async function loadPlayFor(supabase: Awaited<ReturnType<typeof requireUser>>["supabase"], playId: string | null) {
   if (!playId) return null;
-  const { data } = await supabase.from("tactic_plays").select("share_token").eq("id", playId).eq("shared", true).maybeSingle();
-  const token = (data as { share_token?: string } | null)?.share_token;
+  // Migration 070's function first; the direct read only until it has run.
+  const viaFn = await supabase.rpc("shared_play_token", { p_play_id: playId });
+  let token: string | undefined = viaFn.error ? undefined : ((viaFn.data as string | null) ?? undefined);
+  if (viaFn.error && isMissingFunction(viaFn.error)) {
+    const { data } = await supabase.from("tactic_plays").select("share_token").eq("id", playId).eq("shared", true).maybeSingle();
+    token = (data as { share_token?: string } | null)?.share_token;
+  }
   if (!token) return null;
   const { play } = await getSharedPlay(token);
   return play ? { name: play.name, notes: play.notes, data: play.data } : null;

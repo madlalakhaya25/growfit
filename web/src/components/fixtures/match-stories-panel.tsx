@@ -49,7 +49,7 @@ export function MatchStoriesPanel({ fixtureId, rows: initial, available }: Reado
         <div>
           <h2 className="text-base font-semibold">Match stories</h2>
           <p className="text-xs text-muted-foreground">
-            A short, kind story for each child's family. Read and change each one, then share it. Nothing is seen until you share it.
+            A short, kind story for each child&apos;s family. Read and change each one, then share it. Nothing is seen until you share it.
           </p>
         </div>
         <button
@@ -59,7 +59,7 @@ export function MatchStoriesPanel({ fixtureId, rows: initial, available }: Reado
           {drafts + rows.filter((r) => r.message?.status === "approved").length === 0 ? "Write the stories" : "Write any missing"}
         </button>
       </div>
-      {!available && <p className="text-xs text-amber-700 dark:text-amber-400">Stories need a database update that hasn't been run yet (migration 058).</p>}
+      {!available && <p className="text-xs text-amber-700 dark:text-amber-400">Stories need a database update that hasn&apos;t been run yet (migration 058).</p>}
       <ul className="divide-y divide-border">
         {rows.filter((r) => r.message).map((r) => (
           <StoryItem key={r.playerId} row={r} onChange={update} />
