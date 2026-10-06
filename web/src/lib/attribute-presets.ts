@@ -7,8 +7,8 @@
 // more heading and strength). Every nudge is within +/-10 so the level still
 // means what it says.
 //
-// DRAFT: the wording and the role shapes below were written by Claude and are
-// not live until Buhle (technical director) approves them. Presets stay hidden
+// APPROVED 2026-10-06 by Buhle (technical director). The wording and the role shapes below were written by Claude and were
+// not live until he approved them. Presets stay hidden
 // from coaches while PRESETS_APPROVED is false, the same gate the term review
 // bands used (BAND_DESCRIPTIONS_APPROVED in lib/term-review.ts). Flip it only
 // once he has signed off; edit the text first if he changes it, and set it
@@ -18,7 +18,7 @@ import { ageBracket } from "@/lib/term-review";
 import type { AttrKey } from "@/lib/attributes";
 import type { RoleId } from "@/lib/player-roles";
 
-export const PRESETS_APPROVED = false;
+export const PRESETS_APPROVED = true;
 
 export const LEVELS = ["average", "good", "very_good", "excellent", "elite"] as const;
 export type Level = (typeof LEVELS)[number];
