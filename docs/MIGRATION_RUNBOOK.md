@@ -533,6 +533,23 @@ until Buhle approves them (`PRESETS_APPROVED` in `web/src/lib/attribute-presets.
 
 ---
 
+## 067: development objectives
+
+Adds `development_objectives` and `development_objective_links` for the Match to
+Training slice (`docs/FEATURE_SPECS/match-to-training.md`). An objective is one
+thing a team works on, with the problem (the coach's words, 1 to 200
+characters), an optional phase of play, the objective, a status (`open` or
+`closed`), a verdict (`improved`, `partly`, `not_yet`) and the match it came
+from and the match that followed. Links point to the sessions and plays done
+about it. `subject_type` is `'team'` for now so the same shape can later hold
+player and coach objectives. A trigger checks the team belongs to the academy and refuses a
+third open objective per team. A helper function, `can_manage_team_objective`, backs four policies on objectives and one on links:
+coaches of the team and admins read and write, only admins delete, and **parents
+and players have no access**. No personal data about a child is stored in this
+slice. Additive, safe to re-run. Until it is run, none of the new screens appear.
+
+---
+
 ## How to apply
 
 Either route works. Take a backup first regardless.
