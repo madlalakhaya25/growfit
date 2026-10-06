@@ -60,7 +60,7 @@ export function canOpenObjective(openCount: number): boolean {
 /** The objective sentence when the coach only typed the problem. */
 export function defaultObjectiveText(problem: string): string {
   let p = problem.trim();
-  while (p.length > 0 && ".!?".includes(p[p.length - 1])) p = p.slice(0, -1);
+  while (p.length > 0 && ".!?".includes(p.at(-1) ?? "")) p = p.slice(0, -1);
   return `Work on: ${p}`.slice(0, 200);
 }
 
