@@ -12,6 +12,8 @@ import type { AttendanceSummary } from "@/lib/attendance";
 import { MATCH_PHASES, type MatchPhaseId, type PhaseRatings } from "@/lib/match-phases";
 import { presetKeyFor, problemsFor } from "@/lib/match-problems";
 import { ThinkItThrough } from "@/components/ai/think-it-through";
+import { LESSONS } from "@/lib/lessons-content";
+import { lessonsForProblem } from "@/lib/lessons";
 import {
   MAX_OPEN_OBJECTIVES, phaseLabel, suggestPhase,
   type FollowUpPrompt, type SeenAgain,
@@ -70,6 +72,8 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
   const suggested = suggestPhase(phaseRatings);
   const chosenPhase = chooseFocusPhase(focusPhase, suggested);
   const presets = problemsFor(chosenPhase, ageGroup);
+  // A preset problem the academy has written a lesson for gets a link to it.
+  const readMore = lessonsForProblem(LESSONS, presetKeyFor(focusProblem));
   // Answers to "did we see the problem again?", by objective id.
   const [seenAgain, setSeenAgain] = useState<Record<string, SeenAgain>>({});
   // Answering closes an objective, which frees a place for a new focus.
@@ -430,6 +434,11 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
                 </fieldset>
               )}
             </div>
+            {readMore.map((l) => (
+              <a key={l.slug} href={`/dashboard/coach/learn/${l.slug}`} target="_blank" rel="noreferrer" className="block text-xs text-primary underline">
+                Read the lesson: {l.title}
+              </a>
+            ))}
             <ThinkItThrough problem={focusProblem} ageGroup={ageGroup} />
           </div>
         </div>
