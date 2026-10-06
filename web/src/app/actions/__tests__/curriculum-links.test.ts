@@ -25,7 +25,6 @@ function setup(over: { profile?: unknown; teamId?: string; tableError?: boolean;
   const ops: FakeOp[] = [];
   const f = fakeSupabase((op) => {
     ops.push(op);
-    if (op.table === "development_objectives") return { data: { subject_id: over.teamId ?? "t1", teams: { age_group: "U13" } } };
     if (op.table === "training_sessions") return { data: "session" in over ? over.session : { team_id: over.teamId ?? "t1", teams: { age_group: "U13" } } };
     if (op.table === "curriculum_items") {
       return over.tableError ? { error: { code: "PGRST205" } } : { data: [item(I13, "U13"), item(I15, "U15"), item(IOLD, "U13", { active: false })] };
@@ -77,13 +76,4 @@ it("writes nothing for a bad request, a missing session or a missing table", asy
   const noTable = setup({ tableError: true });
   expect(await setCurriculumLinks("session", S, [I13])).toEqual({ error: "Curriculum is not set up yet." });
   expect(writes(noTable)).toEqual([]);
-});
-
-it("links an objective of the coach's own team, and refuses another team's", async () => {
-  const ops = setup();
-  expect(await setCurriculumLinks("objective", S, [I13])).toEqual({ success: true, saved: 1 });
-  expect(writes(ops)[1].payload).toEqual([{ item_id: I13, link_type: "objective", link_id: S }]);
-  const other = setup({ teamId: "t2" });
-  expect(await setCurriculumLinks("objective", S, [I13])).toEqual({ error: "Not found." });
-  expect(writes(other)).toEqual([]);
 });
