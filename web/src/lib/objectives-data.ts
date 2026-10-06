@@ -159,24 +159,24 @@ export async function closeObjectivesWithVerdict(
   supabase: Supabase,
   args: { teamId: string; fixtureId: string; answers: FollowUpAnswer[]; now: Date },
 ): Promise<number> {
-  let failed = 0;
-  for (const a of args.answers) {
-    const { data, error } = await supabase
-      .from("development_objectives")
-      .update({
-        status: "closed",
-        verdict: verdictFromSeenAgain(a.answer),
-        follow_up_fixture_id: args.fixtureId,
-        closed_at: args.now.toISOString(),
-      })
-      .eq("id", a.objectiveId)
-      .eq("subject_type", "team")
-      .eq("subject_id", args.teamId)
-      .eq("status", "open")
-      .select("id");
-    if (error || !data?.length) failed += 1;
-  }
-  return failed;
+  const results = await Promise.all(
+    args.answers.map((a) =>
+      supabase
+        .from("development_objectives")
+        .update({
+          status: "closed",
+          verdict: verdictFromSeenAgain(a.answer),
+          follow_up_fixture_id: args.fixtureId,
+          closed_at: args.now.toISOString(),
+        })
+        .eq("id", a.objectiveId)
+        .eq("subject_type", "team")
+        .eq("subject_id", args.teamId)
+        .eq("status", "open")
+        .select("id"),
+    ),
+  );
+  return results.filter(({ data, error }) => error || !data?.length).length;
 }
 
 type ClosedRowDb = {
