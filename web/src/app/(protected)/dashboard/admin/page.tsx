@@ -11,6 +11,8 @@ import { reportError } from "@/lib/report-error";
 import { DOCUMENTS } from "@/lib/document-definitions";
 import { loadAdminToday, type AdminTodayRows } from "@/lib/admin-today-data";
 import { formatWeekdayDayMonth } from "@/lib/time";
+import { adminCardsFor } from "@/lib/staff-hats";
+import { loadOwnHats } from "@/lib/staff-hats-data";
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient();
@@ -26,6 +28,8 @@ export default async function AdminDashboardPage() {
   if (!profile?.academy_id) redirect("/auth/role");
 
   const academyId = profile.academy_id;
+  // No hats (or migration 069 not run) shows every card, as before hats existed.
+  const cards = adminCardsFor(await loadOwnHats(supabase, user.id));
 
   const season = new Date().getFullYear().toString();
   const [players, teams, fixtures, ratings, members, docRows] = await Promise.all([
@@ -82,11 +86,14 @@ export default async function AdminDashboardPage() {
     <div className="space-y-6">
       <PageHeader title="Today" eyebrow={formatWeekdayDayMonth(new Date())} />
 
-      <RegistrationHero compliance={compliance} />
-      <NeedsYou compliance={compliance} welfareCount={welfareCount} />
+      {cards.includes("registration") && <RegistrationHero compliance={compliance} />}
+      <NeedsYou
+        compliance={cards.includes("registration") ? compliance : null}
+        welfareCount={cards.includes("welfare") ? welfareCount : null}
+      />
 
       {/* Stat tiles */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {cards.includes("stats") && <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map(({ label, value, Icon, href }) =>
           href ? (
             <Link key={label} href={href} className="block">
@@ -96,7 +103,7 @@ export default async function AdminDashboardPage() {
             <StatTile key={label} label={label} value={value} icon={Icon} />
           )
         )}
-      </div>
+      </div>}
 
       {/* Quick actions */}
       <div>
