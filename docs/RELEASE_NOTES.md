@@ -6,6 +6,24 @@ releases yet. Newest first.
 
 ---
 
+## 2026-10-06 — Staff hats, director cards and problem presets
+
+**Added**
+- **Staff hats** (migration 069): an admin ticks hats on each coach or admin in Academy
+  settings, Staff tab. A hat only chooses which cards someone sees; it gives no extra access.
+  No hats shows every card, as before.
+- **Admin Today cards by hat**: registration, welfare, this week's matches, open objectives,
+  curriculum coverage this term, sessions per team this term. Cards with nothing to say stay hidden.
+- **Tap-to-fill match problems**: after a match, under "The problem", Buhle's approved
+  problems for the chosen phase and the team's age (U11 and below, and U13 and above). Typing your own
+  words still works; an edited preset counts as your own words.
+
+**Still to do**
+- Objectives show on the director cards only after migration 067 is run.
+- Coach Today cards by hat are not built.
+
+---
+
 ## 2026-10-06 — Curriculum links and coverage
 
 **Added**
