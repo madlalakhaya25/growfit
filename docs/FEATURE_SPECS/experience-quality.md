@@ -61,7 +61,7 @@ tap-target consistency).
    alternatives.
 5. **Design system. Started.** `web/STYLE_GUIDE.md` written with its gap list; shared controls now 44 px on touch. Write `STYLE_GUIDE.md` from what the app already does,
    list the places that break it, and fix the shared components first.
-6. **Phone feel.** Loading and empty states, offline messages, and the screens
+6. **Phone feel. Started.** A "You're offline" notice on every signed-in screen; shaped loading screens for the register and the match. Match log and week plan loading, and a pass on empty states, remain. Loading and empty states, offline messages, and the screens
    coaches use on the touchline (match log, attendance, week plan).
 
 ## Out of scope
