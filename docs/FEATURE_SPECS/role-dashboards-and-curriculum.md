@@ -52,7 +52,7 @@ Finish the slice's remaining PRs first, since they create the objective data the
 2. Admin curriculum screen. **Done (#133).** Buhle's starter list (60 items) is loaded.
 3. Curriculum picker on sessions and on a team's open objectives. **Done (#134 to #136).**
 4. Coverage view in Academy settings. **Done (#137, #138).**
-5. Staff hats and the card picker.
+5. Staff hats and the card picker. **Done (#140 to #142, migration 069 run).** Admin Today cards follow hats; coach Today cards come with the director cards.
 6. Director and technical director cards.
 
 ## Decisions I need from you
