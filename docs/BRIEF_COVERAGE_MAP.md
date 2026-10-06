@@ -12,7 +12,7 @@
 | 5 | Academy development | Planned | Curriculum plan approved |
 | 6 | Academy-in-a-box | Planned | Configurable core inside the curriculum; templates later |
 | 7 | Academy maturity | Undecided | |
-| 9 | Academy memory | Partly | Objective history comes with slice PR 4 |
+| 9 | Academy memory | Partly | Objective history on Squad Review (needs migration 067) |
 | 10, 11 | Player development system and model | Partly | Milestones, attributes, plans exist; curriculum links planned |
 | 12 | IDP engine | Partly | AI plans with coach approval exist; queryable objectives later |
 | 13 | Player development proof | Partly | Performance curves (#93), passport |
@@ -47,11 +47,11 @@
 | 48 | Privacy, POPIA, child data | Researched | Open for Khaya: Information Officer, breach plan, legal read |
 | 49 | Competitive research | Built | R4 |
 | 50 | Real grassroots research | Undecided | R6 interviews with 3 to 5 academies and 2 to 3 funders not done |
-| 51 | UX and UI | **Not scheduled** | Redesign done (#107, #108); no UX research or audit |
-| 52 | Information architecture | **Not scheduled** | Role homes and tabs exist; no review |
-| 53 | Design system | **Not scheduled** | No gap list, no STYLE_GUIDE.md |
-| 54 | Accessibility | **Not scheduled** | No scan, no accessibility tests |
-| 55 | Performance | **Not scheduled** | No measured budgets or baseline |
+| 51 | UX and UI | Planned | Redesign done (#107, #108); `FEATURE_SPECS/experience-quality.md` steps 5 and 6 |
+| 52 | Information architecture | Planned | Role homes and tabs exist; review sits in experience quality step 6 |
+| 53 | Design system | Planned | Experience quality step 5: style guide and gap list |
+| 54 | Accessibility | Planned | Experience quality steps 2 and 4; needs a seeded test project for signed-in screens |
+| 55 | Performance | Partly | Baseline measured (`npm run measure:bundle`, #128); budgets and fixes are steps 2 and 3 |
 | 56 | Architecture | Built | Reviewed in the audit; no change needed |
 | 57 | Data provenance | Partly | AI artefacts labelled by kind; no source field on assessments or notes |
 | 58 | Monetisation | Undecided | Your pricing question is open |
@@ -60,11 +60,11 @@
 | 61 | Academy benchmarking | Undecided | Needs more than one academy |
 | 62, 63 | Differentiation, moat | Built | In `PRODUCT_STRATEGY.md` |
 | 64, 65 | Feature rationalisation, roadmap | Built | Audit page; roadmap pointers |
-| 66 | Vertical slice | Planned | PRs 1 and 2 merged, 3 in review |
+| 66 | Vertical slice | Built | Match to Training: PRs #122 to #125 and #127 merged; migration 067 still to run |
 | 67 | AI cost control | Partly | Per-user budget and caching exist; no plan for scale or paid tier |
 | 68 | Security | Partly | Four audit debts open (offline cache after sign-out, shared-play notes read, no ESLint in CI, age-rewrite erasure gap) |
 | 69 | Testing | Partly | Strong unit tests; no accessibility or performance tests |
-| 70 | Documentation | Built | Engineering docs; user guide arrives with slice PR 5 |
+| 70 | Documentation | Built | Engineering docs, coach guide `docs/guides/match-to-training.md`, release notes |
 | 71 | Docusaurus user docs | Deferred | When a second academy joins |
 | 72 to 74 | Research output, source quality, red team | Built | |
 | 75 | Final product test | Partly | Role questions answered in the audit; not rerun |
