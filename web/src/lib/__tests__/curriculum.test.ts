@@ -1,6 +1,6 @@
 import {
   ageGroupsWithItems, cleanCurriculumInput, curriculumIsEmpty, groupForAgeGroup, nextSortOrder, normalizeAgeGroup,
-  type CurriculumItem,
+  swapWithNeighbour, type CurriculumItem,
 } from "../curriculum";
 
 const item = (over: Partial<CurriculumItem> = {}): CurriculumItem => ({
@@ -109,5 +109,35 @@ describe("curriculumIsEmpty", () => {
     expect(curriculumIsEmpty([])).toBe(true);
     expect(curriculumIsEmpty([item({ active: false })])).toBe(true);
     expect(curriculumIsEmpty([item()])).toBe(false);
+  });
+});
+
+describe("swapWithNeighbour", () => {
+  const mk = (id: string, sortOrder: number, over: Partial<CurriculumItem> = {}): CurriculumItem => ({
+    id, ageGroup: "U13", category: "technical", title: id, description: null, sortOrder, active: true, ...over,
+  });
+  const list = [mk("a", 0), mk("b", 1), mk("c", 2)];
+
+  it("swaps with the item above or below", () => {
+    expect(swapWithNeighbour(list, "b", "up")).toEqual([{ id: "b", sortOrder: 0 }, { id: "a", sortOrder: 1 }]);
+    expect(swapWithNeighbour(list, "b", "down")).toEqual([{ id: "b", sortOrder: 2 }, { id: "c", sortOrder: 1 }]);
+  });
+
+  it("does nothing at either end, for a retired or unknown item", () => {
+    expect(swapWithNeighbour(list, "a", "up")).toBeNull();
+    expect(swapWithNeighbour(list, "c", "down")).toBeNull();
+    expect(swapWithNeighbour([...list, mk("d", 3, { active: false })], "d", "up")).toBeNull();
+    expect(swapWithNeighbour(list, "zzz", "up")).toBeNull();
+  });
+
+  it("only swaps within the same age group and heading, and skips retired neighbours", () => {
+    const mixed = [mk("a", 0), mk("x", 1, { ageGroup: "U15" }), mk("y", 1, { category: "mental" }), mk("r", 1, { active: false }), mk("b", 2)];
+    expect(swapWithNeighbour(mixed, "b", "up")).toEqual([{ id: "b", sortOrder: 0 }, { id: "a", sortOrder: 2 }]);
+  });
+
+  it("renumbers a pair that shares a position, so the move still happens", () => {
+    const tied = [mk("a", 0), mk("b", 0)];
+    const moves = swapWithNeighbour(tied, "b", "up")!;
+    expect(moves.find((m) => m.id === "b")!.sortOrder).toBeLessThan(moves.find((m) => m.id === "a")!.sortOrder);
   });
 });

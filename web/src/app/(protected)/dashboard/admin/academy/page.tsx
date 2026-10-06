@@ -10,10 +10,13 @@ import { TermsCard } from "./terms-card";
 import { overlappingTerms } from "@/lib/school-terms";
 import { QueryTabs } from "@/components/ui/query-tabs";
 import { pickTab } from "@/lib/tabs";
+import { loadCurriculum } from "@/lib/curriculum-data";
+import { CurriculumCard } from "./curriculum-card";
 
 const TABS = [
   { id: "profile", label: "Profile" },
   { id: "terms", label: "Terms" },
+  { id: "curriculum", label: "Curriculum" },
   { id: "features", label: "Features" },
 ] as const;
 
@@ -54,6 +57,7 @@ export default async function AcademySettingsPage({
         .eq("academy_id", academy.id)
         .order("starts_on")
     : { data: [] };
+  const curriculum = tab === "curriculum" ? await loadCurriculum(supabase) : null;
   const terms = (termRows ?? []) as { id: string; name: string; starts_on: string; ends_on: string }[];
   const overlaps = overlappingTerms(terms);
   const today = todayIso();
@@ -127,6 +131,22 @@ export default async function AcademySettingsPage({
       </section>
 
         </>
+      )}
+
+      {tab === "curriculum" && curriculum && (
+      <section className="rounded-xl border border-border bg-card p-6 space-y-4">
+        <div>
+          <h2 className="text-base font-semibold">Curriculum</h2>
+          <p className="text-sm text-muted-foreground">
+            What the academy teaches at each age, in your own words, under the five development headings.
+          </p>
+        </div>
+        {curriculum.available ? (
+          <CurriculumCard items={curriculum.items} />
+        ) : (
+          <p className="rounded-md bg-muted px-3 py-2 text-sm">Curriculum is not set up yet.</p>
+        )}
+      </section>
       )}
 
       {tab === "features" && features && (
