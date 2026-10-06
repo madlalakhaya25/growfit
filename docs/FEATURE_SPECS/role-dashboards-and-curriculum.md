@@ -53,7 +53,7 @@ Finish the slice's remaining PRs first, since they create the objective data the
 3. Curriculum picker on sessions and on a team's open objectives. **Done (#134 to #136).**
 4. Coverage view in Academy settings. **Done (#137, #138).**
 5. Staff hats and the card picker. **Done (#140 to #142, migration 069 run).** Admin Today cards follow hats; coach Today cards come with the director cards.
-6. Director and technical director cards.
+6. Director and technical director cards. **Done (#144, #145).** Admin Today: this week's matches and open objectives (director); curriculum coverage, sessions per team and open objectives (technical director). Objectives stay empty until migration 067 is run. Coach Today cards are not built.
 
 ## Decisions I need from you
 

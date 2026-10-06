@@ -31,7 +31,7 @@
 | 32 | Parent OS | Partly | Parent Today home, weekly family digest |
 | 33 | Parent education | Undecided | |
 | 34 | Club operating system | Built | Admin area |
-| 35 | Director and technical director mode | Partly | Staff hats built (#140 to #142); director and technical director cards next |
+| 35 | Director and technical director mode | Partly | Staff hats and director and technical director cards built on admin Today (#140 to #145); scout and owner views not built |
 | 36 | Academy pulse | Partly | Admin Today home; fuller pulse not scheduled |
 | 37 | Academy quality assurance | Undecided | |
 | 38 | Season learning review | Partly | Term review exists; season review later |
