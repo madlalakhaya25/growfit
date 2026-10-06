@@ -9,11 +9,11 @@
 | 1 | Inspect the existing product | Built | Audit page, 4 versions |
 | 2, 3 | North star, core loop | Planned | `PRODUCT_STRATEGY.md`; slice is the loop |
 | 4 | Research before decisions | Built | `docs/research/` (8 topics) |
-| 5 | Academy development | Planned | Curriculum plan approved |
+| 5 | Academy development | Partly | Curriculum, pickers and coverage built; hats and director cards next |
 | 6 | Academy-in-a-box | Planned | Configurable core inside the curriculum; templates later |
 | 7 | Academy maturity | Undecided | |
 | 9 | Academy memory | Partly | Objective history on Squad Review (needs migration 067) |
-| 10, 11 | Player development system and model | Partly | Milestones, attributes, plans exist; curriculum links planned |
+| 10, 11 | Player development system and model | Partly | Milestones, attributes, plans exist; curriculum links built |
 | 12 | IDP engine | Partly | AI plans with coach approval exist; queryable objectives later |
 | 13 | Player development proof | Partly | Performance curves (#93), passport |
 | 14 | Player self-assessment | Built | |

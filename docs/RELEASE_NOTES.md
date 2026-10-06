@@ -6,6 +6,21 @@ releases yet. Newest first.
 
 ---
 
+## 2026-10-06 — Curriculum links and coverage
+
+**Added**
+- **What is this about?** on the Plan tab of a training session, and on each open
+  objective in the week plan: tick the academy's curriculum items it covers. Optional,
+  filtered to the team's age group, and hidden when none are written.
+- **Coverage** tab in Academy settings (admins): per age group, the share of curriculum
+  items trained this term, the items not touched yet, and for each item how many sessions
+  it was trained in, the last day and any objectives pointing at it.
+
+**Notes**
+- Needs migration 068 (run). Objective ticks need migration 067 (not yet run).
+
+---
+
 ## 2026-10-06 — Match to Training to Follow-up
 
 **Added**
