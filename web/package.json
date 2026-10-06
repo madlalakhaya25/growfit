@@ -11,7 +11,8 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:e2e": "playwright test",
-    "measure:bundle": "node scripts/measure-bundle.mjs"
+    "measure:bundle": "node scripts/measure-bundle.mjs",
+    "check:budgets": "node scripts/check-budgets.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.8.0",
