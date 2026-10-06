@@ -41,7 +41,8 @@ about 50 KB more than the base it needs.
 
 Not measured yet, and needed before any budget is set: real load times on a
 mid-range phone over a throttled connection, a Lighthouse and axe scan of the
-ten busiest screens, and a design-system gap list (spacing, type, colour and
+ten busiest screens (signed-in screens need a seeded test project, which does
+not exist yet), and a design-system gap list (spacing, type, colour and
 tap-target consistency).
 
 ## Steps (one PR each)
