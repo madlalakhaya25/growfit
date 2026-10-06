@@ -1,6 +1,6 @@
 import {
   ageGroupsWithItems, cleanCurriculumInput, curriculumIsEmpty, groupForAgeGroup, nextSortOrder, normalizeAgeGroup,
-  swapWithNeighbour, type CurriculumItem,
+  swapWithNeighbour, curriculumAgeGroupFromTeam, cleanLinkRequest, itemsForTeam, type CurriculumItem,
 } from "../curriculum";
 
 const item = (over: Partial<CurriculumItem> = {}): CurriculumItem => ({
@@ -139,5 +139,37 @@ describe("swapWithNeighbour", () => {
     const tied = [mk("a", 0), mk("b", 0)];
     const moves = swapWithNeighbour(tied, "b", "up")!;
     expect(moves.find((m) => m.id === "b")!.sortOrder).toBeLessThan(moves.find((m) => m.id === "a")!.sortOrder);
+  });
+});
+
+describe("linking helpers", () => {
+  const A = "11111111-1111-4111-8111-111111111111";
+  const B = "22222222-2222-4222-8222-222222222222";
+  const mk = (id: string, over: Partial<CurriculumItem> = {}): CurriculumItem => ({
+    id, ageGroup: "U13", category: "technical", title: id, description: null, sortOrder: 0, active: true, ...over,
+  });
+
+  it("reads the age group a team's label names", () => {
+    expect(curriculumAgeGroupFromTeam("U13")).toBe("U13");
+    expect(curriculumAgeGroupFromTeam("Under 15 Girls")).toBe("U15");
+    expect(curriculumAgeGroupFromTeam("u-11")).toBe("U11");
+    expect(curriculumAgeGroupFromTeam("Seniors")).toBeNull();
+    expect(curriculumAgeGroupFromTeam(null)).toBeNull();
+  });
+
+  it("accepts a clean request, removes repeats, and refuses anything malformed", () => {
+    expect(cleanLinkRequest("session", A, [B, B])).toEqual({ linkType: "session", linkId: A, itemIds: [B] });
+    expect(cleanLinkRequest("objective", A, [])).toEqual({ linkType: "objective", linkId: A, itemIds: [] });
+    expect(cleanLinkRequest("drill", A, [B])).toBeNull();
+    expect(cleanLinkRequest("session", "nope", [B])).toBeNull();
+    expect(cleanLinkRequest("session", A, ["nope"])).toBeNull();
+    expect(cleanLinkRequest("session", A, "x")).toBeNull();
+    expect(cleanLinkRequest("session", A, Array.from({ length: 21 }, (_, i) => `${i}`.padStart(8, "0") + "-1111-4111-8111-111111111111"))).toBeNull();
+  });
+
+  it("keeps only active items of the team's own age group", () => {
+    const items = [mk(A), mk(B, { ageGroup: "U15" }), mk("c", { active: false })];
+    expect(itemsForTeam(items, "U13", [A, B, "c", "zzz"])).toEqual([A]);
+    expect(itemsForTeam(items, null, [A])).toEqual([]);
   });
 });

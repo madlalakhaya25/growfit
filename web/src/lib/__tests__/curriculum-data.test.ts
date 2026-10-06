@@ -49,3 +49,13 @@ it("recognises both missing-table codes and nothing else", () => {
   expect(isMissingCurriculumTable({ code: "42703" })).toBe(false);
   expect(isMissingCurriculumTable(null)).toBe(false);
 });
+
+describe("loadLinkedItemIds", () => {
+  it("returns the linked item ids, and nothing when the table is missing", async () => {
+    const { loadLinkedItemIds } = await import("../curriculum-data");
+    const ok = fakeSupabase(() => ({ data: [{ item_id: "a" }, { item_id: "b" }] }));
+    expect(await loadLinkedItemIds(ok.client as never, "session", "s1")).toEqual(["a", "b"]);
+    const missing = fakeSupabase(() => ({ error: { code: "PGRST205" } }));
+    expect(await loadLinkedItemIds(missing.client as never, "session", "s1")).toEqual([]);
+  });
+});

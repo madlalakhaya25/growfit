@@ -124,3 +124,40 @@ export function swapWithNeighbour(
     { id: other.id, sortOrder: tied ? at : item.sortOrder },
   ];
 }
+
+/** "U13", "Under 13" or "u-13 girls" -> "U13"; null when the team's label names no age. */
+export function curriculumAgeGroupFromTeam(teamAgeGroup: string | null | undefined): string | null {
+  const m = /\b(?:u|under)[\s-]?(\d{1,2})\b/i.exec(teamAgeGroup ?? "");
+  return m ? normalizeAgeGroup(`U${Number(m[1])}`) : null;
+}
+
+export const CURRICULUM_LINK_TYPES = ["session", "drill", "objective", "milestone"] as const;
+export type CurriculumLinkType = (typeof CURRICULUM_LINK_TYPES)[number];
+/** The kinds a coach can link today; drill and milestone links are for later. */
+export const COACH_LINK_TYPES = ["session", "objective"] as const;
+export const MAX_LINKED_ITEMS = 20;
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * What is worth saving from a "this is about these curriculum items" request:
+ * a kind a coach may link, the thing's id, and up to 20 distinct item ids.
+ * Null when anything is malformed, so nothing half-valid is written.
+ */
+export function cleanLinkRequest(
+  linkType: unknown, linkId: unknown, itemIds: unknown,
+): { linkType: (typeof COACH_LINK_TYPES)[number]; linkId: string; itemIds: string[] } | null {
+  const type = COACH_LINK_TYPES.find((t) => t === linkType);
+  if (!type || typeof linkId !== "string" || !UUID.test(linkId)) return null;
+  if (!Array.isArray(itemIds) || itemIds.length > MAX_LINKED_ITEMS) return null;
+  if (!itemIds.every((i) => typeof i === "string" && UUID.test(i))) return null;
+  return { linkType: type, linkId, itemIds: [...new Set(itemIds as string[])] };
+}
+
+/** Of the ids asked for, the ones that are active items of this age group. The rest are dropped. */
+export function itemsForTeam(items: readonly CurriculumItem[], ageGroup: string | null, ids: readonly string[]): string[] {
+  const wanted = new Set(ids);
+  return items
+    .filter((i) => wanted.has(i.id) && i.active && ageGroup !== null && normalizeAgeGroup(i.ageGroup) === ageGroup)
+    .map((i) => i.id);
+}
