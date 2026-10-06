@@ -5,6 +5,7 @@
 
 import type { createClient } from "@/lib/supabase/server";
 import { MILESTONE_CATEGORIES } from "@/lib/development-categories";
+import { curriculumAgeGroupFromTeam, groupForAgeGroup } from "@/lib/curriculum";
 import type { CurriculumItem, CurriculumLinkType } from "@/lib/curriculum";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
@@ -67,4 +68,14 @@ export async function loadLinkedItemIds(
     .eq("link_id", linkId);
   if (error) return [];
   return ((data ?? []) as { item_id: string }[]).map((r) => r.item_id);
+}
+
+/** What a picker needs for one team's session or objective: the curriculum
+ * groups for the team's age group and the item ids already linked. Empty when
+ * there is no age group, no items, or migration 068 has not been run. */
+export async function loadPickerData(supabase: Supabase, teamAgeGroup: string | null | undefined, linkType: CurriculumLinkType, linkId: string) {
+  const age = curriculumAgeGroupFromTeam(teamAgeGroup);
+  const groups = age ? groupForAgeGroup((await loadCurriculum(supabase)).items, age) : [];
+  const linkedIds = groups.some((g) => g.items.length > 0) ? await loadLinkedItemIds(supabase, linkType, linkId) : [];
+  return { groups, linkedIds };
 }
