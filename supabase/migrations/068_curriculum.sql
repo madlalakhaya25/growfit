@@ -65,6 +65,13 @@ SECURITY DEFINER SET search_path = public, pg_temp AS $$
   SELECT p_academy_id = auth_academy_id() AND auth_role() IN ('admin', 'coach');
 $$;
 
+-- "Is the caller an admin of this academy": one place for the admin check.
+CREATE OR REPLACE FUNCTION is_academy_admin(p_academy_id UUID)
+RETURNS BOOLEAN LANGUAGE sql STABLE
+SECURITY DEFINER SET search_path = public, pg_temp AS $$
+  SELECT p_academy_id = auth_academy_id() AND auth_role() = 'admin';
+$$;
+
 ALTER TABLE curriculum_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE curriculum_links ENABLE ROW LEVEL SECURITY;
 
@@ -81,18 +88,17 @@ CREATE POLICY "curriculum_items_admin_write" ON curriculum_items
   FOR INSERT TO authenticated
   WITH CHECK (
     created_by = auth.uid()
-    AND academy_id = auth_academy_id()
-    AND auth_role() = 'admin'
+    AND is_academy_admin(academy_id)
   );
 
 CREATE POLICY "curriculum_items_admin_update" ON curriculum_items
   FOR UPDATE TO authenticated
-  USING (academy_id = auth_academy_id() AND auth_role() = 'admin')
-  WITH CHECK (academy_id = auth_academy_id() AND auth_role() = 'admin');
+  USING (is_academy_admin(academy_id))
+  WITH CHECK (is_academy_admin(academy_id));
 
 CREATE POLICY "curriculum_items_admin_delete" ON curriculum_items
   FOR DELETE TO authenticated
-  USING (academy_id = auth_academy_id() AND auth_role() = 'admin');
+  USING (is_academy_admin(academy_id));
 
 DROP POLICY IF EXISTS "curriculum_links_staff_all" ON curriculum_links;
 
