@@ -9,7 +9,8 @@ import { logMatch } from "@/app/actions/fixtures";
 import { POSITIONS } from "@/lib/types";
 import { getInitials } from "@/lib/player";
 import type { AttendanceSummary } from "@/lib/attendance";
-import { MATCH_PHASES, type PhaseRatings } from "@/lib/match-phases";
+import { MATCH_PHASES, type MatchPhaseId, type PhaseRatings } from "@/lib/match-phases";
+import { MAX_OPEN_OBJECTIVES, suggestPhase } from "@/lib/objectives";
 
 type Player = { id: string; full_name: string; position: string | null };
 type PlayerState = { player_id: string; played: boolean; rating: number; note: string };
@@ -39,9 +40,11 @@ interface Props {
    * the same fact, not find out only after typing up the team sheet.
    */
   playerAvailability?: Record<string, { status: string; note: string | null }>;
+  /** Objectives this team already has open. At two, the weekly focus step is hidden. */
+  openObjectives?: number;
 }
 
-export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, trainingAttendance, playerAvailability }: Props) {
+export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, trainingAttendance, playerAvailability, openObjectives = 0 }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +54,12 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
   const [matchNotes, setMatchNotes] = useState("");
   // Optional: how the team did in each phase of play. Untouched phases are not sent.
   const [phaseRatings, setPhaseRatings] = useState<PhaseRatings>({});
+  // "What do we work on this week?" The phase follows the lowest rating until
+  // the coach picks one; an empty problem means no objective is created.
+  const [focusPhase, setFocusPhase] = useState<MatchPhaseId | "none" | null>(null);
+  const [focusProblem, setFocusProblem] = useState("");
+  const suggested = suggestPhase(phaseRatings);
+  const chosenPhase = focusPhase === null ? suggested : focusPhase === "none" ? null : focusPhase;
   const [players, setPlayers] = useState<PlayerState[]>(
     squad.map((p) => ({ player_id: p.id, played: false, rating: 3, note: "" }))
   );
@@ -88,6 +97,7 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
           player_id, rating, note: note || undefined,
         })),
         phase_ratings: Object.keys(phaseRatings).length ? phaseRatings : undefined,
+        objective: focusProblem.trim() ? { phase: chosenPhase, problem: focusProblem } : undefined,
       });
       // No else branch here — on success `logMatch` calls redirect(), which
       // never returns to this callback; it navigates away instead.
@@ -281,6 +291,51 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
           })}
         </div>
       </div>
+
+      {/* Weekly focus: one problem to train for before the next match */}
+      {openObjectives < MAX_OPEN_OBJECTIVES && (
+        <div className="space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+              What do we work on this week? (optional)
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Name one problem you saw. It shows up when you plan training, and at the next match we ask if it came back.
+              Coaches only; families never see it.
+            </p>
+          </div>
+          <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+            <div>
+              <label htmlFor="focus_phase" className="text-xs font-medium text-muted-foreground">
+                Phase of play{suggested && focusPhase === null ? " (lowest rated)" : ""}
+              </label>
+              <select
+                id="focus_phase"
+                value={chosenPhase ?? "none"}
+                onChange={(e) => setFocusPhase(e.target.value as MatchPhaseId | "none")}
+                className="mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="none">Not sure</option>
+                {MATCH_PHASES.map((p) => (
+                  <option key={p.id} value={p.id}>{p.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="focus_problem" className="text-xs font-medium text-muted-foreground">The problem</label>
+              <input
+                id="focus_problem"
+                type="text"
+                maxLength={200}
+                value={focusProblem}
+                onChange={(e) => setFocusProblem(e.target.value)}
+                placeholder="e.g. We lost the ball when playing out from the back"
+                className="mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Match notes */}
       <div className="space-y-1.5">

@@ -9,6 +9,7 @@ import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { friendlyError } from "@/lib/friendly-error";
 import { isMissingAttributeColumn } from "@/lib/attributes";
 import { cleanPhaseRatings } from "@/lib/match-phases";
+import { createMatchObjective } from "@/lib/objectives-data";
 
 // Not redundant with RLS: `fixture_staff_write`/`fixture_staff_update` only
 // check `is_admin_or_coach()` + academy match, not which team a coach
@@ -209,6 +210,8 @@ const logMatchSchema = z.object({
     note: z.string().max(200).optional(),
   })),
   phase_ratings: z.record(z.string(), z.number()).optional(),
+  // "What do we work on this week?" Cleaned again in createMatchObjective.
+  objective: z.unknown().optional(),
 });
 
 export async function logMatch(payload: unknown) {
@@ -220,7 +223,7 @@ export async function logMatch(payload: unknown) {
   const parsed = logMatchSchema.safeParse(payload);
   if (!parsed.success) return { error: "Invalid payload." };
 
-  const { fixture_id, team_score, opponent_score, match_notes, appearances, ratings, phase_ratings } = parsed.data;
+  const { fixture_id, team_score, opponent_score, match_notes, appearances, ratings, phase_ratings, objective } = parsed.data;
 
   const { data, error } = await supabase.rpc("log_match_result", {
     p_fixture_id:     fixture_id,
@@ -246,6 +249,26 @@ export async function logMatch(payload: unknown) {
     if (phaseError && !isMissingAttributeColumn(phaseError)) {
       revalidatePath(`/dashboard/coach/fixtures/${fixture_id}`);
       return { error: `The result is saved, but the phase ratings weren't: ${friendlyError(phaseError)}` };
+    }
+  }
+
+  // The weekly focus rides on the same save. The result is already stored, so
+  // a problem here is reported, not rolled back.
+  if (objective !== undefined && objective !== null) {
+    const { data: fixture } = await supabase
+      .from("fixtures")
+      .select("team_id")
+      .eq("id", fixture_id)
+      .in("team_id", teamIds)
+      .single();
+    if (fixture) {
+      const made = await createMatchObjective(supabase, {
+        userId: user.id, teamId: fixture.team_id, fixtureId: fixture_id, raw: objective,
+      });
+      if (!made.created && made.note) {
+        revalidatePath(`/dashboard/coach/fixtures/${fixture_id}`);
+        return { error: `The result is saved. ${made.note}` };
+      }
     }
   }
 

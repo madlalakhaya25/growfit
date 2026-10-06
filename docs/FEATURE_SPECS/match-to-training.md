@@ -180,7 +180,7 @@ fails. It is not queued in this slice.
 
 1. Migration and pure modules with tests. **Migration approved with you first,
    by decision card, before it runs in production.**
-2. "What do we work on this week?" step on the match log.
+2. "What do we work on this week?" step on the match log. *Built (PR 2): free text plus a phase picker that defaults to the lowest-rated phase; presets wait for Buhle's wording. Hidden when the team already has two open.*
 3. The objective on the coach home and the week plan, the session generator prefill, and linking.
 4. The follow-up question at the next match, the verdict, and history on Squad Review.
 5. The family note line, plus a user guide page and release notes.
