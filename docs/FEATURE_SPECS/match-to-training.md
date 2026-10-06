@@ -1,6 +1,6 @@
 # Match → Training → Follow-up
 
-*Status: **plan, awaiting Khaya's approval**. No code yet. Written 2026-10-06 from
+*Status: **steps 1 to 5 built**; migration 067 still to run in production. Written 2026-10-06 from
 [`PRODUCT_STRATEGY.md`](../PRODUCT_STRATEGY.md) and the research in
 [`docs/research/`](../research/).*
 
@@ -183,7 +183,7 @@ fails. It is not queued in this slice.
 2. "What do we work on this week?" step on the match log. *Built (PR 2): free text plus a phase picker that defaults to the lowest-rated phase; presets wait for Buhle's wording. Hidden when the team already has two open.*
 3. The objective on the coach home and the week plan, the session generator prefill, and linking. *Built (PR 3): a "This week" list on the coach home and the week plan; "Plan a session" opens the new-session page with the focus prefilled and the objective carried, and the saved session is linked. Linking a tactics-board play comes with the play editor later.*
 4. The follow-up question at the next match, the verdict, and history on Squad Review. *Built (PR 4): the match log asks "Did we see the problem again?" (No / A bit / Yes) for each open objective set at an earlier match; the answer closes it with the verdict and this match, and "Keep working on it" prefills a new focus. Squad Review lists closed objectives with sessions planned and the before and after phase rating.*
-5. The family note line, plus a user guide page and release notes.
+5. The family note line, plus a user guide page and release notes. *Built (PR 5): the weekly note gains one team line naming the phase of play in fixed family wording (never a child, never the coach's words), only for a focus with a session planned. Guide: `docs/guides/match-to-training.md`.*
 6. (Later, separate) The AI "Why might this be happening?" helper, once AI terms are settled.
 
 ## Measures (after 4–6 weeks of use)

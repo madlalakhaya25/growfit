@@ -6,6 +6,32 @@ releases yet. Newest first.
 
 ---
 
+## 2026-10-06 — Match to Training to Follow-up
+
+**Added**
+- **A weekly focus from the match**: when a coach logs a result, they can name what the
+  team works on this week. The lowest-rated phase of play is suggested. A team keeps at
+  most two open at a time.
+- **This week** on the coach home and the week plan, with **Plan a session**, which
+  opens the session builder with the problem filled in and counts the session against it.
+- **Did we see the problem again?** at the next match (No, a bit, yes). The answer
+  closes the focus with a verdict, and **Keep working on it** starts the next one.
+- **What we worked on** on Squad Review: verdicts, sessions planned and the phase rating
+  before and after.
+- **A team line in the weekly family note**: "This week the team worked on ...", built
+  from fixed wording, naming a phase of play and never a child. Coaches approve every
+  note as before.
+- A coach guide: `docs/guides/match-to-training.md`.
+
+**Needs you**
+- Run migration 067. Until then none of this shows, and nothing else breaks.
+
+**Planned**
+- UI and performance plan (`docs/FEATURE_SPECS/experience-quality.md`): measure first,
+  then budgets, then fixes.
+
+---
+
 ## 2026-10-02 to 2026-10-04 — A tactics board you can talk to, and a Today home for everyone
 
 **Added**

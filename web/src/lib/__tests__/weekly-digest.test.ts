@@ -1,4 +1,4 @@
-import { buildDigest, planDigestDrafts, weekKeyFor, type DigestFacts, type DigestPlayerFacts } from "../weekly-digest";
+import { buildDigest, planDigestDrafts, teamFocusText, weekKeyFor, type DigestFacts, type DigestPlayerFacts } from "../weekly-digest";
 import { findFlaggedWording } from "../child-safe-check";
 
 const base: DigestFacts = {
@@ -47,6 +47,37 @@ describe("buildDigest", () => {
 
   it("never trips the player-facing wording check", () => {
     expect(findFlaggedWording(buildDigest(base)!)).toEqual([]);
+  });
+});
+
+describe("teamFocusText", () => {
+  it("names the phase of play in family words, never the coach's own text", () => {
+    expect(teamFocusText(["in_possession"])).toBe("This week the team worked on keeping and using the ball.");
+    expect(teamFocusText(["set_pieces", "attacking_transition"])).toBe(
+      "This week the team worked on corners, free kicks and throw-ins and what we do the moment we win the ball.",
+    );
+  });
+
+  it("says each thing once, and nothing when no phase is set", () => {
+    expect(teamFocusText(["set_pieces", "set_pieces"])).toBe("This week the team worked on corners, free kicks and throw-ins.");
+    expect(teamFocusText([null])).toBeNull();
+    expect(teamFocusText([])).toBeNull();
+  });
+
+  it("passes the player-facing wording check for every phase", () => {
+    const all = ["in_possession", "out_of_possession", "attacking_transition", "defensive_transition", "set_pieces"] as const;
+    for (const p of all) expect(findFlaggedWording(teamFocusText([p])!)).toEqual([]);
+  });
+});
+
+describe("buildDigest with a team focus", () => {
+  it("adds the team line between the week and the home challenge", () => {
+    const text = buildDigest({ ...base, teamFocus: "This week the team worked on keeping and using the ball." })!;
+    expect(text).toContain("Well done. This week the team worked on keeping and using the ball. One thing to try at home");
+  });
+
+  it("never makes a note on its own", () => {
+    expect(buildDigest({ ...base, sessionsAttended: 0, matchesPlayed: 0, homeChallenge: null, teamFocus: "This week the team worked on x." })).toBeNull();
   });
 });
 

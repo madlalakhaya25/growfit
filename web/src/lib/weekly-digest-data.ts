@@ -1,9 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { countsAsAttended, isAttendanceStatus } from "@/lib/attendance";
 import { pickHomeChallenge } from "@/lib/home-challenge";
+import { loadOpenObjectives } from "@/lib/objectives-data";
 import { loadSharedDevelopmentPlan } from "@/lib/shared-development-plan";
 import { formatWeekdayDayMonth } from "@/lib/time";
-import type { DigestPlayerFacts } from "@/lib/weekly-digest";
+import { teamFocusText, type DigestPlayerFacts } from "@/lib/weekly-digest";
 
 const DAY_MS = 86_400_000;
 
@@ -57,6 +58,10 @@ export async function loadDigestFacts(supabase: Client, teamId: string, weekKey:
   const next = ((upcoming ?? []) as { opponent: string; fixture_date: string }[])[0];
   const nextFixture = next ? { opponent: next.opponent, when: formatWeekdayDayMonth(next.fixture_date) } : null;
 
+  // The team's own line: only the phase of play, only where a session was planned for it.
+  const objectives = await loadOpenObjectives(supabase, [teamId]);
+  const teamFocus = teamFocusText(objectives.filter((o) => o.linkedCount > 0).map((o) => o.phase));
+
   const plans = await Promise.all(ids.map((id) => loadSharedDevelopmentPlan(supabase, id)));
   return roster.map((p, i) => {
     const challenge = plans[i] ? pickHomeChallenge(plans[i]!.plan, now) : null;
@@ -67,6 +72,7 @@ export async function loadDigestFacts(supabase: Client, teamId: string, weekKey:
       sessionsAttended: attended.get(p.id) ?? 0,
       matchesPlayed: played.get(p.id) ?? 0,
       nextFixture,
+      teamFocus,
       homeChallenge: challenge ? { what: challenge.action.what, how: challenge.action.how, timesPerWeek: challenge.action.timesPerWeek } : null,
     };
   });
