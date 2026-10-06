@@ -5,6 +5,10 @@ function sessionsLabel(n: number): string {
   return n === 1 ? "1 session" : `${n} sessions`;
 }
 
+function objectivesLabel(n: number): string {
+  return n === 1 ? "1 objective" : `${n} objectives`;
+}
+
 /**
  * What was trained against the curriculum in the window, per age group. The
  * "Not touched" list comes first because it is the useful part. Everything is
@@ -49,7 +53,7 @@ export function CoverageView({ groups, span }: Readonly<{ groups: AgeGroupCovera
                       <span>{i.item.title}</span>
                       <span className="shrink-0 text-muted-foreground">
                         {i.sessions > 0 ? `${sessionsLabel(i.sessions)}, last ${i.lastTrained}` : "Not touched"}
-                        {i.objectives > 0 ? ` · ${i.objectives} ${i.objectives === 1 ? "objective" : "objectives"}` : ""}
+                        {i.objectives > 0 ? ` · ${objectivesLabel(i.objectives)}` : ""}
                       </span>
                     </li>
                   ))}
