@@ -1,6 +1,7 @@
 "use client";
 import { forgetSignIn } from "@/lib/auth-cookies";
 import { clearLocalData } from "@/lib/clear-local-data";
+import { OfflineBanner } from "@/components/offline-banner";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
@@ -312,6 +313,7 @@ export function DashboardShell({ profile, teams = [], features, academyName, chi
 
         {/* Bottom padding on phones keeps the last card clear of the floating tab bar. */}
         <main className="flex-1 overflow-y-auto px-4 pt-6 pb-32 lg:px-8 lg:pb-10">
+          <OfflineBanner />
           {children}
         </main>
 
