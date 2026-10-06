@@ -5,7 +5,7 @@
 
 import type { createClient } from "@/lib/supabase/server";
 import { MILESTONE_CATEGORIES } from "@/lib/development-categories";
-import type { CurriculumItem } from "@/lib/curriculum";
+import type { CurriculumItem, CurriculumLinkType } from "@/lib/curriculum";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -54,4 +54,17 @@ export async function loadCurriculum(supabase: Supabase): Promise<CurriculumLoad
       : [],
   );
   return { available: true, items };
+}
+
+/** The curriculum items one session or objective is linked to. Empty when the table is missing. */
+export async function loadLinkedItemIds(
+  supabase: Supabase, linkType: CurriculumLinkType, linkId: string,
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("curriculum_links")
+    .select("item_id")
+    .eq("link_type", linkType)
+    .eq("link_id", linkId);
+  if (error) return [];
+  return ((data ?? []) as { item_id: string }[]).map((r) => r.item_id);
 }
