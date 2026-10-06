@@ -52,6 +52,11 @@ jobs:
       - name: Typecheck
         run: ./node_modules/.bin/tsc --noEmit
 
+      # Lint was never in CI, so errors piled up unseen. Warnings fail too, so
+      # a stale suppression or an unused import is caught the day it appears.
+      - name: Lint
+        run: npm run lint -- --max-warnings=0
+
       - name: Unit tests
         run: npm test
 

@@ -38,7 +38,7 @@ export function WeeklyDigestPanel({ teamId, rows: initial, available }: Readonly
     <section className="space-y-3 rounded-xl border border-border bg-card p-4" aria-label="Weekly notes">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="max-w-md text-xs text-muted-foreground">
-          A short, kind note for each child's family about this week, with one thing to try at home from their approved plan. Read and change each one, then share it. Nothing is seen until you share it.
+          A short, kind note for each child&apos;s family about this week, with one thing to try at home from their approved plan. Read and change each one, then share it. Nothing is seen until you share it.
         </p>
         <button
           type="button" onClick={write} disabled={pending || !available}
@@ -47,7 +47,7 @@ export function WeeklyDigestPanel({ teamId, rows: initial, available }: Readonly
           {written.length === 0 ? "Write this week's notes" : "Write any missing"}
         </button>
       </div>
-      {!available && <p className="text-xs text-amber-700 dark:text-amber-400">Notes need a database update that hasn't been run yet (migration 058).</p>}
+      {!available && <p className="text-xs text-amber-700 dark:text-amber-400">Notes need a database update that hasn&apos;t been run yet (migration 058).</p>}
       <ul className="divide-y divide-border">
         {written.map((r) => <StoryItem key={r.playerId} row={r} onChange={update} noun="Note" />)}
       </ul>

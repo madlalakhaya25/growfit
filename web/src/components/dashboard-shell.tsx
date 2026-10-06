@@ -1,5 +1,6 @@
 "use client";
 import { forgetSignIn } from "@/lib/auth-cookies";
+import { clearLocalData } from "@/lib/clear-local-data";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
@@ -210,6 +211,8 @@ export function DashboardShell({ profile, teams = [], features, academyName, chi
       // Forget that this device keeps its sign-in (lib/auth-cookies.ts).
       forgetSignIn();
       clearAuth();
+      // Children's data held on this device (offline queue, drafts, cached pages).
+      await clearLocalData().catch(() => {});
       router.push("/auth/login");
     });
   }

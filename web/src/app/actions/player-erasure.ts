@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { friendlyError } from "@/lib/friendly-error";
-import { deleteAiArtefactsForSubject, deletePlayRolesForPlayer } from "@/lib/ai-artefacts";
+import { deleteAgeRewritesMentioning, deleteAiArtefactsForSubject, deletePlayRolesForPlayer } from "@/lib/ai-artefacts";
 import { deleteCoachNotesForPlayer } from "@/lib/coach-notes";
 
 /**
@@ -56,7 +56,7 @@ export async function deletePlayerRecord(playerId: string, confirmName: string) 
     }
   }
 
-  const stuck = await eraseDataWithoutForeignKey(supabase, playerId);
+  const stuck = await eraseDataWithoutForeignKey(supabase, playerId, profile.academy_id, player.full_name);
   if (stuck) return { error: stuck };
 
   const { error } = await supabase.from("players").delete().eq("id", playerId);
@@ -75,7 +75,9 @@ export async function deletePlayerRecord(playerId: string, confirmName: string) 
  */
 async function eraseDataWithoutForeignKey(
   supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
-  playerId: string
+  playerId: string,
+  academyId: string,
+  fullName: string
 ): Promise<string | null> {
   const aiFailed = "Couldn't erase this player's saved AI output — nothing was deleted.";
   const artefacts = await deleteAiArtefactsForSubject(supabase, { subjectType: "player", subjectId: playerId });
@@ -84,6 +86,9 @@ async function eraseDataWithoutForeignKey(
   // player's first name; deleting the player does not reach them.
   const playRoles = await deletePlayRolesForPlayer(supabase, playerId);
   if (!playRoles.deleted) return aiFailed;
+  // A coach's note simplified for a child is cached by its text, not its player.
+  const rewrites = await deleteAgeRewritesMentioning(supabase, academyId, fullName);
+  if (!rewrites.deleted) return aiFailed;
   const notes = await deleteCoachNotesForPlayer(supabase, playerId);
   if (!notes.deleted) return "Couldn't erase the coach notes about this player — nothing was deleted.";
   return null;

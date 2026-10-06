@@ -392,6 +392,41 @@ export async function deletePlayRolesForPlayer(
 }
 
 /**
+ * A rewritten coach note (kind age_rewrite) is keyed by a hash of its text, not
+ * by a player, so erasure cannot find it by subject. The rewrite keeps every
+ * name in the note, so any rewrite that mentions the child's full name or first
+ * name is deleted. This can remove a rewrite about someone with the same first
+ * name; that is only a cache and the coach can simplify the note again, which
+ * is the safe direction for an erasure. Same missing-table rule as above.
+ */
+export async function deleteAgeRewritesMentioning(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any, any, any>,
+  academyId: string,
+  fullName: string
+): Promise<{ deleted: boolean; error?: string }> {
+  const full = fullName.trim();
+  const first = full.split(/\s+/)[0] ?? "";
+  const names = [...new Set([full, first].filter((n) => n.length > 0))];
+  try {
+    const patterns = names.map((name) => "%" + name.replace(/[\\%_]/g, String.raw`\$&`) + "%");
+    const results = await Promise.all(
+      patterns.map((pattern) =>
+        supabase.from("ai_artefacts").delete().eq("academy_id", academyId).eq("kind", "age_rewrite").ilike("prose", pattern)
+      )
+    );
+    for (const { error } of results) {
+      if (!error) continue;
+      if (isMissingAiArtefactsTable(error)) return { deleted: true };
+      return { deleted: false, error: error.message };
+    }
+    return { deleted: true };
+  } catch (e) {
+    return { deleted: false, error: e instanceof Error ? e.message : "Could not delete AI output." };
+  }
+}
+
+/**
  * Hard-delete every artefact about one subject. subject_id is polymorphic with
  * no foreign key, so deleting a player does NOT cascade here -- erasure calls
  * this explicitly (POPIA erasure is not optional). A missing table counts as
