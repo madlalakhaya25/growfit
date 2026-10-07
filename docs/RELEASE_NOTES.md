@@ -6,6 +6,20 @@ releases yet. Newest first.
 
 ---
 
+## 2026-10-07 — Coach copilot, Learn tab and speed, accessibility and phone-feel work
+
+**Added**
+- **Think it through** on the match result form: a coach names the problem and gets a draft covering possible causes, questions to ask, session ideas tied to the academy's curriculum, and what to watch next match. It is for that coach only, is not saved, and names no child.
+- **Learn tab** (coach): 20 lessons grouped by area, each with what to see, why it matters, what to try and what to watch. Tapping a match problem on the result form links to its lesson. Lessons live in code, so every change is reviewed in a pull request. Khaya approved this first batch; the safeguarding batch is not written yet.
+- **Vercel Web Analytics** installed. Switch it on in the Vercel project to see data.
+- **Performance budgets** checked in CI; lazy-loaded charts, handout PDF and a lighter sign-in page.
+- **Accessibility scan** of the signed-out screens, with contrast and landmark fixes.
+- **Style guide**; shared controls are now 44 px on touch screens.
+- **"You're offline" notice** and shaped loading screens for the register and the match.
+- **Staff hat cards** on a coach's Today page.
+
+---
+
 ## 2026-10-06 — Four security fixes
 
 **Fixed**

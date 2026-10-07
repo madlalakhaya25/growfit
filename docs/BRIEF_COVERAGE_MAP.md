@@ -22,7 +22,7 @@
 | 18 | Readiness and availability | Researched | "Pain today?" check, height each term; not scheduled |
 | 19 | Coach OS | Partly | Today home, week plan |
 | 20, 21 | Coach passport, coach observation | Deferred | Needs CPR Part B and first-aid dates stored first |
-| 22, 23 | Teach-the-coach AI, coach learning hub | Undecided | |
+| 22, 23 | Teach-the-coach AI, coach learning hub | Built | Think it through (#157), Learn tab with 20 lessons (#158, #159); safeguarding batch later |
 | 24 | Tactical studio | Built | Tactics board |
 | 26, 27, 28 | Scouting loop, trials, pathways | Deferred | After audit log and a safeguarding review |
 | 29 | Opportunity engine | Rejected | Marketplace is a second product |
