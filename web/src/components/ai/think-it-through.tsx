@@ -38,7 +38,7 @@ export function ThinkItThrough({ problem, ageGroup }: Readonly<{ problem: string
 
       {result?.sections && (
         <div className="space-y-3 rounded-md border border-primary/40 bg-primary/5 p-3">
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
             A draft to help you think. Check it against what you saw. It is not shared with anyone.
           </p>
           {result.sections.map((s) => (

@@ -121,7 +121,7 @@ export function MediaGallery({ items, canDelete, currentUserId }: Props) {
           {item.tagged_players && item.tagged_players.length > 0 && (
             <div className="flex flex-wrap gap-1 px-0.5">
               {item.tagged_players.map((p) => (
-                <Badge key={p.full_name} variant="brand" className="text-[10px] px-1.5 py-0">
+                <Badge key={p.full_name} variant="brand" className="text-xs px-1.5 py-0">
                   {p.full_name}
                 </Badge>
               ))}

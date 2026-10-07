@@ -423,7 +423,7 @@ export default function Home() {
             <div className="flex flex-col items-start gap-3 sm:items-end">
               <div className="flex flex-wrap gap-2">
                 {["FIFA LTPD", "SAFA NDP", "CAF Pathway", "4-Corner Model"].map((f) => (
-                  <span key={f} className="rounded-full border border-border px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  <span key={f} className="rounded-full border border-border px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
                     {f}
                   </span>
                 ))}

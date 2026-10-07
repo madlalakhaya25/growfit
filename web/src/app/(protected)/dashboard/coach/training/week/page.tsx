@@ -185,10 +185,10 @@ export default async function TrainingWeekPage({
               <div className="flex h-16 w-full items-end rounded bg-muted/40">
                 <div className={cn("w-full rounded", LOAD_BAR[d.load])} style={{ height: `${Math.max(d.load, 0.25) * 33.3}%` }} />
               </div>
-              <span className={cn("text-[11px]", d.isToday ? "font-bold text-foreground" : "text-muted-foreground")}>
+              <span className={cn("text-xs", d.isToday ? "font-bold text-foreground" : "text-muted-foreground")}>
                 {formatInTimezone(startOfDay(d.date), { weekday: "narrow" })}
               </span>
-              {d.matchDay && <span className="text-[10px] font-semibold text-primary">{d.matchDay}</span>}
+              {d.matchDay && <span className="text-xs font-semibold text-primary">{d.matchDay}</span>}
             </li>
           ))}
         </ul>
@@ -210,7 +210,7 @@ export default async function TrainingWeekPage({
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-semibold">{dayHeading(d.date)}</p>
               {d.matchDay && (
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">{d.matchDay}</span>
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">{d.matchDay}</span>
               )}
             </div>
 
@@ -250,7 +250,7 @@ export default async function TrainingWeekPage({
 
             <Link
               href={`/dashboard/coach/training/new?team=${team.id}`}
-              className="mt-auto inline-flex items-center gap-1 self-start text-[11px] text-muted-foreground hover:text-foreground"
+              className="mt-auto inline-flex items-center gap-1 self-start text-xs text-muted-foreground hover:text-foreground"
             >
               <Plus className="size-3" aria-hidden="true" />
               Session
@@ -266,7 +266,7 @@ function PlayList({ plays }: Readonly<{ plays: PlanPlay[] }>) {
   return (
     <span className="mt-1.5 flex flex-wrap gap-1">
       {plays.map((p) => (
-        <span key={p.id} className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
+        <span key={p.id} className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
           <LayoutGrid className="size-2.5" aria-hidden="true" />
           {p.name}
         </span>

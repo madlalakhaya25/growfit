@@ -176,7 +176,7 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
                         {availability && (
                           <span
                             className={cn(
-                              "rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                              "rounded-full px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide",
                               availability.status === "injured"
                                 ? "bg-destructive/10 text-destructive"
                                 : "bg-amber-500/10 text-amber-700 dark:text-amber-400"

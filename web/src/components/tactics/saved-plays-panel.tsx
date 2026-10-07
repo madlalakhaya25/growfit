@@ -434,7 +434,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
             if (items.length === 0) return null;
             return (
               <div key={cat}>
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground pt-1">{cat}</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground pt-1">{cat}</p>
                 {items.map((c) => (
                   <label key={c.id} className="flex items-start gap-1.5 py-0.5 text-xs cursor-pointer">
                     <input
@@ -544,7 +544,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
       {description && (
         <div className="rounded-md border border-border bg-background p-2 space-y-1 max-h-56 overflow-y-auto">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Coaching points</p>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Coaching points</p>
             <SpeakButton text={description} />
           </div>
           <AiProse text={description} className="text-xs" />
@@ -554,7 +554,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
       {analysis && (
         <div className="rounded-md border border-primary/40 bg-primary/5 p-2 space-y-1 max-h-56 overflow-y-auto">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Countering the opponent</p>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Countering the opponent</p>
             <SpeakButton text={analysis} />
           </div>
           <AiProse text={analysis} className="text-xs" />
@@ -611,7 +611,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
               <div key={g.folder ?? "__unfiled"}>
                 {/* Headings only once there is a folder to tell apart. */}
                 {folderNames(plays).length > 0 && (
-                  <p className="flex items-center gap-1 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                  <p className="flex items-center gap-1 pb-1 text-xs uppercase tracking-wide text-muted-foreground">
                     <Folder className="size-3" aria-hidden="true" />
                     {g.folder ?? "Not in a folder"}
                     <span className="tabular-nums">({g.plays.length})</span>
@@ -639,7 +639,7 @@ export function SavedPlaysPanel({ ageGroup, busy, setBusy, notice, setNotice, sn
             ))}
         </div>
       )}
-      {notice && <p className="text-[11px] text-muted-foreground pt-1">{notice}</p>}
+      {notice && <p className="text-xs text-muted-foreground pt-1">{notice}</p>}
     </div>
   );
 }

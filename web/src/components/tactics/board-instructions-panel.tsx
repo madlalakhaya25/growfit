@@ -76,7 +76,7 @@ export function BoardInstructionsPanel({
 
   return (
     <div className="space-y-2 rounded-xl border border-border bg-card p-2">
-      <span className="px-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Tell the board</span>
+      <span className="px-0.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Tell the board</span>
       <form className="flex gap-1.5" onSubmit={(e) => { e.preventDefault(); void handlePreview(); }}>
         <input
           type="text"
@@ -112,12 +112,12 @@ export function BoardInstructionsPanel({
       {notice && <output className="block text-xs text-muted-foreground">{notice}</output>}
       {plan && (
         <div className="space-y-1.5 rounded-lg border border-dashed border-primary/50 bg-primary/5 p-2">
-          <p className="text-[11px] font-medium text-muted-foreground">Dashed on the pitch. Nothing changes until you apply.</p>
+          <p className="text-xs font-medium text-muted-foreground">Dashed on the pitch. Nothing changes until you apply.</p>
           <ul className="space-y-0.5 text-xs">
             {plan.planned.map((p, i) => <li key={`${p.instruction.action}-${i}`}>{p.text}</li>)}
           </ul>
           {plan.skipped.length > 0 && (
-            <ul className="space-y-0.5 text-[11px] text-muted-foreground">
+            <ul className="space-y-0.5 text-xs text-muted-foreground">
               {plan.skipped.map((s) => <li key={s}>Skipped: {s}</li>)}
             </ul>
           )}

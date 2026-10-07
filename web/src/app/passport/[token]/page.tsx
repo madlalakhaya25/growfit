@@ -267,7 +267,7 @@ export default async function PublicPassportPage({
                   <p className="text-xs text-muted-foreground">Share this passport</p>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={qrDataUrl} alt="Passport QR code" width={80} height={80} className="rounded-lg" />
-                  <p className="text-[10px] text-muted-foreground font-mono break-all">{shareUrl}</p>
+                  <p className="text-xs text-muted-foreground font-mono break-all">{shareUrl}</p>
                 </div>
             </PlayerPassportCard>
 
@@ -322,7 +322,7 @@ export default async function PublicPassportPage({
         </p>
         <div className="flex flex-wrap justify-center gap-3 pt-1">
           {["FIFA LTPD", "SAFA NDP", "CAF Pathway", "4-Corner Model"].map((label) => (
-            <span key={label} className="rounded-full border border-border px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+            <span key={label} className="rounded-full border border-border px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
               {label}
             </span>
           ))}

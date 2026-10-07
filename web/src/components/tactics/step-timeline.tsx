@@ -41,7 +41,7 @@ function StepChip({ index, frame, selected, current, disabled, onPick }: Readonl
         className={`flex h-11 sm:h-9 min-w-14 flex-col items-center justify-center rounded-[8px] border px-2.5 text-xs leading-tight disabled:opacity-50 ${tone}`}
       >
         <span className={current ? "font-semibold text-primary" : "font-medium"}>Step {index + 1}</span>
-        <span className="text-[10px] text-muted-foreground">
+        <span className="text-xs text-muted-foreground">
           {index === 0 ? "Start" : formatSeconds(stepDurationMs(frame))}
         </span>
       </button>

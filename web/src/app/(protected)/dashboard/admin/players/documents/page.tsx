@@ -260,12 +260,12 @@ function ThisWeek({ chase }: Readonly<{ chase: ReturnType<typeof buildChase> }>)
               {c.ageGroup && <span className="ml-1.5 text-xs text-muted-foreground">{c.ageGroup}</span>}
               <div className="mt-0.5 flex flex-wrap gap-1">
                 {c.fixtureInDays !== null && (
-                  <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
+                  <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
                     {c.fixtureInDays <= 1 ? "Plays tomorrow" : `Plays in ${c.fixtureInDays} days`}
                   </span>
                 )}
                 {c.reasons.map((r) => (
-                  <span key={r} className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">{REASON_LABEL[r]}</span>
+                  <span key={r} className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{REASON_LABEL[r]}</span>
                 ))}
               </div>
             </div>

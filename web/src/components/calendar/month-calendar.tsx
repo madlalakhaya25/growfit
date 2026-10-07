@@ -106,7 +106,7 @@ export function MonthCalendar({
         </Link>
       </div>
 
-      <div className="grid grid-cols-7 border-b border-border text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className="grid grid-cols-7 border-b border-border text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {WEEKDAYS.map((d) => (
           <div key={d} className="py-1.5">{d}</div>
         ))}
@@ -137,7 +137,7 @@ export function MonthCalendar({
                   <div className="mt-0.5 space-y-0.5">
                     {dayEvents.slice(0, 3).map((e) => {
                       const chip = (
-                        <span className="flex items-center gap-1 truncate rounded px-1 py-0.5 text-[10px] leading-tight hover:bg-muted">
+                        <span className="flex items-center gap-1 truncate rounded px-1 py-0.5 text-xs leading-tight hover:bg-muted">
                           <span className={cn("size-1.5 shrink-0 rounded-full", KIND_DOT[e.kind])} aria-hidden="true" />
                           <span className="truncate">{e.title}</span>
                         </span>
@@ -151,7 +151,7 @@ export function MonthCalendar({
                       );
                     })}
                     {dayEvents.length > 3 && (
-                      <p className="px-1 text-[10px] text-muted-foreground">+{dayEvents.length - 3} more</p>
+                      <p className="px-1 text-xs text-muted-foreground">+{dayEvents.length - 3} more</p>
                     )}
                   </div>
                 </>

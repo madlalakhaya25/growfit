@@ -157,7 +157,7 @@ export default function UiGuidePage() {
                     <div className="h-2 overflow-hidden rounded-full bg-muted">
                       <div className={`h-full w-3/5 rounded-full ${fill}`} />
                     </div>
-                    <p className="text-[11px] text-muted-foreground">{short}</p>
+                    <p className="text-xs text-muted-foreground">{short}</p>
                   </div>
                 );
               })}

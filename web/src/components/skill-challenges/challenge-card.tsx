@@ -70,11 +70,11 @@ export function ChallengeCard({
             <li key={t} className="flex flex-col items-center rounded-[10px] bg-secondary/60 py-2">
               <TrophyBadge trophy={t} size={22} compact />
               <span className="text-sm font-semibold tabular-nums">{formatScore(challenge, targets[t])}</span>
-              <span className="text-[11px] text-muted-foreground">{TROPHY_LABELS[t]}</span>
+              <span className="text-xs text-muted-foreground">{TROPHY_LABELS[t]}</span>
             </li>
           ))}
         </ul>
-        <p className="text-[11px] text-muted-foreground">{TARGETS_NOTE}</p>
+        <p className="text-xs text-muted-foreground">{TARGETS_NOTE}</p>
       </div>
 
       <ScoreLogger

@@ -173,7 +173,7 @@ export function SessionGeneratorPanel({ sessionId, teamId, suggestedSquadSize = 
                 className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               />
               {suggestedSquadSize !== null && (
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Usually {suggestedSquadSize} turn up, from your recent registers.
                 </p>
               )}
