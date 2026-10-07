@@ -56,7 +56,7 @@ export function AnimationPanel({
           Play sequence
         </p>
       </div>
-      <p className="text-[11px] text-muted-foreground leading-snug">
+      <p className="text-xs text-muted-foreground leading-snug">
         Draw runs and passes and press Play — the players follow your arrows. For finer control, capture steps by hand.
       </p>
       <div className="flex flex-wrap gap-1.5">
@@ -89,7 +89,7 @@ export function AnimationPanel({
       </div>
 
       {frames.length >= 2 && (
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Scrub the move and set each step&apos;s time on the timeline under the pitch.
         </p>
       )}
@@ -111,8 +111,8 @@ export function AnimationPanel({
               <button type="button" onClick={() => gotoFrame(i)} disabled={playing} className="flex-1 min-w-[4rem] rounded-md border border-border bg-background px-2 py-1 text-left text-xs hover:bg-muted disabled:opacity-50">
                 Step {i + 1}
               </button>
-              <button type="button" onClick={() => updateFrame(i)} disabled={playing} title="Update this step to the current board" className="rounded-md border border-border bg-background px-1.5 py-1 text-[10px] hover:bg-muted disabled:opacity-50">Set</button>
-              <button type="button" onClick={() => insertFrameAfter(i)} disabled={playing} title="Insert the current board as a new step after this one" className="rounded-md border border-border bg-background px-1.5 py-1 text-[10px] hover:bg-muted disabled:opacity-50">
+              <button type="button" onClick={() => updateFrame(i)} disabled={playing} title="Update this step to the current board" className="rounded-md border border-border bg-background px-1.5 py-1 text-xs hover:bg-muted disabled:opacity-50">Set</button>
+              <button type="button" onClick={() => insertFrameAfter(i)} disabled={playing} title="Insert the current board as a new step after this one" className="rounded-md border border-border bg-background px-1.5 py-1 text-xs hover:bg-muted disabled:opacity-50">
                 <Plus className="size-3" aria-hidden="true" />
               </button>
               <button type="button" onClick={() => duplicateFrame(i)} disabled={playing} title="Duplicate step" className="rounded-md border border-border bg-background px-1.5 py-1 hover:bg-muted disabled:opacity-50">

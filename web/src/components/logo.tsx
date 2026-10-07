@@ -15,7 +15,7 @@ export function Logo({ className, name }: Readonly<{ className?: string; name?: 
       <Image src="/growfit.png" alt={own ?? APP_NAME} width={32} height={32} priority className="shrink-0 rounded-sm" />
       <span className="min-w-0">
         <span className="block truncate text-lg font-bold leading-tight tracking-tight">{own ?? APP_NAME}</span>
-        {own && <span className="block text-[11px] leading-tight text-muted-foreground">Powered by {APP_NAME}</span>}
+        {own && <span className="block text-xs leading-tight text-muted-foreground">Powered by {APP_NAME}</span>}
       </span>
     </span>
   );

@@ -112,7 +112,7 @@ export function VoiceNoteRecorder({
       {url && !recording && (
         <audio controls src={url} className="w-full h-8" />
       )}
-      {error && <p className="text-[11px] text-destructive">{error}</p>}
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }

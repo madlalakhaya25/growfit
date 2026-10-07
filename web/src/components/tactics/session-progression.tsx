@@ -50,7 +50,7 @@ export function SessionProgression({
 
   return (
     <div className="rounded-md border border-primary/40 bg-primary/5 p-2 space-y-2 max-h-72 overflow-y-auto">
-      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Session from this play</p>
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">Session from this play</p>
       {drills.map((drill) => {
         const [header, ...rest] = drill.trim().split("\n");
         return (

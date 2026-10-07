@@ -418,7 +418,7 @@ export default async function PlayerDetailPage({
                     </span>
                     <span className="font-semibold tabular-nums">{squadSnapshot.overall}</span>
                   </div>
-                  <p className="mt-1.5 text-[11px] text-muted-foreground">
+                  <p className="mt-1.5 text-xs text-muted-foreground">
                     The passport and the player&apos;s own dashboard show the average.
                   </p>
                 </div>

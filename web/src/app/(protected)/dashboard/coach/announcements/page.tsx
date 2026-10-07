@@ -108,7 +108,7 @@ export default async function CoachAnnouncementsPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-semibold leading-snug">{a.title}</p>
                       {isRecent && (
-                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
                           New
                         </span>
                       )}

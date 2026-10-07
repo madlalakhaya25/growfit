@@ -71,7 +71,7 @@ function PlayerRow({
       <span className="text-[17px]">
         {player.full_name}
         {rsvp && (
-          <span className={cn("ml-2 rounded-full px-1.5 py-0.5 text-[11px] font-normal", rsvp === "going" ? "bg-green-500/10 text-green-700 dark:text-green-400" : "bg-muted text-muted-foreground")}>
+          <span className={cn("ml-2 rounded-full px-1.5 py-0.5 text-xs font-normal", rsvp === "going" ? "bg-green-500/10 text-green-700 dark:text-green-400" : "bg-muted text-muted-foreground")}>
             {rsvp === "going" ? "Said going" : "Said can't"}
           </span>
         )}

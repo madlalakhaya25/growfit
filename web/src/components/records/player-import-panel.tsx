@@ -320,7 +320,7 @@ export function PlayerImportPanel({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[52rem] text-left">
               <thead>
-                <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted-foreground">
+                <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="px-3 py-2 font-medium">Photo</th>
                   <th className="px-3 py-2 font-medium">Name</th>
                   <th className="px-3 py-2 font-medium">Date of birth</th>
@@ -428,7 +428,7 @@ export function PlayerImportPanel({
                           <button
                             type="button"
                             onClick={() => update(i, { photoDataUrl: null })}
-                            className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-destructive"
+                            className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-destructive"
                           >
                             <X className="size-2.5" aria-hidden="true" /> Clear
                           </button>
@@ -444,7 +444,7 @@ export function PlayerImportPanel({
                         className={cell}
                       />
                       {r.age_group && (
-                        <span className="mt-0.5 block text-[10px] text-muted-foreground">{r.age_group}</span>
+                        <span className="mt-0.5 block text-xs text-muted-foreground">{r.age_group}</span>
                       )}
                     </td>
                     <td className="px-3 py-2">

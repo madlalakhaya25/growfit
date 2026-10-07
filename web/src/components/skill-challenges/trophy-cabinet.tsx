@@ -67,7 +67,7 @@ export function TrophyCabinet({
               <TrophyBadge trophy={r.trophy} size={32} compact />
               <span className="text-xs font-medium leading-tight">{r.challenge.name}</span>
               {r.best !== null && (
-                <span className="text-[11px] tabular-nums text-muted-foreground">Best {formatScore(r.challenge, r.best)}</span>
+                <span className="text-xs tabular-nums text-muted-foreground">Best {formatScore(r.challenge, r.best)}</span>
               )}
             </li>
           ))}

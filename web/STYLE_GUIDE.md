@@ -44,7 +44,7 @@ Condensed (`font-display`), numbers use tabular figures (set in `@layer base`).
 | Section label | 12 px, uppercase, wide tracking (`GroupedSection`) |
 | Body | 15 to 16 px |
 | Secondary line | 13 px |
-| **Smallest allowed** | **12 px.** 10 and 11 px are too small for a touchline; see the gap list |
+| **Smallest allowed** | **12 px.** 10 and 11 px are too small for a touchline; only the avatar status badge is smaller |
 
 ## Space, shape, shadow
 
@@ -92,7 +92,7 @@ academy's words: squad, register, result, objective, "Needs you".
 
 | Gap | Count | Plan |
 |---|---|---|
-| Text at 10 or 11 px (`text-[10px]`, `text-[11px]`) | 81 places | raise to 12 px, screen by screen, starting with the touchline screens |
+| Text at 10 or 11 px (`text-[10px]`, `text-[11px]`) | 2 places (avatar badges, which sit in a 16 px circle) | everything else raised to `text-xs` (12 px) on 2026-10-07 |
 | Hex colours written in components | 108 places | most are in the PDF, canvas and print code where tokens do not apply; the rest move to tokens |
 | Small controls with their own `h-8`/`h-9` | about 25 places | switch to `Button` or add `pointer-coarse:` height |
 | Arbitrary text sizes (`text-[13px]`, `[15px]`, `[17px]`, `[22px]`) | about 25 places | fold into the type table above |

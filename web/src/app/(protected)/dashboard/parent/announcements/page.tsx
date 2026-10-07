@@ -121,7 +121,7 @@ export default async function ParentAnnouncementsPage() {
                       {a.title}
                     </p>
                     {isRecent && !isAcknowledged && (
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
                         New
                       </span>
                     )}

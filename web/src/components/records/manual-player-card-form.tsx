@@ -155,7 +155,7 @@ export function ManualPlayerCardForm({ teams }: { teams: ManualCardTeam[] }) {
           ) : (
             <span className="flex size-full flex-col items-center justify-center gap-1 text-muted-foreground">
               <ImagePlus className="size-5" aria-hidden="true" />
-              <span className="text-[10px]">Photo</span>
+              <span className="text-xs">Photo</span>
             </span>
           )}
           <input ref={fileRef} type="file" accept="image/*" onChange={handlePhoto} className="sr-only" />

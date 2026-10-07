@@ -49,7 +49,7 @@ export function SimplifyForAge({
 
       {result?.text && (
         <div className="space-y-2 rounded-md border border-primary/40 bg-primary/5 p-3">
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Simpler version for {ageGroup}</p>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Simpler version for {ageGroup}</p>
           <p className="whitespace-pre-wrap text-sm">{result.text}</p>
           {result.missing && result.missing.length > 0 && (
             <p role="alert" className="text-xs text-amber-700 dark:text-amber-400">

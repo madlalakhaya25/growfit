@@ -17,7 +17,7 @@ export function HandoutButton({
         <FileText className="size-4 text-primary" aria-hidden="true" />
         {busy ? "Making PDF…" : "Handout PDF"}
       </button>
-      {blockedReason && <span className="text-[11px] text-muted-foreground">{blockedReason}</span>}
+      {blockedReason && <span className="text-xs text-muted-foreground">{blockedReason}</span>}
     </span>
   );
 }

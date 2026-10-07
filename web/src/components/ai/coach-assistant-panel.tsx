@@ -294,7 +294,7 @@ export function CoachAssistantPanel({
         {output && (
           <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
                 {output.kind === "lineup" ? "Suggested XI" : output.kind === "scouting" ? "Scouting report" : "Match plan"}
               </p>
               <SpeakButton text={output.text} />
@@ -415,7 +415,7 @@ export function CoachAssistantPanel({
         </form>
 
         {messages.length > 0 && (
-          <button type="button" onClick={() => { clearConversation(); setError(null); }} className="text-[11px] text-muted-foreground underline">
+          <button type="button" onClick={() => { clearConversation(); setError(null); }} className="text-xs text-muted-foreground underline">
             Clear conversation
           </button>
         )}

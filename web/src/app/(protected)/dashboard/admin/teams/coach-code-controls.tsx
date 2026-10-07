@@ -63,7 +63,7 @@ export function CoachCodeBlock({ teamId, code }: { teamId: string; code: string 
           </>
         )}
       </div>
-      {error && <p className="text-[11px] text-destructive">{error}</p>}
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }
@@ -115,18 +115,18 @@ export function RemoveCoachButton({
             }
           })
         }
-        className="rounded bg-destructive px-1.5 py-0.5 text-[10px] font-semibold text-white disabled:opacity-50"
+        className="rounded bg-destructive px-1.5 py-0.5 text-xs font-semibold text-white disabled:opacity-50"
       >
         {isPending ? "…" : "Remove"}
       </button>
       <button
         type="button"
         onClick={() => { setConfirming(false); setError(null); }}
-        className="text-[10px] text-muted-foreground underline"
+        className="text-xs text-muted-foreground underline"
       >
         Cancel
       </button>
-      {error && <span className="text-[10px] text-destructive">{error}</span>}
+      {error && <span className="text-xs text-destructive">{error}</span>}
     </span>
   );
 }

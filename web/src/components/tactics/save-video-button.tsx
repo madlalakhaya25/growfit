@@ -37,7 +37,7 @@ export function SaveVideoButton({ onSave, recording, disabled: empty, blockedRea
         {recording ? "Saving video…" : "Save as video"}
       </button>
       {reason && (
-        <span id={reasonId} className="text-[11px] text-muted-foreground">
+        <span id={reasonId} className="text-xs text-muted-foreground">
           {reason}
         </span>
       )}

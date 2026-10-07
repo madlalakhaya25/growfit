@@ -39,7 +39,7 @@ export function PlayRolesPanel({ playId, onNotice }: Readonly<{ playId: string; 
   return (
     <div className="rounded-md border border-border bg-background p-2 space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Player jobs (uses the saved play)</p>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">Player jobs (uses the saved play)</p>
         <div className="flex gap-1.5">
           {result && (
             <button
@@ -76,7 +76,7 @@ export function PlayRolesPanel({ playId, onNotice }: Readonly<{ playId: string; 
             ))}
           </ul>
           {result.persisted === false && (
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Not saved yet, so it can&apos;t be approved. This needs a database update (migration 049).
             </p>
           )}
@@ -96,7 +96,7 @@ export function PlayRolesPanel({ playId, onNotice }: Readonly<{ playId: string; 
                   {busy === "approve" && <Loader2 className="size-3 animate-spin" aria-hidden="true" />}
                   Approve for players
                 </button>
-                <span className="text-[11px] text-muted-foreground">Players see nothing until you approve.</span>
+                <span className="text-xs text-muted-foreground">Players see nothing until you approve.</span>
               </div>
             )
           )}

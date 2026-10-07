@@ -333,7 +333,7 @@ export function DashboardShell({ profile, teams = [], features, academyName, chi
                 key={key}
                 href={tabs[0].href}
                 className={cn(
-                  "flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[10px] font-semibold transition-colors",
+                  "flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-xs font-semibold transition-colors",
                   active ? "bg-primary/10 text-primary" : "text-foreground/80"
                 )}
               >

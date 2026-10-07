@@ -47,7 +47,7 @@ export default async function PlayerTacticsPage() {
                       <Badge key={id} variant="brand">{getConcept(id)?.label ?? id}</Badge>
                     ))}
                     {p.voice_url && (
-                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                         <Volume2 className="size-3" aria-hidden="true" /> Voice note
                       </span>
                     )}

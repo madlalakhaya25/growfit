@@ -1608,7 +1608,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   /** A small labelled cluster of tools — "Movement", "Areas", … */
   const toolGroup = (label: string, children: React.ReactNode) => (
     <div className="flex flex-col gap-1">
-      <span className="px-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{label}</span>
+      <span className="px-0.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">{label}</span>
       <div className="flex flex-wrap items-center gap-1">{children}</div>
     </div>
   );
@@ -1621,7 +1621,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       aria-pressed={active}
       title={label}
       aria-label={label}
-      className={`inline-flex h-8 items-center gap-1 rounded px-2 text-[11px] font-medium transition-colors ${
+      className={`inline-flex h-8 items-center gap-1 rounded px-2 text-xs font-medium transition-colors ${
         active ? "bg-background text-foreground shadow-sm ring-1 ring-border" : "text-muted-foreground hover:text-foreground"
       }`}
     >
@@ -1631,7 +1631,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   );
   const segmented = (label: string, children: React.ReactNode) => (
     <div className="inline-flex items-center gap-1.5">
-      <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{label}</span>
+      <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{label}</span>
       <div className="inline-flex items-center gap-0.5 rounded-md bg-muted p-0.5">{children}</div>
     </div>
   );
@@ -1780,7 +1780,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
             </button>
           )}
           {scouting && scouting.formations.length === 0 && (
-            <p className="text-[11px] text-muted-foreground">No saved shape for {scouting.opponent} yet — set them up and save a play to remember it.</p>
+            <p className="text-xs text-muted-foreground">No saved shape for {scouting.opponent} yet — set them up and save a play to remember it.</p>
           )}
         </div>
       </div>
@@ -1803,12 +1803,12 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           ))}
         </div>
         {!pitch.supportsFormations && (
-          <p className="mt-2 text-[11px] text-muted-foreground">
+          <p className="mt-2 text-xs text-muted-foreground">
             A training grid — formations and pitch overlays are off. Place equipment and draw the drill.
           </p>
         )}
         <div className="mt-2 flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Pitch look">
-          <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Look</span>
+          <span className="mr-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Look</span>
           {PITCH_THEME_LIST.map((t) => (
             <button
               key={t.id}
@@ -1911,14 +1911,14 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
             )}
           </>)}
           <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Line colour">
-          <span className="mr-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Colour</span>
+          <span className="mr-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Colour</span>
           <button
             type="button"
             role="radio"
             aria-checked={drawColor === null}
             onClick={() => setDrawColor(null)}
             title="Default colours (yellow runs & passes, blue dribbles)"
-            className={`h-7 rounded-full border px-2 text-[11px] font-medium ${
+            className={`h-7 rounded-full border px-2 text-xs font-medium ${
               drawColor === null ? "border-primary bg-primary/10 text-primary" : "border-border bg-background hover:bg-muted"
             }`}
           >
@@ -1963,7 +1963,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
       {/* Analyse: read the shapes on the pitch — everything here is a view
           over the board, never an edit to it. */}
       <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-card p-2">
-        <span className="mr-1 px-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Analyse</span>
+        <span className="mr-1 px-0.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Analyse</span>
         <span className="inline-flex h-10 sm:h-9 items-center gap-1 rounded-md border border-border bg-background pl-2 pr-1 text-xs">
           <Grid3x3 className="size-3.5 text-muted-foreground" aria-hidden="true" />
           <select
@@ -2030,7 +2030,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
 
       {/* Coach: tools that do something to the board for you. */}
       <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-card p-2">
-        <span className="mr-1 px-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Coach</span>
+        <span className="mr-1 px-0.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Coach</span>
         <button
           type="button"
           onClick={() => setOpponentReacts((v) => !v)}
@@ -2042,7 +2042,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           <Crosshair className="size-3.5" aria-hidden="true" /> Opponent reacts
         </button>
         <div className="inline-flex items-center gap-0.5 rounded-md bg-muted p-0.5" role="group" aria-label="Auto-shift">
-          <span className="px-1.5 text-[11px] font-medium text-muted-foreground" title="Drag the ball and the chosen side slides and squeezes as a zonal unit">
+          <span className="px-1.5 text-xs font-medium text-muted-foreground" title="Drag the ball and the chosen side slides and squeezes as a zonal unit">
             <Magnet className="mr-1 inline size-3.5 align-[-2px]" aria-hidden="true" />Auto-shift
           </span>
           {([["opponent", "Them"], ["player", "Us"]] as const).map(([side, label]) => (
@@ -2052,7 +2052,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               onClick={() => toggleAutoShift(side)}
               aria-pressed={autoShift?.side === side}
               disabled={!pitch.supportsFormations}
-              className={`inline-flex h-8 items-center rounded px-2 text-[11px] font-medium disabled:opacity-40 ${
+              className={`inline-flex h-8 items-center rounded px-2 text-xs font-medium disabled:opacity-40 ${
                 autoShift?.side === side ? "bg-background text-foreground shadow-sm ring-1 ring-border" : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -2162,7 +2162,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               ))}
             </div>
             {tilted && (
-              <span className="absolute bottom-2 left-1/2 z-10 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1 text-[11px] font-medium text-white backdrop-blur-md">
+              <span className="absolute bottom-2 left-1/2 z-10 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1 text-xs font-medium text-white backdrop-blur-md">
                 3D view · switch to 2D to edit
               </span>
             )}
@@ -2386,7 +2386,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                     Notes for {tok.label}
                   </p>
                 </div>
-                <p className="text-[11px] text-muted-foreground leading-snug">
+                <p className="text-xs text-muted-foreground leading-snug">
                   Shown to {tok.label} in their own view of this play — real coaching feedback, not just a diagram.
                 </p>
                 {notes.length > 0 && (
@@ -2453,7 +2453,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                     Notes for players not on the pitch
                   </p>
                 </div>
-                <p className="text-[11px] text-muted-foreground leading-snug">
+                <p className="text-xs text-muted-foreground leading-snug">
                   Bring a player back on to add another note for them.
                 </p>
                 <ul className="space-y-1">
@@ -2482,7 +2482,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                 Bench {bench.length > 0 && `(${bench.length})`}
               </p>
               {selectedTokenId ? (
-                <p className="mt-1 rounded bg-primary/10 px-2 py-1 text-[11px] text-primary">
+                <p className="mt-1 rounded bg-primary/10 px-2 py-1 text-xs text-primary">
                   {state.tokens.find((t) => t.id === selectedTokenId)?.label} selected — tap a
                   bench player to bring them on.
                   <button
@@ -2494,7 +2494,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
                   </button>
                 </p>
               ) : (
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-xs text-muted-foreground">
                   Tap a player on the pitch to substitute them.
                 </p>
               )}
