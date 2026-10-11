@@ -379,12 +379,6 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     setScrubbing, recording, setRecording, anim, setAnim,
     reset: resetPlayback,
   } = useBoardPlaybackStore();
-  // Blank the board once on mount — plain useState gave this for free (a
-  // fresh component instance always started blank); a zustand store is a
-  // module-level singleton that would otherwise leak a previous visit's
-  // tokens/team/formation/open-play/playback selection into a
-  // freshly-mounted board.
-  /* eslint-disable-next-line react-hooks/exhaustive-deps */
   // iOS Safari can still pan the page from a drag that starts on the pitch
   // even with `touch-action: none`, so the page's own scroll is cancelled
   // here while the pitch is editable. A non-passive listener is required
@@ -396,6 +390,12 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
     el.addEventListener("touchmove", stop, { passive: false });
     return () => el.removeEventListener("touchmove", stop);
   }, [tilted]);
+  // Blank the board once on mount — plain useState gave this for free (a
+  // fresh component instance always started blank); a zustand store is a
+  // module-level singleton that would otherwise leak a previous visit's
+  // tokens/team/formation/open-play/playback selection into a
+  // freshly-mounted board.
+  /* eslint-disable-next-line react-hooks/exhaustive-deps */
   useEffect(() => { resetBoardState(); resetForTeam(teams[0]?.id ?? ""); resetSavedPlaysPanel(); resetPlayback(); resetInsights(); }, []);
 
   const rafRef = useRef<number | null>(null);
