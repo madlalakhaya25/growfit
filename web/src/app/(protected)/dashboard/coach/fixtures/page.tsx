@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Plus } from "lucide-react";
+import { ImageUp, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -92,12 +92,20 @@ export default async function CoachFixturesPage({
 
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Fixtures</h1>
-        <Button asChild>
-          <Link href={`/dashboard/coach/fixtures/new?team=${team.id}`}>
-            <Plus className="size-4" aria-hidden="true" />
-            New fixture
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link href={`/dashboard/coach/fixtures/poster?team=${team.id}`}>
+              <ImageUp className="size-4" aria-hidden="true" />
+              From a poster
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href={`/dashboard/coach/fixtures/new?team=${team.id}`}>
+              <Plus className="size-4" aria-hidden="true" />
+              New fixture
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {(fixtures ?? []).length === 0 ? (
