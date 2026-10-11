@@ -5,6 +5,7 @@ jest.mock("@/lib/coached-teams", () => ({ getCoachedTeamIds: async () => ["11111
 const mockBudget = jest.fn();
 jest.mock("@/lib/ai-guard", () => ({ checkAiBudget: (...a: unknown[]) => mockBudget(...a), aiError: () => "friendly" }));
 const mockGenerate = jest.fn();
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 jest.mock("@google/genai", () => require("@/test-utils/genai-mock").genaiMock((...a: unknown[]) => mockGenerate(...a)));
 
 import { applyMatchPoster, readMatchPoster } from "../match-poster";
