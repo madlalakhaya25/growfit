@@ -385,6 +385,17 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   // tokens/team/formation/open-play/playback selection into a
   // freshly-mounted board.
   /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  // iOS Safari can still pan the page from a drag that starts on the pitch
+  // even with `touch-action: none`, so the page's own scroll is cancelled
+  // here while the pitch is editable. A non-passive listener is required
+  // for preventDefault to take effect.
+  useEffect(() => {
+    const el = pitchBoxRef.current;
+    if (!el || tilted) return;
+    const stop = (ev: TouchEvent) => { if (ev.cancelable) ev.preventDefault(); };
+    el.addEventListener("touchmove", stop, { passive: false });
+    return () => el.removeEventListener("touchmove", stop);
+  }, [tilted]);
   useEffect(() => { resetBoardState(); resetForTeam(teams[0]?.id ?? ""); resetSavedPlaysPanel(); resetPlayback(); resetInsights(); }, []);
 
   const rafRef = useRef<number | null>(null);
@@ -421,6 +432,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
   const [, forceRender] = useState(0);
 
   const svgRef = useRef<SVGSVGElement>(null);
+  const pitchBoxRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ id: string; dx: number; dy: number; startX: number; startY: number; moved: boolean; pending: SnapshotEntry } | null>(null);
   const dragObj = useRef<{ id: string; dx: number; dy: number; startX: number; startY: number; moved: boolean; pending: SnapshotEntry } | null>(null);
   const drawing = useRef(false);
@@ -2110,10 +2122,13 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
           className={
             isFullscreen
               ? "flex h-full w-full flex-col items-center justify-center gap-3 bg-slate-950 p-4"
-              : "mx-auto w-full max-w-md lg:max-w-(--pitch-max-w)"
+              : "mx-auto w-full max-w-(--pitch-fit) lg:max-w-(--pitch-max-w)"
           }
           style={{
             "--pitch-max-w": `max(28rem, calc((100dvh - 14rem) * ${pitch.w / pitch.h}))`,
+            // Phones: never taller than the screen, so the whole pitch is
+            // reachable without scrolling the page while moving players.
+            "--pitch-fit": `min(28rem, max(15rem, calc((100dvh - 10rem) * ${pitch.w / pitch.h})))`,
           } as React.CSSProperties}
         >
           {/* Aspect ratio driven off the *current* pitch, not a hardcoded
@@ -2123,7 +2138,8 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               assumes the viewBox fills this box exactly, so a wrong ratio
               also means every click lands at the wrong coordinate. */}
           <div
-            className={`relative w-full overflow-hidden rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.06),0_16px_40px_rgba(0,0,0,0.12)] ring-1 ring-black/5 ${tilted ? "bg-[radial-gradient(120%_90%_at_50%_0%,#2b3a55_0%,#0d1220_70%)]" : ""}`}
+            ref={pitchBoxRef}
+            className={`relative w-full touch-none overflow-hidden overscroll-contain rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.06),0_16px_40px_rgba(0,0,0,0.12)] ring-1 ring-black/5 ${tilted ? "bg-[radial-gradient(120%_90%_at_50%_0%,#2b3a55_0%,#0d1220_70%)]" : ""}`}
             style={{
               aspectRatio: `${pitch.w} / ${pitch.h}`,
               // Full screen: as big as the screen allows at this pitch's ratio,
@@ -2201,6 +2217,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               onPointerMove={onSvgMove}
               onPointerUp={onSvgUp}
               onPointerLeave={onSvgUp}
+              onPointerCancel={onSvgUp}
             >
               <ShapeDefs prefix="tb" />
               <TokenDefs prefix="tb-tok" />
