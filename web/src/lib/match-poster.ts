@@ -51,7 +51,9 @@ const clean = (v: unknown): string | null => {
 };
 
 const cleanScore = (v: unknown): number | null => {
-  const n = typeof v === "number" ? v : typeof v === "string" && /^\d{1,2}$/.test(v.trim()) ? Number(v) : NaN;
+  let n = Number.NaN;
+  if (typeof v === "number") n = v;
+  else if (typeof v === "string" && /^\d{1,2}$/.test(v.trim())) n = Number(v);
   return Number.isInteger(n) && n >= 0 && n <= 30 ? n : null;
 };
 
@@ -71,7 +73,7 @@ export function normaliseTeamName(name: string): string {
   const stop = new Set(["fc", "afc", "sc", "football", "club", "academy", "sports", "united", "utd"]);
   return name
     .toLowerCase()
-    .replace(/\./g, "")
+    .replaceAll(".", "")
     .replace(/[^a-z0-9]+/g, " ")
     .split(" ")
     .filter((w) => w && !stop.has(w) && !/^u\d{1,2}$/.test(w))
@@ -160,7 +162,7 @@ export function cleanPosterRows(raw: unknown, academyName: string | null): Poste
 }
 
 function ageGroupOf(text: string): string | null {
-  const m = text.match(/u\s?-?(\d{1,2})/i);
+  const m = /u\s?-?(\d{1,2})/i.exec(text);
   return m ? `U${m[1]}` : null;
 }
 

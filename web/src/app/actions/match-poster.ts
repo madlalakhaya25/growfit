@@ -22,7 +22,7 @@ import {
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 const MAX_BYTES = 10 * 1024 * 1024;
-const ACCEPTED = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+const ACCEPTED = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
 
 /**
  * Read a match poster (a photo or PDF) into a list of matches.
@@ -42,7 +42,8 @@ export async function readMatchPoster(
   try {
     const { supabase, user } = await requireUser();
 
-    const teamId = String(formData.get("team_id") ?? "");
+    const teamIdField = formData.get("team_id");
+    const teamId = typeof teamIdField === "string" ? teamIdField : "";
     const { data: team } = await supabase
       .from("teams")
       .select("id, age_group, academy_id")
@@ -55,7 +56,7 @@ export async function readMatchPoster(
     const file = formData.get("file") as File | null;
     if (!file || !file.size) return { error: "Choose a poster to upload." };
     if (file.size > MAX_BYTES) return { error: "The poster must be under 10 MB." };
-    if (!ACCEPTED.includes(file.type)) return { error: "Use a photo (JPG, PNG, WebP) or a PDF." };
+    if (!ACCEPTED.has(file.type)) return { error: "Use a photo (JPG, PNG, WebP) or a PDF." };
 
     const overBudget = await checkAiBudget(user.id);
     if (overBudget) return { error: overBudget };
@@ -169,6 +170,86 @@ export interface PosterOutcome {
   note: string | null;
 }
 
+type Db = Awaited<ReturnType<typeof requireUser>>["supabase"];
+type ApplyRow = z.infer<typeof applyRowSchema>;
+
+/** Create or update the fixture for one reviewed row. Returns its id, or a reason it was left alone. */
+async function saveFixture(
+  supabase: Db,
+  teamId: string,
+  row: ApplyRow,
+  kickoff: string,
+): Promise<{ id: string; status: "created" | "updated" } | { skipped: string }> {
+  if (!row.fixtureId) {
+    const { data: created, error } = await supabase
+      .from("fixtures")
+      .insert({
+        team_id: teamId,
+        opponent: row.opponent,
+        venue: row.venue ?? undefined,
+        fixture_date: kickoff,
+        is_home: row.isHome,
+      })
+      .select("id")
+      .single();
+    if (error || !created) return { skipped: friendlyError(error) };
+    return { id: created.id as string, status: "created" };
+  }
+
+  const { data: existing } = await supabase
+    .from("fixtures")
+    .select("id, status")
+    .eq("id", row.fixtureId)
+    .eq("team_id", teamId)
+    .single();
+  if (!existing) return { skipped: "That fixture wasn't found." };
+  if (existing.status === "completed") return { skipped: "This match already has a result, so it was left as it is." };
+  if (existing.status === "cancelled") return { skipped: "This match was cancelled, so it was left as it is." };
+
+  const { error } = await supabase
+    .from("fixtures")
+    .update({
+      fixture_date: kickoff,
+      is_home: row.isHome,
+      ...(row.venue ? { venue: row.venue } : {}),
+      // A postponed match with a new date is back on.
+      status: "upcoming",
+    })
+    .eq("id", row.fixtureId)
+    .eq("team_id", teamId);
+  if (error) return { skipped: friendlyError(error) };
+  return { id: row.fixtureId, status: "updated" };
+}
+
+/** Log the score for a row's fixture. Returns a note for the coach when it wasn't logged. */
+async function saveResult(supabase: Db, fixtureId: string, row: ApplyRow, played: boolean): Promise<string | null> {
+  if (!played) return "The score was left out because this match hasn't been played yet.";
+  const { data, error } = await supabase.rpc("log_match_result", {
+    p_fixture_id: fixtureId,
+    p_team_score: row.teamScore,
+    p_opponent_score: row.opponentScore,
+    p_match_notes: null,
+    p_appearances: [],
+    p_ratings: [],
+  });
+  const rpcError = (data as { error?: string } | null)?.error;
+  if (!error && !rpcError) return null;
+  return `The match is saved, but the result wasn't: ${error ? friendlyError(error) : rpcError}`;
+}
+
+async function applyRow(supabase: Db, teamId: string, row: ApplyRow, now: number): Promise<PosterOutcome> {
+  const kickoff = kickoffIso(row.date, row.time);
+  const saved = await saveFixture(supabase, teamId, row, kickoff);
+  if ("skipped" in saved) {
+    return { opponent: row.opponent, status: "skipped", resultLogged: false, note: saved.skipped };
+  }
+  if (row.teamScore === null || row.opponentScore === null) {
+    return { opponent: row.opponent, status: saved.status, resultLogged: false, note: null };
+  }
+  const note = await saveResult(supabase, saved.id, row, new Date(kickoff).getTime() <= now);
+  return { opponent: row.opponent, status: saved.status, resultLogged: note === null, note };
+}
+
 /**
  * Save the matches a coach has reviewed.
  *
@@ -196,83 +277,12 @@ export async function applyMatchPoster(
     .single();
   if (!team) return { error: "Team not found." };
 
+  // One row at a time, in order: a failure on one must not stop the rest, and
+  // the rows are few (a poster, not a bulk import).
   const outcomes: PosterOutcome[] = [];
   const now = Date.now();
-
   for (const row of rows) {
-    const skip = (note: string): PosterOutcome => ({ opponent: row.opponent, status: "skipped", resultLogged: false, note });
-    const kickoff = kickoffIso(row.date, row.time);
-    const played = new Date(kickoff).getTime() <= now;
-    const hasScore = row.teamScore !== null && row.opponentScore !== null;
-
-    let fixtureId = row.fixtureId;
-    let status: PosterOutcome["status"];
-
-    if (fixtureId) {
-      const { data: existing } = await supabase
-        .from("fixtures")
-        .select("id, status")
-        .eq("id", fixtureId)
-        .eq("team_id", team.id)
-        .single();
-      if (!existing) { outcomes.push(skip("That fixture wasn't found.")); continue; }
-      if (existing.status === "completed") { outcomes.push(skip("This match already has a result, so it was left as it is.")); continue; }
-      if (existing.status === "cancelled") { outcomes.push(skip("This match was cancelled, so it was left as it is.")); continue; }
-
-      const { error } = await supabase
-        .from("fixtures")
-        .update({
-          fixture_date: kickoff,
-          is_home: row.isHome,
-          ...(row.venue ? { venue: row.venue } : {}),
-          // A postponed match with a new date is back on.
-          status: "upcoming",
-        })
-        .eq("id", fixtureId)
-        .eq("team_id", team.id);
-      if (error) { outcomes.push(skip(friendlyError(error))); continue; }
-      status = "updated";
-    } else {
-      const { data: created, error } = await supabase
-        .from("fixtures")
-        .insert({
-          team_id: team.id,
-          opponent: row.opponent,
-          venue: row.venue ?? undefined,
-          fixture_date: kickoff,
-          is_home: row.isHome,
-        })
-        .select("id")
-        .single();
-      if (error || !created) { outcomes.push(skip(friendlyError(error))); continue; }
-      fixtureId = created.id as string;
-      status = "created";
-    }
-
-    let resultLogged = false;
-    let note: string | null = null;
-    if (hasScore) {
-      if (!played) {
-        note = "The score was left out because this match hasn't been played yet.";
-      } else {
-        const { data, error } = await supabase.rpc("log_match_result", {
-          p_fixture_id: fixtureId,
-          p_team_score: row.teamScore,
-          p_opponent_score: row.opponentScore,
-          p_match_notes: null,
-          p_appearances: [],
-          p_ratings: [],
-        });
-        const rpcError = (data as { error?: string } | null)?.error;
-        if (error || rpcError) {
-          note = `The match is saved, but the result wasn't: ${error ? friendlyError(error) : rpcError}`;
-        } else {
-          resultLogged = true;
-        }
-      }
-    }
-
-    outcomes.push({ opponent: row.opponent, status, resultLogged, note });
+    outcomes.push(await applyRow(supabase, team.id, row, now));
   }
 
   revalidatePath("/dashboard/coach/fixtures", "page");

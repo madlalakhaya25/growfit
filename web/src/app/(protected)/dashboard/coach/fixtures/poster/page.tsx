@@ -8,9 +8,9 @@ import { getCoachedTeamIds } from "@/lib/coached-teams";
 
 export default async function PosterImportPage({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: Promise<{ team?: string }>;
-}) {
+}>) {
   const { team: teamParam } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

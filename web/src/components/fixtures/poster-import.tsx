@@ -32,19 +32,29 @@ interface Draft {
   opponentScore: string;
 }
 
+function sideOf(usIsHome: boolean | null): Draft["isHome"] {
+  if (usIsHome === null) return "";
+  return usIsHome ? "home" : "away";
+}
+
 function toDraft(row: PosterMatchRow): Draft {
   const scores = rowScores(row);
   return {
     source: row,
     include: !row.otherAgeGroup && row.fixtureStatus !== "completed" && row.fixtureStatus !== "cancelled",
     opponent: rowOpponent(row),
-    isHome: row.usIsHome === null ? "" : row.usIsHome ? "home" : "away",
+    isHome: sideOf(row.usIsHome),
     date: row.date ?? "",
     time: row.time ?? "",
     venue: row.venue ?? "",
     teamScore: scores ? String(scores.team) : "",
     opponentScore: scores ? String(scores.opponent) : "",
   };
+}
+
+function outcomeLabel(o: PosterOutcome): string {
+  if (o.status === "skipped") return "Not saved";
+  return o.resultLogged ? `${o.status} + result` : o.status;
 }
 
 const toScore = (v: string): number | null => (/^\d{1,2}$/.test(v.trim()) ? Number(v) : null);
@@ -62,7 +72,7 @@ function problem(d: Draft): string | null {
   return null;
 }
 
-export function PosterImport({ teamId, backHref }: { teamId: string; backHref: string }) {
+export function PosterImport({ teamId, backHref }: Readonly<{ teamId: string; backHref: string }>) {
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
   const [outcomes, setOutcomes] = useState<PosterOutcome[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -80,12 +90,12 @@ export function PosterImport({ teamId, backHref }: { teamId: string; backHref: s
   }
 
   function patch(i: number, change: Partial<Draft>) {
-    setDrafts((all) => all && all.map((d, j) => (j === i ? { ...d, ...change } : d)));
+    setDrafts((all) => all?.map((d, j) => (j === i ? { ...d, ...change } : d)) ?? null);
   }
 
   /** Choosing a side re-orients the scores the poster printed home-first. */
   function chooseSide(i: number, side: "" | "home" | "away") {
-    setDrafts((all) => all && all.map((d, j) => {
+    setDrafts((all) => all?.map((d, j) => {
       if (j !== i) return d;
       if (!side) return { ...d, isHome: side };
       const row = { ...d.source, usIsHome: side === "home" };
@@ -97,7 +107,7 @@ export function PosterImport({ teamId, backHref }: { teamId: string; backHref: s
         teamScore: scores ? String(scores.team) : "",
         opponentScore: scores ? String(scores.opponent) : "",
       };
-    }));
+    }) ?? null);
   }
 
   const chosen = (drafts ?? []).filter((d) => d.include);
@@ -130,11 +140,11 @@ export function PosterImport({ teamId, backHref }: { teamId: string; backHref: s
       <div className="space-y-4">
         <ul className="divide-y divide-border rounded-xl border border-border">
           {outcomes.map((o, i) => (
-            <li key={i} className="space-y-1 px-4 py-3">
+            <li key={`${o.opponent}-${i}`} className="space-y-1 px-4 py-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="font-medium">{o.opponent}</p>
                 <Badge variant={o.status === "skipped" ? "warning" : "success"} className="capitalize shrink-0">
-                  {o.status === "skipped" ? "Not saved" : o.resultLogged ? `${o.status} + result` : o.status}
+                  {outcomeLabel(o)}
                 </Badge>
               </div>
               {o.note && <p className="text-sm text-muted-foreground">{o.note}</p>}
@@ -181,6 +191,7 @@ export function PosterImport({ teamId, backHref }: { teamId: string; backHref: s
         {drafts.map((d, i) => {
           const why = d.include ? problem(d) : null;
           const fx = d.source.fixtureStatus;
+          const closed = fx === "completed" || fx === "cancelled";
           return (
             <li key={d.source.key} className="space-y-3 rounded-xl border border-border p-4">
               <label className="flex items-center gap-3 text-base font-medium">
@@ -194,37 +205,37 @@ export function PosterImport({ teamId, backHref }: { teamId: string; backHref: s
               </label>
               <div className="flex flex-wrap gap-2">
                 {!d.source.fixtureId && <Badge variant="neutral">New match</Badge>}
-                {d.source.fixtureId && fx !== "completed" && fx !== "cancelled" && <Badge variant="neutral">Updates an existing match</Badge>}
+                {d.source.fixtureId && !closed && <Badge variant="neutral">Updates an existing match</Badge>}
                 {fx === "completed" && <Badge variant="warning">Already has a result</Badge>}
                 {fx === "cancelled" && <Badge variant="danger">Cancelled</Badge>}
                 {d.source.otherAgeGroup && <Badge variant="warning">{d.source.ageGroup}: another squad?</Badge>}
               </div>
               {d.include && (
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="space-y-1 text-sm font-medium">Opponent
+                  <label className="space-y-1 text-sm font-medium"><span>Opponent</span>
                     <input className={INPUT} value={d.opponent} onChange={(e) => patch(i, { opponent: e.target.value })} />
                   </label>
-                  <label className="space-y-1 text-sm font-medium">We are
+                  <label className="space-y-1 text-sm font-medium"><span>We are</span>
                     <select className={INPUT} value={d.isHome} onChange={(e) => chooseSide(i, e.target.value as Draft["isHome"])}>
                       <option value="">Choose…</option>
                       <option value="home">Home</option>
                       <option value="away">Away</option>
                     </select>
                   </label>
-                  <label className="space-y-1 text-sm font-medium">Date
+                  <label className="space-y-1 text-sm font-medium"><span>Date</span>
                     <input type="date" className={INPUT} value={d.date} onChange={(e) => patch(i, { date: e.target.value })} />
                   </label>
-                  <label className="space-y-1 text-sm font-medium">Kick-off
+                  <label className="space-y-1 text-sm font-medium"><span>Kick-off</span>
                     <input type="time" className={INPUT} value={d.time} onChange={(e) => patch(i, { time: e.target.value })} />
                     {!d.source.time && <span className="block text-xs font-normal text-muted-foreground">Not on the poster.</span>}
                   </label>
-                  <label className="space-y-1 text-sm font-medium sm:col-span-2">Venue
+                  <label className="space-y-1 text-sm font-medium sm:col-span-2"><span>Venue</span>
                     <input className={INPUT} value={d.venue} onChange={(e) => patch(i, { venue: e.target.value })} />
                   </label>
-                  <label className="space-y-1 text-sm font-medium">Our score
+                  <label className="space-y-1 text-sm font-medium"><span>Our score</span>
                     <input inputMode="numeric" className={INPUT} value={d.teamScore} onChange={(e) => patch(i, { teamScore: e.target.value })} />
                   </label>
-                  <label className="space-y-1 text-sm font-medium">Their score
+                  <label className="space-y-1 text-sm font-medium"><span>Their score</span>
                     <input inputMode="numeric" className={INPUT} value={d.opponentScore} onChange={(e) => patch(i, { opponentScore: e.target.value })} />
                   </label>
                 </div>
