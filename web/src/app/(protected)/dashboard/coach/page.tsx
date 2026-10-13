@@ -8,22 +8,17 @@ import { PageHeader } from "@/components/ui/page-header";
 import { FixtureTicket } from "@/components/ui/fixture-ticket";
 import { ListRow, GroupedSection } from "@/components/ui/list-row";
 import { IconTile } from "@/components/ui/icon-tile";
-import { Users, Calendar, Plus, Dumbbell, ClipboardList, HeartPulse, CheckCircle2 } from "lucide-react";
+import { Suspense } from "react";
+import { Users, Calendar, Plus, Dumbbell } from "lucide-react";
 import { CreateTeamForm } from "@/components/create-team-form";
 import { JoinTeamForm } from "@/components/join-team-form";
 import { CopyButton } from "@/components/copy-button";
 import { daysFromNow } from "@/lib/utils";
 import { isHappeningNow, sessionWindowStart } from "@/lib/session-window";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
-import { getWelfareAlerts } from "@/app/actions/welfare";
 import { reportError } from "@/lib/report-error";
 import { RetryButton } from "@/components/ui/retry-button";
-import { ThisWeekObjectives } from "@/components/this-week-objectives";
-import { loadOpenObjectives } from "@/lib/objectives-data";
-import { coachCardsFor } from "@/lib/staff-hats";
-import { loadOwnHats } from "@/lib/staff-hats-data";
-import { loadDirectorCards } from "@/lib/director-data";
-import { DirectorCardList } from "../admin/director-cards";
+import { CardSkeleton, HatCards, NeedsYou, OpenObjectives } from "./today-cards";
 import { currentHourInTimezone, formatInTimezone, formatTime, formatWeekdayDayMonth } from "@/lib/time";
 
 function greeting() {
@@ -35,14 +30,13 @@ function greeting() {
 
 export default async function CoachDashboardPage() {
   const { supabase, user } = await requireUser();
-  const profile = await getProfile();
+  const [profile, { data: teamRows, error: teamsError }] = await Promise.all([
+    getProfile(),
+    getCoachedTeamIds(supabase, user.id).then((ids) =>
+      supabase.from("teams").select("id, name, age_group, invite_code").in("id", ids).eq("active", true)
+    ),
+  ]);
   const firstName = profile?.full_name?.trim().split(/\s+/)[0] ?? "Coach";
-
-  const { data: teamRows, error: teamsError } = await supabase
-    .from("teams")
-    .select("id, name, age_group, invite_code")
-    .in("id", await getCoachedTeamIds(supabase, user.id))
-    .eq("active", true);
 
   if (teamsError) {
     reportError(teamsError, { scope: "coach today page", extra: { query: "teams" } });
@@ -51,10 +45,22 @@ export default async function CoachDashboardPage() {
   const rawTeams = teamRows ?? [];
   const teamIds = rawTeams.map((t) => t.id);
   const now = new Date().toISOString();
-  const weekAgo = new Date(new Date(now).getTime() - 7 * 24 * 3600 * 1000).toISOString();
+  const weekAhead = new Date(new Date(now).getTime() + 7 * 24 * 3600 * 1000).toISOString();
 
-  // Batch queries instead of O(2n) per-team round-trips
-  const [{ data: memberRows, error: memberRowsError }, { data: upcomingRows, error: upcomingRowsError }] = await Promise.all([
+  type UpcomingFixtureRow = {
+    id: string; opponent: string; fixture_date: string; is_home: boolean; team_id: string;
+    teams: { name: string } | { name: string }[] | null;
+  };
+
+  // Counts and what's next in one round of parallel queries. The slower
+  // to-dos, objectives and hat cards stream in behind Suspense below
+  // (today-cards.tsx), so this is all the page waits for.
+  const [
+    { data: memberRows, error: memberRowsError },
+    { data: upcomingRows, error: upcomingRowsError },
+    { data: upcomingFixtureRows, error: nextFixturesError },
+    { data: nextSessions, error: nextSessionsError },
+  ] = await Promise.all([
     teamIds.length
       ? supabase.from("team_members").select("team_id").in("team_id", teamIds).eq("active", true)
       : Promise.resolve({ data: [], error: null }),
@@ -63,36 +69,6 @@ export default async function CoachDashboardPage() {
       // even if the coach hasn't logged its result yet.
       ? supabase.from("fixtures").select("team_id").in("team_id", teamIds).eq("status", "upcoming").gte("fixture_date", now)
       : Promise.resolve({ data: [], error: null }),
-  ]);
-
-  if (memberRowsError) {
-    reportError(memberRowsError, { scope: "coach today page", extra: { query: "team_members counts" } });
-  }
-  if (upcomingRowsError) {
-    reportError(upcomingRowsError, { scope: "coach today page", extra: { query: "upcoming fixture counts" } });
-  }
-
-  const squadCountMap = new Map<string, number>();
-  const upcomingCountMap = new Map<string, number>();
-  for (const r of memberRows ?? []) squadCountMap.set(r.team_id, (squadCountMap.get(r.team_id) ?? 0) + 1);
-  for (const r of upcomingRows ?? []) upcomingCountMap.set(r.team_id, (upcomingCountMap.get(r.team_id) ?? 0) + 1);
-
-  // `null` (rather than 0) marks "couldn't load" so the team row can say so
-  // instead of showing a phantom "0 players" that reads as a real count.
-  const allTeams = rawTeams.map((team) => ({
-    ...team,
-    squadCount: memberRowsError ? null : squadCountMap.get(team.id) ?? 0,
-    upcomingCount: upcomingRowsError ? null : upcomingCountMap.get(team.id) ?? 0,
-  }));
-
-  const weekAhead = new Date(new Date(now).getTime() + 7 * 24 * 3600 * 1000).toISOString();
-
-  type UpcomingFixtureRow = {
-    id: string; opponent: string; fixture_date: string; is_home: boolean; team_id: string;
-    teams: { name: string } | { name: string }[] | null;
-  };
-
-  const [{ data: upcomingFixtureRows, error: nextFixturesError }, { data: nextSessions, error: nextSessionsError }] = await Promise.all([
     teamIds.length
       // Every team's own earliest fixture, not just one across the whole
       // coach account — a coach running U11/U13/U15 has a Sunday for each.
@@ -118,12 +94,32 @@ export default async function CoachDashboardPage() {
       : Promise.resolve({ data: null, error: null }),
   ]);
 
+  if (memberRowsError) {
+    reportError(memberRowsError, { scope: "coach today page", extra: { query: "team_members counts" } });
+  }
+  if (upcomingRowsError) {
+    reportError(upcomingRowsError, { scope: "coach today page", extra: { query: "upcoming fixture counts" } });
+  }
   if (nextFixturesError) {
     reportError(nextFixturesError, { scope: "coach today page", extra: { query: "next fixture" } });
   }
   if (nextSessionsError) {
     reportError(nextSessionsError, { scope: "coach today page", extra: { query: "next session" } });
   }
+
+  const squadCountMap = new Map<string, number>();
+  const upcomingCountMap = new Map<string, number>();
+  for (const r of memberRows ?? []) squadCountMap.set(r.team_id, (squadCountMap.get(r.team_id) ?? 0) + 1);
+  for (const r of upcomingRows ?? []) upcomingCountMap.set(r.team_id, (upcomingCountMap.get(r.team_id) ?? 0) + 1);
+
+  // `null` (rather than 0) marks "couldn't load" so the team row can say so
+  // instead of showing a phantom "0 players" that reads as a real count.
+  const allTeams = rawTeams.map((team) => ({
+    ...team,
+    squadCount: memberRowsError ? null : squadCountMap.get(team.id) ?? 0,
+    upcomingCount: upcomingRowsError ? null : upcomingCountMap.get(team.id) ?? 0,
+  }));
+
   // Either query failing means "What's Next" can't be trusted — showing
   // partial data anyway could hide a real fixture/session behind an error.
   const nextUpError = Boolean(nextFixturesError || nextSessionsError);
@@ -140,71 +136,7 @@ export default async function CoachDashboardPage() {
 
   const nextSession = nextSessions?.[0] ?? null;
   const multiTeam = allTeams.length > 1;
-
-  // ── To-do: what actually needs the coach's attention today ─────────
-  // Deliberately scoped to counts + a link to the relevant list, not a
-  // deep link per item -- see docs/AI_FEATURES_AND_IA.md Part 4's Today
-  // redesign. Bounded windows (results: unbounded backwards, since any
-  // unlogged past fixture is worth flagging regardless of age; registers:
-  // trailing 7 days, since a register from a month ago is history, not a
-  // to-do) keep both queries cheap and the counts meaningful.
-  const [
-    { data: unloggedFixtures, error: unloggedFixturesError },
-    { data: recentSessions, error: recentSessionsError },
-    welfareResult,
-  ] = await Promise.all([
-    teamIds.length
-      ? supabase.from("fixtures").select("id").in("team_id", teamIds).eq("status", "upcoming").lt("fixture_date", now)
-      : Promise.resolve({ data: [], error: null }),
-    teamIds.length
-      ? supabase.from("training_sessions").select("id").in("team_id", teamIds).gte("session_date", weekAgo).lt("session_date", now)
-      : Promise.resolve({ data: [], error: null }),
-    teamIds.length ? getWelfareAlerts() : Promise.resolve({ alerts: [] }),
-  ]);
-
-  if (unloggedFixturesError) {
-    reportError(unloggedFixturesError, { scope: "coach today page", extra: { query: "unlogged fixtures" } });
-  }
-  if (recentSessionsError) {
-    reportError(recentSessionsError, { scope: "coach today page", extra: { query: "recent sessions" } });
-  }
-
-  const recentSessionIds = (recentSessions ?? []).map((s: { id: string }) => s.id);
-  let registersNotTaken = 0;
-  let takenRowsError: unknown = null;
-  if (recentSessionIds.length) {
-    const { data: takenRows, error } = await supabase
-      .from("training_attendance")
-      .select("session_id")
-      .in("session_id", recentSessionIds);
-    takenRowsError = error;
-    if (takenRowsError) {
-      reportError(takenRowsError, { scope: "coach today page", extra: { query: "training attendance taken" } });
-    }
-    const takenSet = new Set((takenRows ?? []).map((r: { session_id: string }) => r.session_id));
-    registersNotTaken = recentSessionIds.filter((id) => !takenSet.has(id)).length;
-  }
-
-  const openObjectives = await loadOpenObjectives(supabase, teamIds);
-
-  // A coach with a hat (director, technical director) also sees that hat's
-  // academy-wide cards. No hats, or the table missing, adds nothing.
-  const hatCards = coachCardsFor(await loadOwnHats(supabase, user.id));
-  let hatTeams: { id: string; name: string }[] = [];
-  if (hatCards.length > 0 && profile?.academy_id) {
-    const { data } = await supabase.from("teams").select("id, name").eq("academy_id", profile.academy_id).eq("active", true);
-    hatTeams = (data ?? []) as { id: string; name: string }[];
-  }
-  const hatData = hatCards.length > 0 ? await loadDirectorCards(supabase, hatTeams, hatCards) : null;
   const teamNames = Object.fromEntries(rawTeams.map((t) => [t.id, t.name]));
-
-  const resultsNotLogged = unloggedFixtures?.length ?? 0;
-  const welfareError = "error" in welfareResult;
-  const welfareAlerts = "alerts" in welfareResult ? welfareResult.alerts.length : 0;
-  const hasTodos = resultsNotLogged > 0 || registersNotTaken > 0 || welfareAlerts > 0;
-  // Any of these failing means "All caught up" would be a lie — a failed
-  // query and a genuinely empty to-do list must not look identical.
-  const todoError = Boolean(unloggedFixturesError || recentSessionsError || takenRowsError || welfareError);
 
   return (
     <div className="space-y-6">
@@ -357,57 +289,19 @@ export default async function CoachDashboardPage() {
             );
           })()}
 
-          <ThisWeekObjectives objectives={openObjectives} teamNames={multiTeam ? teamNames : undefined} />
+          <Suspense fallback={null}>
+            <OpenObjectives teamIds={teamIds} teamNames={multiTeam ? teamNames : undefined} />
+          </Suspense>
 
-          {hatData && <DirectorCardList cards={hatCards} data={hatData} coverageHref={null} />}
+          <Suspense fallback={null}>
+            <HatCards userId={user.id} academyId={profile?.academy_id ?? null} />
+          </Suspense>
 
-          {/* ── To-do ─────────────────────────────────────────────── */}
-          {todoError ? (
-            <Card className="border-destructive/50">
-              <CardHeader>
-                <CardTitle>Couldn&apos;t check what needs you</CardTitle>
-                <CardDescription>
-                  Something went wrong loading your to-dos — this isn&apos;t
-                  the same as being all caught up. Try reloading.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <RetryButton />
-              </CardContent>
-            </Card>
-          ) : hasTodos ? (
-            <GroupedSection title="Needs you">
-                {resultsNotLogged > 0 && (
-                  <ListRow
-                    leading={<IconTile tone="blue"><ClipboardList aria-hidden="true" /></IconTile>}
-                    title={`${resultsNotLogged} result${resultsNotLogged === 1 ? "" : "s"} still to log`}
-                    subtitle="Kickoff has passed"
-                    href="/dashboard/coach/fixtures"
-                  />
-                )}
-                {registersNotTaken > 0 && (
-                  <ListRow
-                    leading={<IconTile tone="orange"><Dumbbell aria-hidden="true" /></IconTile>}
-                    title={`${registersNotTaken} register${registersNotTaken === 1 ? "" : "s"} not taken`}
-                    subtitle="From the past week"
-                    href="/dashboard/coach/training"
-                  />
-                )}
-                {welfareAlerts > 0 && (
-                  <ListRow
-                    leading={<IconTile tone="red"><HeartPulse aria-hidden="true" /></IconTile>}
-                    title={`${welfareAlerts} welfare check-in${welfareAlerts === 1 ? "" : "s"} needed`}
-                    subtitle="Below the 75% attendance threshold"
-                    href="/dashboard/coach/welfare"
-                  />
-                )}
-            </GroupedSection>
-          ) : (
-            <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              <CheckCircle2 className="size-4 text-success" aria-hidden="true" />
-              All caught up — nothing needs you right now.
-            </p>
-          )}
+          {/* ── To-do: counts plus a link to the list, not a deep link per
+              item (docs/AI_FEATURES_AND_IA.md Part 4). ───────────────── */}
+          <Suspense fallback={<CardSkeleton />}>
+            <NeedsYou teamIds={teamIds} now={now} />
+          </Suspense>
 
           {/* ── Teams ─────────────────────────────────────────────── */}
           <GroupedSection title="Your teams">
