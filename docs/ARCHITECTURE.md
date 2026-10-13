@@ -19,13 +19,14 @@ Components. The only REST-style routes are a handful of `route.ts` handlers
 for things that don't fit that shape: CSV/PDF report downloads, the SAFA card
 PDF generator, and the print-friendly document view.
 
-This repository holds three separate workspaces:
+This repository holds two separate workspaces:
 
 | Workspace | What it is | Status |
 |---|---|---|
 | `web/` | The product — Next.js 16 + Supabase. Everything below describes this. | Actively developed |
 | `site/` | A standalone Next.js marketing site (added 2026-06-22) | Separate, not covered here |
-| repo root (`App.tsx`, `app.json`, …) | An Expo/React Native mobile shell, still under the old "footballpath" package name | Scaffolded early on; not under active development — the web app is where real feature work happens |
+
+An early Expo mobile shell used to sit at the repo root. It was never developed past scaffolding and was removed on 2026-10-13; it is in git history before that date.
 
 ---
 

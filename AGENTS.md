@@ -1,9 +1,8 @@
 # Where the app lives
 
 The live app is the Next.js project in `web/` (see `web/AGENTS.md` and
-`web/CLAUDE.md`). Database migrations are in `supabase/migrations/`.
+`web/CLAUDE.md`). Database migrations are in `supabase/migrations/`. The
+public marketing site is a separate Next.js project in `site/`.
 
-The Expo files at the repo root (`App.tsx`, `app/`, `src/`, `app.json`) are an
-early mobile shell that is not under active development. Only if a task is
-about that shell, read the versioned Expo docs first:
-https://docs.expo.dev/versions/v56.0.0/
+There is no mobile app in this repo. An early Expo shell was removed on
+2026-10-13 and is in git history before that date.

@@ -55,7 +55,6 @@ It reads the academy's own data (ratings, form, attendance against the 75% polic
 | Layer | Technology |
 |-------|-----------|
 | Web frontend | Next.js 16 (App Router, async `searchParams`), React 19, Tailwind CSS v4 |
-| Mobile app | Expo (React Native) shell in the repo root; scaffolded early, not under active development |
 | Database | Supabase (PostgreSQL) with Row Level Security |
 | Auth | Supabase Auth, email + password |
 | AI | Google Gemini via `@google/genai` |
@@ -63,7 +62,7 @@ It reads the academy's own data (ratings, form, attendance against the 75% polic
 | Validation | Zod v4 |
 | Errors | Sentry (`@sentry/nextjs`, EU region) |
 | Tests | Jest (unit), Playwright (smoke) |
-| Deployment | Vercel (web, **main branch only**), Expo EAS (mobile, unused so far) |
+| Deployment | Vercel (web, **main branch only**) |
 
 ---
 
@@ -91,7 +90,6 @@ growfit/
 │   │       └── supabase/       # Server and browser clients
 ├── supabase/migrations/        # 001 to 066 (046 and 047 were never used)
 ├── site/                       # Public marketing site
-├── App.tsx, src/, app/         # Expo mobile shell (not under active development)
 └── docs/                       # See Further reading
 ```
 
