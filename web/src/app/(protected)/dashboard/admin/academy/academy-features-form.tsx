@@ -2,12 +2,13 @@
 
 import { useActionState } from "react";
 import { Switch } from "@/components/ui/switch";
+import type { FeatureKey } from "@/lib/features";
 
 type ActionResult = { error?: string; success?: boolean } | null;
 
 type Props = {
   action: (prevState: ActionResult, formData: FormData) => Promise<ActionResult>;
-  initial: { tactics: boolean; film: boolean; assistant: boolean; agent: boolean };
+  initial: Record<FeatureKey, boolean>;
 };
 
 export function AcademyFeaturesForm({ action, initial }: Props) {
@@ -15,6 +16,12 @@ export function AcademyFeaturesForm({ action, initial }: Props) {
 
   return (
     <form action={dispatch} className="space-y-3">
+      <Switch
+        name="coach_extras"
+        defaultChecked={initial.coach_extras}
+        label="Extra coach tools"
+        description="Skill challenges, the drill Library and the Learn tab for coaches."
+      />
       <Switch
         name="tactics"
         defaultChecked={initial.tactics}
@@ -43,13 +50,28 @@ export function AcademyFeaturesForm({ action, initial }: Props) {
       {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
       {state?.success && <p className="text-sm text-green-600">Feature settings saved.</p>}
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-      >
-        {isPending ? "Saving…" : "Save features"}
-      </button>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="submit"
+          disabled={isPending}
+          className="inline-flex min-h-11 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:min-h-9"
+        >
+          {isPending ? "Saving…" : "Save features"}
+        </button>
+        <button
+          type="submit"
+          name="simple"
+          value="1"
+          disabled={isPending}
+          className="inline-flex min-h-11 items-center rounded-md border border-input px-4 text-sm font-medium hover:bg-muted disabled:opacity-50 sm:min-h-9"
+        >
+          Use the simple menu
+        </button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        The simple menu turns every feature above off, leaving coaches Today, Fixtures, Squad,
+        Training, Posts and Settings. Welfare and Emergency always stay.
+      </p>
     </form>
   );
 }

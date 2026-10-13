@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { SIMPLE_FEATURES } from "@/lib/features";
 
 const INPUT_CLASS =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
@@ -94,6 +95,12 @@ export default function RegisterClubPage() {
       setServerError(rpcError?.message ?? academyData?.error ?? "Failed to create academy.");
       setIsSubmitting(false);
       return;
+    }
+
+    // A new academy starts on the simple menu (lib/features.ts). Best effort:
+    // if this fails the academy still works, just with every feature on.
+    if (academyData.academy_id) {
+      await supabase.from("academies").update({ features: SIMPLE_FEATURES }).eq("id", academyData.academy_id);
     }
 
     setJoinCode(academyData.join_code);
