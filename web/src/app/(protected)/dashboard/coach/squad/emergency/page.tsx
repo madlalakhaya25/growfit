@@ -1,13 +1,10 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ArrowLeft, Phone, AlertTriangle, WifiOff } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
-import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { getInitials } from "@/lib/player";
 import { cn } from "@/lib/utils";
 import { formatInTimezone } from "@/lib/time";
-import { getAuthUser } from "@/lib/auth";
+import { requireCoachTeams } from "@/lib/auth";
 
 /**
  * Squad, emergency contacts and next fixture on one screen — the offline
@@ -30,18 +27,7 @@ export default async function EmergencyContactsPage({
   searchParams: Promise<{ team?: string }>;
 }) {
   const { team: teamParam } = await searchParams;
-  const supabase = await createClient();
-  const user = await getAuthUser();
-  if (!user) redirect("/auth/login");
-
-  const { data: allTeams } = await supabase
-    .from("teams")
-    .select("id, name, age_group")
-    .in("id", await getCoachedTeamIds(supabase, user.id))
-    .eq("active", true)
-    .order("created_at");
-
-  if (!allTeams?.length) redirect("/dashboard/coach");
+  const { supabase, allTeams } = await requireCoachTeams();
 
   const team = allTeams.find((t) => t.id === teamParam) ?? allTeams[0];
 

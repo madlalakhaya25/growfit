@@ -1,7 +1,4 @@
-import { redirect } from "next/navigation";
 import { Trophy } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
-import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { resolveCurrentTeamFromCookies } from "@/lib/current-team-server";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -11,7 +8,7 @@ import { SKILL_CHALLENGES_NOT_YET, loadAssignments, loadAttempts } from "@/lib/s
 import { TARGETS_NOTE, getSkillChallenge, skillAgeBand } from "@/lib/skill-challenges";
 import { addDays } from "@/lib/week-plan";
 import { todayIso } from "@/lib/time";
-import { getAuthUser } from "@/lib/auth";
+import { requireCoachTeams } from "@/lib/auth";
 
 type MemberRow = { player_id: string; players: { id: string; full_name: string } | { id: string; full_name: string }[] | null };
 
@@ -20,17 +17,7 @@ export default async function CoachChallengesPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<{ team?: string }> }>) {
   const { team: teamParam } = await searchParams;
-  const supabase = await createClient();
-  const user = await getAuthUser();
-  if (!user) redirect("/auth/login");
-
-  const { data: allTeams } = await supabase
-    .from("teams")
-    .select("id, name, age_group")
-    .in("id", await getCoachedTeamIds(supabase, user.id))
-    .eq("active", true)
-    .order("created_at");
-  if (!allTeams?.length) redirect("/dashboard/coach");
+  const { supabase, allTeams } = await requireCoachTeams();
   const team = (await resolveCurrentTeamFromCookies(allTeams, teamParam)) ?? allTeams[0];
   const band = skillAgeBand(team.age_group as string | null);
 

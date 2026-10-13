@@ -1,10 +1,7 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { AlertTriangle, ArrowLeft, ChevronLeft, ChevronRight, LayoutGrid, Plus, Trophy } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { resolveCurrentTeamFromCookies } from "@/lib/current-team-server";
 import { formatInTimezone, formatTime, todayIso } from "@/lib/time";
 import { sessionEffort, effortLabel } from "@/lib/session-effort";
@@ -17,7 +14,7 @@ import {
   addDays, buildWeekPlan, mondayOf, parseDay,
   type Load, type PlanFixture, type PlanPlay, type PlanSession,
 } from "@/lib/week-plan";
-import { getAuthUser } from "@/lib/auth";
+import { requireCoachTeams } from "@/lib/auth";
 
 const LOAD_LABEL: Record<Load, string> = { 0: "Rest", 1: "Light", 2: "Moderate", 3: "Hard" };
 const LOAD_BAR: Record<Load, string> = {
@@ -42,17 +39,7 @@ export default async function TrainingWeekPage({
   searchParams: Promise<{ team?: string; week?: string }>;
 }>) {
   const { team: teamParam, week } = await searchParams;
-  const supabase = await createClient();
-  const user = await getAuthUser();
-  if (!user) redirect("/auth/login");
-
-  const { data: allTeams } = await supabase
-    .from("teams")
-    .select("id, name, age_group")
-    .in("id", await getCoachedTeamIds(supabase, user.id))
-    .eq("active", true)
-    .order("created_at");
-  if (!allTeams?.length) redirect("/dashboard/coach");
+  const { supabase, allTeams } = await requireCoachTeams();
   const team = (await resolveCurrentTeamFromCookies(allTeams, teamParam)) ?? allTeams[0];
 
   const now = new Date();

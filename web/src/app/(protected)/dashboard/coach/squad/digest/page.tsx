@@ -1,25 +1,16 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { resolveCurrentTeamFromCookies } from "@/lib/current-team-server";
-import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { loadWeekDigests } from "@/lib/family-messages";
 import { todayIso } from "@/lib/time";
 import { weekKeyFor } from "@/lib/weekly-digest";
 import { WeeklyDigestPanel } from "@/components/development/weekly-digest-panel";
 import type { StoryRow } from "@/components/fixtures/match-stories-panel";
-import { getAuthUser } from "@/lib/auth";
+import { requireCoachTeams } from "@/lib/auth";
 
 export default async function WeeklyDigestPage({ searchParams }: Readonly<{ searchParams: Promise<{ team?: string }> }>) {
   const { team: teamParam } = await searchParams;
-  const supabase = await createClient();
-  const user = await getAuthUser();
-  if (!user) redirect("/auth/login");
-
-  const { data: allTeams } = await supabase
-    .from("teams").select("id, name, age_group").in("id", await getCoachedTeamIds(supabase, user.id)).eq("active", true).order("created_at");
-  if (!allTeams?.length) redirect("/dashboard/coach");
+  const { supabase, allTeams } = await requireCoachTeams();
   const team = (await resolveCurrentTeamFromCookies(allTeams, teamParam)) ?? allTeams[0];
 
   const { data: members } = await supabase.from("team_members").select("players ( id, full_name )").eq("team_id", team.id).eq("active", true);

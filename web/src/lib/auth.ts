@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { isStaffRole } from "@/lib/auth-guards";
+import { getCoachedTeamIds } from "@/lib/coached-teams";
 import type { UserRole } from "@/lib/types";
 
 /** The signed-in user, as far as server code here needs to know them. */
@@ -50,6 +51,23 @@ export async function requireUser() {
   const user = await getAuthUser();
   if (!user) redirect("/auth/login");
   return { supabase, user };
+}
+
+/**
+ * The opening most coach pages share: the signed-in coach and the active teams
+ * they coach, oldest first. Redirects to sign-in when signed out and to Coach
+ * Today when they coach no team. Each page still picks its current team itself.
+ */
+export async function requireCoachTeams() {
+  const { supabase, user } = await requireUser();
+  const { data: allTeams } = await supabase
+    .from("teams")
+    .select("id, name, age_group")
+    .in("id", await getCoachedTeamIds(supabase, user.id))
+    .eq("active", true)
+    .order("created_at");
+  if (!allTeams?.length) redirect("/dashboard/coach");
+  return { supabase, user, allTeams };
 }
 
 /** The signed-in user's role, or null when signed out. Cached with getProfile(). */

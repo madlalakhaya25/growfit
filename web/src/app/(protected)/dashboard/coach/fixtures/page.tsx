@@ -1,16 +1,13 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ImageUp, Plus } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
 import { resolveCurrentTeamFromCookies } from "@/lib/current-team-server";
 import { formatInTimezone } from "@/lib/time";
-import { getAuthUser } from "@/lib/auth";
+import { requireCoachTeams } from "@/lib/auth";
 
 export default async function CoachFixturesPage({
   searchParams,
@@ -18,18 +15,7 @@ export default async function CoachFixturesPage({
   searchParams: Promise<{ team?: string }>;
 }) {
   const { team: teamParam } = await searchParams;
-  const supabase = await createClient();
-  const user = await getAuthUser();
-  if (!user) redirect("/auth/login");
-
-  const { data: allTeams } = await supabase
-    .from("teams")
-    .select("id, name, age_group")
-    .in("id", await getCoachedTeamIds(supabase, user.id))
-    .eq("active", true)
-    .order("created_at");
-
-  if (!allTeams?.length) redirect("/dashboard/coach");
+  const { supabase, allTeams } = await requireCoachTeams();
 
   const team = (await resolveCurrentTeamFromCookies(allTeams, teamParam)) ?? allTeams[0];
 

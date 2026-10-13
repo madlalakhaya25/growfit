@@ -1,16 +1,13 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Plus, Dumbbell, CalendarRange, CalendarDays } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { resolveCurrentTeamFromCookies } from "@/lib/current-team-server";
 import { formatTime, formatWeekdayDayMonth } from "@/lib/time";
 import { WeekBriefCard } from "@/components/training/week-brief-card";
 import { buildWeekBrief } from "@/lib/week-brief";
 import { loadSquadFocus } from "@/lib/squad-focus-data";
-import { getAuthUser } from "@/lib/auth";
+import { requireCoachTeams } from "@/lib/auth";
 
 const TYPE_STYLES: Record<string, { label: string; chip: string }> = {
   general:    { label: "General",    chip: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" },
@@ -27,23 +24,12 @@ export default async function CoachTrainingPage({
   searchParams: Promise<{ team?: string }>;
 }) {
   const { team: teamParam } = await searchParams;
-  const supabase = await createClient();
-  const user = await getAuthUser();
-  if (!user) redirect("/auth/login");
-
-  const { data: allTeams } = await supabase
-    .from("teams")
-    .select("id, name, age_group")
-    .in("id", await getCoachedTeamIds(supabase, user.id))
-    .eq("active", true)
-    .order("created_at");
-
-  if (!allTeams?.length) redirect("/dashboard/coach");
+  const { supabase, allTeams } = await requireCoachTeams();
 
   const team = (await resolveCurrentTeamFromCookies(allTeams, teamParam)) ?? allTeams[0];
 
   // `team.id` already comes from `allTeams`, itself scoped to
-  // getCoachedTeamIds() above — no further ownership filter needed. This
+  // requireCoachTeams() above — no further ownership filter needed. This
   // used to also require `coach_id = user.id`, which hid a co-coach's own
   // sessions for this same team (see migration 038: team_coaches makes the
   // team, not whoever happened to create a given session, the actual unit
