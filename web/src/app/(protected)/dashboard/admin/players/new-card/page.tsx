@@ -3,10 +3,11 @@ import { ArrowLeft } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ManualPlayerCardForm, type ManualCardTeam } from "@/components/records/manual-player-card-form";
+import { getAuthUser } from "@/lib/auth";
 
 export default async function NewPlayerCardPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: profile } = await supabase

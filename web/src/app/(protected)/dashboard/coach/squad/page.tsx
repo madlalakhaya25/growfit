@@ -27,6 +27,7 @@ import { SquadFilters, type SquadFilter } from "./squad-filters";
 import { reportError } from "@/lib/report-error";
 import { loadSeasonMinutes } from "@/lib/match-minutes";
 import { signPlayerPhotoUrls } from "@/lib/player-photo";
+import { getAuthUser } from "@/lib/auth";
 
 /** Every document a player owes per season — the document hub's own list. */
 const REQUIRED_DOC_COUNT = DOCUMENTS.length;
@@ -43,7 +44,7 @@ export default async function SquadPage({
       ? rawFilter
       : "all";
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: allTeams } = await supabase

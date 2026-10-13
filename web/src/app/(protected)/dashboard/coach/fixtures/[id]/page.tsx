@@ -27,6 +27,7 @@ import { countOpenObjectives, loadFollowUpPrompts } from "@/lib/objectives-data"
 import { cleanPhaseRatings, phaseHighlights, ratedPhases } from "@/lib/match-phases";
 import { QueryTabs } from "@/components/ui/query-tabs";
 import { pickTab } from "@/lib/tabs";
+import { getAuthUser } from "@/lib/auth";
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -63,7 +64,7 @@ export default async function FixtureDetailPage({
   const [{ id }, { tab: tabParam }] = await Promise.all([params, searchParams]);
   const tab = pickTab(TABS, tabParam);
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: fixture } = await supabase

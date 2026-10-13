@@ -9,11 +9,12 @@ import { todayIso } from "@/lib/time";
 import { weekKeyFor } from "@/lib/weekly-digest";
 import { WeeklyDigestPanel } from "@/components/development/weekly-digest-panel";
 import type { StoryRow } from "@/components/fixtures/match-stories-panel";
+import { getAuthUser } from "@/lib/auth";
 
 export default async function WeeklyDigestPage({ searchParams }: Readonly<{ searchParams: Promise<{ team?: string }> }>) {
   const { team: teamParam } = await searchParams;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: allTeams } = await supabase

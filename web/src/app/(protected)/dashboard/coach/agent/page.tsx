@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { AgentStream } from "@/components/ai/agent-stream";
+import { getAuthUser } from "@/lib/auth";
 
 const AGENT_STARTERS = [
   "Who needs a welfare check-in?",
@@ -12,7 +13,7 @@ const AGENT_STARTERS = [
 
 export default async function CoachAgentPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const ids = await getCoachedTeamIds(supabase, user.id);

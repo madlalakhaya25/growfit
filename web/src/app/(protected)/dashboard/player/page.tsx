@@ -35,6 +35,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { QueryTabs } from "@/components/ui/query-tabs";
 import { PlayerToday } from "@/components/player/player-today";
 import { pickTab } from "@/lib/tabs";
+import { getAuthUser } from "@/lib/auth";
 
 
 
@@ -148,7 +149,7 @@ export default async function PlayerDashboardPage({
 }: Readonly<{ searchParams: Promise<{ tab?: string }> }>) {
   const tab = pickTab(TABS, (await searchParams).tab);
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   // player_attributes is fetched separately from the base player row, not

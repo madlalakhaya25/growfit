@@ -6,11 +6,12 @@ import { resolveCurrentTeamFromCookies } from "@/lib/current-team-server";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { loadPlanQueue } from "@/lib/plan-queue-data";
 import { PlanQueue } from "@/components/development/plan-queue";
+import { getAuthUser } from "@/lib/auth";
 
 export default async function SquadPlansPage({ searchParams }: Readonly<{ searchParams: Promise<{ team?: string }> }>) {
   const { team: teamParam } = await searchParams;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: allTeams } = await supabase

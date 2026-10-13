@@ -5,10 +5,11 @@ import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/ca
 import { Users } from "lucide-react";
 import { CoachCodeBlock, RemoveCoachButton } from "./coach-code-controls";
 import { TeamActions } from "./team-actions";
+import { getAuthUser } from "@/lib/auth";
 
 export default async function AdminTeamsPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: profile } = await supabase

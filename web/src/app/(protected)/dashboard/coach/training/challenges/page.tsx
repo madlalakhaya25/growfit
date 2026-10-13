@@ -11,6 +11,7 @@ import { SKILL_CHALLENGES_NOT_YET, loadAssignments, loadAttempts } from "@/lib/s
 import { TARGETS_NOTE, getSkillChallenge, skillAgeBand } from "@/lib/skill-challenges";
 import { addDays } from "@/lib/week-plan";
 import { todayIso } from "@/lib/time";
+import { getAuthUser } from "@/lib/auth";
 
 type MemberRow = { player_id: string; players: { id: string; full_name: string } | { id: string; full_name: string }[] | null };
 
@@ -20,7 +21,7 @@ export default async function CoachChallengesPage({
 }: Readonly<{ searchParams: Promise<{ team?: string }> }>) {
   const { team: teamParam } = await searchParams;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: allTeams } = await supabase

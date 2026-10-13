@@ -7,6 +7,7 @@ import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { getInitials } from "@/lib/player";
 import { cn } from "@/lib/utils";
 import { formatInTimezone } from "@/lib/time";
+import { getAuthUser } from "@/lib/auth";
 
 /**
  * Squad, emergency contacts and next fixture on one screen — the offline
@@ -30,7 +31,7 @@ export default async function EmergencyContactsPage({
 }) {
   const { team: teamParam } = await searchParams;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: allTeams } = await supabase

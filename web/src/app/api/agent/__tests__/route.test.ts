@@ -1,12 +1,15 @@
 /** @jest-environment node */
 import { NextRequest } from "next/server";
 
-const mockGetUser = jest.fn();
 jest.mock("@/lib/supabase/server", () => ({
-  createClient: async () => ({ auth: { getUser: mockGetUser } }),
+  createClient: async () => ({}),
 }));
+const mockGetAuthUser = jest.fn();
 const mockRequireUser = jest.fn();
-jest.mock("@/lib/auth", () => ({ requireUser: (...a: unknown[]) => mockRequireUser(...a) }));
+jest.mock("@/lib/auth", () => ({
+  getAuthUser: (...a: unknown[]) => mockGetAuthUser(...a),
+  requireUser: (...a: unknown[]) => mockRequireUser(...a),
+}));
 const mockBuildCtx = jest.fn();
 jest.mock("@/lib/ai-tools/context", () => ({ buildAgentContext: (...a: unknown[]) => mockBuildCtx(...a) }));
 const mockFeatures = jest.fn();
@@ -39,7 +42,7 @@ async function* chunks(...parts: object[][]) {
 describe("/api/agent", () => {
   beforeEach(() => {
     jest.resetAllMocks();
-    mockGetUser.mockResolvedValue({ data: { user: { id: "u1" } } });
+    mockGetAuthUser.mockResolvedValue({ id: "u1" });
     mockBuildCtx.mockResolvedValue({ userId: "u1", role: "coach", academyId: "a", teamIds: [], teams: [] });
     mockBudget.mockResolvedValue(null);
     mockFeatures.mockResolvedValue({ tactics: true, film: true, assistant: true, agent: true });
@@ -61,9 +64,9 @@ describe("/api/agent", () => {
   });
 
   it("POST answers 401 when signed out and 403 for non-staff", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockGetAuthUser.mockResolvedValue(null);
     expect((await POST(req({ question: "hi" }))).status).toBe(401);
-    mockGetUser.mockResolvedValue({ data: { user: { id: "u1" } } });
+    mockGetAuthUser.mockResolvedValue({ id: "u1" });
     mockBuildCtx.mockResolvedValue(null);
     expect((await POST(req({ question: "hi" }))).status).toBe(403);
   });

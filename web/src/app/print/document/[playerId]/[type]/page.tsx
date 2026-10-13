@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { DOCUMENTS } from "@/lib/document-definitions";
 import { PrintTrigger, PrintButton } from "./print-trigger";
 import { formatInTimezone } from "@/lib/time";
+import { getAuthUser } from "@/lib/auth";
 
 export default async function DocumentPrintPage({
   params,
@@ -15,7 +16,7 @@ export default async function DocumentPrintPage({
   const { season } = await searchParams;
 
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const def = DOCUMENTS.find((d) => d.type === type);

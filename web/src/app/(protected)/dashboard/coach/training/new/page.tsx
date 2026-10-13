@@ -8,6 +8,7 @@ import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { recentTurnout } from "@/lib/recent-turnout";
 import { cleanFocus } from "@/lib/squad-focus";
 import { z } from "zod";
+import { getAuthUser } from "@/lib/auth";
 
 export default async function NewTrainingSessionPage({
   searchParams,
@@ -16,7 +17,7 @@ export default async function NewTrainingSessionPage({
 }) {
   const { team: teamParam, focus: focusParam, objective: objectiveParam } = await searchParams;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: allTeams } = await supabase

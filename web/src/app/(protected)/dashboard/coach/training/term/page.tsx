@@ -8,11 +8,12 @@ import { todayIso } from "@/lib/time";
 import { buildTermPlan } from "@/lib/term-plan";
 import { loadTermPlanInputs } from "@/lib/term-plan-data";
 import { TermPlanView } from "@/components/training/term-plan-view";
+import { getAuthUser } from "@/lib/auth";
 
 export default async function TermPlanPage({ searchParams }: Readonly<{ searchParams: Promise<{ team?: string }> }>) {
   const { team: teamParam } = await searchParams;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const [{ data: allTeams }, { data: profile }] = await Promise.all([

@@ -10,6 +10,7 @@ import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
 import { resolveCurrentTeamFromCookies } from "@/lib/current-team-server";
 import { formatInTimezone } from "@/lib/time";
+import { getAuthUser } from "@/lib/auth";
 
 export default async function CoachFixturesPage({
   searchParams,
@@ -18,7 +19,7 @@ export default async function CoachFixturesPage({
 }) {
   const { team: teamParam } = await searchParams;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: allTeams } = await supabase

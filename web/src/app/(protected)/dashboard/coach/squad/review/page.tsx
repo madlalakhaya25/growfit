@@ -10,11 +10,12 @@ import { loadCoachNotes } from "@/lib/coach-notes";
 import { ObjectiveHistory } from "@/components/objective-history";
 import { loadClosedObjectives } from "@/lib/objectives-data";
 import { SquadReview } from "@/components/development/squad-review";
+import { getAuthUser } from "@/lib/auth";
 
 export default async function SquadReviewPage({ searchParams }: Readonly<{ searchParams: Promise<{ team?: string }> }>) {
   const { team: teamParam } = await searchParams;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const [{ data: allTeams }, { data: profile }] = await Promise.all([

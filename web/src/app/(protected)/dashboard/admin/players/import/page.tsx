@@ -3,13 +3,14 @@ import { ArrowLeft } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PlayerImportPanel, type ImportTeam } from "@/components/records/player-import-panel";
+import { getAuthUser } from "@/lib/auth";
 
 // Reading a PDF with several cards can take longer than the default limit.
 export const maxDuration = 60;
 
 export default async function AdminImportPlayersPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: profile } = await supabase

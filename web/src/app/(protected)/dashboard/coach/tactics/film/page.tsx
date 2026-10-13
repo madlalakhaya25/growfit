@@ -4,10 +4,11 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { FilmBoard, type FilmTeam } from "@/components/tactics/film-board";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { getAuthUser } from "@/lib/auth";
 
 export default async function CoachFilmPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data } = await supabase

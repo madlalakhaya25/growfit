@@ -8,6 +8,7 @@ import { DOCUMENTS, isDocComplete } from "@/lib/document-definitions";
 import { buildChase, type ChaseReason } from "@/lib/compliance-chase";
 import { flagAgeEligibility, findDuplicates } from "@/lib/eligibility";
 import { ChaseMessageButton } from "@/components/records/chase-message-button";
+import { getAuthUser } from "@/lib/auth";
 
 /**
  * Registration document funnel (docs/BACKLOG.md 2.2).
@@ -25,7 +26,7 @@ export default async function DocumentFunnelPage({
 }) {
   const { age } = await searchParams;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: profile } = await supabase

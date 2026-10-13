@@ -4,12 +4,13 @@ import type { MilestoneTemplateData } from "@/app/actions/development";
 import type { MilestoneCategory } from "@/lib/development-categories";
 import { PageHeader } from "@/components/ui/page-header";
 import { MilestoneManager } from "./milestone-form";
+import { getAuthUser } from "@/lib/auth";
 
 type TemplateRow = MilestoneTemplateData & { id: string };
 
 export default async function AdminDevelopmentPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: profile } = await supabase

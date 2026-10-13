@@ -10,6 +10,7 @@ import { formatTime, formatWeekdayDayMonth } from "@/lib/time";
 import { WeekBriefCard } from "@/components/training/week-brief-card";
 import { buildWeekBrief } from "@/lib/week-brief";
 import { loadSquadFocus } from "@/lib/squad-focus-data";
+import { getAuthUser } from "@/lib/auth";
 
 const TYPE_STYLES: Record<string, { label: string; chip: string }> = {
   general:    { label: "General",    chip: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" },
@@ -27,7 +28,7 @@ export default async function CoachTrainingPage({
 }) {
   const { team: teamParam } = await searchParams;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: allTeams } = await supabase

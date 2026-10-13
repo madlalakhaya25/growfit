@@ -21,6 +21,7 @@ import { loadPlayerHomework } from "@/lib/homework-data";
 import { HomeworkEvidence } from "@/components/homework/homework-evidence";
 import { QueryTabs } from "@/components/ui/query-tabs";
 import { pickTab } from "@/lib/tabs";
+import { getAuthUser } from "@/lib/auth";
 
 const TABS = [
   { id: "progress", label: "Progress" },
@@ -41,7 +42,7 @@ export default async function PlayerDevelopmentPage({
 }>) {
   const tab = pickTab(TABS, (await searchParams).tab);
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: player } = await supabase

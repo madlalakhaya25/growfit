@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { Users } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { Logo } from "@/components/logo";
 import { ConfirmJoinButton } from "./confirm-join-button";
+import { getAuthUser } from "@/lib/auth";
 
 export default async function JoinPage({
   params,
@@ -10,8 +10,7 @@ export default async function JoinPage({
   params: Promise<{ code: string }>;
 }) {
   const { code } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) {
     // `code` is a raw, attacker-controlled route segment — encode it before

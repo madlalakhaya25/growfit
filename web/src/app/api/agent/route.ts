@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { AI_MODEL } from "@/lib/ai-models";
 import { aiError, checkAiBudget } from "@/lib/ai-guard";
-import { requireUser } from "@/lib/auth";
+import { getAuthUser, requireUser } from "@/lib/auth";
 import { getAcademyFeatures } from "@/lib/features";
 import { createClient } from "@/lib/supabase/server";
 import { buildAgentContext } from "@/lib/ai-tools/context";
@@ -43,7 +43,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   // A streaming fetch can't usefully follow a redirect, so POST answers 401.
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

@@ -1,16 +1,15 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { ListRow, ListRowGroup } from "@/components/ui/list-row";
 import { LESSONS } from "@/lib/lessons-content";
 import { LESSON_DISCLAIMER, groupLessons } from "@/lib/lessons";
+import { getAuthUser } from "@/lib/auth";
 
 export const metadata = { title: "Learn" };
 
 export default async function LearnPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const groups = groupLessons(LESSONS);

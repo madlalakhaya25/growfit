@@ -24,6 +24,7 @@ import {
 } from "@/lib/attributes";
 import { matchRatingAverage } from "@/lib/player";
 import { signPlayerPhotoUrl } from "@/lib/player-photo";
+import { getAuthUser } from "@/lib/auth";
 
 export default async function AdminPlayerDetailPage({
   params,
@@ -32,7 +33,7 @@ export default async function AdminPlayerDetailPage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: profile } = await supabase
