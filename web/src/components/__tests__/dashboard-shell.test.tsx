@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { DashboardShell } from "@/components/dashboard-shell";
+import { SIMPLE_FEATURES } from "@/lib/features";
 
 // AskGrowfitSheet pulls in coach-assistant-panel.tsx -> the "use server"
 // coach-assistant action -> @google/genai, an ESM-only package this
@@ -80,6 +81,30 @@ describe("DashboardShell", () => {
     for (const link of screen.getAllByRole("link", { name: "Matchday" })) {
       expect(link).toHaveAttribute("href", "/dashboard/coach/fixtures");
     }
+  });
+
+  it("leaves only the weekly-loop tabs in simple mode, keeping Welfare and Emergency", () => {
+    mockPathname = "/dashboard/coach/training";
+    render(
+      <DashboardShell profile={profile} features={SIMPLE_FEATURES}>
+        <p>content</p>
+      </DashboardShell>
+    );
+    for (const name of ["Challenges", "Library", "Learn", "Tactics"]) {
+      expect(screen.queryByRole("link", { name })).not.toBeInTheDocument();
+    }
+    for (const link of screen.getAllByRole("link", { name: "Develop" })) {
+      expect(link).toHaveAttribute("href", "/dashboard/coach/training");
+    }
+
+    mockPathname = "/dashboard/coach/squad";
+    render(
+      <DashboardShell profile={profile} features={SIMPLE_FEATURES}>
+        <p>content</p>
+      </DashboardShell>
+    );
+    expect(screen.getByRole("link", { name: "Welfare" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Emergency" })).toBeInTheDocument();
   });
 
   it("shows the team switcher only with more than one team", () => {

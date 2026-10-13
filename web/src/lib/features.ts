@@ -6,13 +6,30 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * Never put anything safeguarding- or compliance-related in this list --
  * those stay always on regardless of what an academy toggles.
  */
-export type FeatureKey = "tactics" | "film" | "assistant" | "agent";
+export type FeatureKey = "tactics" | "film" | "assistant" | "agent" | "coach_extras";
+
+export const FEATURE_KEYS: FeatureKey[] = ["tactics", "film", "assistant", "agent", "coach_extras"];
 
 const ALL_ON: Record<FeatureKey, boolean> = {
   tactics: true,
   film: true,
   assistant: true,
   agent: true,
+  coach_extras: true,
+};
+
+/**
+ * Simple mode: every optional feature off, so a volunteer coach's menu holds
+ * only Today, Fixtures, Squad (with Welfare and Emergency), Training, Posts
+ * and Settings. A newly registered academy starts here; the admin switches
+ * features on from Academy, Features as coaches grow into them.
+ */
+export const SIMPLE_FEATURES: Record<FeatureKey, boolean> = {
+  tactics: false,
+  film: false,
+  assistant: false,
+  agent: false,
+  coach_extras: false,
 };
 
 /**

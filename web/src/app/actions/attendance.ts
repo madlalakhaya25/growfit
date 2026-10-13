@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { friendlyError } from "@/lib/friendly-error";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import {
+  isAttendanceStatus,
   isLegacyAttendanceConstraint,
   LEGACY_ATTENDANCE_CONSTRAINT_MESSAGE,
   type AttendanceStatus,
@@ -86,16 +87,28 @@ export async function markTrainingAttendance(
 }
 
 /**
- * One-tap "everyone's here" for training: upserts Present for every listed
- * player id in a single write, rather than the coach tapping Present once
- * per name. Callers pass only the currently-unmarked players, so this never
- * overwrites an exception (Late/Absent/Excused) already recorded — the
- * point is to make marking the common case (a full squad turning up) one
- * tap, and leave the coach tapping only the exceptions, not to make ticking
- * a genuine absence harder to correct afterwards.
+ * Save a batch of training register marks in one write.
+ *
+ * The register keeps taps on the phone and sends them here together, a moment
+ * after the coach stops tapping (and at once for "mark remaining present").
+ * One tap used to be one Server Action, and Next.js runs those one at a time,
+ * so twenty quick taps queued twenty round trips plus twenty page re-renders.
+ *
+ * Deliberately does not revalidate the session page: the coach is looking at
+ * it, and the register already shows what was tapped.
  */
-export async function markAllPresent(sessionId: string, playerIds: string[]) {
+export async function saveTrainingRegister(
+  sessionId: string,
+  marks: { playerId: string; status: AttendanceStatus }[]
+) {
   const { supabase, user } = await requireUser();
+
+  // Last mark per player wins; anything that is not a known status is dropped.
+  const latest = new Map<string, AttendanceStatus>();
+  for (const m of marks.slice(0, 200)) {
+    if (typeof m?.playerId === "string" && isAttendanceStatus(m.status)) latest.set(m.playerId, m.status);
+  }
+  if (latest.size === 0) return { success: true };
 
   // Scoped to teams the caller coaches, not to who created the session —
   // same reasoning as markTrainingAttendance above; see migration 038.
@@ -107,14 +120,13 @@ export async function markAllPresent(sessionId: string, playerIds: string[]) {
     .single();
 
   if (!session) return { error: "Session not found or access denied." };
-  if (playerIds.length === 0) return { success: true };
 
   const markedAt = new Date().toISOString();
   const { error } = await supabase.from("training_attendance").upsert(
-    playerIds.map((playerId) => ({
+    [...latest].map(([playerId, status]) => ({
       session_id: sessionId,
       player_id: playerId,
-      status: "present" as const,
+      status,
       marked_by: user.id,
       marked_at: markedAt,
     })),
@@ -123,12 +135,12 @@ export async function markAllPresent(sessionId: string, playerIds: string[]) {
 
   if (error) {
     if (isLegacyAttendanceConstraint(error)) {
-      reportError(error, { scope: "markAllPresent", extra: { cause: "pre-036 CHECK constraint" } });
+      reportError(error, { scope: "saveTrainingRegister", extra: { cause: "pre-036 CHECK constraint" } });
       return { error: LEGACY_ATTENDANCE_CONSTRAINT_MESSAGE };
     }
     return { error: friendlyError(error) };
   }
-  revalidatePath(`/dashboard/coach/training/${sessionId}`);
   revalidatePath("/dashboard/coach/welfare");
+  revalidatePath("/dashboard/coach");
   return { success: true };
 }

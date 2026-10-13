@@ -1,4 +1,5 @@
 "use server";
+import { FEATURE_KEYS, type FeatureKey } from "@/lib/features";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { friendlyError } from "@/lib/friendly-error";
@@ -41,12 +42,11 @@ export async function updateAcademyFeatures(prevState: unknown, formData: FormDa
 
   if (!profile?.academy_id || profile.role !== "admin") return { error: "Unauthorized" };
 
-  const features = {
-    tactics: formData.get("tactics") === "on",
-    film: formData.get("film") === "on",
-    assistant: formData.get("assistant") === "on",
-    agent: formData.get("agent") === "on",
-  };
+  // "Use the simple menu" submits with every switch off, whatever is ticked.
+  const simple = formData.get("simple") === "1";
+  const features = Object.fromEntries(
+    FEATURE_KEYS.map((key) => [key, !simple && formData.get(key) === "on"])
+  ) as Record<FeatureKey, boolean>;
 
   const { error } = await supabase
     .from("academies")

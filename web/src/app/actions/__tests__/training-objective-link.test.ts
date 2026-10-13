@@ -18,7 +18,7 @@ const OBJECTIVE = "33333333-3333-4333-8333-333333333333";
 function db(opts: { sessionFails?: boolean } = {}) {
   const f = fakeSupabase((op: FakeOp) => {
     if (op.table === "teams") return { data: [{ id: TEAM }] };
-    if (op.table === "training_sessions") return opts.sessionFails ? { data: null, error: { message: "nope" } } : { data: { id: SESSION } };
+    if (op.table === "training_sessions") return opts.sessionFails ? { data: null, error: { message: "nope" } } : { data: [{ id: SESSION, session_date: "2026-10-09T15:00:00Z" }] };
     return { data: [] };
   });
   mockRequireUser.mockResolvedValue({ supabase: f.client, user: { id: "u1" } });
@@ -36,7 +36,7 @@ beforeEach(() => jest.clearAllMocks());
 
 it("links the saved session to the objective it was planned for", async () => {
   const f = db();
-  expect(await createTrainingSessionWithDrills(params(OBJECTIVE))).toEqual({ id: SESSION });
+  expect(await createTrainingSessionWithDrills(params(OBJECTIVE))).toEqual({ id: SESSION, created: 1 });
   expect(links(f)).toHaveLength(1);
   expect(links(f)[0].payload).toEqual({ objective_id: OBJECTIVE, link_type: "session", link_id: SESSION });
 });
@@ -49,7 +49,7 @@ it("writes no link when no objective was sent", async () => {
 
 it("ignores an objective id that is not a uuid", async () => {
   const f = db();
-  expect(await createTrainingSessionWithDrills(params("not-a-uuid"))).toEqual({ id: SESSION });
+  expect(await createTrainingSessionWithDrills(params("not-a-uuid"))).toEqual({ id: SESSION, created: 1 });
   expect(links(f)).toHaveLength(0);
 });
 

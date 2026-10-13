@@ -1,11 +1,11 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { CheckCircle2, XCircle, Clock, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDayMonth } from "@/lib/time";
-import { markTrainingAttendance, markAllPresent } from "@/app/actions/attendance";
+import { saveTrainingRegister } from "@/app/actions/attendance";
 import { enqueueAttendanceWrite } from "@/lib/offline-attendance-queue";
 import {
   ATTENDANCE_STATUSES,
@@ -64,8 +64,6 @@ function PlayerRow({
   rsvp?: "going" | "cant";
   onMark: (playerId: string, status: AttendanceStatus) => void;
 }) {
-  const [pending, startTransition] = useTransition();
-
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2">
       <span className="text-[17px]">
@@ -90,13 +88,11 @@ function PlayerRow({
             <button
               key={status}
               type="button"
-              disabled={pending}
               aria-pressed={isActive}
-              onClick={() => startTransition(() => onMark(player.id, status))}
+              onClick={() => onMark(player.id, status)}
               className={cn(
                 "flex min-h-11 items-center gap-1 rounded-[8px] px-2.5 text-[13px] font-semibold transition-colors sm:min-h-9",
-                isActive ? cn(active, "shadow-[0_2px_6px_rgb(0_0_0/0.15)]") : "text-foreground/75 hover:text-foreground",
-                pending && "cursor-wait opacity-50"
+                isActive ? cn(active, "shadow-[0_2px_6px_rgb(0_0_0/0.15)]") : "text-foreground/75 hover:text-foreground"
               )}
             >
               <Icon className="size-3.5" aria-hidden="true" />
@@ -108,6 +104,13 @@ function PlayerRow({
     </div>
   );
 }
+
+/** How long the register waits after the last tap before saving the batch. */
+export const REGISTER_SAVE_DELAY_MS = 800;
+
+type Mark = { playerId: string; status: AttendanceStatus };
+
+const SAVE_LABEL = { idle: "", saving: "Saving…", saved: "Saved" } as const;
 
 export function TrainingAttendanceForm({ sessionId, players, existing, rsvps, lastMarkedBy }: Readonly<Props>) {
   const router = useRouter();
@@ -121,36 +124,83 @@ export function TrainingAttendanceForm({ sessionId, players, existing, rsvps, la
         .map((r) => [r.player_id, r.status as AttendanceStatus])
     )
   );
-  const [markingAll, setMarkingAll] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+
+  // Taps wait here and go to the server together (saveTrainingRegister), so
+  // marking a squad costs one round trip instead of one per tap. `saved` is
+  // what the server last confirmed, to put a row back if a save is refused.
+  const pending = useRef(new Map<string, AttendanceStatus>());
+  const saved = useRef<Record<string, AttendanceStatus>>({ ...statusMap });
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useAttendanceQueueFlush(() => router.refresh());
 
-  async function handleMark(playerId: string, status: AttendanceStatus) {
-    const previous = statusMap[playerId] ?? null;
-    setStatusMap((prev) => ({ ...prev, [playerId]: status }));
+  const flush = useCallback(async () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    if (pending.current.size === 0) return;
+    const batch: Mark[] = [...pending.current].map(([playerId, status]) => ({ playerId, status }));
+    pending.current = new Map();
+    setSaveState("saving");
+
     try {
-      const res = await markTrainingAttendance(sessionId, playerId, status);
+      const res = await saveTrainingRegister(sessionId, batch);
       if (res?.error) {
+        // Put back only the rows the coach hasn't changed again since.
         setStatusMap((prev) => {
           const next = { ...prev };
-          if (previous) next[playerId] = previous;
-          else delete next[playerId];
+          for (const { playerId, status } of batch) {
+            if (next[playerId] !== status) continue;
+            const before = saved.current[playerId];
+            if (before) next[playerId] = before;
+            else delete next[playerId];
+          }
           return next;
         });
+        setSaveState("idle");
         toast.error(res.error);
+        return;
       }
+      for (const { playerId, status } of batch) saved.current[playerId] = status;
+      setSaveState(pending.current.size > 0 ? "saving" : "saved");
     } catch {
-      await enqueueAttendanceWrite({
-        id: `training:${sessionId}:${playerId}:${Date.now()}`,
-        kind: "training",
-        sessionId,
-        playerId,
-        status,
-        queuedAt: new Date().toISOString(),
-      });
+      const queuedAt = new Date().toISOString();
+      for (const { playerId, status } of batch) {
+        await enqueueAttendanceWrite({
+          id: `training:${sessionId}:${playerId}:${Date.now()}`,
+          kind: "training",
+          sessionId,
+          playerId,
+          status,
+          queuedAt,
+        });
+      }
+      setSaveState("idle");
       toast("Saved offline — will sync when you're back online", { duration: 5000 });
     }
+  }, [sessionId]);
+
+  // Save straight away when the coach leaves the page or locks the phone, so a
+  // tap made just before is never lost to the delay.
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === "hidden") void flush(); };
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      void flush();
+    };
+  }, [flush]);
+
+  function queue(marks: Mark[], now = false) {
+    setStatusMap((prev) => ({ ...prev, ...Object.fromEntries(marks.map((m) => [m.playerId, m.status])) }));
+    for (const m of marks) pending.current.set(m.playerId, m.status);
+    setSaveState("saving");
+    if (timer.current) clearTimeout(timer.current);
+    if (now) void flush();
+    else timer.current = setTimeout(() => void flush(), REGISTER_SAVE_DELAY_MS);
   }
+
+  const handleMark = (playerId: string, status: AttendanceStatus) => queue([{ playerId, status }]);
 
   // Same rule the welfare threshold uses: late counts as turning up, excused
   // is left out of the total rather than counted against the player.
@@ -158,44 +208,12 @@ export function TrainingAttendanceForm({ sessionId, players, existing, rsvps, la
   const unmarkedPlayers = players.filter((p) => !statusMap[p.id]);
   const unmarked = unmarkedPlayers.length;
 
-  async function handleMarkAllPresent() {
-    const ids = unmarkedPlayers.map((p) => p.id);
-    if (ids.length === 0) return;
-    setMarkingAll(true);
-    setStatusMap((prev) => {
-      const next = { ...prev };
-      for (const id of ids) next[id] = "present";
-      return next;
-    });
-    try {
-      const res = await markAllPresent(sessionId, ids);
-      if (res?.error) {
-        setStatusMap((prev) => {
-          const next = { ...prev };
-          for (const id of ids) delete next[id];
-          return next;
-        });
-        toast.error(res.error);
-      } else {
-        toast.success(`Marked ${ids.length} player${ids.length === 1 ? "" : "s"} present`);
-      }
-    } catch {
-      const queuedAt = new Date().toISOString();
-      for (const id of ids) {
-        await enqueueAttendanceWrite({
-          id: `training:${sessionId}:${id}:${Date.now()}`,
-          kind: "training",
-          sessionId,
-          playerId: id,
-          status: "present",
-          queuedAt,
-        });
-      }
-      toast("Saved offline — will sync when you're back online", { duration: 5000 });
-    } finally {
-      setMarkingAll(false);
-    }
-  }
+  /**
+   * One-tap "everyone's here": only the currently-unmarked players, so an
+   * exception (Late/Absent/Excused) already tapped is never overwritten.
+   */
+  const handleMarkAllPresent = () =>
+    queue(unmarkedPlayers.map((p) => ({ playerId: p.id, status: "present" as const })), true);
 
   if (players.length === 0) return null;
 
@@ -217,16 +235,16 @@ export function TrainingAttendanceForm({ sessionId, players, existing, rsvps, la
             {summary.pct !== null && ` · ${summary.pct}%`}
             {unmarked > 0 && ` · ${unmarked} unmarked`}
           </span>
+          <span className="text-xs text-muted-foreground" aria-live="polite">
+            {SAVE_LABEL[saveState]}
+          </span>
           {unmarked > 0 && (
             <button
               type="button"
               onClick={handleMarkAllPresent}
-              disabled={markingAll}
-              className="rounded-md border border-green-500/40 bg-green-500/10 px-2.5 py-1 text-xs font-medium text-green-700 transition-colors hover:bg-green-500/20 disabled:cursor-wait disabled:opacity-50 dark:text-green-400"
+              className="min-h-11 rounded-md border border-green-500/40 bg-green-500/10 px-3 text-sm font-medium text-green-700 transition-colors hover:bg-green-500/20 sm:min-h-9 dark:text-green-400"
             >
-              {markingAll
-                ? "Marking…"
-                : `Mark remaining ${unmarked} present`}
+              Mark remaining {unmarked} present
             </button>
           )}
         </div>
