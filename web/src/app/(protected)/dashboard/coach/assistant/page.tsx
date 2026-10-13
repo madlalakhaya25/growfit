@@ -4,10 +4,11 @@ import { CoachAssistantPanel } from "@/components/ai/coach-assistant-panel";
 import { getAssistantContext } from "@/lib/assistant-context";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { RetryButton } from "@/components/ui/retry-button";
+import { getAuthUser } from "@/lib/auth";
 
 export default async function CoachAssistantPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { teams, roster, fixtures, error } = await getAssistantContext(supabase, user.id);

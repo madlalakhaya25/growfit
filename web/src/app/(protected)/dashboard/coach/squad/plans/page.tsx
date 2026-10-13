@@ -1,25 +1,13 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { resolveCurrentTeamFromCookies } from "@/lib/current-team-server";
-import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { loadPlanQueue } from "@/lib/plan-queue-data";
 import { PlanQueue } from "@/components/development/plan-queue";
+import { requireCoachTeams } from "@/lib/auth";
 
 export default async function SquadPlansPage({ searchParams }: Readonly<{ searchParams: Promise<{ team?: string }> }>) {
   const { team: teamParam } = await searchParams;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
-
-  const { data: allTeams } = await supabase
-    .from("teams")
-    .select("id, name, age_group")
-    .in("id", await getCoachedTeamIds(supabase, user.id))
-    .eq("active", true)
-    .order("created_at");
-  if (!allTeams?.length) redirect("/dashboard/coach");
+  const { supabase, allTeams } = await requireCoachTeams();
 
   const team = (await resolveCurrentTeamFromCookies(allTeams, teamParam)) ?? allTeams[0];
   const snapshot = await loadPlanQueue(supabase, team.id);

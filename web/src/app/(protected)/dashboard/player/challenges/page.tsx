@@ -5,11 +5,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ChallengeBoardView } from "@/components/skill-challenges/challenge-board-view";
 import { loadChallengeBoard } from "@/lib/skill-challenges-data";
 import { todayIso } from "@/lib/time";
+import { getAuthUser } from "@/lib/auth";
 
 /** Ball-skill home challenges: log a score, win bronze, silver or gold. */
 export default async function PlayerChallengesPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: player } = await supabase.from("players").select("id").eq("profile_id", user.id).maybeSingle();

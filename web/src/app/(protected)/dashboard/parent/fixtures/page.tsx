@@ -8,6 +8,7 @@ import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/f
 import { MonthCalendar, type CalendarEvent } from "@/components/calendar/month-calendar";
 import { cn } from "@/lib/utils";
 import { formatInTimezone, formatTime } from "@/lib/time";
+import { getAuthUser } from "@/lib/auth";
 
 export default async function ParentFixturesPage({
   searchParams,
@@ -17,7 +18,7 @@ export default async function ParentFixturesPage({
   const { view: rawView, month: monthParam } = await searchParams;
   const view = rawView === "calendar" ? "calendar" : "list";
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   // Get all players linked to this parent

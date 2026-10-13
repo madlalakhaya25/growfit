@@ -15,10 +15,11 @@ import { adminCardsFor } from "@/lib/staff-hats";
 import { loadOwnHats } from "@/lib/staff-hats-data";
 import { loadDirectorCards } from "@/lib/director-data";
 import { DirectorCardList } from "./director-cards";
+import { getAuthUser } from "@/lib/auth";
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: profile } = await supabase

@@ -278,3 +278,19 @@ so `get()` resolves to `null` and the prefix is sent inline. `cachedContent`
 and `systemInstruction` are mutually exclusive in one request — the system
 prompt lives inside the cache. The roster version is a hash of the stable
 brief's own text, because `players` and `team_members` have no `updated_at`.
+
+## Who is signed in: `getAuthUser()`, not `auth.getUser()`
+
+Server code reads the signed-in user with `getAuthUser()` from `lib/auth.ts`
+(cached per request, built on `getClaims()`). `supabase.auth.getUser()` asks
+the Auth server every time, and a page used to call it up to three times
+(proxy, layout, page) before loading any data. Browser-side sign-up flows
+still use `getUser()` on the browser client; that is fine.
+
+## New policies: wrap `auth.uid()` as `(select auth.uid())`
+
+A bare `auth.uid()` (or `auth_academy_id()`, `auth_role()`,
+`is_admin_or_coach()`) in a policy runs once per row checked. Wrapped in
+`(select ...)` it runs once per query. Migration 071 rewrote every existing
+policy this way; write new ones the same way. Only calls that take no
+row-dependent argument can be wrapped.

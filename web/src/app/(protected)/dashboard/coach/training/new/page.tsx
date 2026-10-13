@@ -1,13 +1,11 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/server";
 import { NewSessionForm } from "./new-session-form";
-import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { recentTurnout } from "@/lib/recent-turnout";
 import { cleanFocus } from "@/lib/squad-focus";
 import { z } from "zod";
+import { requireCoachTeams } from "@/lib/auth";
 
 export default async function NewTrainingSessionPage({
   searchParams,
@@ -15,18 +13,7 @@ export default async function NewTrainingSessionPage({
   searchParams: Promise<{ team?: string; focus?: string; objective?: string }>;
 }) {
   const { team: teamParam, focus: focusParam, objective: objectiveParam } = await searchParams;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
-
-  const { data: allTeams } = await supabase
-    .from("teams")
-    .select("id, name, age_group")
-    .in("id", await getCoachedTeamIds(supabase, user.id))
-    .eq("active", true)
-    .order("created_at");
-
-  if (!allTeams?.length) redirect("/dashboard/coach");
+  const { supabase, allTeams } = await requireCoachTeams();
 
   const team = allTeams.find((t) => t.id === teamParam) ?? allTeams[0];
 

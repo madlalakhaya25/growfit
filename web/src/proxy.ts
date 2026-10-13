@@ -54,9 +54,12 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims() verifies the sign-in token, locally when the project signs
+  // with asymmetric keys, and refreshes the session first when the token is
+  // about to expire. getUser() asked the Auth server on every navigation.
+  // See lib/auth.ts getAuthUser() for the trade-off.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const user = claimsData?.claims?.sub ? { id: claimsData.claims.sub } : null;
 
   const { pathname } = request.nextUrl;
 

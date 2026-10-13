@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DocumentHub } from "@/components/records/document-hub";
 import { PlayerIdentityForm } from "@/components/records/player-identity-form";
+import { getAuthUser } from "@/lib/auth";
 
 /**
  * Registration numbers and season documents, split out of the passport page.
@@ -12,7 +13,7 @@ import { PlayerIdentityForm } from "@/components/records/player-identity-form";
  */
 export default async function PlayerRecordsPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: player } = await supabase

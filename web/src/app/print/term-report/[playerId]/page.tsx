@@ -21,6 +21,7 @@ import {
   ATTENDANCE_WINDOW_DAYS,
   type AttendanceStatus,
 } from "@/lib/attendance";
+import { getAuthUser } from "@/lib/auth";
 
 /**
  * One PDF per player per term (docs/BACKLOG.md 2.3) — attendance,
@@ -45,7 +46,7 @@ export default async function TermReportPrintPage({
   const { season } = await searchParams;
 
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: player } = await supabase

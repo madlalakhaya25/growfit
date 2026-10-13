@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { NewFixtureForm } from "./new-fixture-form";
-import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { requireCoachTeams } from "@/lib/auth";
 
 export default async function NewFixturePage({
   searchParams,
@@ -12,18 +10,7 @@ export default async function NewFixturePage({
   searchParams: Promise<{ team?: string }>;
 }) {
   const { team: teamParam } = await searchParams;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
-
-  const { data: allTeams } = await supabase
-    .from("teams")
-    .select("id, name, age_group")
-    .in("id", await getCoachedTeamIds(supabase, user.id))
-    .eq("active", true)
-    .order("created_at");
-
-  if (!allTeams?.length) redirect("/dashboard/coach");
+  const { allTeams } = await requireCoachTeams();
 
   const team = allTeams.find((t) => t.id === teamParam) ?? allTeams[0];
 

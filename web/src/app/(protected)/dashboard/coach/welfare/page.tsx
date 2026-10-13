@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, HeartPulse } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getWelfareAlerts } from "@/app/actions/welfare";
@@ -10,6 +9,7 @@ import {
   ATTENDANCE_WINDOW_DAYS,
   WELFARE_ATTENDANCE_THRESHOLD,
 } from "@/lib/attendance";
+import { getAuthUser } from "@/lib/auth";
 
 export const metadata = { title: "Welfare check-ins" };
 
@@ -31,10 +31,7 @@ export const metadata = { title: "Welfare check-ins" };
  * them and Sunday's fixture.
  */
 export default async function CoachWelfarePage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const result = await getWelfareAlerts();

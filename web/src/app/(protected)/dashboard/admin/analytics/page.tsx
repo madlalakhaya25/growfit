@@ -7,6 +7,7 @@ import { AcademyHealthPanel } from "@/components/ai/academy-health-panel";
 import { AiUsageCard } from "@/components/ai/ai-usage-card";
 import { getLatestAiArtefact, summariseAiUsage } from "@/lib/ai-artefacts";
 import { formatInTimezone, monthStartIso } from "@/lib/time";
+import { getAuthUser } from "@/lib/auth";
 
 const DOC_TYPES = [
   "registration_agreement",
@@ -19,7 +20,7 @@ const DOC_TYPES = [
 
 export default async function AnalyticsPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: profile } = await supabase

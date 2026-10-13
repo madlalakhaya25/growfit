@@ -16,6 +16,7 @@ import { CoverageView } from "./coverage-view";
 import { StaffHatsCard } from "./staff-hats-card";
 import { loadStaffWithHats } from "@/lib/staff-hats-data";
 import { computeCoverage, coverageWindow } from "@/lib/curriculum-coverage";
+import { getAuthUser } from "@/lib/auth";
 
 const TABS = [
   { id: "profile", label: "Profile" },
@@ -33,7 +34,7 @@ export default async function AcademySettingsPage({
 }>) {
   const tab = pickTab(TABS, (await searchParams).tab);
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: profile } = await supabase

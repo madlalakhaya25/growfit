@@ -10,6 +10,7 @@ import { isFixturePast } from "@/lib/fixtures";
 import { formatDayMonthYear } from "@/lib/time";
 import { countOpenObjectives, loadFollowUpPrompts } from "@/lib/objectives-data";
 import { LogResultForm } from "./log-result-form";
+import { getAuthUser } from "@/lib/auth";
 
 export default async function LogResultPage({
   params,
@@ -18,7 +19,7 @@ export default async function LogResultPage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: fixture } = await supabase

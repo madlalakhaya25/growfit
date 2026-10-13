@@ -27,6 +27,7 @@ import { QueryTabs } from "@/components/ui/query-tabs";
 import { pickTab } from "@/lib/tabs";
 import { CurriculumPicker } from "@/components/curriculum/curriculum-picker";
 import { loadPickerData } from "@/lib/curriculum-data";
+import { getAuthUser } from "@/lib/auth";
 
 const TABS = [
   { id: "plan", label: "Plan" },
@@ -58,7 +59,7 @@ export default async function CoachTrainingSessionPage({
   const [{ id }, { tab: tabParam }] = await Promise.all([params, searchParams]);
   const tab = pickTab(TABS, tabParam);
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   // Scoped to teams the caller coaches, not to who created the session — a

@@ -4,10 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import { ProfileForm } from "./profile-form";
 import { ChangePasswordForm } from "@/components/settings/change-password-form";
 import { CalendarSubscribeCard } from "@/components/calendar-subscribe-card";
+import { getAuthUser } from "@/lib/auth";
 
 export default async function PlayerSettingsPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: profile } = await supabase

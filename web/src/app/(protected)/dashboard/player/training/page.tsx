@@ -4,6 +4,7 @@ import { Dumbbell } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { formatTime, formatWeekdayDayMonth } from "@/lib/time";
+import { getAuthUser } from "@/lib/auth";
 
 const TYPE_STYLES: Record<string, { label: string; chip: string }> = {
   general:    { label: "General",    chip: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" },
@@ -16,7 +17,7 @@ const TYPE_STYLES: Record<string, { label: string; chip: string }> = {
 
 export default async function PlayerTrainingPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: player } = await supabase

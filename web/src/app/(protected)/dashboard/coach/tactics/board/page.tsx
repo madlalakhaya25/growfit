@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { TacticalBoard, type BoardTeam } from "@/components/tactics/tactical-board";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { getAuthUser } from "@/lib/auth";
 
 type MemberRow = {
   active: boolean;
@@ -18,7 +19,7 @@ type TeamRow = {
 
 export default async function CoachBoardPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data } = await supabase

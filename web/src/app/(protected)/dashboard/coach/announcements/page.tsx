@@ -7,10 +7,11 @@ import { AnnouncementForm } from "./announcement-form";
 import { AnnouncementActions } from "./announcement-actions";
 import { formatRelativeTime } from "@/lib/utils";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { getAuthUser } from "@/lib/auth";
 
 export default async function CoachAnnouncementsPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: allTeams } = await supabase

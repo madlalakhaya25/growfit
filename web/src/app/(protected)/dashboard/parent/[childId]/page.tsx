@@ -36,6 +36,7 @@ import { loadTermReview } from "@/lib/term-review-data";
 import { TermGrowthCard } from "@/components/development/term-growth-card";
 import { ChallengeBoardView } from "@/components/skill-challenges/challenge-board-view";
 import { loadChallengeBoard } from "@/lib/skill-challenges-data";
+import { getAuthUser } from "@/lib/auth";
 
 export default async function ChildDetailPage({
   params,
@@ -44,7 +45,7 @@ export default async function ChildDetailPage({
 }) {
   const { childId } = await params;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: link } = await supabase

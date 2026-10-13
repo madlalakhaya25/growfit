@@ -1,14 +1,13 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui/page-header";
 import { LESSONS } from "@/lib/lessons-content";
 import { LESSON_AREAS, LESSON_DISCLAIMER, findLesson } from "@/lib/lessons";
+import { getAuthUser } from "@/lib/auth";
 
 export default async function LessonPage({ params }: Readonly<{ params: Promise<{ slug: string }> }>) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { slug } = await params;

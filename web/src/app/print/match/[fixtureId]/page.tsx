@@ -8,6 +8,7 @@ import { isMissingAttributeColumn } from "@/lib/attributes";
 import { formatInTimezone, formatTime } from "@/lib/time";
 import { buildSheetRows, readSheetPlan, type SheetPlan, type SheetPlayer, type SheetRow } from "@/lib/match-sheet";
 import { cleanPhaseRatings, ratedPhases } from "@/lib/match-phases";
+import { getAuthUser } from "@/lib/auth";
 
 type One<T> = T | T[] | null;
 const one = <T,>(v: One<T>): T | null => (Array.isArray(v) ? v[0] ?? null : v);
@@ -129,7 +130,7 @@ async function loadSheet(supabase: Client, fixtureId: string, userId: string, ro
 export default async function MatchSheetPrintPage({ params }: Readonly<{ params: Promise<{ fixtureId: string }> }>) {
   const { fixtureId } = await params;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();

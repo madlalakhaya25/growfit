@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { LayoutGrid, ChevronRight, Sparkles, Film, BookOpenCheck } from "lucide-react";
 import { AgentStream } from "@/components/ai/agent-stream";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
+import { getAuthUser } from "@/lib/auth";
 
 const TACTICS_STARTERS = [
   "Explain pressing triggers for my age group.",
@@ -14,7 +15,7 @@ const TACTICS_STARTERS = [
 export default async function CoachTacticsPage() {
   // Pass the coach's team so concept advice can cite their real squad numbers.
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   const { data: team } = user
     ? await supabase
         .from("teams")

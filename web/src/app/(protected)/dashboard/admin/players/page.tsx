@@ -11,6 +11,7 @@ import { POSITIONS } from "@/lib/types";
 import { calculateAge, getInitials } from "@/lib/player";
 import { flagAgeEligibility, findDuplicates } from "@/lib/eligibility";
 import { AdminPlayerSearch } from "./admin-player-search";
+import { getAuthUser } from "@/lib/auth";
 
 export default async function AdminPlayersPage({
   searchParams,
@@ -19,7 +20,7 @@ export default async function AdminPlayersPage({
 }) {
   const { q = "" } = await searchParams;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: profile } = await supabase

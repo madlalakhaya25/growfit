@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { UserRole } from "@/lib/types";
+import { getAuthUser } from "@/lib/auth";
 
 const ROLE_ROUTES: Record<UserRole, string> = {
   admin: "/dashboard/admin",
@@ -11,7 +12,7 @@ const ROLE_ROUTES: Record<UserRole, string> = {
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect("/auth/login");
 
   const { data: profile } = await supabase

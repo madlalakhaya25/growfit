@@ -4,6 +4,7 @@ import path from "path";
 import { createClient } from "@/lib/supabase/server";
 import { generatePlayerCardPdf } from "@/lib/player-card-pdf";
 import { extractPlayerPhotoPath } from "@/lib/player-photo";
+import { getAuthUser } from "@/lib/auth";
 
 /**
  * Downloadable registration card PDF for one player.
@@ -19,7 +20,7 @@ import { extractPlayerPhotoPath } from "@/lib/player-photo";
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) return new NextResponse("Unauthorized", { status: 401 });
 
   const { data: profile } = await supabase
