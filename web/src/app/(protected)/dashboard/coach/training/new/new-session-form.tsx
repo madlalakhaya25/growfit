@@ -12,6 +12,7 @@ import { packDrillDescription } from "@/lib/drill-description";
 import { SessionConstraintFields } from "@/components/ai/session-constraint-fields";
 import type { KitValue, SpaceValue } from "@/lib/session-constraints";
 import { toDateTimeLocal } from "@/components/fixtures/fixture-fields";
+import { RepeatWeeklyFields, REPEAT_OFF, type RepeatWeekly } from "@/components/training/repeat-weekly-fields";
 
 const SESSION_TYPES = [
   { value: "general", label: "General" },
@@ -91,6 +92,7 @@ export function NewSessionForm({
   const [location, setLocation] = useState("");
   const [sessionType, setSessionType] = useState("general");
   const [notes, setNotes] = useState("");
+  const [repeat, setRepeat] = useState<RepeatWeekly>(REPEAT_OFF);
 
   // Drills
   const [drills, setDrills] = useState<DrillItem[]>([]);
@@ -207,6 +209,7 @@ export function NewSessionForm({
         session_type: sessionType,
         notes: notes || undefined,
         objective_id: objectiveId,
+        ...(repeat.on ? { repeat: { weekdays: repeat.days, until: repeat.until } } : {}),
         drills: drills.map(({ title, description, video_url, details }) => ({
           title,
           description: description || undefined,
@@ -217,6 +220,9 @@ export function NewSessionForm({
       if (result.error) {
         setSubmitError(result.error);
         toast.error(result.error);
+      } else if (result.created && result.created > 1) {
+        toast.success(`${result.created} sessions added`);
+        router.push(`/dashboard/coach/training?team=${selectedTeamId}`);
       } else if (result.id) {
         router.push(`/dashboard/coach/training/${result.id}`);
       }
@@ -290,6 +296,8 @@ export function NewSessionForm({
             </select>
           </div>
         </div>
+
+        <RepeatWeeklyFields sessionDate={sessionDate} value={repeat} onChange={setRepeat} />
 
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Location</label>

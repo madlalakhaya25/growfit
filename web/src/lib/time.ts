@@ -85,3 +85,17 @@ export function monthStartIso(now: Date = new Date()): string {
 export function todayIso(now: Date = new Date()): string {
   return formatInTimezone(now, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA");
 }
+
+/**
+ * A `datetime-local` form value ("2026-10-15T17:00") as an ISO instant, read
+ * as academy time. The form sends no offset, and Postgres reads an offset-less
+ * timestamp in the database's own zone (UTC on Supabase), so a 17:00 session
+ * used to be stored as 17:00 UTC and shown everywhere as 19:00. South Africa
+ * has no daylight saving, so +02:00 is exact. A value that already carries an
+ * offset or `Z` is returned unchanged.
+ */
+export function academyLocalToIso(value: string): string {
+  const m = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})(:\d{2})?$/.exec(value);
+  if (!m) return value;
+  return new Date(`${m[1]}${m[2] ?? ":00"}+02:00`).toISOString();
+}

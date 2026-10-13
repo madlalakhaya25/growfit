@@ -15,7 +15,7 @@ const SESSION = "11111111-1111-4111-8111-111111111111";
 function db() {
   const f = fakeSupabase((op: FakeOp) => {
     if (op.table === "team_members" || op.table === "teams") return { data: [{ id: "t1", team_id: "t1" }] };
-    if (op.table === "training_sessions") return { data: { id: SESSION } };
+    if (op.table === "training_sessions") return { data: [{ id: SESSION, session_date: "2026-10-09T15:00:00Z" }] };
     return { data: [] };
   });
   mockRequireUser.mockResolvedValue({ supabase: f.client, user: { id: "u1" } });

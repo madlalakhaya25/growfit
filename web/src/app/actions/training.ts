@@ -8,11 +8,13 @@ import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { friendlyError } from "@/lib/friendly-error";
 import { sanitiseDrillDetails } from "@/lib/drill-details";
 import { linkSessionToObjective } from "@/lib/objectives-data";
+import { academyLocalToIso, formatInTimezone } from "@/lib/time";
+import { weeklyRepeatStarts } from "@/lib/recurring-sessions";
 
 const sessionSchema = z.object({
   team_id: z.string().uuid("Invalid team"),
   title: z.string().min(2, "Title must be at least 2 characters").max(120),
-  session_date: z.string().min(1, "Date is required"),
+  session_date: z.string().min(1, "Date is required").transform(academyLocalToIso),
   location: z.string().max(120).optional(),
   session_type: z.enum(["general", "technical", "tactical", "fitness", "match_prep", "recovery"]),
   notes: z.string().max(1000).optional(),
@@ -90,7 +92,9 @@ export async function createTrainingSessionWithDrills(params: {
   drills: { title: string; description?: string; video_url?: string; details?: unknown }[];
   /** The team objective this session was planned for, when it came from one. */
   objective_id?: string;
-}): Promise<{ id?: string; error?: string }> {
+  /** Repeat the session every week on these weekdays (0 = Sunday) until this date. */
+  repeat?: { weekdays: number[]; until: string };
+}): Promise<{ id?: string; created?: number; error?: string }> {
   const { supabase, user } = await requireUser();
 
   const parsed = sessionSchema.safeParse({
@@ -110,41 +114,75 @@ export async function createTrainingSessionWithDrills(params: {
   const teamIds = await getCoachTeamIds(supabase, user.id);
   if (!teamIds.includes(parsed.data.team_id)) return { error: "Team not found." };
 
-  const { data, error } = await supabase
+  const starts = await sessionStarts(supabase, parsed.data.team_id, params.session_date, parsed.data.session_date, params.repeat);
+  const { data: created, error } = await supabase
     .from("training_sessions")
-    .insert({
+    .insert(starts.map((sessionDate) => ({
       team_id: parsed.data.team_id,
       coach_id: user.id,
       title: parsed.data.title,
-      session_date: parsed.data.session_date,
+      session_date: sessionDate,
       location: parsed.data.location ?? null,
       session_type: parsed.data.session_type,
       notes: parsed.data.notes ?? null,
-    })
-    .select("id")
-    .single();
+    })))
+    .select("id, session_date");
 
-  if (error || !data) return { error: error?.message ?? "Could not create session." };
+  const rows = ((created ?? []) as { id: string; session_date: string }[])
+    .sort((a, b) => Date.parse(a.session_date) - Date.parse(b.session_date));
+  if (error || rows.length === 0) return { error: error?.message ?? "Could not create session." };
+  const first = rows[0];
 
   if (params.drills.length > 0) {
-    const drillRows = params.drills.map((d, i) => ({
-      session_id: data.id,
+    const drillRows = rows.flatMap((row) => params.drills.map((d, i) => ({
+      session_id: row.id,
       title: d.title,
       description: d.description || null,
       video_url: d.video_url || null,
       details: sanitiseDrillDetails(d.details),
       sort_order: i,
-    }));
+    })));
     const { error: drillError } = await supabase.from("training_drills").insert(drillRows);
     if (drillError) return { error: friendlyError(drillError) };
   }
 
   const objectiveId = z.string().uuid().safeParse(params.objective_id);
-  if (objectiveId.success) await linkSessionToObjective(supabase, objectiveId.data, data.id);
+  if (objectiveId.success) await linkSessionToObjective(supabase, objectiveId.data, first.id);
 
   revalidatePath("/dashboard/coach/training", "page");
   revalidatePath("/dashboard/coach");
-  return { id: data.id };
+  return { id: first.id, created: rows.length };
+}
+
+const academyDay = (iso: string) =>
+  formatInTimezone(iso, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA");
+
+/**
+ * The instants to create: the session the coach entered, plus its weekly
+ * repeats. A repeat is skipped on a day the team already has a session, the
+ * same rule as adding one from the term plan, so repeating twice or over
+ * sessions made by hand never doubles a register. The first session is always
+ * created: the coach asked for that one by date.
+ */
+async function sessionStarts(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  teamId: string,
+  enteredDate: string,
+  firstIso: string,
+  repeat: { weekdays: number[]; until: string } | undefined,
+): Promise<string[]> {
+  if (!repeat?.weekdays.length) return [firstIso];
+  const repeats = weeklyRepeatStarts(enteredDate, repeat.weekdays, repeat.until).slice(1).map(academyLocalToIso);
+  if (repeats.length === 0) return [firstIso];
+
+  const { data: existing } = await supabase
+    .from("training_sessions")
+    .select("session_date")
+    .eq("team_id", teamId)
+    .gte("session_date", `${academyDay(repeats[0])}T00:00:00+02:00`)
+    .lte("session_date", `${academyDay(repeats.at(-1)!)}T23:59:59+02:00`);
+  const taken = new Set(((existing ?? []) as { session_date: string }[]).map((r) => academyDay(r.session_date)));
+  return [firstIso, ...repeats.filter((iso) => !taken.has(academyDay(iso)))];
 }
 
 /**

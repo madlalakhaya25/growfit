@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { academyLocalToIso } from "@/lib/time";
 
 /** Validation schemas — ported from the Expo app (framework-agnostic). */
 
@@ -64,7 +65,7 @@ export const createTeamSchema = z.object({
 export const createFixtureSchema = z.object({
   opponent: z.string().min(2, "Opponent name required"),
   venue: z.string().optional(),
-  fixture_date: z.string().min(1, "Date and time required"),
+  fixture_date: z.string().min(1, "Date and time required").transform(academyLocalToIso),
   is_home: z.boolean(),
   notes: z.string().max(500).optional(),
 });
