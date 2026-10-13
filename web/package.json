@@ -12,7 +12,8 @@
     "test:coverage": "jest --coverage",
     "test:e2e": "playwright test",
     "measure:bundle": "node scripts/measure-bundle.mjs",
-    "check:budgets": "node scripts/check-budgets.mjs"
+    "check:budgets": "node scripts/check-budgets.mjs",
+    "db:types": "npx supabase gen types typescript --project-id gxkttmxrdrerjhxhsisc --schema public > src/lib/database.types.ts"
   },
   "dependencies": {
     "@google/genai": "^2.8.0",
