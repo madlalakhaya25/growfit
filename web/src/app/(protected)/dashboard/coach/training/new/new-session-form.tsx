@@ -339,7 +339,7 @@ export function NewSessionForm({
           <button
             type="button"
             onClick={() => setShowAI((v) => !v)}
-            className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/40 transition-colors rounded-lg"
+            className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium hover:bg-hover transition-colors rounded-lg"
           >
             <span className="flex items-center gap-2">
               <Wand2 className="h-4 w-4 text-primary" />

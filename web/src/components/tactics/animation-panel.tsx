@@ -101,10 +101,10 @@ export function AnimationPanel({
           {frames.map((f, i) => (
             <li key={f.id} className="flex flex-wrap items-center gap-1.5 rounded-md border border-border bg-background/50 p-1.5">
               <div className="flex flex-col">
-                <button type="button" onClick={() => moveFrame(i, -1)} disabled={playing || i === 0} title="Move earlier" className="rounded px-0.5 hover:bg-muted disabled:opacity-30">
+                <button type="button" onClick={() => moveFrame(i, -1)} disabled={playing || i === 0} title="Move earlier" className="rounded px-0.5 hover:bg-hover disabled:opacity-30">
                   <ChevronUp className="size-3" aria-hidden="true" />
                 </button>
-                <button type="button" onClick={() => moveFrame(i, 1)} disabled={playing || i === frames.length - 1} title="Move later" className="rounded px-0.5 hover:bg-muted disabled:opacity-30">
+                <button type="button" onClick={() => moveFrame(i, 1)} disabled={playing || i === frames.length - 1} title="Move later" className="rounded px-0.5 hover:bg-hover disabled:opacity-30">
                   <ChevronDown className="size-3" aria-hidden="true" />
                 </button>
               </div>

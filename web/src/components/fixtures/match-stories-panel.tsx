@@ -55,7 +55,7 @@ export function MatchStoriesPanel({ fixtureId, rows: initial, available }: Reado
         </div>
         <button
           type="button" onClick={write} disabled={pending || !available}
-          className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-60"
+          className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-hover disabled:opacity-60"
         >
           {drafts + rows.filter((r) => r.message?.status === "approved").length === 0 ? "Write the stories" : "Write any missing"}
         </button>
@@ -149,7 +149,7 @@ export function StoryItem({ row, onChange, noun = "Story" }: Readonly<{ row: Sto
           />
           {flags.length > 0 && <p className="text-xs text-amber-700 dark:text-amber-400">May read as negative: {flags.join(", ")}.</p>}
           <div className="flex gap-2">
-            <button type="button" onClick={save} disabled={busy || !dirty} className="rounded-md border border-border px-3 py-1 text-xs font-medium hover:bg-muted disabled:opacity-50">Save</button>
+            <button type="button" onClick={save} disabled={busy || !dirty} className="rounded-md border border-border px-3 py-1 text-xs font-medium hover:bg-hover disabled:opacity-50">Save</button>
             <button type="button" onClick={share} disabled={busy} className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground disabled:opacity-60">Share with family</button>
           </div>
         </>

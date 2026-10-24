@@ -79,7 +79,7 @@ export function InstallPrompt() {
             type="button"
             onClick={dismiss}
             aria-label="Dismiss install prompt"
-            className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-muted transition-colors"
+            className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-hover transition-colors"
           >
             <X className="size-4" aria-hidden="true" />
           </button>
@@ -109,7 +109,7 @@ export function InstallPrompt() {
             type="button"
             onClick={dismiss}
             aria-label="Dismiss"
-            className="shrink-0 grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted transition-colors"
+            className="shrink-0 grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-hover transition-colors"
           >
             <X className="size-4" aria-hidden="true" />
           </button>

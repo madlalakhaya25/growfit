@@ -495,7 +495,7 @@ function ScoreInput({ label, value, onChange }: Readonly<{ label: string; value:
         <button
           type="button"
           onClick={() => onChange(Math.max(0, value - 1))}
-          className="grid h-11 w-12 place-items-center text-xl transition-colors hover:bg-foreground/5 rounded-l-[9px]"
+          className="grid h-11 w-12 place-items-center text-xl transition-colors hover:bg-hover rounded-l-[9px]"
           aria-label={`One less for ${label}`}
         >
           −
@@ -504,7 +504,7 @@ function ScoreInput({ label, value, onChange }: Readonly<{ label: string; value:
         <button
           type="button"
           onClick={() => onChange(Math.min(30, value + 1))}
-          className="grid h-11 w-12 place-items-center text-xl transition-colors hover:bg-foreground/5 rounded-r-[9px]"
+          className="grid h-11 w-12 place-items-center text-xl transition-colors hover:bg-hover rounded-r-[9px]"
           aria-label={`One more for ${label}`}
         >
           +

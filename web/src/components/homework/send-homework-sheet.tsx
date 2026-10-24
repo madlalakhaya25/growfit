@@ -159,12 +159,12 @@ function QuestionEditor({ number, question, canRemove, onChange, onRemove, newKe
     });
 
   return (
-    <fieldset className="space-y-3 rounded-2xl border border-border/60 bg-card p-4">
+    <fieldset className="space-y-3 rounded-2xl border border-hairline bg-card p-4">
       <legend className="sr-only">Question {number}</legend>
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-semibold">Question {number}</p>
         {canRemove && (
-          <button type="button" onClick={onRemove} className="grid size-11 place-items-center rounded-full text-muted-foreground hover:bg-muted" aria-label={`Remove question ${number}`}>
+          <button type="button" onClick={onRemove} className="grid size-11 place-items-center rounded-full text-muted-foreground hover:bg-hover" aria-label={`Remove question ${number}`}>
             <X className="size-4" aria-hidden="true" />
           </button>
         )}
@@ -198,7 +198,7 @@ function QuestionEditor({ number, question, canRemove, onChange, onRemove, newKe
               className={inputClass}
             />
             {question.options.length > MIN_OPTIONS && (
-              <button type="button" onClick={() => removeOption(j)} className="grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted" aria-label={`Remove answer ${j + 1}`}>
+              <button type="button" onClick={() => removeOption(j)} className="grid size-11 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-hover" aria-label={`Remove answer ${j + 1}`}>
                 <X className="size-4" aria-hidden="true" />
               </button>
             )}

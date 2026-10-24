@@ -1829,7 +1829,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
               aria-checked={pitchThemeId === t.id}
               onClick={() => setPitchThemeId(t.id)}
               className={`inline-flex h-9 items-center gap-1.5 rounded-md border px-2 text-xs font-medium ${
-                pitchThemeId === t.id ? "border-primary ring-2 ring-primary/30" : "border-border hover:bg-muted"
+                pitchThemeId === t.id ? "border-primary ring-2 ring-primary/30" : "border-border hover:bg-hover"
               }`}
             >
               {/* A tiny swatch of the theme itself: its stripes and line colour. */}
@@ -1867,7 +1867,7 @@ export function TacticalBoard({ teams }: { teams: BoardTeam[] }) {
             type="button"
             onClick={() => addEquipment(equipmentKind)}
             title="Add equipment"
-            className="inline-flex h-7 items-center gap-1 rounded px-1.5 text-xs hover:bg-muted"
+            className="inline-flex h-7 items-center gap-1 rounded px-1.5 text-xs hover:bg-hover"
           >
             <Plus className="size-3.5" aria-hidden="true" /> Add
           </button>

@@ -21,7 +21,7 @@ export function DeleteHomeworkButton({ id, title }: Readonly<{ id: string; title
             setError(res.error ?? null);
           });
         }}
-        className="grid size-11 place-items-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-50"
+        className="grid size-11 place-items-center rounded-full text-muted-foreground hover:bg-hover disabled:opacity-50"
       >
         <Trash2 className="size-4" aria-hidden="true" />
       </button>

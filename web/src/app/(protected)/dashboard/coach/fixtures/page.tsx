@@ -33,7 +33,7 @@ export default async function CoachFixturesPage({
     return (
       <Link
         href={`/dashboard/coach/fixtures/${f.id}`}
-        className="flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors"
+        className="flex items-center justify-between px-4 py-3 hover:bg-hover transition-colors"
       >
         <div className="min-w-0">
           <p className="font-medium">

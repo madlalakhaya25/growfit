@@ -157,7 +157,7 @@ export default async function ParentFixturesPage({
               href="/dashboard/parent/fixtures"
               className={cn(
                 "flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium transition-colors",
-                view === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+                view === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-hover"
               )}
             >
               <ListIcon className="size-3.5" aria-hidden="true" />
@@ -167,7 +167,7 @@ export default async function ParentFixturesPage({
               href="/dashboard/parent/fixtures?view=calendar"
               className={cn(
                 "flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium transition-colors",
-                view === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+                view === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-hover"
               )}
             >
               <LayoutGrid className="size-3.5" aria-hidden="true" />

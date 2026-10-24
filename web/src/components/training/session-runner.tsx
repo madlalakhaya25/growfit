@@ -66,7 +66,7 @@ export function SessionRunner({ drills }: Readonly<{ drills: RunnerDrill[] }>) {
         <button
           type="button"
           onClick={() => { setOpen(false); setRunning(false); }}
-          className="min-h-11 rounded-md px-3 text-sm font-medium text-muted-foreground hover:bg-muted"
+          className="min-h-11 rounded-md px-3 text-sm font-medium text-muted-foreground hover:bg-hover"
         >
           Close
         </button>
@@ -101,7 +101,7 @@ export function SessionRunner({ drills }: Readonly<{ drills: RunnerDrill[] }>) {
         <button
           type="button"
           onClick={() => { setSeconds(0); setRunning(false); }}
-          className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-border text-lg font-semibold hover:bg-muted"
+          className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-border text-lg font-semibold hover:bg-hover"
         >
           <RotateCcw className="size-5" aria-hidden="true" />
           Reset
@@ -110,7 +110,7 @@ export function SessionRunner({ drills }: Readonly<{ drills: RunnerDrill[] }>) {
           type="button"
           onClick={() => go(index - 1)}
           disabled={index === 0}
-          className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-border text-lg font-semibold hover:bg-muted disabled:opacity-40"
+          className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-border text-lg font-semibold hover:bg-hover disabled:opacity-40"
         >
           <ChevronLeft className="size-5" aria-hidden="true" />
           Previous
@@ -119,7 +119,7 @@ export function SessionRunner({ drills }: Readonly<{ drills: RunnerDrill[] }>) {
           type="button"
           onClick={() => go(index + 1)}
           disabled={index >= drills.length - 1}
-          className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-border text-lg font-semibold hover:bg-muted disabled:opacity-40"
+          className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-border text-lg font-semibold hover:bg-hover disabled:opacity-40"
         >
           Next
           <ChevronRight className="size-5" aria-hidden="true" />

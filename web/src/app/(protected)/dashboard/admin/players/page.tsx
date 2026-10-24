@@ -220,7 +220,7 @@ export default async function AdminPlayersPage({
               <Link
                 key={p.id}
                 href={`/dashboard/admin/players/${p.id}`}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
+                className="flex items-center gap-3 px-4 py-3 hover:bg-hover transition-colors"
               >
                 <span className="grid size-10 shrink-0 place-items-center rounded-full bg-brand/15 text-xs font-bold text-primary">
                   {initials}

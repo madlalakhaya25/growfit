@@ -45,7 +45,7 @@ export function FixtureTicket({
     <Wrapper
       {...(wrapperProps as { href: string })}
       className={cn(
-        "group flex items-stretch gap-4 rounded-2xl border border-border/60 bg-card px-4 py-4 text-card-foreground shadow-card",
+        "group flex items-stretch gap-4 rounded-2xl border border-hairline bg-card px-4 py-4 text-card-foreground shadow-card",
         href && "transition-transform duration-200 hover:-translate-y-0.5 active:scale-[0.99]",
         className
       )}

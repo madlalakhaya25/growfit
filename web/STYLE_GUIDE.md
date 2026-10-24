@@ -51,6 +51,11 @@ Condensed (`font-display`), numbers use tabular figures (set in `@layer base`).
 - Radii: `rounded-xl` for cards, `rounded-full` for buttons and badges.
 - Page gutter 16 px on a phone; cards separated by 12 to 16 px.
 - Shadows: `shadow-card` for resting, `shadow-float` for sheets and menus only.
+- Hover: `hover:bg-hover` on anything without its own fill (ghost buttons, rows,
+  icon buttons). A control filled with `bg-card` or `bg-background` keeps
+  `hover:bg-muted`.
+- Dividers: `border-hairline` for quiet lines (headers, sidebars, rows in a card);
+  `border-border` for the edges of fields and outlined buttons.
 
 ## Touch targets
 

@@ -63,7 +63,7 @@ export function AcademyFeaturesForm({ action, initial }: Props) {
           name="simple"
           value="1"
           disabled={isPending}
-          className="inline-flex min-h-11 items-center rounded-md border border-input px-4 text-sm font-medium hover:bg-muted disabled:opacity-50 sm:min-h-9"
+          className="inline-flex min-h-11 items-center rounded-md border border-input px-4 text-sm font-medium hover:bg-hover disabled:opacity-50 sm:min-h-9"
         >
           Use the simple menu
         </button>

@@ -242,7 +242,7 @@ export default async function CoachTrainingSessionPage({
         </div>
 
         {session.notes && (
-          <div className="border-t border-border/60 bg-background/60 px-5 py-3">
+          <div className="border-t border-hairline bg-background/60 px-5 py-3">
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Notes</p>
             <p className="text-sm whitespace-pre-wrap">{session.notes}</p>
           </div>

@@ -99,7 +99,7 @@ export function UnassignedPlayersPanel({
           const pos = POSITIONS.find((x) => x.value === p.position)?.label;
           return (
             <li key={p.id}>
-              <label className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-muted/40">
+              <label className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-hover">
                 <input
                   type="checkbox"
                   checked={selected.has(p.id)}

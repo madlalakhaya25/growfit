@@ -39,7 +39,7 @@ export function DismissAnnouncementButton({
       aria-label="Acknowledge announcement"
       className={cn(
         "flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
-        "text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "text-muted-foreground hover:bg-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         pending && "opacity-50 cursor-wait"
       )}
     >

@@ -46,7 +46,7 @@ export function PlayRolesPanel({ playId, onNotice }: Readonly<{ playId: string; 
               type="button"
               onClick={() => void run(true)}
               disabled={busy !== null}
-              className="h-7 rounded-md border border-border px-2 text-xs hover:bg-muted disabled:opacity-50"
+              className="h-7 rounded-md border border-border px-2 text-xs hover:bg-hover disabled:opacity-50"
             >
               Write again
             </button>
@@ -56,7 +56,7 @@ export function PlayRolesPanel({ playId, onNotice }: Readonly<{ playId: string; 
               type="button"
               onClick={() => void run()}
               disabled={busy !== null}
-              className="inline-flex h-7 items-center gap-1 rounded-md border border-border px-2 text-xs hover:bg-muted disabled:opacity-50"
+              className="inline-flex h-7 items-center gap-1 rounded-md border border-border px-2 text-xs hover:bg-hover disabled:opacity-50"
             >
               {busy === "generate" ? <Loader2 className="size-3 animate-spin" aria-hidden="true" /> : <UserCheck className="size-3 text-primary" aria-hidden="true" />}
               Write each player&apos;s job
