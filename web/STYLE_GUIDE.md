@@ -88,6 +88,23 @@ dialog. A new control that is not one of these must set its own `min-h-11`.
 Plain, short, kind. "Couldn't save. Try again." not "An error occurred." Use the
 academy's words: squad, register, result, objective, "Needs you".
 
+## Before a UI change ships
+
+Run through this before asking for review. The pull request template repeats it.
+
+- [ ] Built at 390 px first, then checked at 1280 px.
+- [ ] Light and dark both checked; text passes 4.5:1, icons and borders 3:1.
+- [ ] Loading, empty, couldn't load and offline states are all there.
+- [ ] Every tap target is 44 px on touch, and focus is visible on every control.
+- [ ] One primary (red) action on the screen.
+- [ ] Nothing that leaves the app shows a surname, id or photo.
+- [ ] Words follow the Words section; a destructive button names the action
+      ("Delete fixture", not "Delete") and its dialog says what happens.
+- [ ] Differences between coach, parent, player and admin are written down
+      in the screen's spec (`design/screens/`), or in the PR if there's no spec.
+- [ ] Screenshots at 390 and 1280 px, light and dark, are in the PR
+      (`npm run ui:shots -- <route>`).
+
 ## Gap list (where the app breaks this guide, found 2026-10-06)
 
 | Gap | Count | Plan |
