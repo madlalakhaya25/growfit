@@ -24,6 +24,7 @@ import {
 } from "@/lib/attendance";
 import { DOCUMENTS } from "@/lib/document-definitions";
 import { SquadFilters, type SquadFilter } from "./squad-filters";
+import { ResultCount } from "@/components/ui/filter-chip";
 import { reportError } from "@/lib/report-error";
 import { loadSeasonMinutes } from "@/lib/match-minutes";
 import { signPlayerPhotoUrls } from "@/lib/player-photo";
@@ -392,6 +393,15 @@ export default async function SquadPage({
         </Card>
       ) : (
         <div className="space-y-8">
+          {visibleSquad.length < squad.length && (
+            <ResultCount
+              shown={visibleSquad.length}
+              total={squad.length}
+              noun={["player", "players"]}
+              clearHref={`/dashboard/coach/squad?team=${team.id}`}
+              className="-mb-4"
+            />
+          )}
           {posOrder
             .filter((pos) => byPosition[pos]?.length)
             .map((pos) => (

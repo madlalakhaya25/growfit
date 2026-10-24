@@ -74,6 +74,7 @@ dialog. A new control that is not one of these must set its own `min-h-11`.
 | Status chip | `Badge` | `components/ui/badge.tsx` |
 | Number tile | `StatTile`, `RatingRing`, `StatBar` | `components/ui/` |
 | Tabs | `QueryTabs` (URL `?tab=`), `SectionTabs` | `components/ui/` |
+| Filter a list | `FilterChip` row under the search box; `ResultCount` ("Showing 6 of 45 players. Clear") while filtered | `components/ui/filter-chip.tsx` |
 | Confirm a risky action | `ConfirmDialog` | `components/ui/confirm-dialog.tsx` |
 | Nothing here yet | `EmptyState` | `components/ui/empty-state.tsx` |
 | Loading | `Skeleton`, `Spinner`; `loading.tsx` per route | `components/ui/` |
