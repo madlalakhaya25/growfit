@@ -63,6 +63,7 @@ function MilestoneRow({ template, academyId }: { template: TemplateRow; academyI
   async function handleDelete() {
     const ok = await confirm({
       title: `Delete "${template.title}"?`,
+      confirmLabel: "Delete milestone",
       body: "Players who have already completed this milestone lose that record. This cannot be undone.",
     });
     if (!ok) return;

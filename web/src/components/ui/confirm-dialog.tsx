@@ -30,6 +30,8 @@ export interface ConfirmOptions {
   title: string;
   /** The consequence, in plain language. Say what is lost, not "are you sure". */
   body?: string;
+  /** Name the action ("Delete fixture", "Remove from squad"), so the button
+   *  still makes sense read on its own. Defaults to "Delete". */
   confirmLabel?: string;
   cancelLabel?: string;
   /** Styles the confirm button as destructive. Default true — every current

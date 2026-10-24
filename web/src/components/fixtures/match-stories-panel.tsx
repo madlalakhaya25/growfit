@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { approveFamilyMessage, draftMatchStories, retractFamilyMessage, saveFamilyMessage } from "@/app/actions/family-messages";
 import { findFlaggedWording } from "@/lib/child-safe-check";
 import { FAMILY_BODY_MAX } from "@/lib/family-messages";
@@ -73,6 +74,7 @@ export function StoryItem({ row, onChange, noun = "Story" }: Readonly<{ row: Sto
   const m = row.message!;
   const [text, setText] = useState(m.body);
   const [busy, start] = useTransition();
+  const { confirm, dialog } = useConfirm();
   const flags = findFlaggedWording(text);
   const dirty = text.trim() !== m.body;
 
@@ -91,8 +93,15 @@ export function StoryItem({ row, onChange, noun = "Story" }: Readonly<{ row: Sto
         if (saved.error) { toast.error(saved.error); return; }
       }
       let res = await approveFamilyMessage(m.id);
-      if (res.flagged && window.confirm(`${res.error}\n\nShare it anyway?`)) {
-        res = await approveFamilyMessage(m.id, { acknowledgeWording: true });
+      if (res.flagged) {
+        const ok = await confirm({
+          title: "Share it anyway?",
+          body: res.error,
+          confirmLabel: "Share anyway",
+          cancelLabel: "Keep editing",
+          destructive: false,
+        });
+        if (ok) res = await approveFamilyMessage(m.id, { acknowledgeWording: true });
       }
       if (res.error) {
         if (!res.flagged) toast.error(res.error);
@@ -145,6 +154,7 @@ export function StoryItem({ row, onChange, noun = "Story" }: Readonly<{ row: Sto
           </div>
         </>
       )}
+      {dialog}
     </li>
   );
 }
