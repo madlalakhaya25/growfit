@@ -130,16 +130,18 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
       <div className="rounded-2xl bg-card p-5 shadow-card">
         <h2 className="mb-4 text-[13px] uppercase text-muted-foreground">Score</h2>
         <div className="flex items-center justify-center gap-6">
+          {/* Home side on the left, so away games read "Opponent — Us"; each
+              box must still write to its own team's score. */}
           <ScoreInput
             label={isHome ? "Us" : opponent}
-            value={teamScore}
-            onChange={setTeamScore}
+            value={isHome ? teamScore : oppScore}
+            onChange={isHome ? setTeamScore : setOppScore}
           />
           <span className="text-2xl text-muted-foreground">—</span>
           <ScoreInput
             label={isHome ? opponent : "Us"}
-            value={oppScore}
-            onChange={setOppScore}
+            value={isHome ? oppScore : teamScore}
+            onChange={isHome ? setOppScore : setTeamScore}
           />
         </div>
       </div>
