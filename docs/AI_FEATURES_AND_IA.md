@@ -226,10 +226,12 @@ it:
 
 | Role | Sections |
 |---|---|
-| Coach | **Today** — **Matchday** (Fixtures · Results · Film) — **Squad** (Players · Welfare · Emergency) — **Develop** (Sessions · Drills · Tactics) — **More** (Posts · Assistant · Settings) |
-| Player | **Passport** — **Schedule** (Matches · Training) — **Learn** (Plays · My Moments · Development) — **Posts** |
-| Parent | **My Children** — **Fixtures** — **Posts** *(unchanged — already the right size)* |
-| Admin | **Overview** — **People** (Players · Teams · Import) — **Compliance** (Documents · Reports) — **Insights** (Analytics · Development · Academy health) — **Academy** |
+| Coach | **Today** — **Matches** (Matches · Plays · Film) — **Squad** (Players · Check-ins · Who to call) — **Training** (Sessions · Library · Challenges) — **Me** (Settings · Messages · Learn · Assistant · Automations) |
+| Player | **Home** — **Calendar** (Training · Matches) — **My game** (Progress · Challenges · Records) — **Coach** (Homework · Plays · Messages) — **Me** |
+| Parent | **Home** — **Matches** — **Messages** — **Me** |
+| Admin | **Club** — **People** (Players · Teams) — **Paperwork** (Player forms · Reports) — **Season** (Attendance · Development · Drills) — **Me** (Settings · Academy · Automations), every section on phones too |
+
+*Updated 25/10/2026 after the navigation review: names follow the academy's week (training Wednesday and Friday, matches Sunday), the same word on phone and desktop, and Settings sits under Me for every role. The user stories behind each tab are in the "Growfit navigation and structure proposal" doc.*
 
 Every orphaned page (assistant, welfare, admin analytics, admin
 development) gets a real home in this structure instead of being
