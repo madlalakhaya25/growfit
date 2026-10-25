@@ -10,9 +10,16 @@ interface Props {
   playerId: string;
   playerName: string;
   teamId: string;
+  /**
+   * "row": an icon that appears on hover, for the squad list, and only with a
+   * mouse. On a touch screen it was invisible but still tappable, a 28 px
+   * destructive target at the card's edge; there the player's page has it.
+   * "page": a labelled button, for the player's page.
+   */
+  variant?: "row" | "page";
 }
 
-export function RemovePlayerButton({ playerId, playerName, teamId }: Props) {
+export function RemovePlayerButton({ playerId, playerName, teamId, variant = "row" }: Props) {
   const [pending, startTransition] = useTransition();
   const { confirm, dialog } = useConfirm();
 
@@ -36,18 +43,33 @@ export function RemovePlayerButton({ playerId, playerName, teamId }: Props) {
   return (
     <>
       {dialog}
-      <button
-      type="button"
-      onClick={handleRemove}
-      disabled={pending}
-      aria-label={`Remove ${playerName}`}
-      className={cn(
-        "shrink-0 rounded-md p-1.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100",
-        pending && "opacity-50 cursor-wait"
+      {variant === "page" ? (
+        <button
+          type="button"
+          onClick={handleRemove}
+          disabled={pending}
+          className={cn(
+            "inline-flex h-9 items-center gap-2 rounded-full border border-border px-4 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 pointer-coarse:h-11",
+            pending && "opacity-50 cursor-wait"
+          )}
+        >
+          <UserX className="size-4" aria-hidden="true" />
+          Remove from squad
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={handleRemove}
+          disabled={pending}
+          aria-label={`Remove ${playerName}`}
+          className={cn(
+            "hidden size-9 shrink-0 place-items-center rounded-full text-muted-foreground opacity-0 transition-opacity pointer-fine:grid group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100",
+            pending && "opacity-50 cursor-wait"
+          )}
+        >
+          <UserX className="size-4" aria-hidden="true" />
+        </button>
       )}
-    >
-      <UserX className="size-4" aria-hidden="true" />
-      </button>
     </>
   );
 }

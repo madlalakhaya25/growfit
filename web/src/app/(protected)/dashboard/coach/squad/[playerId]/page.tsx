@@ -446,7 +446,7 @@ export default async function PlayerDetailPage({
 
               {teamId && (
                 <div className="pt-2">
-                  <RemovePlayerButton playerId={player.id} playerName={player.full_name} teamId={teamId} />
+                  <RemovePlayerButton playerId={player.id} playerName={player.full_name} teamId={teamId} variant="page" />
                 </div>
               )}
           </PlayerPassportCard>
@@ -637,7 +637,7 @@ export default async function PlayerDetailPage({
 
                   {medical && (
                     <section className="space-y-3 max-w-2xl">
-                      <h2 className="text-base font-semibold">Emergency Info</h2>
+                      <h2 className="text-base font-semibold">Emergency info</h2>
                       <div className="rounded-xl border border-border bg-card divide-y divide-border">
                         {medical.emergency_1_name && (
                           <div className="px-4 py-3">
@@ -688,10 +688,10 @@ export default async function PlayerDetailPage({
                   )}
 
                   <section className="space-y-6">
-                    <h2 className="text-xl font-bold">Player Records</h2>
+                    <h2 className="text-xl font-bold">Player records</h2>
 
                     <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-                      <p className="font-semibold">Registration Details</p>
+                      <p className="font-semibold">Registration details</p>
                       <ExtendedInfoForm
                         playerId={playerId}
                         initial={{ school: player.school, home_address: player.home_address, id_number: player.id_number, mysafa_number: player.mysafa_number }}
