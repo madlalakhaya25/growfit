@@ -144,7 +144,7 @@ export function AgentStream({
             {t.links && t.links.length > 0 && (
               <div className="mt-1 flex flex-wrap gap-2">
                 {t.links.filter((l) => isInternalHref(l.href)).map((l) => (
-                  <Link key={l.href} href={l.href} className="rounded-full border border-border px-3 py-1 text-xs hover:bg-muted">
+                  <Link key={l.href} href={l.href} className="rounded-full border border-border px-3 py-1 text-xs hover:bg-hover">
                     {l.label}
                   </Link>
                 ))}

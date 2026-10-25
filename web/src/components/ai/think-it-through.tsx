@@ -50,7 +50,7 @@ export function ThinkItThrough({ problem, ageGroup }: Readonly<{ problem: string
           <button
             type="button"
             onClick={() => setResult(null)}
-            className="h-8 rounded-md border border-border px-3 text-xs hover:bg-muted"
+            className="h-8 rounded-md border border-border px-3 text-xs hover:bg-hover"
           >
             Close
           </button>

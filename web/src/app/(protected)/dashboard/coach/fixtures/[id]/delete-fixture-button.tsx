@@ -15,6 +15,7 @@ export function DeleteFixtureButton({ fixtureId }: { fixtureId: string }) {
   async function handleDelete() {
     const ok = await confirm({
       title: "Delete this fixture?",
+      confirmLabel: "Delete fixture",
       body: "It disappears completely — no cancellation notice to parents or players. Use Cancel fixture instead if the match is actually off. This cannot be undone.",
     });
     if (!ok) return;

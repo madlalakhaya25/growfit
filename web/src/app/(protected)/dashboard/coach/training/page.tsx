@@ -72,7 +72,7 @@ export default async function CoachTrainingPage({
     return (
       <Link
         href={`/dashboard/coach/training/${s.id}`}
-        className="flex items-center gap-4 px-4 py-3.5 hover:bg-muted/50 transition-colors"
+        className="flex items-center gap-4 px-4 py-3.5 hover:bg-hover transition-colors"
       >
         <div className="min-w-0 flex-1">
           <p className="font-medium leading-snug">{s.title}</p>

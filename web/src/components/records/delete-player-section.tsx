@@ -59,7 +59,7 @@ export function DeletePlayerSection({ playerId, playerName }: { playerId: string
             <button
               type="button"
               onClick={() => { setOpen(false); setConfirmName(""); }}
-              className="inline-flex h-9 items-center rounded-md border border-border px-3 text-sm font-medium hover:bg-muted"
+              className="inline-flex h-9 items-center rounded-md border border-border px-3 text-sm font-medium hover:bg-hover"
             >
               Cancel
             </button>

@@ -3,7 +3,7 @@
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 import { Search } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { FilterChip } from "@/components/ui/filter-chip";
 
 export type SquadFilter = "all" | "attendance" | "docs" | "unassessed";
 
@@ -78,25 +78,15 @@ export function SquadFilters({
           // comes and goes is harder to learn than one that greys out.
           const empty = count === 0 && id !== "all";
           return (
-            <button
+            <FilterChip
               key={id}
-              type="button"
+              active={isActive}
+              count={count}
               disabled={empty}
-              aria-pressed={isActive}
               onClick={() => setParam("filter", id === "all" ? null : id)}
-              className={cn(
-                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                isActive
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border text-muted-foreground hover:border-primary/50",
-                empty && "opacity-40 cursor-not-allowed hover:border-border"
-              )}
             >
               {label}
-              <span className={cn("ml-1.5", !isActive && "text-muted-foreground/70")}>
-                {count}
-              </span>
-            </button>
+            </FilterChip>
           );
         })}
       </div>

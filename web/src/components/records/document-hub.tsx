@@ -163,7 +163,7 @@ function SigningModal({
                   className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
                     checkboxValues[cb.id]
                       ? "border-green-500/40 bg-green-500/5"
-                      : "border-border hover:bg-muted/40"
+                      : "border-border hover:bg-hover"
                   }`}
                 >
                   <input

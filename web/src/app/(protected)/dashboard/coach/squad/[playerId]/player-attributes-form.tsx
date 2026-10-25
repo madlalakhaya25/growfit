@@ -249,7 +249,7 @@ export function PlayerAttributesForm({ playerId, initial, initialNotes, position
                 type="button"
                 onClick={() => applyLevel(level)}
                 title={LEVEL_MEANING[level]}
-                className="rounded-full border border-border px-3 py-1 text-xs font-medium hover:bg-muted"
+                className="rounded-full border border-border px-3 py-1 text-xs font-medium hover:bg-hover"
               >
                 {LEVEL_LABEL[level]} · {LEVEL_SCORE[level]}
               </button>

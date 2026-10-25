@@ -26,7 +26,7 @@ function SessionRow({ teamId, session, added }: Readonly<{ teamId: string; sessi
       </div>
       {done
         ? <span className="text-xs text-green-700 dark:text-green-400">On your training list</span>
-        : <button type="button" onClick={add} disabled={busy} className="rounded-md border border-border px-3 py-1 text-xs font-medium hover:bg-muted disabled:opacity-60">Add to training</button>}
+        : <button type="button" onClick={add} disabled={busy} className="rounded-md border border-border px-3 py-1 text-xs font-medium hover:bg-hover disabled:opacity-60">Add to training</button>}
     </li>
   );
 }

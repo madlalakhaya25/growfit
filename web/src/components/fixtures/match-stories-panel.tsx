@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { approveFamilyMessage, draftMatchStories, retractFamilyMessage, saveFamilyMessage } from "@/app/actions/family-messages";
 import { findFlaggedWording } from "@/lib/child-safe-check";
 import { FAMILY_BODY_MAX } from "@/lib/family-messages";
@@ -54,7 +55,7 @@ export function MatchStoriesPanel({ fixtureId, rows: initial, available }: Reado
         </div>
         <button
           type="button" onClick={write} disabled={pending || !available}
-          className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-60"
+          className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-hover disabled:opacity-60"
         >
           {drafts + rows.filter((r) => r.message?.status === "approved").length === 0 ? "Write the stories" : "Write any missing"}
         </button>
@@ -73,6 +74,7 @@ export function StoryItem({ row, onChange, noun = "Story" }: Readonly<{ row: Sto
   const m = row.message!;
   const [text, setText] = useState(m.body);
   const [busy, start] = useTransition();
+  const { confirm, dialog } = useConfirm();
   const flags = findFlaggedWording(text);
   const dirty = text.trim() !== m.body;
 
@@ -91,8 +93,15 @@ export function StoryItem({ row, onChange, noun = "Story" }: Readonly<{ row: Sto
         if (saved.error) { toast.error(saved.error); return; }
       }
       let res = await approveFamilyMessage(m.id);
-      if (res.flagged && window.confirm(`${res.error}\n\nShare it anyway?`)) {
-        res = await approveFamilyMessage(m.id, { acknowledgeWording: true });
+      if (res.flagged) {
+        const ok = await confirm({
+          title: "Share it anyway?",
+          body: res.error,
+          confirmLabel: "Share anyway",
+          cancelLabel: "Keep editing",
+          destructive: false,
+        });
+        if (ok) res = await approveFamilyMessage(m.id, { acknowledgeWording: true });
       }
       if (res.error) {
         if (!res.flagged) toast.error(res.error);
@@ -140,11 +149,12 @@ export function StoryItem({ row, onChange, noun = "Story" }: Readonly<{ row: Sto
           />
           {flags.length > 0 && <p className="text-xs text-amber-700 dark:text-amber-400">May read as negative: {flags.join(", ")}.</p>}
           <div className="flex gap-2">
-            <button type="button" onClick={save} disabled={busy || !dirty} className="rounded-md border border-border px-3 py-1 text-xs font-medium hover:bg-muted disabled:opacity-50">Save</button>
+            <button type="button" onClick={save} disabled={busy || !dirty} className="rounded-md border border-border px-3 py-1 text-xs font-medium hover:bg-hover disabled:opacity-50">Save</button>
             <button type="button" onClick={share} disabled={busy} className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground disabled:opacity-60">Share with family</button>
           </div>
         </>
       )}
+      {dialog}
     </li>
   );
 }

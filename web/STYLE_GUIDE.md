@@ -51,6 +51,11 @@ Condensed (`font-display`), numbers use tabular figures (set in `@layer base`).
 - Radii: `rounded-xl` for cards, `rounded-full` for buttons and badges.
 - Page gutter 16 px on a phone; cards separated by 12 to 16 px.
 - Shadows: `shadow-card` for resting, `shadow-float` for sheets and menus only.
+- Hover: `hover:bg-hover` on anything without its own fill (ghost buttons, rows,
+  icon buttons). A control filled with `bg-card` or `bg-background` keeps
+  `hover:bg-muted`.
+- Dividers: `border-hairline` for quiet lines (headers, sidebars, rows in a card);
+  `border-border` for the edges of fields and outlined buttons.
 
 ## Touch targets
 
@@ -69,6 +74,7 @@ dialog. A new control that is not one of these must set its own `min-h-11`.
 | Status chip | `Badge` | `components/ui/badge.tsx` |
 | Number tile | `StatTile`, `RatingRing`, `StatBar` | `components/ui/` |
 | Tabs | `QueryTabs` (URL `?tab=`), `SectionTabs` | `components/ui/` |
+| Filter a list | `FilterChip` row under the search box; `ResultCount` ("Showing 6 of 45 players. Clear") while filtered | `components/ui/filter-chip.tsx` |
 | Confirm a risky action | `ConfirmDialog` | `components/ui/confirm-dialog.tsx` |
 | Nothing here yet | `EmptyState` | `components/ui/empty-state.tsx` |
 | Loading | `Skeleton`, `Spinner`; `loading.tsx` per route | `components/ui/` |
@@ -87,6 +93,23 @@ dialog. A new control that is not one of these must set its own `min-h-11`.
 
 Plain, short, kind. "Couldn't save. Try again." not "An error occurred." Use the
 academy's words: squad, register, result, objective, "Needs you".
+
+## Before a UI change ships
+
+Run through this before asking for review. The pull request template repeats it.
+
+- [ ] Built at 390 px first, then checked at 1280 px.
+- [ ] Light and dark both checked; text passes 4.5:1, icons and borders 3:1.
+- [ ] Loading, empty, couldn't load and offline states are all there.
+- [ ] Every tap target is 44 px on touch, and focus is visible on every control.
+- [ ] One primary (red) action on the screen.
+- [ ] Nothing that leaves the app shows a surname, id or photo.
+- [ ] Words follow the Words section; a destructive button names the action
+      ("Delete fixture", not "Delete") and its dialog says what happens.
+- [ ] Differences between coach, parent, player and admin are written down
+      in the screen's spec (`design/screens/`), or in the PR if there's no spec.
+- [ ] Screenshots at 390 and 1280 px, light and dark, are in the PR
+      (`npm run ui:shots -- <route>`).
 
 ## Gap list (where the app breaks this guide, found 2026-10-06)
 

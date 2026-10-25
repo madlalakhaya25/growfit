@@ -139,7 +139,7 @@ export function MediaUploadForm({
                 {squadPlayers.map((p) => (
                   <label
                     key={p.id}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5"
+                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm hover:bg-hover transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5"
                   >
                     <input
                       type="checkbox"

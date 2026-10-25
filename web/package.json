@@ -11,6 +11,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:e2e": "playwright test",
+    "ui:shots": "node scripts/ui-shots.mjs",
     "measure:bundle": "node scripts/measure-bundle.mjs",
     "check:budgets": "node scripts/check-budgets.mjs",
     "db:types": "npx supabase gen types typescript --project-id gxkttmxrdrerjhxhsisc --schema public > src/lib/database.types.ts"

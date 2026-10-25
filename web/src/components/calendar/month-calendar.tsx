@@ -91,7 +91,7 @@ export function MonthCalendar({
       <div className="flex items-center justify-between border-b border-border bg-muted/40 px-4 py-3">
         <Link
           href={hrefFor(prevMonth.year, prevMonth.month)}
-          className="grid size-8 place-items-center rounded-md hover:bg-muted"
+          className="grid size-8 place-items-center rounded-md hover:bg-hover"
           aria-label="Previous month"
         >
           <ChevronLeft className="size-4" aria-hidden="true" />
@@ -99,7 +99,7 @@ export function MonthCalendar({
         <p className="text-sm font-semibold">{monthLabel}</p>
         <Link
           href={hrefFor(nextMonth.year, nextMonth.month)}
-          className="grid size-8 place-items-center rounded-md hover:bg-muted"
+          className="grid size-8 place-items-center rounded-md hover:bg-hover"
           aria-label="Next month"
         >
           <ChevronRight className="size-4" aria-hidden="true" />
@@ -137,7 +137,7 @@ export function MonthCalendar({
                   <div className="mt-0.5 space-y-0.5">
                     {dayEvents.slice(0, 3).map((e) => {
                       const chip = (
-                        <span className="flex items-center gap-1 truncate rounded px-1 py-0.5 text-xs leading-tight hover:bg-muted">
+                        <span className="flex items-center gap-1 truncate rounded px-1 py-0.5 text-xs leading-tight hover:bg-hover">
                           <span className={cn("size-1.5 shrink-0 rounded-full", KIND_DOT[e.kind])} aria-hidden="true" />
                           <span className="truncate">{e.title}</span>
                         </span>

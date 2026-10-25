@@ -43,7 +43,7 @@ export function FinishPanel({ fixtureId, state, names, plan, onClear }: Readonly
     const ok = await confirm({
       title: "Discard these minutes?",
       body: "They have not been saved. This clears the match from this phone.",
-      confirmLabel: "Discard",
+      confirmLabel: "Discard minutes",
       destructive: true,
     });
     if (ok) onClear();

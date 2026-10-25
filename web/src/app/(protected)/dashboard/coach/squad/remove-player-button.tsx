@@ -20,7 +20,7 @@ export function RemovePlayerButton({ playerId, playerName, teamId }: Props) {
     const ok = await confirm({
       title: `Remove ${playerName} from the squad?`,
       body: "They stay on the academy's books — this only takes them out of this team. You can add them back later.",
-      confirmLabel: "Remove",
+      confirmLabel: "Remove from squad",
     });
     if (!ok) return;
     startTransition(async () => {

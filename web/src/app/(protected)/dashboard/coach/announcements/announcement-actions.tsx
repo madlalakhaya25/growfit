@@ -53,6 +53,7 @@ export function AnnouncementActions({
   async function handleDelete() {
     const ok = await confirm({
       title: `Delete "${title}"?`,
+      confirmLabel: "Delete announcement",
       body: "Parents and players who have already seen it keep no copy, and this cannot be undone.",
     });
     if (!ok) return;

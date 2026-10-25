@@ -189,7 +189,7 @@ export default function RolePage() {
                     "flex flex-col gap-3 rounded-xl border-2 p-4 text-left transition-all",
                     isSelected
                       ? `${color} ring-1`
-                      : "border-border hover:border-primary/30 hover:bg-muted/30"
+                      : "border-border hover:border-primary/30 hover:bg-hover"
                   )}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -214,7 +214,7 @@ export default function RolePage() {
                   </div>
                   <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
                   {isSelected && (
-                    <ul className="mt-1 space-y-1.5 border-t border-border/60 pt-3">
+                    <ul className="mt-1 space-y-1.5 border-t border-hairline pt-3">
                       {bullets.map((b) => (
                         <li key={b} className="flex items-start gap-2 text-xs text-foreground/80">
                           <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden="true" />

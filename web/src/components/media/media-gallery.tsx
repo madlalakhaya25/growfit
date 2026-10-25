@@ -52,6 +52,7 @@ export function MediaGallery({ items, canDelete, currentUserId }: Props) {
   async function handleDelete(item: MediaItem) {
     const ok = await confirm({
       title: `Delete this ${item.media_type === "photo" ? "photo" : "video"}?`,
+      confirmLabel: `Delete ${item.media_type === "photo" ? "photo" : "video"}`,
       body: item.caption
         ? `"${item.caption}" will be removed from the album and from storage. This cannot be undone.`
         : "It will be removed from the album and from storage. This cannot be undone.",

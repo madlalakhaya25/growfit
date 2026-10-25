@@ -42,7 +42,7 @@ export function WeeklyDigestPanel({ teamId, rows: initial, available }: Readonly
         </p>
         <button
           type="button" onClick={write} disabled={pending || !available}
-          className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-60"
+          className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-hover disabled:opacity-60"
         >
           {written.length === 0 ? "Write this week's notes" : "Write any missing"}
         </button>

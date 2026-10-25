@@ -33,6 +33,7 @@ export function TeamActions({
   async function handleDelete() {
     const ok = await confirm({
       title: `Delete team "${name}"?`,
+      confirmLabel: "Delete team",
       body: "The team is deactivated and disappears from squads, fixtures and training. Players stay on the academy's books.",
     });
     if (!ok) return;

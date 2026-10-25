@@ -148,7 +148,7 @@ export function Sheet({ open, onClose, title, children, className }: SheetProps)
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            className="rounded-md p-1 text-muted-foreground hover:bg-hover hover:text-foreground"
           >
             <X className="size-5" aria-hidden="true" />
           </button>

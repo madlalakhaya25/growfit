@@ -15,6 +15,7 @@ export function DeleteSessionButton({ id }: { id: string }) {
   async function handleDelete() {
     const ok = await confirm({
       title: "Delete this training session?",
+      confirmLabel: "Delete session",
       body: "Its drills and any attendance already marked against it go too. This cannot be undone.",
     });
     if (!ok) return;

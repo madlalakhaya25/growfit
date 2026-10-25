@@ -222,7 +222,7 @@ export function DashboardShell({ profile, teams = [], features, academyName, chi
   return (
     <div className="flex min-h-dvh bg-background">
       {/* ── Sidebar (desktop) ─────────────────────────────────── */}
-      <aside className="sticky top-0 hidden h-dvh w-64 flex-col border-r border-border/70 bg-secondary/55 backdrop-blur-xl lg:flex">
+      <aside className="sticky top-0 hidden h-dvh w-64 flex-col border-r border-hairline bg-secondary/55 backdrop-blur-xl lg:flex">
         <div className="flex h-16 items-center px-5">
           <Logo name={academyName} />
         </div>
@@ -241,7 +241,7 @@ export function DashboardShell({ profile, teams = [], features, academyName, chi
                   "flex min-h-9 items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[15px] font-medium transition-colors",
                   active
                     ? "bg-primary text-primary-foreground"
-                    : "text-foreground hover:bg-foreground/5"
+                    : "text-foreground hover:bg-hover"
                 )}
               >
                 <Icon className={cn("size-[18px] shrink-0", !active && "text-primary")} aria-hidden="true" />
@@ -251,7 +251,7 @@ export function DashboardShell({ profile, teams = [], features, academyName, chi
           })}
         </nav>
 
-        <div className="border-t border-border/60 p-3 space-y-2">
+        <div className="border-t border-hairline p-3 space-y-2">
           <div className="flex items-center gap-3 px-3 py-2">
             <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand text-brand-foreground text-xs font-bold">
               {profile.full_name.slice(0, 2).toUpperCase()}
@@ -264,7 +264,7 @@ export function DashboardShell({ profile, teams = [], features, academyName, chi
           <Link
             href={`${roleRoot}/settings`}
             className={cn(
-              "flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+              "flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-hover hover:text-foreground",
               pathname.startsWith(`${roleRoot}/settings`) && "bg-primary/10 text-primary"
             )}
           >
@@ -281,7 +281,7 @@ export function DashboardShell({ profile, teams = [], features, academyName, chi
       {/* ── Main ──────────────────────────────────────────────── */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-border/60 bg-background/80 px-4 backdrop-blur-xl lg:px-8">
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-hairline bg-background/80 px-4 backdrop-blur-xl lg:px-8">
           <p className="min-w-0 truncate text-[17px] font-bold tracking-tight lg:hidden">
             {activeSection?.label ?? ""}
           </p>
@@ -293,7 +293,7 @@ export function DashboardShell({ profile, teams = [], features, academyName, chi
             <ThemeToggle />
             <Link
               href={`${roleRoot}/settings`}
-              className="lg:hidden grid size-9 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              className="lg:hidden grid size-9 place-items-center rounded-md text-muted-foreground hover:bg-hover hover:text-foreground transition-colors"
               aria-label="Settings"
             >
               <Settings className="size-4" aria-hidden="true" />
