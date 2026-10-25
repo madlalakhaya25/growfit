@@ -4,7 +4,7 @@ import Link from "next/link";
 import { MapPin, Calendar, LayoutGrid, List as ListIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
+import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant, matchup } from "@/lib/fixtures";
 import { MonthCalendar, type CalendarEvent } from "@/components/calendar/month-calendar";
 import { cn } from "@/lib/utils";
 import { formatInTimezone, formatTime } from "@/lib/time";
@@ -96,7 +96,7 @@ export default async function ParentFixturesPage({
     ...allFixtures.map((f) => ({
       id: `fixture-${f.id}`,
       date: f.fixture_date,
-      title: `${f.is_home ? "vs" : "@"} ${f.opponent}`,
+      title: matchup(f.opponent, f.is_home),
       kind: "fixture" as const,
     })),
     ...(trainingSessions ?? []).map((s) => ({
@@ -116,7 +116,7 @@ export default async function ParentFixturesPage({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="font-medium truncate">
-              {f.is_home ? "vs" : "@"} {f.opponent}
+              {matchup(f.opponent, f.is_home)}
             </p>
             <p className="text-xs text-muted-foreground">
               {teamName}{childNames.length > 0 ? ` · ${childNames.join(", ")}` : ""}
@@ -184,7 +184,7 @@ export default async function ParentFixturesPage({
             <CardDescription>
               Link your child&apos;s profile from{" "}
               <Link href="/dashboard/parent" className="text-primary underline-offset-4 hover:underline">
-                My Children
+                My children
               </Link>{" "}
               to see their fixtures here.
             </CardDescription>

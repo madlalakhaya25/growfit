@@ -9,6 +9,7 @@ import { defaultFormat } from "@/lib/playing-time";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { MinutesPlanner, type PlannerPlayer } from "./minutes-planner";
+import { matchup } from "@/lib/fixtures";
 
 type PlayerRow = { id: string; full_name: string; position: string | null };
 
@@ -83,7 +84,7 @@ export default async function FixtureMinutesPage({ params }: Readonly<{ params: 
       </Button>
       <PageHeader
         title="Playing time"
-        description={`${fixture.is_home ? "vs" : "@"} ${fixture.opponent} · fair minutes for everyone`}
+        description={`${matchup(fixture.opponent, fixture.is_home)} · fair minutes for everyone`}
       />
       {plannerPlayers.length === 0 ? (
         <p className="rounded-xl border border-border bg-card px-4 py-6 text-center text-sm text-muted-foreground">

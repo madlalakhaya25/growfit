@@ -93,7 +93,7 @@ const FEATURES = [
   },
   {
     Icon: Wand2,
-    title: "AI Session Generator",
+    title: "AI session planner",
     text: "Builds LTPD-phased drills with 4-Corner coaching cues, a FIFA session structure, and SAFA NDP competency alignment.",
   },
   {

@@ -257,10 +257,11 @@ export default async function FixtureDetailPage({
               {result.opponent_score}
             </span>
           ) : (
-            <span className="text-base font-sans font-medium text-muted-foreground">{fixture.is_home ? "vs" : "@"}</span>
+            <span className="text-base font-sans font-medium text-muted-foreground">vs</span>
           )}
           <span>{fixture.opponent}</span>
         </p>
+        {!fixture.is_home && <p className="mt-1 text-sm text-muted-foreground">Away</p>}
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
           <Badge variant="neutral" className="capitalize border-border bg-secondary text-secondary-foreground">
             <span className={`size-1.5 rounded-full ${STATUS_DOT[fixtureStatusVariant(fixture)]}`} aria-hidden="true" />

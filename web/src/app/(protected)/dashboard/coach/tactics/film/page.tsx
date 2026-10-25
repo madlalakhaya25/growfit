@@ -28,7 +28,7 @@ export default async function CoachFilmPage() {
           Back to Tactics
         </Link>
         <div>
-          <h1 className="text-2xl font-bold">Match Film</h1>
+          <h1 className="text-2xl font-bold">Match film</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Freeze a frame from a phone clip or a photo and draw over it — like a TV analyst
             breaking down a play. The clip itself never leaves your device; only the frame you

@@ -1,4 +1,4 @@
-import { isFixturePast } from "@/lib/fixtures";
+import { isFixturePast, matchup } from "@/lib/fixtures";
 
 describe("isFixturePast", () => {
   const hoursFromNow = (h: number) => new Date(Date.now() + h * 3_600_000).toISOString();
@@ -21,5 +21,15 @@ describe("isFixturePast", () => {
 
   it("keeps a postponed fixture as upcoming even once its stale date has elapsed", () => {
     expect(isFixturePast({ status: "postponed", fixture_date: hoursFromNow(-100) })).toBe(false);
+  });
+});
+
+describe("matchup", () => {
+  it("reads vs for a home game", () => {
+    expect(matchup("Pinetown City", true)).toBe("vs Pinetown City");
+  });
+
+  it("says away in words, not with an @", () => {
+    expect(matchup("Pinetown City", false)).toBe("vs Pinetown City (away)");
   });
 });

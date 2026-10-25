@@ -10,7 +10,7 @@ import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/ca
 import { Badge } from "@/components/ui/badge";
 import { ListRow, ListRowGroup } from "@/components/ui/list-row";
 import { POSITIONS, FEET } from "@/lib/types";
-import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
+import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant, matchup } from "@/lib/fixtures";
 import { calculateAge } from "@/lib/player";
 import { formatDayMonth, formatWeekdayDayMonth, todayIso } from "@/lib/time";
 import { RemovePlayerPhotoButton } from "@/components/remove-player-photo-button";
@@ -176,7 +176,7 @@ export default async function ChildDetailPage({
     const teamInfo = teamMap.get(f.team_id) as { name: string; age_group: string | null } | null | undefined;
     return (
       <ListRow
-        title={`${f.is_home ? "vs" : "@"} ${f.opponent}`}
+        title={matchup(f.opponent, f.is_home)}
         subtitle={
           <>
             {formatWeekdayDayMonth(date)}
@@ -234,7 +234,7 @@ export default async function ChildDetailPage({
             className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="size-3.5" aria-hidden="true" />
-            My Children
+            My children
           </Link>
           <ChevronRight className="size-3.5 text-muted-foreground/40" aria-hidden="true" />
           <span className="font-medium truncate max-w-[180px] sm:max-w-none">{player.full_name}</span>

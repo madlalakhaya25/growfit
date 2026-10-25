@@ -5,6 +5,7 @@ import { getInitials } from "@/lib/player";
 import { cn } from "@/lib/utils";
 import { formatInTimezone } from "@/lib/time";
 import { requireCoachTeams } from "@/lib/auth";
+import { matchup } from "@/lib/fixtures";
 
 /**
  * Squad, emergency contacts and next fixture on one screen — the offline
@@ -83,7 +84,7 @@ export default async function EmergencyContactsPage({
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Emergency Contacts</h1>
+          <h1 className="text-2xl font-bold">Emergency contacts</h1>
           <p className="text-sm text-muted-foreground">{team.name}</p>
         </div>
         <div className="flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground">
@@ -113,7 +114,7 @@ export default async function EmergencyContactsPage({
         <div className="rounded-xl border border-border bg-card p-4">
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Next fixture</p>
           <p className="mt-1 font-medium">
-            {nextFixture.is_home ? "vs" : "@"} {nextFixture.opponent}
+            {matchup(nextFixture.opponent, nextFixture.is_home)}
           </p>
           <p className="text-sm text-muted-foreground">
             {formatInTimezone(nextFixture.fixture_date, {

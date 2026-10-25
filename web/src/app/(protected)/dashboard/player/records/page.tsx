@@ -25,7 +25,7 @@ export default async function PlayerRecordsPage() {
   if (!player) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold">My Records</h1>
+        <h1 className="text-2xl font-bold">My records</h1>
         <p className="text-sm text-muted-foreground">
           Your profile isn&apos;t linked yet. Once your coach adds you, your records
           appear here.
@@ -50,7 +50,7 @@ export default async function PlayerRecordsPage() {
           Back to my passport
         </Link>
         <div>
-          <h1 className="text-2xl font-bold">My Records</h1>
+          <h1 className="text-2xl font-bold">My records</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Your registration numbers and the documents for the {currentSeason} season.
           </p>
@@ -59,7 +59,7 @@ export default async function PlayerRecordsPage() {
 
       <section id="registration" className="space-y-3">
         <div>
-          <h2 className="text-base font-semibold">My Registration Numbers</h2>
+          <h2 className="text-base font-semibold">My registration numbers</h2>
           <p className="text-sm text-muted-foreground">
             Keep these up to date so your parent can link their account to your profile.
           </p>

@@ -72,7 +72,7 @@ export default async function ParentDashboardPage() {
       {children.length > 0 && <TodaySections today={today} />}
 
       {children.length > 0 && (
-        <p className="-mb-4 px-1 text-[13px] font-normal uppercase tracking-[0.01em] text-muted-foreground">My children</p>
+        <h2 className="mb-3 px-1 text-[13px] font-normal uppercase tracking-[0.01em] text-muted-foreground">My children</h2>
       )}
 
       {/* Children grid */}

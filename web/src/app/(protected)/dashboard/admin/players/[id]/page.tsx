@@ -193,11 +193,11 @@ export default async function AdminPlayerDetailPage({
       </div>
 
       <section className="space-y-6">
-        <h2 className="text-xl font-bold">Player Records</h2>
+        <h2 className="text-xl font-bold">Player records</h2>
 
         {/* Extended info */}
         <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-          <p className="font-semibold">Registration Details</p>
+          <p className="font-semibold">Registration details</p>
           <ExtendedInfoForm playerId={id} initial={{ school: player.school, home_address: player.home_address, id_number: player.id_number, mysafa_number: player.mysafa_number }} />
         </div>
 

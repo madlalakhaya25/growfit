@@ -225,7 +225,7 @@ export default async function AnalyticsPage() {
         {/* Rating Trend */}
         <Card>
           <CardHeader>
-            <CardTitle>Average Rating Trend</CardTitle>
+            <CardTitle>Average rating trend</CardTitle>
             <CardDescription>Monthly average over the last 6 months</CardDescription>
           </CardHeader>
           <CardContent>
@@ -236,7 +236,7 @@ export default async function AnalyticsPage() {
         {/* Document Compliance */}
         <Card>
           <CardHeader>
-            <CardTitle>Document Compliance</CardTitle>
+            <CardTitle>Document compliance</CardTitle>
             <CardDescription>{currentSeason} season — all 6 documents complete</CardDescription>
           </CardHeader>
           <CardContent>
@@ -247,7 +247,7 @@ export default async function AnalyticsPage() {
         {/* Training Attendance */}
         <Card>
           <CardHeader>
-            <CardTitle>Training Attendance</CardTitle>
+            <CardTitle>Training attendance</CardTitle>
             <CardDescription>Attendance rate per team</CardDescription>
           </CardHeader>
           <CardContent>
@@ -274,7 +274,7 @@ export default async function AnalyticsPage() {
         {/* Top Rated Players */}
         <Card className="md:col-span-2">
           <CardHeader>
-            <CardTitle>Top Rated Players</CardTitle>
+            <CardTitle>Top-rated players</CardTitle>
             <CardDescription>Top 5 by average match rating</CardDescription>
           </CardHeader>
           <CardContent>

@@ -108,7 +108,7 @@ export default async function PlayerTrainingPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">My Training</h1>
+      <h1 className="text-2xl font-bold">My training</h1>
 
       {allSessions.length === 0 ? (
         <EmptyState

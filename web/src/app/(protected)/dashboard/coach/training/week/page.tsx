@@ -15,6 +15,7 @@ import {
   type Load, type PlanFixture, type PlanPlay, type PlanSession,
 } from "@/lib/week-plan";
 import { requireCoachTeams } from "@/lib/auth";
+import { matchup } from "@/lib/fixtures";
 
 const LOAD_LABEL: Record<Load, string> = { 0: "Rest", 1: "Light", 2: "Moderate", 3: "Hard" };
 const LOAD_BAR: Record<Load, string> = {
@@ -210,7 +211,7 @@ export default async function TrainingWeekPage({
               >
                 <span className="flex items-center gap-1 font-semibold">
                   <Trophy className="size-3.5" aria-hidden="true" />
-                  {f.is_home ? "vs" : "@"} {f.opponent}
+                  {matchup(f.opponent, f.is_home)}
                 </span>
                 <span className="text-muted-foreground">{formatTime(f.fixture_date)}</span>
                 {f.plays.length > 0 && <PlayList plays={f.plays} />}

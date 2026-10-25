@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getTrainingAttendanceSummaries } from "@/lib/training-attendance";
 import type { AttendanceSummary } from "@/lib/attendance";
 import { isMissingAttributeColumn } from "@/lib/attributes";
-import { isFixturePast } from "@/lib/fixtures";
+import { isFixturePast, matchup } from "@/lib/fixtures";
 import { formatDayMonthYear } from "@/lib/time";
 import { countOpenObjectives, loadFollowUpPrompts } from "@/lib/objectives-data";
 import { LogResultForm } from "./log-result-form";
@@ -90,7 +90,7 @@ export default async function LogResultPage({
       <div>
         <h1 className="text-2xl font-bold">Log result</h1>
         <p className="text-sm text-muted-foreground">
-          {fixture.is_home ? "vs" : "@"} {fixture.opponent} ·{" "}
+          {matchup(fixture.opponent, fixture.is_home)} ·{" "}
           {formatDayMonthYear(fixture.fixture_date)}
         </p>
       </div>

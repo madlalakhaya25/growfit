@@ -399,7 +399,7 @@ export default async function SquadPage({
               total={squad.length}
               noun={["player", "players"]}
               clearHref={`/dashboard/coach/squad?team=${team.id}`}
-              className="-mb-4"
+              className="mb-3"
             />
           )}
           {posOrder
