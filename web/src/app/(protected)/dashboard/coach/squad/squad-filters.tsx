@@ -5,7 +5,7 @@ import { useTransition } from "react";
 import { Search } from "lucide-react";
 import { FilterChip } from "@/components/ui/filter-chip";
 
-export type SquadFilter = "all" | "attendance" | "docs" | "unassessed";
+export type SquadFilter = "all" | "attendance" | "docs" | "injured" | "unassessed";
 
 /**
  * Search and filter for the coach's own squad.
@@ -15,10 +15,10 @@ export type SquadFilter = "all" | "attendance" | "docs" | "unassessed";
  * and offered no way to find anyone. Across U11, U13 and U15 that is roughly
  * 45 players grouped by position and nothing else.
  *
- * The three filters are the questions a coach actually arrives with, and
- * each is answered from data the app already computed but never showed
- * here: who is below the attendance policy, who still owes a form, who has
- * never been assessed.
+ * The filters are the questions a coach actually arrives with, and each is
+ * answered from data the app already computed: who needs a word (below the
+ * attendance policy, or flagged for a check-in), who still owes a form, who
+ * is injured or unavailable, who has never been assessed.
  *
  * State lives in the URL so a filtered squad can be linked or reloaded, and
  * so the server component does the filtering rather than shipping the whole
@@ -47,29 +47,31 @@ export function SquadFilters({
 
   const FILTERS: { id: SquadFilter; label: string }[] = [
     { id: "all", label: "All" },
-    { id: "attendance", label: "Below 75%" },
-    { id: "docs", label: "Docs outstanding" },
+    { id: "attendance", label: "Needs a word" },
+    { id: "docs", label: "Forms due" },
+    { id: "injured", label: "Injured" },
     { id: "unassessed", label: "Not assessed" },
   ];
 
   return (
     <div className="space-y-3">
-      <div className="relative max-w-sm">
+      <div className="relative sm:max-w-sm">
         <Search
           className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground"
           aria-hidden="true"
         />
         <input
           type="search"
-          placeholder="Search this squad…"
-          aria-label="Search this squad"
+          placeholder="Find a player"
+          aria-label="Find a player"
           defaultValue={initialQuery}
           onChange={(e) => setParam("q", e.target.value || null)}
-          className="flex h-10 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex h-11 w-full rounded-xl border border-input bg-card pl-9 pr-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      {/* One scrolling row on a phone, so the list starts higher up. */}
+      <div role="group" aria-label="Filter the squad" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
         {FILTERS.map(({ id, label }) => {
           const count = counts[id];
           const isActive = active === id;
@@ -84,6 +86,7 @@ export function SquadFilters({
               count={count}
               disabled={empty}
               onClick={() => setParam("filter", id === "all" ? null : id)}
+              className="shrink-0"
             >
               {label}
             </FilterChip>

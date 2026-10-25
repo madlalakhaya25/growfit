@@ -4,8 +4,9 @@ import { cn } from "@/lib/utils";
 
 /**
  * A pill that turns one filter on or off, with an optional count. One row of
- * these sits under a list's search box; the one that's on is filled black, so
- * it never competes with the screen's one red action.
+ * these sits under a list's search box. The one that's on is filled red and
+ * the rest are white cards, as in the "light card, red edge" look Khaya chose
+ * on 2026-10-25 (it was black for a day before that).
  *
  * 32 px tall with a mouse and 44 px on a touch screen, like Button's `sm`.
  * A filter that would match nobody is disabled rather than hidden, so the
@@ -25,8 +26,8 @@ export function FilterChip({
       className={cn(
         "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors pointer-coarse:h-11 pointer-coarse:px-4 pointer-coarse:text-sm",
         active
-          ? "border-foreground bg-foreground text-background"
-          : "border-border text-muted-foreground hover:bg-hover hover:text-foreground",
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border bg-card text-foreground hover:bg-muted",
         "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent",
         className,
       )}
@@ -34,7 +35,7 @@ export function FilterChip({
     >
       {children}
       {count !== undefined && (
-        <span className={cn("tabular-nums", !active && "text-muted-foreground")}>{count}</span>
+        <span className={cn("tabular-nums", active ? "text-primary-foreground" : "text-muted-foreground")}>{count}</span>
       )}
     </button>
   );

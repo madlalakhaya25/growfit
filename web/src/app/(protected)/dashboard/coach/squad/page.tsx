@@ -1,16 +1,17 @@
 import Link from "next/link";
 import { loadReadiness } from "@/lib/readiness-data";
 import { redirect } from "next/navigation";
-import { Upload, Plus, ShieldAlert, ClipboardCheck, Target, MessageSquareText } from "lucide-react";
+import { Plus, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { resolveCurrentTeamFromCookies } from "@/lib/current-team-server";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
-import { PlayerAvatar } from "@/components/ui/player-avatar";
+import { KitAvatar } from "@/components/ui/kit-avatar";
+import { cn } from "@/lib/utils";
 import { RemovePlayerButton } from "./remove-player-button";
-import { CopyInviteLinkButton } from "@/components/copy-invite-link-button";
+import { SquadToolsMenu } from "./squad-tools-menu";
+import { attendanceStreak, positionShort, squadStatus } from "@/lib/squad-status";
 import { POSITIONS } from "@/lib/types";
 import { calculateAge } from "@/lib/player";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
@@ -41,7 +42,7 @@ export default async function SquadPage({
   const { team: teamParam, q: rawQuery = "", filter: rawFilter } = await searchParams;
   const query = rawQuery.trim().toLowerCase();
   const filter: SquadFilter =
-    rawFilter === "attendance" || rawFilter === "docs" || rawFilter === "unassessed"
+    rawFilter === "attendance" || rawFilter === "docs" || rawFilter === "injured" || rawFilter === "unassessed"
       ? rawFilter
       : "all";
   const supabase = await createClient();
@@ -154,9 +155,10 @@ export default async function SquadPage({
   const [{ data: sessions }, { data: docs }, availabilityResult] = await Promise.all([
     supabase
       .from("training_sessions")
-      .select("id")
+      .select("id, session_date")
       .eq("team_id", team.id)
-      .gte("session_date", since),
+      .gte("session_date", since)
+      .order("session_date", { ascending: false }),
     playerIds.length
       ? supabase
           .from("player_documents")
@@ -175,6 +177,8 @@ export default async function SquadPage({
   const seasonMinutes = await loadSeasonMinutes(supabase, playerIds, currentSeason);
 
   const sessionIds = (sessions ?? []).map((x: { id: string }) => x.id);
+  // Newest first, for counting each player's run of sessions in a row.
+  const marksBySession = new Map<string, Map<string, AttendanceStatus>>();
   // Counted `status === "attending"` — migration 005's RSVP vocabulary, which
   // the app has never written. Shares one policy with the welfare page and
   // the AI brief now: late counts as attending, excused is left out.
@@ -182,11 +186,14 @@ export default async function SquadPage({
   if (sessionIds.length && playerIds.length) {
     const { data: att } = await supabase
       .from("training_attendance")
-      .select("player_id, status")
+      .select("session_id, player_id, status")
       .in("session_id", sessionIds)
       .in("player_id", playerIds);
-    for (const row of (att ?? []) as { player_id: string; status: string }[]) {
+    for (const row of (att ?? []) as { session_id: string; player_id: string; status: string }[]) {
       if (!isAttendanceStatus(row.status)) continue;
+      const register = marksBySession.get(row.session_id) ?? new Map<string, AttendanceStatus>();
+      register.set(row.player_id, row.status);
+      marksBySession.set(row.session_id, register);
       const list = marksByPlayer.get(row.player_id) ?? [];
       list.push(row.status);
       marksByPlayer.set(row.player_id, list);
@@ -255,13 +262,19 @@ export default async function SquadPage({
       availability,
       readiness: readinessResult.byPlayer.get(p.id) ?? null,
       seasonMinutes: seasonMinutes.byPlayer.get(p.id)?.minutes ?? null,
+      streak: attendanceStreak(p.id, sessionIds, marksBySession),
     };
   });
 
+  // Below the attendance policy, or flagged by readiness for a check-in.
+  const needsAWord = (p: (typeof squad)[number]) =>
+    p.belowThreshold || (p.readiness !== null && p.readiness.level !== "steady");
+
   const matchesFilter = (p: (typeof squad)[number]) => {
     if (query && !p.full_name.toLowerCase().includes(query)) return false;
-    if (filter === "attendance") return p.belowThreshold;
+    if (filter === "attendance") return needsAWord(p);
     if (filter === "docs") return p.docsOutstanding > 0;
+    if (filter === "injured") return p.availability !== null;
     if (filter === "unassessed") return !p.assessed;
     return true;
   };
@@ -269,8 +282,9 @@ export default async function SquadPage({
   const visibleSquad = squad.filter(matchesFilter);
   const counts = {
     all: squad.length,
-    attendance: squad.filter((p) => p.belowThreshold).length,
+    attendance: squad.filter(needsAWord).length,
     docs: squad.filter((p) => p.docsOutstanding > 0).length,
+    injured: squad.filter((p) => p.availability !== null).length,
     unassessed: squad.filter((p) => !p.assessed).length,
   };
 
@@ -288,54 +302,32 @@ export default async function SquadPage({
   }
 
   const posOrder = ["Goalkeeper", "Defender", "Midfielder", "Forward", "Unassigned"];
+  const posHeading: Record<string, string> = {
+    Goalkeeper: "Goalkeepers", Defender: "Defence", Midfielder: "Midfield", Forward: "Attack", Unassigned: "No position yet",
+  };
+  const toneClass = {
+    clay: "bg-clay text-clay-foreground",
+    sun: "bg-sun text-sun-foreground",
+    neutral: "bg-muted text-muted-foreground",
+  } as const;
 
   return (
-    <div className="space-y-6">
-      {/* Which team is being shown when a coach has more than one is now
-          the header's TeamSwitcher (dashboard-shell.tsx) — this used to
-          duplicate that as its own pill row. */}
+    <div className="space-y-5">
+      {/* Which team is being shown when a coach has more than one is the
+          header's TeamSwitcher (dashboard-shell.tsx). The rarer tools sit
+          behind More, so the page has one red action: Add player. */}
       <PageHeader
         title="Squad"
         description={
           <>
-            {team.name}{team.age_group && ` · ${team.age_group}`}
+            {team.name}{team.age_group && !team.name.includes(team.age_group) && ` · ${team.age_group}`}
             {!membersError && ` · ${squad.length} ${squad.length === 1 ? "player" : "players"}`}
           </>
         }
         action={
-          <div className="flex flex-wrap gap-2">
-            <CopyInviteLinkButton inviteCode={team.invite_code} />
-            <Button asChild size="sm" variant="outline" className="shrink-0">
-              <Link href={`/dashboard/coach/squad/review?team=${team.id}`}>
-                <ClipboardCheck className="size-4" aria-hidden="true" />
-                Term review
-              </Link>
-            </Button>
-            <Button asChild size="sm" variant="outline" className="shrink-0">
-              <Link href={`/dashboard/coach/squad/digest?team=${team.id}`}>
-                <MessageSquareText className="size-4" aria-hidden="true" />
-                Weekly notes
-              </Link>
-            </Button>
-            <Button asChild size="sm" variant="outline" className="shrink-0">
-              <Link href={`/dashboard/coach/squad/plans?team=${team.id}`}>
-                <Target className="size-4" aria-hidden="true" />
-                Plans
-              </Link>
-            </Button>
-            <Button asChild size="sm" variant="outline" className="shrink-0">
-              <Link href={`/dashboard/coach/squad/emergency?team=${team.id}`}>
-                <ShieldAlert className="size-4" aria-hidden="true" />
-                Emergency contacts
-              </Link>
-            </Button>
-            <Button asChild size="sm" variant="outline" className="shrink-0">
-              <Link href={`/dashboard/coach/squad/import?team=${team.id}`}>
-                <Upload className="size-4" aria-hidden="true" />
-                Import
-              </Link>
-            </Button>
-            <Button asChild size="sm" className="shrink-0">
+          <div className="flex items-center gap-2">
+            <SquadToolsMenu teamId={team.id} inviteCode={team.invite_code} />
+            <Button asChild size="sm" className="shrink-0 pointer-coarse:h-11 pointer-coarse:px-4">
               <Link href={`/dashboard/coach/squad/add?team=${team.id}`}>
                 <Plus className="size-4" aria-hidden="true" />
                 Add player
@@ -363,7 +355,7 @@ export default async function SquadPage({
         <Card>
           <CardHeader>
             <CardTitle>No players yet</CardTitle>
-            <CardDescription>Add your first player to get started.</CardDescription>
+            <CardDescription>Add your first player, or copy the invite link from More so families can join.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild variant="outline">
@@ -392,110 +384,62 @@ export default async function SquadPage({
           </CardHeader>
         </Card>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-5">
           {visibleSquad.length < squad.length && (
             <ResultCount
               shown={visibleSquad.length}
               total={squad.length}
               noun={["player", "players"]}
               clearHref={`/dashboard/coach/squad?team=${team.id}`}
-              className="mb-3"
             />
           )}
-          {posOrder
-            .filter((pos) => byPosition[pos]?.length)
-            .map((pos) => (
-              <section key={pos}>
-                <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  {pos} · {byPosition[pos].length}
-                </h2>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {byPosition[pos].map((player) => {
-                    if (!player) return null;
-                    return (
-                      <div
-                        key={player.id}
-                        className="group relative flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/40"
-                      >
-                        {/* Avatar */}
-                        <Link href={`/dashboard/coach/squad/${player.id}?team=${team.id}`} className="flex-shrink-0">
-                          <PlayerAvatar name={player.full_name} photoUrl={player.photo_url} size="md" />
-                        </Link>
-
-                        {/* Info.
-                            The card used to carry the match-rating average
-                            and nothing else — not the attribute Overall
-                            every other surface shows, not attendance, not
-                            document status. All three were already computed
-                            elsewhere in the app; this is the screen where
-                            they actually change a decision. */}
-                        <Link href={`/dashboard/coach/squad/${player.id}?team=${team.id}`} className="min-w-0 flex-1">
-                          <div className="flex items-baseline justify-between gap-2">
-                            <p className="truncate font-semibold leading-tight">{player.full_name}</p>
-                            {player.overall !== null && (
-                              <span className="shrink-0 text-sm font-bold tabular-nums">{player.overall}</span>
-                            )}
+          <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+            {posOrder
+              .filter((pos) => byPosition[pos]?.length)
+              .map((pos) => (
+                <section key={pos} aria-labelledby={`pos-${pos}`} className="space-y-2">
+                  <h2 id={`pos-${pos}`} className="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {posHeading[pos]} · {byPosition[pos].length}
+                  </h2>
+                  {/* One white card per position, a row per child: the name,
+                      and the single thing worth knowing about them today
+                      (lib/squad-status.ts). The full picture is one tap away. */}
+                  <ul className="divide-y divide-hairline overflow-hidden rounded-2xl border border-hairline bg-card">
+                    {byPosition[pos].map((player) => {
+                      const status = squadStatus({
+                        ...player,
+                        readinessLevel: player.readiness?.level ?? null,
+                      });
+                      const short = positionShort(player.position);
+                      return (
+                        <li key={player.id} className="group relative flex items-center">
+                          <Link
+                            href={`/dashboard/coach/squad/${player.id}?team=${team.id}`}
+                            className="flex min-h-16 min-w-0 flex-1 items-center gap-3 px-3.5 py-2.5 transition-colors hover:bg-hover"
+                          >
+                            <KitAvatar name={player.full_name} photoUrl={player.photo_url} />
+                            <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
+                              <span className="flex w-full min-w-0 items-baseline gap-1 text-[15px] font-semibold leading-tight">
+                                <span className="truncate">{player.full_name}</span>
+                                {short && <span className="shrink-0 font-medium text-muted-foreground">· {short}</span>}
+                              </span>
+                              <span className={cn("max-w-full truncate rounded-full px-2 py-0.5 text-xs font-semibold", toneClass[status.tone])}>
+                                {status.text}
+                              </span>
+                            </span>
+                            <ChevronRight className="size-4 shrink-0 text-muted-foreground/60 pointer-fine:group-hover:hidden" aria-hidden="true" />
+                          </Link>
+                          {/* Hover-only on a mouse; on touch, removing lives on the player's page. */}
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                            <RemovePlayerButton playerId={player.id} playerName={player.full_name} teamId={team.id} />
                           </div>
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {player.availability?.status === "injured" && (
-                              <Badge variant="danger" className="text-xs">Injured</Badge>
-                            )}
-                            {player.availability?.status === "unavailable" && (
-                              <Badge variant="warning" className="text-xs">Unavailable</Badge>
-                            )}
-                            {player.age && (
-                              <Badge variant="neutral" className="text-xs">Age {player.age}</Badge>
-                            )}
-                            {player.preferred_foot && (
-                              <Badge variant="neutral" className="text-xs capitalize">
-                                {player.preferred_foot}
-                              </Badge>
-                            )}
-                            {player.seasonMinutes !== null && (
-                              <Badge variant="neutral" className="text-xs tabular-nums" title="Minutes played this season">
-                                {player.seasonMinutes}&apos; this season
-                              </Badge>
-                            )}
-                            {/* Only ever flagged when it needs action — red
-                                that always shows stops meaning anything. */}
-                            {player.belowThreshold && (
-                              <Badge variant="danger" className="text-xs">
-                                {player.attendance}% attendance
-                              </Badge>
-                            )}
-                            {player.docsOutstanding > 0 && (
-                              <Badge variant="warning" className="text-xs">
-                                {player.docsOutstanding} doc{player.docsOutstanding === 1 ? "" : "s"} due
-                              </Badge>
-                            )}
-                            {!player.assessed && (
-                              <Badge variant="neutral" className="text-xs">Not assessed</Badge>
-                            )}
-                            {player.readiness && player.readiness.level !== "steady" && (
-                              <Badge variant={player.readiness.level === "check-in" ? "danger" : "warning"} className="text-xs">
-                                {player.readiness.level === "check-in" ? "Check in" : "Keep an eye"}
-                              </Badge>
-                            )}
-                          </div>
-                          {player.readiness?.reasons.map((r) => (
-                            <p key={r} className="mt-1 text-xs text-amber-700 dark:text-amber-400">{r}</p>
-                          ))}
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {player.avg ? `★ ${player.avg} avg · ${player.ratingsCount}` : "No match ratings"}
-                            {player.attendance !== null && !player.belowThreshold
-                              ? ` · ${player.attendance}% training`
-                              : ""}
-                          </p>
-                        </Link>
-
-                        {/* Remove */}
-                        <RemovePlayerButton playerId={player.id} playerName={player.full_name} teamId={team.id} />
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            ))}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              ))}
+          </div>
         </div>
       )}
     </div>
