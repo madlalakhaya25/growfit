@@ -62,6 +62,9 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
 
   const [teamScore, setTeamScore] = useState(0);
   const [oppScore, setOppScore] = useState(0);
+  const us = { label: "Us", value: teamScore, onChange: setTeamScore };
+  const them = { label: opponent, value: oppScore, onChange: setOppScore };
+  const [left, right] = isHome ? [us, them] : [them, us];
   const [matchNotes, setMatchNotes] = useState("");
   // Optional: how the team did in each phase of play. Untouched phases are not sent.
   const [phaseRatings, setPhaseRatings] = useState<PhaseRatings>({});
@@ -132,17 +135,9 @@ export function LogResultForm({ fixtureId, squad, isHome, opponent, hideCancel, 
         <div className="flex items-center justify-center gap-6">
           {/* Home side on the left, so away games read "Opponent — Us"; each
               box must still write to its own team's score. */}
-          <ScoreInput
-            label={isHome ? "Us" : opponent}
-            value={isHome ? teamScore : oppScore}
-            onChange={isHome ? setTeamScore : setOppScore}
-          />
+          <ScoreInput {...left} />
           <span className="text-2xl text-muted-foreground">—</span>
-          <ScoreInput
-            label={isHome ? opponent : "Us"}
-            value={isHome ? oppScore : teamScore}
-            onChange={isHome ? setOppScore : setTeamScore}
-          />
+          <ScoreInput {...right} />
         </div>
       </div>
 
