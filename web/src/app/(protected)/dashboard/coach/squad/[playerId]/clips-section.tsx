@@ -72,7 +72,7 @@ export function ClipsSection({ playerId, clips, fixtures }: Props) {
 
   return (
     <section className="space-y-4">
-      <h2 className="text-lg font-semibold">Video Clips</h2>
+      <h2 className="text-lg font-semibold">Video clips</h2>
 
       {clips.length > 0 && (
         <div className="divide-y divide-border rounded-xl border border-border bg-card">

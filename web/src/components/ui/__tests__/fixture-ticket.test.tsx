@@ -34,6 +34,6 @@ describe("FixtureTicket", () => {
     rerender(
       <FixtureTicket weekday="Sun" day="12" month="Oct" time="09:00" opponent="Durban Rovers" isHome={false} />
     );
-    expect(screen.getByText("@ Durban Rovers")).toBeInTheDocument();
+    expect(screen.getByText("vs Durban Rovers (away)")).toBeInTheDocument();
   });
 });

@@ -57,7 +57,7 @@ function PlayerUnlinked({ playerError }: Readonly<{ playerError: { code?: string
   }
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">My Passport</h1>
+      <h1 className="text-2xl font-bold">My passport</h1>
 
       {notYetLinked ? (
         <>
@@ -288,7 +288,7 @@ export default async function PlayerDashboardPage({
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">My Passport</h1>
+      <h1 className="text-2xl font-bold">My passport</h1>
       <QueryTabs tabs={TABS} active={tab} basePath="/dashboard/player" />
 
       {needsRegistration && (
@@ -360,7 +360,7 @@ export default async function PlayerDashboardPage({
         {/* Share */}
         <Card>
           <CardHeader>
-            <CardTitle>Share Passport</CardTitle>
+            <CardTitle>Share passport</CardTitle>
             <CardDescription>
               Your public page includes a QR code scouts can scan. This code
               identifies your passport — it does not give anyone access to your
@@ -399,7 +399,7 @@ export default async function PlayerDashboardPage({
           <Target className="size-5" aria-hidden="true" />
         </span>
         <span className="flex-1 min-w-0">
-          <span className="block font-semibold text-sm">My Development</span>
+          <span className="block font-semibold text-sm">My development</span>
           <span className="block text-xs text-muted-foreground">
             {milestoneTotal > 0
               ? `${milestoneDone} of ${milestoneTotal} milestones done · ${milestonePct}%`
@@ -452,7 +452,7 @@ export default async function PlayerDashboardPage({
 
       {myClips.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-base font-semibold">My Clips</h2>
+          <h2 className="text-base font-semibold">My clips</h2>
           <div className="divide-y divide-border rounded-xl border border-border bg-card">
             {myClips.map((clip) => (
               <div key={clip.id} className="flex items-start gap-3 px-4 py-3.5">
@@ -493,7 +493,7 @@ export default async function PlayerDashboardPage({
           <FileText className="size-5" aria-hidden="true" />
         </span>
         <span className="flex-1 min-w-0">
-          <span className="block font-semibold text-sm">My Records</span>
+          <span className="block font-semibold text-sm">My records</span>
           <span className="block text-xs text-muted-foreground">
             Registration numbers and {currentSeason} season documents
             {docsOutstanding > 0 ? ` · ${docsOutstanding} still outstanding` : ""}

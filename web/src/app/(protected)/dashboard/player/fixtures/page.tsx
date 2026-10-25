@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
+import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant, matchup } from "@/lib/fixtures";
 import { formatWeekdayDayMonth } from "@/lib/time";
 import { getAuthUser } from "@/lib/auth";
 
@@ -87,7 +87,7 @@ export default async function PlayerFixturesPage() {
       <div className="px-4 py-3 space-y-1">
         <div className="flex items-center justify-between">
           <div className="min-w-0">
-            <p className="font-medium">{f.is_home ? "vs" : "@"} {f.opponent}</p>
+            <p className="font-medium">{matchup(f.opponent, f.is_home)}</p>
             <p className="text-xs text-muted-foreground">
               {formatWeekdayDayMonth(date)}
               {f.venue && ` · ${f.venue}`}
@@ -132,7 +132,7 @@ export default async function PlayerFixturesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">My Fixtures</h1>
+      <h1 className="text-2xl font-bold">My fixtures</h1>
 
       {allFixtures.length === 0 ? (
         <Card>

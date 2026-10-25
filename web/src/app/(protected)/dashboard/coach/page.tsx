@@ -5,21 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
-import { FixtureTicket } from "@/components/ui/fixture-ticket";
 import { ListRow, GroupedSection } from "@/components/ui/list-row";
 import { IconTile } from "@/components/ui/icon-tile";
 import { Suspense } from "react";
-import { Users, Calendar, Plus, Dumbbell } from "lucide-react";
+import { Users, Calendar, Dumbbell } from "lucide-react";
 import { CreateTeamForm } from "@/components/create-team-form";
 import { JoinTeamForm } from "@/components/join-team-form";
 import { CopyButton } from "@/components/copy-button";
-import { daysFromNow } from "@/lib/utils";
-import { isHappeningNow, sessionWindowStart } from "@/lib/session-window";
+import { sessionWindowStart } from "@/lib/session-window";
 import { getCoachedTeamIds } from "@/lib/coached-teams";
 import { reportError } from "@/lib/report-error";
 import { RetryButton } from "@/components/ui/retry-button";
-import { CardSkeleton, HatCards, NeedsYou, OpenObjectives } from "./today-cards";
-import { currentHourInTimezone, formatInTimezone, formatTime, formatWeekdayDayMonth } from "@/lib/time";
+import { CardSkeleton, HatCards, NeedsYou, OpenObjectives, ThisWeekMoments } from "./today-cards";
+import { ComingUp, NextUpCard, type AgendaItem } from "./next-up";
+import { calendarDaysUntil } from "@/lib/today-moments";
+import { currentHourInTimezone, formatWeekdayDayMonth } from "@/lib/time";
 
 function greeting() {
   const hour = currentHourInTimezone();
@@ -48,9 +48,10 @@ export default async function CoachDashboardPage() {
   const weekAhead = new Date(new Date(now).getTime() + 7 * 24 * 3600 * 1000).toISOString();
 
   type UpcomingFixtureRow = {
-    id: string; opponent: string; fixture_date: string; is_home: boolean; team_id: string;
-    teams: { name: string } | { name: string }[] | null;
+    id: string; opponent: string; fixture_date: string; is_home: boolean; team_id: string; venue: string | null;
+    teams: TeamRef | TeamRef[] | null;
   };
+  type TeamRef = { name: string; age_group: string | null };
 
   // Counts and what's next in one round of parallel queries. The slower
   // to-dos, objectives and hat cards stream in behind Suspense below
@@ -74,7 +75,7 @@ export default async function CoachDashboardPage() {
       // coach account — a coach running U11/U13/U15 has a Sunday for each.
       ? supabase
           .from("fixtures")
-          .select("id, opponent, fixture_date, is_home, team_id, teams(name)")
+          .select("id, opponent, fixture_date, is_home, team_id, venue, teams(name, age_group)")
           .in("team_id", teamIds)
           .eq("status", "upcoming")
           .gte("fixture_date", now)
@@ -84,7 +85,7 @@ export default async function CoachDashboardPage() {
     teamIds.length
       ? supabase
           .from("training_sessions")
-          .select("id, title, session_date, location, session_type, team_id, teams(name)")
+          .select("id, title, session_date, location, session_type, team_id, teams(name, age_group)")
           .in("team_id", teamIds)
           // From the start of the window, not from now: a session that has
           // begun stays on Today while it is on (lib/session-window.ts).
@@ -138,21 +139,33 @@ export default async function CoachDashboardPage() {
   const multiTeam = allTeams.length > 1;
   const teamNames = Object.fromEntries(rawTeams.map((t) => [t.id, t.name]));
 
+  // One list of what's coming, soonest first: the hero card takes the first,
+  // the rest are quiet rows. A team label only when there is more than one.
+  const teamLabel = (ref: TeamRef | TeamRef[] | null) => {
+    const t = Array.isArray(ref) ? ref[0] : ref;
+    return multiTeam && t ? t.age_group || t.name : null;
+  };
+  const agenda: AgendaItem[] = [
+    ...upcomingTeamFixtures.map((f): AgendaItem => ({
+      kind: "fixture", id: f.id, at: f.fixture_date, opponent: f.opponent, isHome: f.is_home, venue: f.venue, team: teamLabel(f.teams),
+    })),
+    ...(nextSession
+      ? [{
+          kind: "session", id: nextSession.id, at: nextSession.session_date, title: nextSession.title,
+          location: nextSession.location, team: teamLabel(nextSession.teams as TeamRef | TeamRef[] | null),
+        } as AgendaItem]
+      : []),
+  ].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+  const nowDate = new Date(now);
+  const [nextUp, ...later] = agenda;
+  const todayCount = agenda.filter((i) => calendarDaysUntil(i.at, nowDate) === 0).length;
+  const matchDay = upcomingTeamFixtures.some((f) => calendarDaysUntil(f.fixture_date, nowDate) === 0);
+
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow={formatWeekdayDayMonth(new Date())}
+        eyebrow={`${formatWeekdayDayMonth(new Date())}${matchDay ? " · Match day" : ""}`}
         title={`${greeting()}, ${firstName}`}
-        action={
-          allTeams.length > 0 && (
-            <Button asChild size="sm" variant="outline">
-              <Link href="#create-team">
-                <Plus className="size-4" aria-hidden="true" />
-                New team
-              </Link>
-            </Button>
-          )
-        }
       />
 
       {teamsError ? (
@@ -212,7 +225,7 @@ export default async function CoachDashboardPage() {
               </CardContent>
             </Card>
           )}
-          {!nextUpError && upcomingTeamFixtures.length === 0 && !nextSession && (
+          {!nextUpError && agenda.length === 0 && (
             <div className="rounded-xl border border-dashed border-border bg-card/50 px-5 py-6 space-y-3">
               <p className="text-sm text-muted-foreground">No upcoming fixtures or training sessions yet.</p>
               <div className="flex flex-wrap gap-2">
@@ -231,63 +244,22 @@ export default async function CoachDashboardPage() {
               </div>
             </div>
           )}
-          {!nextUpError && upcomingTeamFixtures.map((fixture) => {
-            const date = new Date(fixture.fixture_date);
-            const teamName = multiTeam
-              ? (Array.isArray(fixture.teams) ? fixture.teams[0]?.name : (fixture.teams as { name: string } | null)?.name)
-              : null;
-            return (
-              <FixtureTicket
-                key={fixture.id}
-                href={`/dashboard/coach/fixtures/${fixture.id}`}
-                weekday={formatInTimezone(date, { weekday: "short" })}
-                day={formatInTimezone(date, { day: "numeric" })}
-                month={formatInTimezone(date, { month: "short" })}
-                time={formatTime(date)}
-                opponent={fixture.opponent}
-                isHome={fixture.is_home}
-                teamName={teamName}
-              />
-            );
-          })}
-          {/* Training always shows alongside fixtures now, not only when no
-              team has one — a coach with Sunday's match already ticketed
-              above still needs to see Wednesday's session. */}
-          {!nextUpError && nextSession && (() => {
-            const days = daysFromNow(nextSession.session_date);
-            const date = new Date(nextSession.session_date);
-            const teamName = multiTeam
-              ? (Array.isArray(nextSession.teams) ? nextSession.teams[0]?.name : (nextSession.teams as { name: string } | null)?.name)
-              : null;
-            const onNow = isHappeningNow(nextSession.session_date, new Date(now).getTime());
-            const daysLabel = days <= 0 ? "Today" : days === 1 ? "Tomorrow" : `In ${days} days`;
-            return (
-              <Link
-                href={`/dashboard/coach/training/${nextSession.id}`}
-                className="group block rounded-2xl bg-[#a71817] p-5 text-white shadow-[0_12px_28px_rgb(167_24_23/0.25)] transition-transform duration-200 active:scale-[0.99]"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-[13px] font-semibold text-white/90">
-                    {onNow ? "Training now" : `Next training · ${daysLabel}`}
-                  </p>
-                  <span className="grid size-9 place-items-center rounded-full bg-white/15">
-                    <Dumbbell className="size-4" aria-hidden="true" />
-                  </span>
-                </div>
-                <p className="mt-1.5 text-[22px] font-bold leading-tight tracking-[-0.01em]">{nextSession.title}</p>
-                <p className="mt-1 text-[15px] text-white/90">
-                  {formatWeekdayDayMonth(date)}
-                  {" · "}
-                  {formatTime(date)}
-                  {nextSession.location && ` · ${nextSession.location}`}
-                  {teamName && ` · ${teamName}`}
-                </p>
-                <span className="mt-4 flex h-11 items-center justify-center rounded-full bg-white px-5 text-[17px] font-semibold text-[#a71817] transition-colors group-hover:bg-white/90 sm:inline-flex">
-                  {onNow ? "Take the register" : "Open the session"}
-                </span>
-              </Link>
-            );
-          })()}
+          {!nextUpError && nextUp && (
+            <>
+              <NextUpCard item={nextUp} now={nowDate} sameDayCount={calendarDaysUntil(nextUp.at, nowDate) === 0 ? todayCount : 0} />
+              <ComingUp items={later} now={nowDate} />
+            </>
+          )}
+
+          {/* ── To-do: counts plus a link to the list, not a deep link per
+              item (docs/AI_FEATURES_AND_IA.md Part 4). ───────────────── */}
+          <Suspense fallback={<CardSkeleton />}>
+            <NeedsYou teamIds={teamIds} now={now} />
+          </Suspense>
+
+          <Suspense fallback={null}>
+            <ThisWeekMoments teams={rawTeams} multiTeam={multiTeam} now={now} />
+          </Suspense>
 
           <Suspense fallback={null}>
             <OpenObjectives teamIds={teamIds} teamNames={multiTeam ? teamNames : undefined} />
@@ -295,12 +267,6 @@ export default async function CoachDashboardPage() {
 
           <Suspense fallback={null}>
             <HatCards userId={user.id} academyId={profile?.academy_id ?? null} />
-          </Suspense>
-
-          {/* ── To-do: counts plus a link to the list, not a deep link per
-              item (docs/AI_FEATURES_AND_IA.md Part 4). ───────────────── */}
-          <Suspense fallback={<CardSkeleton />}>
-            <NeedsYou teamIds={teamIds} now={now} />
           </Suspense>
 
           {/* ── Teams ─────────────────────────────────────────────── */}

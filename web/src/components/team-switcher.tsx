@@ -58,12 +58,13 @@ export function TeamSwitcher({ teams }: Props) {
       <select
         value={current}
         onChange={(e) => handleChange(e.target.value)}
-        className="rounded-md border border-border bg-transparent py-1.5 pl-2 pr-1 text-sm font-medium"
+        className="h-9 max-w-[11rem] truncate rounded-md border border-border bg-transparent pl-2 pr-1 text-sm font-medium pointer-coarse:h-11"
       >
         {teams.map((t) => (
           <option key={t.id} value={t.id}>
             {t.name}
-            {t.age_group ? ` · ${t.age_group}` : ""}
+            {/* "Growfit U13 · U13" said the age group twice. */}
+            {t.age_group && !t.name.includes(t.age_group) ? ` · ${t.age_group}` : ""}
           </option>
         ))}
       </select>

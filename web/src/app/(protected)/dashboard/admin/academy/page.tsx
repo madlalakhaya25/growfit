@@ -79,7 +79,7 @@ export default async function AcademySettingsPage({
   return (
     <div className="space-y-8 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold">Academy Settings</h1>
+        <h1 className="text-2xl font-bold">Academy settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Manage your club information and member join code.
         </p>

@@ -40,3 +40,13 @@ export function fixtureStatusVariant(fixture: { status: string; fixture_date: st
   if (fixture.status === "postponed") return "warning";
   return "neutral";
 }
+
+/**
+ * "vs Pinetown City", or "vs Pinetown City (away)". Replaces the "@ Pinetown
+ * City" shorthand for away games: an American sports convention that parents
+ * here don't use, and coaches saw "@" while parents and players saw "vs" for
+ * the same match.
+ */
+export function matchup(opponent: string, isHome: boolean): string {
+  return `vs ${opponent}${isHome ? "" : " (away)"}`;
+}

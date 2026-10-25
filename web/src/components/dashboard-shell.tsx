@@ -1,25 +1,21 @@
 "use client";
-import { forgetSignIn } from "@/lib/auth-cookies";
-import { clearLocalData } from "@/lib/clear-local-data";
 import { OfflineBanner } from "@/components/offline-banner";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useTransition } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
-  LayoutDashboard,
+  Home,
   Users,
-  Calendar,
+  CalendarDays,
   UserCircle,
   LogOut,
-  Megaphone,
+  MessageSquare,
   Dumbbell,
-  Settings,
-  Building2,
-  Lightbulb,
+  ShieldCheck,
+  FileCheck,
   Loader2,
-  FileText,
+  Star,
+  Trophy,
   BarChart3,
-  MoreHorizontal,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -29,8 +25,8 @@ import { QuickActionsSheet } from "@/components/quick-actions-sheet";
 import { AskGrowfitSheet } from "@/components/ai/ask-growfit-sheet";
 import { SectionTabs } from "@/components/ui/section-tabs";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
-import { useAuthStore } from "@/store/authStore";
+import { useSignOut } from "@/lib/use-sign-out";
+import { getInitials } from "@/lib/player";
 import { pickLongestActiveHref } from "@/lib/nav";
 import { readCurrentTeamCookie, resolveCurrentTeamId } from "@/lib/current-team";
 import type { UserRole } from "@/lib/types";
@@ -49,8 +45,6 @@ interface Tab {
 interface NavSection {
   key: string;
   label: string;
-  mobileLabel?: string;
-  mobileHide?: boolean;
   Icon: React.ComponentType<{ className?: string }>;
   /** Always at least one entry here — the first is the section's own link
    * and active-check target, and a second+ entry renders as `SectionTabs`
@@ -60,15 +54,16 @@ interface NavSection {
   tabs: [Tab, ...Tab[]];
 }
 
-// Grouped from the previous flat NAV_BY_ROLE lists (6 items for coach, with
-// several real pages — the assistant, welfare, two admin pages — reachable
-// by no nav item at all) into a handful of sections per role, each with
-// its own sub-navigation. Every URL below already existed; this only
-// changes how they're grouped and reached. See
-// docs/AI_FEATURES_AND_IA.md Part 4 for the full reasoning.
+// One tab bar per role, named for the academy's week rather than the app's
+// features, and the same word on phone, desktop and page header. Every URL
+// below already existed; this only changes how they're grouped and named.
+// The user stories each tab serves are in the "Growfit navigation and
+// structure proposal" doc (User stories tab); docs/AI_FEATURES_AND_IA.md
+// Part 4 has the earlier reasoning. Settings sits under Me for every role,
+// so nothing needs its own header button on a phone.
 const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
   admin: [
-    { key: "overview", label: "Overview", Icon: LayoutDashboard, tabs: [{ href: "/dashboard/admin", label: "Overview" }] },
+    { key: "club", label: "Club", Icon: ShieldCheck, tabs: [{ href: "/dashboard/admin", label: "Club" }] },
     {
       key: "people", label: "People", Icon: Users,
       tabs: [
@@ -77,34 +72,36 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
       ],
     },
     {
-      key: "compliance", label: "Compliance", Icon: FileText,
+      key: "paperwork", label: "Paperwork", Icon: FileCheck,
       tabs: [
-        { href: "/dashboard/admin/players/documents", label: "Documents" },
+        { href: "/dashboard/admin/players/documents", label: "Player forms" },
         { href: "/dashboard/admin/reports", label: "Reports" },
       ],
     },
     {
-      key: "insights", label: "Insights", Icon: BarChart3, mobileHide: true,
+      key: "season", label: "Season", Icon: BarChart3,
       tabs: [
-        { href: "/dashboard/admin/analytics", label: "Analytics" },
+        { href: "/dashboard/admin/analytics", label: "Attendance" },
         { href: "/dashboard/admin/development", label: "Development" },
+        { href: "/dashboard/admin/drills", label: "Drills" },
       ],
     },
     {
-      key: "academy", label: "Academy", Icon: Building2, mobileHide: true,
+      key: "me", label: "Me", Icon: UserCircle,
       tabs: [
+        { href: "/dashboard/admin/settings", label: "Settings" },
         { href: "/dashboard/admin/academy", label: "Academy" },
-        { href: "/dashboard/admin/drills", label: "Drills" },
-        { href: "/dashboard/admin/agent", label: "Agent", feature: "agent" },
+        { href: "/dashboard/admin/agent", label: "Automations", feature: "agent" },
       ],
     },
   ],
   coach: [
-    { key: "today", label: "Overview", mobileLabel: "Home", Icon: LayoutDashboard, tabs: [{ href: "/dashboard/coach", label: "Today" }] },
+    { key: "today", label: "Today", Icon: Home, tabs: [{ href: "/dashboard/coach", label: "Today" }] },
     {
-      key: "matchday", label: "Matchday", Icon: Calendar,
+      key: "matches", label: "Matches", Icon: Trophy,
       tabs: [
-        { href: "/dashboard/coach/fixtures", label: "Fixtures" },
+        { href: "/dashboard/coach/fixtures", label: "Matches" },
+        { href: "/dashboard/coach/tactics", label: "Plays", feature: "tactics" },
         { href: "/dashboard/coach/tactics/film", label: "Film", feature: "film" },
       ],
     },
@@ -112,57 +109,63 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
       key: "squad", label: "Squad", Icon: Users,
       tabs: [
         { href: "/dashboard/coach/squad", label: "Players" },
-        { href: "/dashboard/coach/welfare", label: "Welfare" },
-        { href: "/dashboard/coach/squad/emergency", label: "Emergency" },
+        { href: "/dashboard/coach/welfare", label: "Check-ins" },
+        { href: "/dashboard/coach/squad/emergency", label: "Who to call" },
       ],
     },
     {
-      key: "develop", label: "Develop", Icon: Dumbbell,
+      key: "training", label: "Training", Icon: Dumbbell,
       tabs: [
-        { href: "/dashboard/coach/training", label: "Training" },
-        { href: "/dashboard/coach/training/challenges", label: "Challenges", feature: "coach_extras" },
+        { href: "/dashboard/coach/training", label: "Sessions" },
         { href: "/dashboard/coach/training/drills", label: "Library", feature: "coach_extras" },
-        { href: "/dashboard/coach/learn", label: "Learn", feature: "coach_extras" },
-        { href: "/dashboard/coach/tactics", label: "Tactics", feature: "tactics" },
+        { href: "/dashboard/coach/training/challenges", label: "Challenges", feature: "coach_extras" },
       ],
     },
     {
-      key: "more", label: "More", Icon: MoreHorizontal,
+      key: "me", label: "Me", Icon: UserCircle,
       tabs: [
-        { href: "/dashboard/coach/announcements", label: "Posts" },
-        { href: "/dashboard/coach/assistant", label: "Assistant", feature: "assistant" },
-        { href: "/dashboard/coach/agent", label: "Agent", feature: "agent" },
         { href: "/dashboard/coach/settings", label: "Settings" },
+        { href: "/dashboard/coach/announcements", label: "Messages" },
+        { href: "/dashboard/coach/learn", label: "Learn", feature: "coach_extras" },
+        { href: "/dashboard/coach/assistant", label: "Assistant", feature: "assistant" },
+        { href: "/dashboard/coach/agent", label: "Automations", feature: "agent" },
       ],
     },
   ],
   player: [
-    { key: "passport", label: "My Passport", mobileLabel: "Passport", Icon: UserCircle, tabs: [{ href: "/dashboard/player", label: "Passport" }] },
+    { key: "home", label: "Home", Icon: Home, tabs: [{ href: "/dashboard/player", label: "Home" }] },
     {
-      key: "schedule", label: "Schedule", Icon: Calendar,
+      key: "calendar", label: "Calendar", Icon: CalendarDays,
       tabs: [
-        { href: "/dashboard/player/fixtures", label: "Matches" },
         { href: "/dashboard/player/training", label: "Training" },
+        { href: "/dashboard/player/fixtures", label: "Matches" },
       ],
     },
     {
-      key: "learn", label: "Learn", Icon: Lightbulb,
+      key: "game", label: "My game", Icon: Star,
       tabs: [
-        { href: "/dashboard/player/tactics", label: "Plays", feature: "tactics" },
-        { href: "/dashboard/player/homework", label: "Homework", feature: "tactics" },
-        { href: "/dashboard/player/development", label: "Development" },
+        { href: "/dashboard/player/development", label: "Progress" },
         { href: "/dashboard/player/challenges", label: "Challenges" },
+        { href: "/dashboard/player/records", label: "Records" },
       ],
     },
-    { key: "posts", label: "Announcements", mobileLabel: "Posts", Icon: Megaphone, tabs: [{ href: "/dashboard/player/announcements", label: "Posts" }] },
+    {
+      key: "coach", label: "Coach", Icon: MessageSquare,
+      tabs: [
+        { href: "/dashboard/player/homework", label: "Homework", feature: "tactics" },
+        { href: "/dashboard/player/tactics", label: "Plays", feature: "tactics" },
+        { href: "/dashboard/player/announcements", label: "Messages" },
+      ],
+    },
+    { key: "me", label: "Me", Icon: UserCircle, tabs: [{ href: "/dashboard/player/settings", label: "Settings" }] },
   ],
   parent: [
-    { key: "children", label: "My Children", mobileLabel: "Children", Icon: UserCircle, tabs: [{ href: "/dashboard/parent", label: "My Children" }] },
-    { key: "fixtures", label: "Fixtures", Icon: Calendar, tabs: [{ href: "/dashboard/parent/fixtures", label: "Fixtures" }] },
-    { key: "posts", label: "Announcements", mobileLabel: "Posts", Icon: Megaphone, tabs: [{ href: "/dashboard/parent/announcements", label: "Posts" }] },
+    { key: "home", label: "Home", Icon: Home, tabs: [{ href: "/dashboard/parent", label: "Home" }] },
+    { key: "matches", label: "Matches", Icon: CalendarDays, tabs: [{ href: "/dashboard/parent/fixtures", label: "Matches" }] },
+    { key: "messages", label: "Messages", Icon: MessageSquare, tabs: [{ href: "/dashboard/parent/announcements", label: "Messages" }] },
+    { key: "me", label: "Me", Icon: UserCircle, tabs: [{ href: "/dashboard/parent/settings", label: "Settings" }] },
   ],
 };
-
 
 interface Props {
   profile: { role: string; full_name: string; avatar_url: string | null };
@@ -175,10 +178,7 @@ interface Props {
 
 export function DashboardShell({ profile, teams = [], features, academyName, children }: Readonly<Props>) {
   const pathname = usePathname();
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const clearAuth = useAuthStore((s) => s.clear);
-  const supabase = createClient();
 
   const role = profile.role as UserRole;
   const roleRoot = `/dashboard/${role}`;
@@ -190,7 +190,7 @@ export function DashboardShell({ profile, teams = [], features, academyName, chi
   const sections = allSections
     .map((s) => ({ ...s, tabs: s.tabs.filter((t) => !t.feature || features?.[t.feature] !== false) }))
     .filter((s) => s.tabs.length > 0);
-  const [isSigningOut, startSignOut] = useTransition();
+  const { signOut: handleSignOut, isSigningOut } = useSignOut();
 
   // The single longest-matching href across every visible section's tabs,
   // not just the first section that has any match at all -- see
@@ -206,18 +206,6 @@ export function DashboardShell({ profile, teams = [], features, academyName, chi
   // click -- well after hydration, so there's nothing for the server and
   // client's first render to disagree about.
   const currentTeamId = resolveCurrentTeamId(teams, searchParams.get("team"), readCurrentTeamCookie());
-
-  function handleSignOut() {
-    startSignOut(async () => {
-      await supabase.auth.signOut();
-      // Forget that this device keeps its sign-in (lib/auth-cookies.ts).
-      forgetSignIn();
-      clearAuth();
-      // Children's data held on this device (offline queue, drafts, cached pages).
-      await clearLocalData().catch(() => {});
-      router.push("/auth/login");
-    });
-  }
 
   return (
     <div className="flex min-h-dvh bg-background">
@@ -254,23 +242,13 @@ export function DashboardShell({ profile, teams = [], features, academyName, chi
         <div className="border-t border-hairline p-3 space-y-2">
           <div className="flex items-center gap-3 px-3 py-2">
             <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand text-brand-foreground text-xs font-bold">
-              {profile.full_name.slice(0, 2).toUpperCase()}
+              {getInitials(profile.full_name)}
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{profile.full_name}</p>
               <p className="text-xs capitalize text-muted-foreground">{profile.role}</p>
             </div>
           </div>
-          <Link
-            href={`${roleRoot}/settings`}
-            className={cn(
-              "flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-hover hover:text-foreground",
-              pathname.startsWith(`${roleRoot}/settings`) && "bg-primary/10 text-primary"
-            )}
-          >
-            <Settings className="size-4" aria-hidden="true" />
-            Settings
-          </Link>
           <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={handleSignOut} disabled={isSigningOut}>
             {isSigningOut ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <LogOut className="size-4" aria-hidden="true" />}
             {isSigningOut ? "Signing out…" : "Sign out"}
@@ -290,55 +268,54 @@ export function DashboardShell({ profile, teams = [], features, academyName, chi
             {role === "coach" && teams.length > 1 && <TeamSwitcher teams={teams} />}
             {role === "coach" && (features?.assistant !== false) && <AskGrowfitSheet />}
             {role === "coach" && <QuickActionsSheet defaultTeamId={currentTeamId ?? undefined} />}
-            <ThemeToggle />
-            <Link
-              href={`${roleRoot}/settings`}
-              className="lg:hidden grid size-9 place-items-center rounded-md text-muted-foreground hover:bg-hover hover:text-foreground transition-colors"
-              aria-label="Settings"
-            >
-              <Settings className="size-4" aria-hidden="true" />
-            </Link>
-            <Button variant="ghost" size="sm" className="px-2 lg:hidden" onClick={handleSignOut} aria-label="Sign out">
-              <LogOut className="size-4" aria-hidden="true" />
-            </Button>
+            {/* Theme and sign-out live in Me, Settings on a phone: with them
+                here the coach header measured 432 px on a 390 px screen,
+                pushing Sign out off the edge. */}
+            <div className="hidden lg:block">
+              <ThemeToggle />
+            </div>
           </div>
         </header>
 
         {/* Section sub-navigation — only when the active section has more
-            than one real destination (e.g. Matchday's Fixtures/Film). */}
+            than one real destination (e.g. Matches, Plays and Film). */}
         {activeSection && activeSection.tabs.length > 1 && (
           <div className="px-4 pt-4 lg:px-8">
             <SectionTabs tabs={activeSection.tabs} />
           </div>
         )}
 
-        {/* Bottom padding on phones keeps the last card clear of the floating tab bar. */}
-        <main className="flex-1 overflow-y-auto px-4 pt-6 pb-32 lg:px-8 lg:pb-10">
+        {/* Bottom padding on phones keeps the last card clear of the tab bar. */}
+        <main className="flex-1 overflow-y-auto px-4 pt-6 pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:px-8 lg:pb-10">
           <OfflineBanner />
           {children}
         </main>
 
         {/* ── Mobile bottom nav ─────────────────────────────── */}
-        {/* A floating, frosted tab bar: lifted off the page so it reads as
-            the app's controls, not part of the content, and inset from the
-            screen edge and home indicator. */}
+        {/* A solid tab bar docked to the bottom edge. It used to float,
+            frosted and translucent, and buttons and form fields showed
+            through it mid-scroll, readable enough to look tappable but
+            covered. Solid, with the page padded to clear it. */}
         <nav
-          className="fixed inset-x-4 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 flex rounded-full border border-white/40 bg-card/70 p-1.5 shadow-float backdrop-blur-2xl backdrop-saturate-[1.8] dark:border-white/10 lg:hidden"
+          className="fixed inset-x-0 bottom-0 z-40 flex border-t border-hairline bg-card px-2 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] lg:hidden"
           aria-label="Mobile navigation"
         >
-          {sections.filter((s) => !s.mobileHide).map(({ key, label, mobileLabel, Icon, tabs }) => {
+          {sections.map(({ key, label, Icon, tabs }) => {
             const active = activeSection?.key === key;
             return (
               <Link
                 key={key}
                 href={tabs[0].href}
+                aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-xs font-semibold transition-colors",
-                  active ? "bg-primary/10 text-primary" : "text-foreground/80"
+                  "flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-colors",
+                  active ? "text-primary" : "text-muted-foreground"
                 )}
               >
-                <Icon className={cn("size-[22px]", active && "text-primary")} aria-hidden="true" />
-                {mobileLabel ?? label}
+                <span className={cn("grid h-7 w-14 place-items-center rounded-full transition-colors", active && "bg-primary/10")}>
+                  <Icon className="size-[22px]" aria-hidden="true" />
+                </span>
+                {label}
               </Link>
             );
           })}

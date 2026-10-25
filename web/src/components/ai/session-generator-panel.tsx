@@ -97,7 +97,7 @@ export function SessionGeneratorPanel({ sessionId, teamId, suggestedSquadSize = 
       <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
           <Wand2 className="size-4 text-primary shrink-0" aria-hidden="true" />
-          <p className="font-semibold text-sm">AI Session Generator</p>
+          <p className="font-semibold text-sm">AI session planner</p>
         </div>
         {plan && (
           <button
@@ -116,7 +116,7 @@ export function SessionGeneratorPanel({ sessionId, teamId, suggestedSquadSize = 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground" htmlFor="sg-age-group">
-                Age Group
+                Age group
               </label>
               <input
                 id="sg-age-group"
@@ -130,7 +130,7 @@ export function SessionGeneratorPanel({ sessionId, teamId, suggestedSquadSize = 
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground" htmlFor="sg-focus">
-                Session Focus
+                Session focus
               </label>
               <input
                 id="sg-focus"
@@ -161,7 +161,7 @@ export function SessionGeneratorPanel({ sessionId, teamId, suggestedSquadSize = 
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground" htmlFor="sg-squad">
-                Squad Size
+                Squad size
               </label>
               <input
                 id="sg-squad"
@@ -192,7 +192,7 @@ export function SessionGeneratorPanel({ sessionId, teamId, suggestedSquadSize = 
             className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             <Wand2 className="size-3.5" aria-hidden="true" />
-            {isPending ? "Generating…" : "Generate Session Plan"}
+            {isPending ? "Generating…" : "Generate session plan"}
           </button>
 
           {isPending && (

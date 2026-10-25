@@ -211,7 +211,7 @@ export default async function TermReportPrintPage({
             <img src="/growfit.png" alt="Growfit" className="header-logo" />
             <div>
               <h1>Growfit Football Academy</h1>
-              <h2>Term Report</h2>
+              <h2>Term report</h2>
             </div>
           </div>
           <div style={{ textAlign: "right", fontSize: 11, color: "#777" }}>
@@ -243,7 +243,7 @@ export default async function TermReportPrintPage({
           )}
         </div>
 
-        <h3>Training Attendance</h3>
+        <h3>Training attendance</h3>
         <p style={{ fontSize: 11, color: "#777", margin: "0 0 4px" }}>
           Last {ATTENDANCE_WINDOW_DAYS} days
         </p>
@@ -280,7 +280,7 @@ export default async function TermReportPrintPage({
           })
         )}
 
-        <h3>Match Ratings</h3>
+        <h3>Match ratings</h3>
         <div className="stat-row">
           <div className="stat">
             <div className="stat-num">{ratings.length}</div>

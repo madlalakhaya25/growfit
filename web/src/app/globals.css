@@ -16,10 +16,12 @@
 @theme {
   /* Surfaces — a calm, near-white canvas with pure white cards, so content
      sits on raised sheets the way it does on a phone's own settings
-     screens. Was warm paper (#faf7f2); the 2026-10 redesign moved to a
-     quieter neutral so the one Growfit red does all the talking. */
-  --color-background:           #f2f2f7;
-  --color-foreground:           #000000;
+     screens. Was warm paper (#faf7f2), then a cool #f2f2f7; back to a
+     warm paper #f6f3ee on 2026-10-25, when Khaya chose the "light card,
+     red edge" look from the design canvas: white cards on warm paper, red
+     for the one card that matters and for actions. */
+  --color-background:           #f6f3ee;
+  --color-foreground:           #141414;
   --color-card:                 #ffffff;
   --color-card-foreground:      #000000;
   --color-popover:              #ffffff;
@@ -76,6 +78,37 @@
   --color-warning:              #d97706;
   --color-destructive:          #dc2626;
   --color-destructive-foreground: #ffffff;
+
+  /* Warm accents (2026-10-25 "light card, red edge" look). Sun is for
+     good news: birthdays, streaks, milestones. Clay is for "needs a word":
+     low attendance, an injury, forms due. Each pair is a tint and the text
+     that clears 4.5:1 on it. Neither is a warning colour; amber still is. */
+  --color-sun:                  #fff4d6;
+  --color-sun-foreground:       #5c4300;
+  --color-clay:                 #fbebdd;
+  --color-clay-foreground:      #8a420a;
+
+  /* Kit avatars: a player with no photo gets a shirt in one of these soft
+     colours (picked from their name, so it never changes) with their first
+     initial on it. The initial is always --color-kit-ink: the shirts are
+     light in both themes, like a real kit under floodlights. */
+  --color-kit-1:                #cfe3d6;
+  --color-kit-2:                #f6e0a8;
+  --color-kit-3:                #d7ddf0;
+  --color-kit-4:                #e8d5c4;
+  --color-kit-5:                #f0d4d4;
+  --color-kit-ink:              #141414;
+
+  /* Status colours as TEXT. The three above are bright enough for a dot,
+     a bar or an icon, but as words on white or on their own 15% tint they
+     measured 2.5 to 3.8:1 (axe, 2026-10-25: 25 failures on the squad's
+     "2 docs due" pills alone). These darker shades of the same hues clear
+     4.5:1 on the page, a card and the tint. text-success / text-warning /
+     text-destructive pick them up through the rule in @layer utilities;
+     fills (bg-*, border-*) keep the brighter colour. */
+  --color-success-text:         #166534;
+  --color-warning-text:         #92400e;
+  --color-destructive-text:     #b91c1c;
 
   /* Destructive, but for something drawn on the inverted --color-ink band
      rather than the page — the Delete button on the coach fixture-detail
@@ -189,10 +222,19 @@
   --color-accent:               #2a1110;
   --color-accent-foreground:    #f2a3a0;
 
+  --color-sun:                  #33290f;
+  --color-sun-foreground:       #f6d98a;
+  --color-clay:                 #331f12;
+  --color-clay-foreground:      #f5b98a;
+
   --color-success:              #4ade80;
   --color-warning:              #fbbf24;
   --color-destructive:          #f87171;
   --color-destructive-foreground: #0a0a0b;
+  /* Already light enough to read on the dark page. */
+  --color-success-text:         #4ade80;
+  --color-warning-text:         #fbbf24;
+  --color-destructive-text:     #f87171;
   /* The light theme's destructive red — see the light-theme comment on
      --color-destructive-on-ink above. --color-ink is light in dark mode
      (inverted from this dark page), so it needs the red tuned for a light
@@ -264,6 +306,13 @@
   .dark .hover\:text-primary:hover {
     color: var(--color-primary-text);
   }
+
+  /* Status words use the darker text shades (see --color-warning-text).
+     html raises specificity above the generated .text-* utility. */
+  html .text-success { color: var(--color-success-text); }
+  html .text-warning { color: var(--color-warning-text); }
+  html .text-destructive,
+  html .hover\:text-destructive:hover { color: var(--color-destructive-text); }
 
   /* Display type — page titles, scorelines, jersey numbers, big stat
      numbers. Condensed weights read as "matchday poster", not "admin

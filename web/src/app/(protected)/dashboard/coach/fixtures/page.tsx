@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant } from "@/lib/fixtures";
+import { isFixturePast, fixtureStatusLabel, fixtureStatusVariant, matchup } from "@/lib/fixtures";
 import { resolveCurrentTeamFromCookies } from "@/lib/current-team-server";
 import { formatInTimezone } from "@/lib/time";
 import { requireCoachTeams } from "@/lib/auth";
@@ -37,7 +37,7 @@ export default async function CoachFixturesPage({
       >
         <div className="min-w-0">
           <p className="font-medium">
-            {f.is_home ? "vs" : "@"} {f.opponent}
+            {matchup(f.opponent, f.is_home)}
           </p>
           <p className="text-xs text-muted-foreground">
             {formatInTimezone(date, { weekday: "short", day: "numeric", month: "short", year: "numeric" })}

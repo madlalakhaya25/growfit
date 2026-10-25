@@ -47,7 +47,7 @@ export default async function CoachBoardPage() {
           Back to Tactics
         </Link>
         <div>
-          <h1 className="text-2xl font-bold">Tactical Board</h1>
+          <h1 className="text-2xl font-bold">Tactical board</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Set up your real squad in a formation, drag players to shape it, and draw
             runs and passing lines to walk through a plan.

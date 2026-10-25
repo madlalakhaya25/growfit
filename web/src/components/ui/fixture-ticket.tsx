@@ -1,6 +1,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { matchup } from "@/lib/fixtures";
 
 interface FixtureTicketProps {
   href?: string;
@@ -61,7 +62,7 @@ export function FixtureTicket({
           {teamName && ` · ${teamName}`}
         </p>
         <p className="truncate text-lg font-extrabold leading-tight tracking-tight">
-          {isHome ? "vs" : "@"} {opponent}
+          {matchup(opponent, isHome)}
         </p>
         <p className="text-sm text-muted-foreground">
           {time}

@@ -21,7 +21,9 @@ hex value in a component; use the token (`bg-card`, `text-muted-foreground`).
 
 | Use | Token | Notes |
 |---|---|---|
-| Page | `background` | near-white `#f2f2f7`, black in dark mode |
+| Page | `background` | warm paper `#f6f3ee`, black in dark mode |
+| Good news | `sun` / `sun-foreground` | birthdays, streaks, milestones |
+| Needs a word | `clay` / `clay-foreground` | low attendance, injury, forms due |
 | Raised sheet | `card` | white, `#1c1c1e` in dark mode |
 | Main action, links, active state | `primary` | `#a71817` light; fill `#cf3a38` dark |
 | Red text in dark mode | `.text-primary` | maps to `--color-primary-text` (`#f06462`) automatically |
