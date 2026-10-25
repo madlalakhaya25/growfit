@@ -48,6 +48,17 @@ it("fills the problem on tap and sends its key", async () => {
   expect(await submitAndGetObjective()).toEqual({ phase: "in_possession", problem: LONG_BALLS, problemKey: "ip-long-balls" });
 });
 
+it.each([true, false])("saves each box as its own team's score (home: %s)", async (isHome) => {
+  mockLog.mockResolvedValue({ success: true });
+  render(<LogResultForm fixtureId="f1" squad={[]} isHome={isHome} opponent="Rovers" />);
+  fireEvent.click(screen.getByRole("button", { name: "One more for Us" }));
+  fireEvent.click(screen.getByRole("button", { name: "One more for Us" }));
+  fireEvent.click(screen.getByRole("button", { name: "One more for Rovers" }));
+  fireEvent.submit(screen.getByLabelText("The problem").closest("form")!);
+  await waitFor(() => expect(mockLog).toHaveBeenCalled());
+  expect(mockLog.mock.calls[0][0]).toMatchObject({ team_score: 2, opponent_score: 1 });
+});
+
 it("sends no key for the coach's own words or an edited preset", async () => {
   setup("U13");
   fireEvent.click(screen.getByRole("button", { name: LONG_BALLS }));
