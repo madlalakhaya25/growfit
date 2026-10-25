@@ -77,6 +77,17 @@
   --color-destructive:          #dc2626;
   --color-destructive-foreground: #ffffff;
 
+  /* Status colours as TEXT. The three above are bright enough for a dot,
+     a bar or an icon, but as words on white or on their own 15% tint they
+     measured 2.5 to 3.8:1 (axe, 2026-10-25: 25 failures on the squad's
+     "2 docs due" pills alone). These darker shades of the same hues clear
+     4.5:1 on the page, a card and the tint. text-success / text-warning /
+     text-destructive pick them up through the rule in @layer utilities;
+     fills (bg-*, border-*) keep the brighter colour. */
+  --color-success-text:         #166534;
+  --color-warning-text:         #92400e;
+  --color-destructive-text:     #b91c1c;
+
   /* Destructive, but for something drawn on the inverted --color-ink band
      rather than the page — the Delete button on the coach fixture-detail
      header is the one user today. --color-destructive is tuned for
@@ -193,6 +204,10 @@
   --color-warning:              #fbbf24;
   --color-destructive:          #f87171;
   --color-destructive-foreground: #0a0a0b;
+  /* Already light enough to read on the dark page. */
+  --color-success-text:         #4ade80;
+  --color-warning-text:         #fbbf24;
+  --color-destructive-text:     #f87171;
   /* The light theme's destructive red — see the light-theme comment on
      --color-destructive-on-ink above. --color-ink is light in dark mode
      (inverted from this dark page), so it needs the red tuned for a light
@@ -264,6 +279,13 @@
   .dark .hover\:text-primary:hover {
     color: var(--color-primary-text);
   }
+
+  /* Status words use the darker text shades (see --color-warning-text).
+     html raises specificity above the generated .text-* utility. */
+  html .text-success { color: var(--color-success-text); }
+  html .text-warning { color: var(--color-warning-text); }
+  html .text-destructive,
+  html .hover\:text-destructive:hover { color: var(--color-destructive-text); }
 
   /* Display type — page titles, scorelines, jersey numbers, big stat
      numbers. Condensed weights read as "matchday poster", not "admin
