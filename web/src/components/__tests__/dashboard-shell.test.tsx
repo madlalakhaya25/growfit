@@ -32,68 +32,70 @@ describe("DashboardShell", () => {
         <p>content</p>
       </DashboardShell>
     );
-    expect(screen.getByRole("link", { name: /overview/i })).toHaveAttribute("aria-current", "page");
+    for (const link of screen.getAllByRole("link", { name: /^today$/i })) {
+      expect(link).toHaveAttribute("aria-current", "page");
+    }
     expect(screen.queryByRole("link", { name: "Players" })).not.toBeInTheDocument();
   });
 
-  it("marks Squad active (not Overview) on a nested squad route, and renders its sub-tabs", () => {
+  it("marks Squad active (not Today) on a nested squad route, and renders its sub-tabs", () => {
     mockPathname = "/dashboard/coach/squad";
     render(
       <DashboardShell profile={profile}>
         <p>content</p>
       </DashboardShell>
     );
-    // The bug this guards: the old flat nav's Overview link also matched
+    // The bug this guards: the old flat nav's home link also matched
     // via `pathname.startsWith("/dashboard/coach" + "/")`.
-    const overviewLinks = screen.getAllByRole("link", { name: /overview/i });
-    expect(overviewLinks.every((el) => !el.className.includes("text-primary"))).toBe(true);
+    const todayLinks = screen.getAllByRole("link", { name: /^today$/i });
+    expect(todayLinks.every((el) => el.getAttribute("aria-current") !== "page")).toBe(true);
 
     const squadLinks = screen.getAllByRole("link", { name: /^squad$/i });
-    expect(squadLinks.some((el) => el.className.includes("text-primary"))).toBe(true);
+    expect(squadLinks.some((el) => el.getAttribute("aria-current") === "page")).toBe(true);
 
-    expect(screen.getByRole("link", { name: "Welfare" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Emergency" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Check-ins" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Who to call" })).toBeInTheDocument();
   });
 
   it("drops only the feature-gated tab, keeping its sibling tab and the section itself", () => {
     // Regression test for 4.9: `tactics: false` used to remove the whole
-    // Develop section -- Training along with Tactics -- because the
-    // feature was checked per-section rather than per-tab. Develop should
-    // now survive, pointing at its one remaining tab, Training.
+    // section (then called Develop) -- Training along with Tactics --
+    // because the feature was checked per-section rather than per-tab.
+    // Tactics now sits in Matches as Plays; Matches should survive.
     mockPathname = "/dashboard/coach";
     render(
       <DashboardShell profile={profile} features={{ tactics: false }}>
         <p>content</p>
       </DashboardShell>
     );
-    for (const link of screen.getAllByRole("link", { name: "Develop" })) {
-      expect(link).toHaveAttribute("href", "/dashboard/coach/training");
+    for (const link of screen.getAllByRole("link", { name: "Matches" })) {
+      expect(link).toHaveAttribute("href", "/dashboard/coach/fixtures");
     }
   });
 
-  it("drops only the feature-gated tab for the Matchday section too", () => {
+  it("drops only the feature-gated tab for Film too", () => {
     mockPathname = "/dashboard/coach";
     render(
       <DashboardShell profile={profile} features={{ film: false }}>
         <p>content</p>
       </DashboardShell>
     );
-    for (const link of screen.getAllByRole("link", { name: "Matchday" })) {
+    for (const link of screen.getAllByRole("link", { name: "Matches" })) {
       expect(link).toHaveAttribute("href", "/dashboard/coach/fixtures");
     }
   });
 
-  it("leaves only the weekly-loop tabs in simple mode, keeping Welfare and Emergency", () => {
+  it("leaves only the weekly-loop tabs in simple mode, keeping Check-ins and Who to call", () => {
     mockPathname = "/dashboard/coach/training";
     render(
       <DashboardShell profile={profile} features={SIMPLE_FEATURES}>
         <p>content</p>
       </DashboardShell>
     );
-    for (const name of ["Challenges", "Library", "Learn", "Tactics"]) {
+    for (const name of ["Challenges", "Library", "Learn", "Plays", "Film"]) {
       expect(screen.queryByRole("link", { name })).not.toBeInTheDocument();
     }
-    for (const link of screen.getAllByRole("link", { name: "Develop" })) {
+    for (const link of screen.getAllByRole("link", { name: "Training" })) {
       expect(link).toHaveAttribute("href", "/dashboard/coach/training");
     }
 
@@ -103,8 +105,45 @@ describe("DashboardShell", () => {
         <p>content</p>
       </DashboardShell>
     );
-    expect(screen.getByRole("link", { name: "Welfare" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Emergency" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Check-ins" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Who to call" })).toBeInTheDocument();
+  });
+
+  it("gives every role a Me tab that opens Settings, and shows the whole admin menu on a phone", () => {
+    for (const role of ["coach", "parent", "player", "admin"]) {
+      mockPathname = `/dashboard/${role}`;
+      const { unmount } = render(
+        <DashboardShell profile={{ ...profile, role }}>
+          <p>content</p>
+        </DashboardShell>
+      );
+      for (const link of screen.getAllByRole("link", { name: "Me" })) {
+        expect(link).toHaveAttribute("href", `/dashboard/${role}/settings`);
+      }
+      unmount();
+    }
+
+    mockPathname = "/dashboard/admin";
+    render(
+      <DashboardShell profile={{ ...profile, role: "admin" }}>
+        <p>content</p>
+      </DashboardShell>
+    );
+    const phoneNav = screen.getByRole("navigation", { name: "Mobile navigation" });
+    const labels = Array.from(phoneNav.querySelectorAll("a")).map((a) => a.textContent);
+    expect(labels).toEqual(["Club", "People", "Paperwork", "Season", "Me"]);
+  });
+
+  it("marks Me active, with its sub-tabs, on a coach's settings page", () => {
+    mockPathname = "/dashboard/coach/settings";
+    render(
+      <DashboardShell profile={profile}>
+        <p>content</p>
+      </DashboardShell>
+    );
+    const meLinks = screen.getAllByRole("link", { name: "Me" });
+    expect(meLinks.some((el) => el.getAttribute("aria-current") === "page")).toBe(true);
+    expect(screen.getByRole("link", { name: "Messages" })).toBeInTheDocument();
   });
 
   it("shows the team switcher only with more than one team", () => {

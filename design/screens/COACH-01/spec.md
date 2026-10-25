@@ -34,4 +34,4 @@ Coaches only. Team labels appear on the next-up card, rows and moments only when
 
 ## Open questions
 - [ ] RSVP counts ("12 of 14 coming") on the next-up card, as on the canvas, once match availability is collected.
-- [ ] Bottom nav still says Home/Matchday/Squad/Develop/More; the canvas has Today/Matches/Squad/Training/Me. Part of the navigation review.
+- [x] Bottom nav now says Today/Matches/Squad/Training/Me, as on the canvas (navigation review, 25/10/2026).
