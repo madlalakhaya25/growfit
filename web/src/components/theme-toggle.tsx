@@ -11,8 +11,11 @@ const OPTIONS = [
   { value: "dark", label: "Dark theme", Icon: Moon },
 ] as const;
 
-/** Accessible 3-way theme switch (light / system / dark) as a radio group. */
-export function ThemeToggle() {
+/**
+ * Accessible 3-way theme switch (light / system / dark) as a radio group.
+ * "System" shows only on wide screens unless `showSystem` asks for it.
+ */
+export function ThemeToggle({ showSystem = false }: Readonly<{ showSystem?: boolean }>) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
 
@@ -46,10 +49,10 @@ export function ThemeToggle() {
             title={label}
             onClick={() => setTheme(value)}
             className={cn(
-              "grid size-8 place-items-center rounded-full transition-colors",
+              "grid size-8 place-items-center rounded-full transition-colors pointer-coarse:size-11",
               "text-muted-foreground hover:text-foreground",
               active && "bg-card text-foreground shadow-sm",
-              value === "system" && "hidden lg:grid"
+              value === "system" && !showSystem && "hidden lg:grid"
             )}
           >
             <Icon className="size-4" aria-hidden="true" />

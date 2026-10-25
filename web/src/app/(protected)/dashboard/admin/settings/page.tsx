@@ -3,6 +3,7 @@ import { PoweredByGrowfit } from "@/components/powered-by-growfit";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileForm } from "./profile-form";
 import { ChangePasswordForm } from "@/components/settings/change-password-form";
+import { AccountCard } from "@/components/settings/account-card";
 import { getAuthUser } from "@/lib/auth";
 
 export default async function AdminSettingsPage() {
@@ -29,6 +30,7 @@ export default async function AdminSettingsPage() {
         }}
       />
       <ChangePasswordForm />
+      <AccountCard />
       <PoweredByGrowfit />
     </div>
   );

@@ -1,10 +1,7 @@
 "use client";
-import { forgetSignIn } from "@/lib/auth-cookies";
-import { clearLocalData } from "@/lib/clear-local-data";
 import { OfflineBanner } from "@/components/offline-banner";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useTransition } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -29,8 +26,8 @@ import { QuickActionsSheet } from "@/components/quick-actions-sheet";
 import { AskGrowfitSheet } from "@/components/ai/ask-growfit-sheet";
 import { SectionTabs } from "@/components/ui/section-tabs";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
-import { useAuthStore } from "@/store/authStore";
+import { useSignOut } from "@/lib/use-sign-out";
+import { getInitials } from "@/lib/player";
 import { pickLongestActiveHref } from "@/lib/nav";
 import { readCurrentTeamCookie, resolveCurrentTeamId } from "@/lib/current-team";
 import type { UserRole } from "@/lib/types";
@@ -137,7 +134,7 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
     },
   ],
   player: [
-    { key: "passport", label: "My Passport", mobileLabel: "Passport", Icon: UserCircle, tabs: [{ href: "/dashboard/player", label: "Passport" }] },
+    { key: "passport", label: "My passport", mobileLabel: "Passport", Icon: UserCircle, tabs: [{ href: "/dashboard/player", label: "Passport" }] },
     {
       key: "schedule", label: "Schedule", Icon: Calendar,
       tabs: [
@@ -157,7 +154,7 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
     { key: "posts", label: "Announcements", mobileLabel: "Posts", Icon: Megaphone, tabs: [{ href: "/dashboard/player/announcements", label: "Posts" }] },
   ],
   parent: [
-    { key: "children", label: "My Children", mobileLabel: "Children", Icon: UserCircle, tabs: [{ href: "/dashboard/parent", label: "My Children" }] },
+    { key: "children", label: "My children", mobileLabel: "Children", Icon: UserCircle, tabs: [{ href: "/dashboard/parent", label: "My children" }] },
     { key: "fixtures", label: "Fixtures", Icon: Calendar, tabs: [{ href: "/dashboard/parent/fixtures", label: "Fixtures" }] },
     { key: "posts", label: "Announcements", mobileLabel: "Posts", Icon: Megaphone, tabs: [{ href: "/dashboard/parent/announcements", label: "Posts" }] },
   ],
@@ -175,10 +172,7 @@ interface Props {
 
 export function DashboardShell({ profile, teams = [], features, academyName, children }: Readonly<Props>) {
   const pathname = usePathname();
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const clearAuth = useAuthStore((s) => s.clear);
-  const supabase = createClient();
 
   const role = profile.role as UserRole;
   const roleRoot = `/dashboard/${role}`;
@@ -190,7 +184,7 @@ export function DashboardShell({ profile, teams = [], features, academyName, chi
   const sections = allSections
     .map((s) => ({ ...s, tabs: s.tabs.filter((t) => !t.feature || features?.[t.feature] !== false) }))
     .filter((s) => s.tabs.length > 0);
-  const [isSigningOut, startSignOut] = useTransition();
+  const { signOut: handleSignOut, isSigningOut } = useSignOut();
 
   // The single longest-matching href across every visible section's tabs,
   // not just the first section that has any match at all -- see
@@ -206,18 +200,6 @@ export function DashboardShell({ profile, teams = [], features, academyName, chi
   // click -- well after hydration, so there's nothing for the server and
   // client's first render to disagree about.
   const currentTeamId = resolveCurrentTeamId(teams, searchParams.get("team"), readCurrentTeamCookie());
-
-  function handleSignOut() {
-    startSignOut(async () => {
-      await supabase.auth.signOut();
-      // Forget that this device keeps its sign-in (lib/auth-cookies.ts).
-      forgetSignIn();
-      clearAuth();
-      // Children's data held on this device (offline queue, drafts, cached pages).
-      await clearLocalData().catch(() => {});
-      router.push("/auth/login");
-    });
-  }
 
   return (
     <div className="flex min-h-dvh bg-background">
@@ -254,7 +236,7 @@ export function DashboardShell({ profile, teams = [], features, academyName, chi
         <div className="border-t border-hairline p-3 space-y-2">
           <div className="flex items-center gap-3 px-3 py-2">
             <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand text-brand-foreground text-xs font-bold">
-              {profile.full_name.slice(0, 2).toUpperCase()}
+              {getInitials(profile.full_name)}
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{profile.full_name}</p>
@@ -290,17 +272,19 @@ export function DashboardShell({ profile, teams = [], features, academyName, chi
             {role === "coach" && teams.length > 1 && <TeamSwitcher teams={teams} />}
             {role === "coach" && (features?.assistant !== false) && <AskGrowfitSheet />}
             {role === "coach" && <QuickActionsSheet defaultTeamId={currentTeamId ?? undefined} />}
-            <ThemeToggle />
+            {/* Theme and sign-out live in Settings on a phone: with them
+                here the coach header measured 432 px on a 390 px screen,
+                pushing Sign out off the edge. */}
+            <div className="hidden lg:block">
+              <ThemeToggle />
+            </div>
             <Link
               href={`${roleRoot}/settings`}
-              className="lg:hidden grid size-9 place-items-center rounded-md text-muted-foreground hover:bg-hover hover:text-foreground transition-colors"
+              className="lg:hidden grid size-11 place-items-center rounded-full text-muted-foreground hover:bg-hover hover:text-foreground transition-colors"
               aria-label="Settings"
             >
-              <Settings className="size-4" aria-hidden="true" />
+              <Settings className="size-5" aria-hidden="true" />
             </Link>
-            <Button variant="ghost" size="sm" className="px-2 lg:hidden" onClick={handleSignOut} aria-label="Sign out">
-              <LogOut className="size-4" aria-hidden="true" />
-            </Button>
           </div>
         </header>
 
@@ -312,18 +296,19 @@ export function DashboardShell({ profile, teams = [], features, academyName, chi
           </div>
         )}
 
-        {/* Bottom padding on phones keeps the last card clear of the floating tab bar. */}
-        <main className="flex-1 overflow-y-auto px-4 pt-6 pb-32 lg:px-8 lg:pb-10">
+        {/* Bottom padding on phones keeps the last card clear of the tab bar. */}
+        <main className="flex-1 overflow-y-auto px-4 pt-6 pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:px-8 lg:pb-10">
           <OfflineBanner />
           {children}
         </main>
 
         {/* ── Mobile bottom nav ─────────────────────────────── */}
-        {/* A floating, frosted tab bar: lifted off the page so it reads as
-            the app's controls, not part of the content, and inset from the
-            screen edge and home indicator. */}
+        {/* A solid tab bar docked to the bottom edge. It used to float,
+            frosted and translucent, and buttons and form fields showed
+            through it mid-scroll, readable enough to look tappable but
+            covered. Solid, with the page padded to clear it. */}
         <nav
-          className="fixed inset-x-4 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 flex rounded-full border border-white/40 bg-card/70 p-1.5 shadow-float backdrop-blur-2xl backdrop-saturate-[1.8] dark:border-white/10 lg:hidden"
+          className="fixed inset-x-0 bottom-0 z-40 flex border-t border-hairline bg-card px-2 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] lg:hidden"
           aria-label="Mobile navigation"
         >
           {sections.filter((s) => !s.mobileHide).map(({ key, label, mobileLabel, Icon, tabs }) => {
@@ -332,12 +317,15 @@ export function DashboardShell({ profile, teams = [], features, academyName, chi
               <Link
                 key={key}
                 href={tabs[0].href}
+                aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-xs font-semibold transition-colors",
-                  active ? "bg-primary/10 text-primary" : "text-foreground/80"
+                  "flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-colors",
+                  active ? "text-primary" : "text-muted-foreground"
                 )}
               >
-                <Icon className={cn("size-[22px]", active && "text-primary")} aria-hidden="true" />
+                <span className={cn("grid h-7 w-14 place-items-center rounded-full transition-colors", active && "bg-primary/10")}>
+                  <Icon className="size-[22px]" aria-hidden="true" />
+                </span>
                 {mobileLabel ?? label}
               </Link>
             );
