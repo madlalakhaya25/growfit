@@ -87,4 +87,17 @@ export const NARRATION = {
     },
     outro: "Growfit. Run your academy like a pro.",
   },
+
+  "07-player-profile-and-passport": {
+    intro: "Every player's story, in one profile.",
+    parts: {
+      "v7-profile":
+        "Open any player for their ratings, attendance and milestones, month by month, and ability scores from every coach, averaged. Attach match video clips with the fixture and the exact moment. Then track their development against your curriculum.",
+      "v7-passport":
+        "Every player gets a shareable passport. One link and a QR code, no login needed, with their profile and match ratings.",
+      "v7-parent-child":
+        "Parents follow their child's ratings, fixtures, development plan and challenges, and sign forms on their phone.",
+    },
+    outro: "Growfit. Run your academy like a pro.",
+  },
 };

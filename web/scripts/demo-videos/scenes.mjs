@@ -527,4 +527,38 @@ export const SCENES = [
       { goto: "/dashboard/admin/reports", caption: "Export records as CSV or a print-ready PDF", hold: 3600 },
     ],
   },
+
+  {
+    id: "v7-profile",
+    title: "The player profile",
+    role: "coach",
+    device: "desktop",
+    viewport: { width: 1440, height: 900 },
+    steps: [
+      { goto: "/dashboard/coach/squad/10000000-0000-0000-0000-0000000000c1", caption: "Ratings, attendance and milestones, month by month", scroll: 300, hold: 4200 },
+      { caption: "Ability scores from every coach, averaged", actions: [{ scroll: 520 }], hold: 2600 },
+      { caption: "Attach match video clips, with the fixture and the moment", actions: [{ center: 'h2:has-text("Video clips")' }], hold: 4200 },
+      { caption: "Track development against your curriculum", actions: [{ top: true }, { click: "role:tab:Development" }], hold: 3600 },
+    ],
+  },
+  {
+    id: "v7-passport",
+    title: "The shareable passport",
+    role: "public",
+    device: "phone",
+    sideNote: { kicker: "THE PLAYER PASSPORT", text: "One link and a QR code. Parents, schools and scouts see the same profile." },
+    steps: [
+      { goto: "/passport/7bf3fe386d", caption: "A passport for every player, no login needed", scroll: 900, hold: 7000 },
+    ],
+  },
+  {
+    id: "v7-parent-child",
+    title: "What parents see of their child",
+    role: "parent",
+    device: "phone",
+    sideNote: { kicker: "FOR PARENTS", text: "Ratings, fixtures, development and forms for their child, on their phone." },
+    steps: [
+      { goto: "/dashboard/parent/10000000-0000-0000-0000-0000000000c1", caption: "Their child's ratings and development", scroll: 1400, hold: 8000 },
+    ],
+  },
 ];

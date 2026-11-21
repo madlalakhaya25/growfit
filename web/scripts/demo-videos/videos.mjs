@@ -47,6 +47,13 @@ export const VIDEOS = [
     subtitle: "Registration paperwork for every player, live analytics, an AI health report and CSV or PDF exports.",
     parts: ["v6-overview", "v6-health", "v6-paperwork"],
   },
+  {
+    id: "07-player-profile-and-passport",
+    kicker: "PLAYER PROFILE \u00b7 PASSPORT",
+    title: "Every player's story, in one profile.",
+    subtitle: "Ratings, development, video clips and a shareable passport that parents, schools and scouts can open.",
+    parts: ["v7-profile", "v7-passport", "v7-parent-child"],
+  },
 ];
 
 // Opening video, cut from the best moments of the finished videos above (no new recording).

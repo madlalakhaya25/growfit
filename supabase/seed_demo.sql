@@ -245,6 +245,19 @@ FROM (VALUES
 ) AS l(n, sid)
 ON CONFLICT DO NOTHING;
 
+-- ── Video clips on Asanda's profile ───────────────────────────────────
+-- Cards that link out to a video, with the fixture and the moment. The link is a PLACEHOLDER (no such
+-- video): replace it with your own footage before any clip card is shown clickable. Each ties to
+-- something already in the data (her match-report note and the milestones her coaches ticked).
+INSERT INTO player_clips (id, player_id, fixture_id, added_by, title, url, timestamp_seconds, description, created_at) VALUES
+  ('10000000-0000-0000-0000-000000000701', '10000000-0000-0000-0000-0000000000c1', '10000000-0000-0000-0000-0000000000f1', '10000000-0000-0000-0000-000000000002',
+   'Great save in the second half', 'https://youtu.be/GrowfitDemo', 2105, 'Reads the shot early and gets down well. The save the coach rated in the match report.', now() - interval '12 days'),
+  ('10000000-0000-0000-0000-000000000702', '10000000-0000-0000-0000-0000000000c1', '10000000-0000-0000-0000-0000000000f4', '10000000-0000-0000-0000-000000000002',
+   'Distribution under pressure', 'https://youtu.be/GrowfitDemo', 1320, 'First-time pass with a forward closing her down. The milestone we ticked this term.', now() - interval '26 days'),
+  ('10000000-0000-0000-0000-000000000703', '10000000-0000-0000-0000-0000000000c1', '10000000-0000-0000-0000-0000000000f5', '10000000-0000-0000-0000-000000000003',
+   'Organising the back line from a goal kick', 'https://youtu.be/GrowfitDemo', 940, 'Calls out shape and marking before the restart.', now() - interval '40 days')
+ON CONFLICT (id) DO NOTHING;
+
 COMMIT;
 
 -- ── Verify ────────────────────────────────────────────────────────────

@@ -13,6 +13,7 @@ const CLIPS: Omit<DemoClip, "src">[] = [
   { id: "03-ai-coaching", title: "AI coaching insights", blurb: "Ask about your own squad, get a starting XI, a scouting report, a match plan and player insights.", device: "desktop" },
   { id: "04-your-philosophy", title: "Your philosophy, built in", blurb: "Write what the academy teaches by age group and see what has really been trained.", device: "desktop" },
   { id: "05-parents-and-players", title: "Parents & players", blurb: "Write once, simplify for the age group, and everyone gets what is about them.", device: "desktop" },
+  { id: "07-player-profile-and-passport", title: "Player profile & passport", blurb: "Ratings, development, video clips and a shareable passport with a QR code.", device: "desktop" },
   { id: "06-run-the-academy", title: "Run the academy", blurb: "Registration paperwork, live analytics, an AI health report and CSV or PDF exports.", device: "desktop" },
 ];
 
