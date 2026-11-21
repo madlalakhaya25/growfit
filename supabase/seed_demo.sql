@@ -24,6 +24,7 @@
 --     outstanding; Asanda keeps seed.sql's two, which the parent app surfaces).
 --   * More development milestones completed, across all five categories.
 --   * Three more announcements.
+--   * The academy curriculum (22 items across U11, U13, U15) with U13 sessions linked to it.
 
 BEGIN;
 
@@ -174,6 +175,58 @@ INSERT INTO announcements (id, team_id, coach_id, title, body, created_at) VALUE
    'Transport has been a problem for a few families. If you have a spare seat on match days, please tell your coach so we can pair you up.',
    now() - interval '9 days')
 ON CONFLICT (id) DO UPDATE SET body = EXCLUDED.body, created_at = EXCLUDED.created_at;
+
+-- ── Curriculum: the Growfit coaching philosophy, by age group ─────────
+-- Written from the academy's own "Modern Football Coaching Curriculum" document: the five
+-- pillars become the five headings (Social is "leadership"), the four moments of the game
+-- become U13's tactical items, and the age bands (11-12, 13-14, 15-16) become U11, U13, U15.
+-- The app's rule is that this list is the academy's to write, so check the wording is theirs.
+INSERT INTO curriculum_items (id, academy_id, age_group, category, title, description, sort_order, created_by)
+SELECT ('10000000-0000-0000-0000-0000000006' || lpad(v.n::text, 2, '0'))::uuid,
+       '10000000-0000-0000-0000-0000000000a1', v.ag, v.cat, v.title, v.descr, v.n,
+       '10000000-0000-0000-0000-000000000001'
+FROM (VALUES
+  (1,  'U11', 'technical',  'Technique under pressure', 'Controls, passes and turns with an opponent closing down.'),
+  (2,  'U11', 'technical',  'Combining with teammates', 'Plays short passing combinations and keeps the ball moving.'),
+  (3,  'U11', 'tactical',   'Scan before receiving', 'Looks around before the ball arrives, so the first touch has a purpose.'),
+  (4,  'U11', 'tactical',   'Defending 1v1', 'Closes down with control and delays rather than diving in.'),
+  (5,  'U11', 'physical',   'Coordination and balance', 'Moves with control: balance, agility and safe effort.'),
+  (6,  'U11', 'mental',     'Focus and willingness to learn', 'Listens, tries new things and keeps going after a mistake.'),
+  (7,  'U11', 'leadership', 'Communicating with teammates', 'Calls for the ball and encourages others.'),
+  (11, 'U13', 'technical',  'First touch and passing choice under pressure', 'Chooses the right pass and controls it cleanly with an opponent close.'),
+  (12, 'U13', 'technical',  'Dribbling and finishing', 'Beats a defender and finishes with the right technique.'),
+  (13, 'U13', 'tactical',   'Attacking organisation', 'Creates width and depth, scans, combines and penetrates.'),
+  (14, 'U13', 'tactical',   'Defensive organisation', 'Stays compact, presses at the right time and covers teammates.'),
+  (15, 'U13', 'tactical',   'Reacting when we lose the ball', 'Immediate pressure when it is on, otherwise recover and reorganise.'),
+  (16, 'U13', 'tactical',   'Using the moment we win the ball', 'Looks forward, recognises space and supports the ball carrier.'),
+  (17, 'U13', 'physical',   'Movement quality', 'Coordination, balance, speed and agility, with age-appropriate strength work.'),
+  (18, 'U13', 'mental',     'Confidence and response to setbacks', 'Stays confident after a mistake and keeps learning.'),
+  (19, 'U13', 'leadership', 'Communication, teamwork and respect', 'Talks early, supports teammates and respects everyone.'),
+  (21, 'U15', 'technical',  'Position-specific technical skills', 'Refines the skills their role needs in a match.'),
+  (22, 'U15', 'tactical',   'Adapting to different game plans', 'Understands the plan, the opponent and what changes in each phase.'),
+  (23, 'U15', 'tactical',   'Roles and relationships within the shape', 'Knows the job in each phase and how it links to teammates.'),
+  (24, 'U15', 'physical',   'Managing match demands', 'Looks after workload, recovery and effort across a season.'),
+  (25, 'U15', 'mental',     'Evaluating personal performance', 'Reviews own games honestly and sets one small goal.'),
+  (26, 'U15', 'leadership', 'Taking responsibility in the team', 'Leads by example and helps younger players.')
+) AS v(n, ag, cat, title, descr)
+ON CONFLICT DO NOTHING;
+
+-- What the U13 coaches have worked on. Mental and leadership are left unlinked on purpose,
+-- so the coverage view has a real gap to point at. U11 and U15 read 0% because this demo
+-- has no teams for them; the demo clips frame around U13.
+INSERT INTO curriculum_links (item_id, link_type, link_id)
+SELECT ('10000000-0000-0000-0000-0000000006' || lpad(l.n::text, 2, '0'))::uuid, 'session', l.sid::uuid
+FROM (VALUES
+  (11, '10000000-0000-0000-0000-0000000000d1'), (11, '10000000-0000-0000-0000-000000000502'),
+  (11, '10000000-0000-0000-0000-000000000504'), (11, '10000000-0000-0000-0000-000000000506'),
+  (12, '10000000-0000-0000-0000-000000000508'),
+  (13, '10000000-0000-0000-0000-000000000501'), (13, '10000000-0000-0000-0000-000000000505'),
+  (15, '10000000-0000-0000-0000-0000000000d2'), (15, '10000000-0000-0000-0000-000000000501'),
+  (14, '10000000-0000-0000-0000-000000000507'),
+  (16, '10000000-0000-0000-0000-000000000505'),
+  (17, '10000000-0000-0000-0000-000000000503')
+) AS l(n, sid)
+ON CONFLICT DO NOTHING;
 
 COMMIT;
 
