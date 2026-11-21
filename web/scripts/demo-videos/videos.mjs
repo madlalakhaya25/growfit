@@ -9,7 +9,7 @@ export const VIDEOS = [
     id: "01-plan-and-train",
     kicker: "PLAN \u00b7 TRAIN \u00b7 TRACK",
     title: "Plan the week. Run the session. Look after every player.",
-    subtitle: "Session plans built from your own curriculum, a register that takes seconds, and welfare flags before anyone slips through.",
+    subtitle: "Pick each session's objective from your own curriculum, get an AI-built session with diagrams, take the register in seconds, and catch welfare flags early.",
     parts: ["v1-week", "v1-session", "v1-register", "v1-welfare"],
   },
   {
@@ -44,7 +44,7 @@ export const VIDEOS = [
     id: "06-run-the-academy",
     kicker: "RUN THE ACADEMY",
     title: "Compliance, reporting and a monthly health check.",
-    subtitle: "Registration paperwork, live analytics and an AI health report, ready for funders and SAFA.",
+    subtitle: "Registration paperwork for every player, live analytics, an AI health report and CSV or PDF exports.",
     parts: ["v6-overview", "v6-health", "v6-paperwork"],
   },
 ];

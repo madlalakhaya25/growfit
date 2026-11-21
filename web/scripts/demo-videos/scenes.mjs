@@ -106,7 +106,7 @@ export const SCENES = [
     device: "desktop",
     steps: [
       { goto: "/dashboard/admin/analytics", caption: "Attendance, registration and results at a glance", scroll: 500, hold: 5500 },
-      { goto: "/dashboard/admin/reports", caption: "Reports ready for funders and SAFA", scroll: 400, hold: 5000 },
+      { goto: "/dashboard/admin/reports", caption: "Export records as CSV or a print-ready PDF", scroll: 400, hold: 5000 },
     ],
   },
 
@@ -524,7 +524,7 @@ export const SCENES = [
     viewport: { width: 1440, height: 810 },
     steps: [
       { goto: "/dashboard/admin/players/documents", caption: "Registration paperwork for every player, tracked", hold: 4200 },
-      { goto: "/dashboard/admin/reports", caption: "Exports for funders and SAFA in one click", hold: 3600 },
+      { goto: "/dashboard/admin/reports", caption: "Export records as CSV or a print-ready PDF", hold: 3600 },
     ],
   },
 ];

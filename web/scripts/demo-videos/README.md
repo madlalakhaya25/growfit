@@ -73,3 +73,31 @@ connector. Everything else (`seed_demo.sql`) is safe to re-run and moves the dat
   session" (drills) and "Post announcement". The clips avoid both. Real data has real UUIDs.
 * The demo academy has one team (U13), so the curriculum coverage card reads 0% for U11 and U15.
 * In a cloud container, the Next server needs `NODE_USE_ENV_PROXY=1` to reach Supabase through the egress proxy.
+
+
+## Voiceover (Leah)
+
+Leah is the Microsoft Edge neural voice, English (South Africa), set slightly slower: the same voice as the
+Botlhale demos (see the Vela UI v2 demos README). What she says is in `narration.mjs`, one line per segment, written
+naturally (the recorder spells out "AI", "3D", "CSV" and "75%" for the voice, so subtitles stay clean).
+
+    python3 -m venv .venv && .venv/bin/pip install edge-tts
+    DEMO_EDGE_TTS=.venv/bin/edge-tts npm run demo:videos -- --voice            # record, narrate, stitch
+    DEMO_EDGE_TTS=.venv/bin/edge-tts npm run demo:videos -- --voice --reuse    # skip recording; just redo the voice
+
+`--voice` writes, for each video in `web/demo-videos/out/`:
+
+* `<id>.mp4`: with Leah, a built-in subtitle track and one chapter per segment
+* `<id>-silent.mp4`: the same video with no audio (the highlights video is cut from these)
+* `<id>.srt`: subtitles timed to Leah's own sentence timing
+
+`--reuse` keeps the recorded segments (`demo-videos/.segments`) and synthesised lines (`demo-videos/.voice`), so
+changing a narration line costs seconds, not a re-record. If a line runs longer than its segment, the last frame is held.
+
+Options: `DEMO_VOICE` (default `en-ZA-LeahNeural`), `DEMO_VOICE_RATE` (default `-8%`).
+
+In a cloud container the service address `speech.platform.bing.com` must be on the network allowlist, and
+`edge-tts` is run through the proxy (`--proxy $HTTPS_PROXY`, passed automatically).
+
+Note: `edge-tts` uses the Edge browser's read-aloud service, which is free but unofficial. The same voices are
+available, licensed, through Azure AI Speech (`en-ZA-LeahNeural`) if the videos ever need a supported service.

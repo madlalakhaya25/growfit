@@ -10,13 +10,15 @@
 // DATA SAFETY: this only logs in as the *.seed.growfit.test accounts from supabase/seed.sql,
 // which are fictional. Point DEMO_BASE_URL at an app wired to a throwaway seeded project, never
 // at production: footage of real children's names or photos is a POPIA problem once published.
-import { mkdirSync, rmSync, existsSync, readdirSync, writeFileSync, readFileSync } from "node:fs";
+import { mkdirSync, rmSync, existsSync, readdirSync, writeFileSync, readFileSync, copyFileSync, renameSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { chromium } from "@playwright/test";
 import { ROLES, SCENES } from "./demo-videos/scenes.mjs";
 import { VIDEOS, HIGHLIGHTS } from "./demo-videos/videos.mjs";
+import { NARRATION } from "./demo-videos/narration.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const webRoot = path.resolve(here, "..");
@@ -33,6 +35,8 @@ const DEVICES = {
 const args = process.argv.slice(2);
 const smoke = args.includes("--smoke");
 const clipsMode = args.includes("--clips"); // one MP4 per scene, no stitching
+const voice = args.includes("--voice"); // add Leah's narration, subtitles and chapters
+const reuse = args.includes("--reuse"); // use segments recorded earlier instead of recording again
 const wanted = args.filter((a) => !a.startsWith("--"));
 const sceneById = new Map(SCENES.map((x) => [x.id, x]));
 const matches = (id) => wanted.some((w) => id.startsWith(w));
@@ -52,6 +56,10 @@ if (scenes.length === 0 && videos.length === 0 && highlights.length === 0) {
 rmSync(workDir, { recursive: true, force: true });
 mkdirSync(workDir, { recursive: true });
 mkdirSync(outDir, { recursive: true });
+const segDir = path.join(webRoot, "demo-videos", ".segments"); // recorded segments, kept between runs (--reuse)
+const voiceDir = path.join(webRoot, "demo-videos", ".voice"); // synthesised lines, kept between runs
+mkdirSync(segDir, { recursive: true });
+mkdirSync(voiceDir, { recursive: true });
 
 const OVERLAY = `(() => {
   if (window.__demoOverlay) return;
@@ -243,11 +251,13 @@ function endCardPng(browser, device, viewport) {
     const ctx = await browser.newContext({ viewport: d.viewport, deviceScaleFactor: 1 });
     const page = await ctx.newPage();
     const logo = readFileSync(path.resolve(webRoot, "..", "growfit.png")).toString("base64");
+    // Brand red, like the closing banner on the marketing site (site/src/app/page.tsx).
     await page.setContent(`<body style="margin:0;height:100vh;display:flex;flex-direction:column;align-items:center;
-      justify-content:center;gap:2.4vh;background:#0b1f14;color:#fff;font-family:system-ui,sans-serif;text-align:center">
-      <img src="data:image/png;base64,${logo}" style="height:22vh;border-radius:18px">
+      justify-content:center;gap:2.4vh;background:#a71817;color:#fff;font-family:system-ui,sans-serif;text-align:center">
+      <img src="data:image/png;base64,${logo}" style="height:22vh;border-radius:18px;background:#fff;padding:1.2vh">
       <div style="font-size:${device === "phone" ? 40 : 54}px;font-weight:800">Growfit FA</div>
-      <div style="font-size:${device === "phone" ? 22 : 28}px;opacity:.85;padding:0 6vw">Run your academy like a pro.<br>U11 · U13 · U15 · Greater Durban</div></body>`);
+      <div style="font-size:${device === "phone" ? 22 : 28}px;padding:0 6vw;line-height:1.4">Run your academy like a pro.<br>U11 · U13 · U15 · Greater Durban</div>
+      <div style="font-size:${device === "phone" ? 16 : 20}px;letter-spacing:.3em;opacity:.7;margin-top:1vh">#WEBUILDCHAMPIONS</div></body>`);
     const file = path.join(workDir, `endcard-${device}.png`);
     await page.screenshot({ path: file });
     await ctx.close();
@@ -258,7 +268,7 @@ function endCardPng(browser, device, viewport) {
 function encode(webm, endcard, device, out, trim) {
   const { final } = DEVICES[device];
   const [w, h] = final.split(":");
-  const vf = `scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=0x0b1f14,fps=30,format=yuv420p,setsar=1`;
+  const vf = `scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=0x0c0c0d,fps=30,format=yuv420p,setsar=1`;
   execFileSync("ffmpeg", [
     "-y", "-loglevel", "error",
     "-ss", String(trim), "-i", webm,
@@ -273,7 +283,7 @@ function encode(webm, endcard, device, out, trim) {
 // ── Stitching ────────────────────────────────────────────────────────────
 const CANVAS = { w: 1920, h: 1080 };
 const FADE = 0.45;
-const BRAND = "0b1f14";
+const BRAND = "0c0c0d"; // site/src/app/globals.css: near-black panels; red is #a71817 (#e24b49 on dark)
 const probe = (f) => Number(execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f]).toString().trim());
 const NORM = `fps=30,format=yuv420p,setsar=1`;
 
@@ -315,17 +325,17 @@ const LOGO = () => readFileSync(path.resolve(webRoot, "..", "growfit.png")).toSt
 const FONT = "system-ui,-apple-system,Segoe UI,Roboto,sans-serif";
 
 function titleHtml(v) {
-  return `<body style="margin:0;width:${CANVAS.w}px;height:${CANVAS.h}px;background:radial-gradient(ellipse at 30% 20%,#14402a,#${BRAND} 70%);color:#fff;font-family:${FONT};display:flex;align-items:center;padding:0 170px;box-sizing:border-box">
+  return `<body style="margin:0;width:${CANVAS.w}px;height:${CANVAS.h}px;background:#${BRAND};border-left:22px solid #a71817;color:#fff;font-family:${FONT};display:flex;align-items:center;padding:0 170px 0 150px;box-sizing:border-box">
     <div><img src="data:image/png;base64,${LOGO()}" style="height:120px;border-radius:20px;margin-bottom:56px;display:block">
-    <div style="font-size:26px;letter-spacing:.32em;color:#7ee2a8;font-weight:700;margin-bottom:26px">${v.kicker ?? "GROWFIT FA"}</div>
+    <div style="font-size:30px;letter-spacing:.3em;color:#ff5a58;font-weight:800;margin-bottom:26px">${v.kicker ?? "GROWFIT FA"}</div>
     <div style="font-size:92px;font-weight:800;line-height:1.05;max-width:1400px">${v.title}</div>
-    <div style="font-size:38px;line-height:1.35;color:#cfe8d9;margin-top:34px;max-width:1300px">${v.subtitle ?? ""}</div></div></body>`;
+    <div style="font-size:38px;line-height:1.35;color:#d4d4d8;margin-top:34px;max-width:1300px">${v.subtitle ?? ""}</div></div></body>`;
 }
 
 function backdropHtml(scene) {
   const n = scene.sideNote ?? { kicker: "", text: "" };
-  return `<body style="margin:0;width:${CANVAS.w}px;height:${CANVAS.h}px;background:radial-gradient(ellipse at 20% 30%,#14402a,#${BRAND} 72%);color:#fff;font-family:${FONT};display:flex;align-items:center;padding:0 150px;box-sizing:border-box">
-    <div style="max-width:760px"><div style="font-size:24px;letter-spacing:.3em;color:#7ee2a8;font-weight:700;margin-bottom:22px">${n.kicker}</div>
+  return `<body style="margin:0;width:${CANVAS.w}px;height:${CANVAS.h}px;background:#${BRAND};border-left:22px solid #a71817;color:#fff;font-family:${FONT};display:flex;align-items:center;padding:0 130px;box-sizing:border-box">
+    <div style="max-width:760px"><div style="font-size:28px;letter-spacing:.26em;color:#ff5a58;font-weight:800;margin-bottom:22px">${n.kicker}</div>
     <div style="font-size:66px;font-weight:800;line-height:1.1">${n.text}</div></div></body>`;
 }
 
@@ -336,7 +346,9 @@ function stitch(files, out) {
   let filter = "";
   let last = "[0:v]";
   let acc = d[0];
+  const starts = [0];
   for (let i = 1; i < files.length; i++) {
+    starts.push(acc - FADE);
     const offset = (acc - FADE).toFixed(3);
     const label = i === files.length - 1 ? "[v]" : `[x${i}]`;
     filter += `${last}[${i}:v]xfade=transition=fade:duration=${FADE}:offset=${offset}${label};`;
@@ -345,7 +357,121 @@ function stitch(files, out) {
   }
   execFileSync("ffmpeg", ["-y", "-loglevel", "error", ...inputs, "-filter_complex", filter.replace(/;$/, ""),
     "-map", "[v]", "-c:v", "libx264", "-crf", "19", "-preset", "medium", "-pix_fmt", "yuv420p", "-movflags", "+faststart", out]);
-  return acc;
+  return { total: acc, starts };
+}
+
+// ── Voice ────────────────────────────────────────────────────────────────
+// Leah: the Microsoft Edge neural voice, en-ZA, slightly slower. The same voice as the Botlhale demos.
+// Needs the `edge-tts` command (pip install edge-tts); set DEMO_EDGE_TTS to its path if it is not on PATH.
+const VOICE = process.env.DEMO_VOICE ?? "en-ZA-LeahNeural";
+const RATE = process.env.DEMO_VOICE_RATE ?? "-8%";
+const EDGE_TTS = process.env.DEMO_EDGE_TTS ?? "edge-tts";
+const LEAD = 0.35; // seconds after a segment appears before the voice starts
+const TAIL = 0.6; // breathing room after the line ends
+
+/** Written naturally in narration.mjs; spelled out here so the voice says it properly. */
+function spokenForm(text) {
+  return text
+    .replace(/\bAI\b/g, "A I").replace(/\b3D\b/g, "three D").replace(/\bCSV\b/g, "C S V").replace(/\bPDF\b/g, "P D F")
+    .replace(/75%/g, "seventy five percent").replace(/13-year-old/g, "thirteen year old").replace(/-/g, " ");
+}
+
+function speak(text) {
+  const spoken = spokenForm(text);
+  const key = createHash("sha1").update(`${VOICE}|${RATE}|${spoken}`).digest("hex").slice(0, 16);
+  const file = path.join(voiceDir, `${key}.mp3`);
+  if (!existsSync(file) || !existsSync(file.replace(/\.mp3$/, ".vtt"))) {
+    const a = ["--voice", VOICE, `--rate=${RATE}`, "--text", spoken, "--write-media", file, "--write-subtitles", file.replace(/\.mp3$/, ".vtt")];
+    if (process.env.HTTPS_PROXY) a.push("--proxy", process.env.HTTPS_PROXY);
+    execFileSync(EDGE_TTS, a, { stdio: "pipe" });
+  }
+  return { file, dur: probe(file), vtt: file.replace(/\.mp3$/, ".vtt") };
+}
+
+/** Sentence cues (seconds, relative to the start of the line) from the voice's own timings. */
+function readVtt(vtt) {
+  if (!existsSync(vtt)) return [];
+  const sec = (h, m, x) => Number(h) * 3600 + Number(m) * 60 + Number(String(x).replace(",", "."));
+  const cues = [];
+  for (const block of readFileSync(vtt, "utf8").split(/\r?\n\r?\n/)) {
+    const m = block.match(/(\d+):(\d+):([\d.,]+)\s*-->\s*(\d+):(\d+):([\d.,]+)\s*\n([\s\S]+)/);
+    if (m) cues.push({ from: sec(m[1], m[2], m[3]), to: sec(m[4], m[5], m[6]), text: m[7].replace(/\s+/g, " ").trim() });
+  }
+  return cues;
+}
+
+/** Hold the last frame so a clip lasts at least `seconds`. */
+function holdTo(file, seconds, name) {
+  const d = probe(file);
+  if (d >= seconds) return file;
+  const out = path.join(workDir, `${name}.mp4`);
+  execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", file, "-vf", `tpad=stop_mode=clone:stop_duration=${(seconds - d).toFixed(3)}`,
+    "-c:v", "libx264", "-crf", "19", "-pix_fmt", "yuv420p", out]);
+  return out;
+}
+
+const srtTime = (t) => {
+  const ms = Math.round(t * 1000);
+  const p = (n, w) => String(n).padStart(w, "0");
+  return `${p(Math.floor(ms / 3600000), 2)}:${p(Math.floor(ms / 60000) % 60, 2)}:${p(Math.floor(ms / 1000) % 60, 2)},${p(ms % 1000, 3)}`;
+};
+
+/**
+ * Stitch the clips, and (with --voice) narrate them. `items[i]` is the line spoken over `files[i]` (or null);
+ * `labels[i]` names its chapter. Writes <id>.mp4 plus, with a voice, <id>-silent.mp4 and <id>.srt.
+ */
+function finishVideo(id, files, items, labels) {
+  const out = path.join(outDir, `${id}.mp4`);
+  if (!voice) { const r = stitch(files, out); return r.total; }
+
+  const lines = items.map((t) => (t ? { text: t, ...speak(t) } : null));
+  const padded = files.map((f, i) => (lines[i] ? holdTo(f, lines[i].dur + LEAD + TAIL, `hold-${id}-${i}`) : f));
+  const silent = path.join(outDir, `${id}-silent.mp4`);
+  const { total, starts } = stitch(padded, silent);
+
+  // One audio track: each line placed where its clip starts.
+  const spoken = lines.map((l, i) => (l ? { ...l, at: starts[i] + LEAD } : null)).filter(Boolean);
+  const aIn = spoken.flatMap((l) => ["-i", l.file]);
+  const aFilter = spoken.map((l, k) => `[${k}:a]aresample=44100,adelay=${Math.round(l.at * 1000)}:all=1[a${k}]`).join(";") +
+    `;${spoken.map((_, k) => `[a${k}]`).join("")}amix=inputs=${spoken.length}:normalize=0:dropout_transition=0,loudnorm=I=-16:TP=-1.5:LRA=7,apad,atrim=0:${total.toFixed(3)}[a]`;
+  const audio = path.join(workDir, `audio-${id}.m4a`);
+  execFileSync("ffmpeg", ["-y", "-loglevel", "error", ...aIn, "-filter_complex", aFilter, "-map", "[a]", "-c:a", "aac", "-b:a", "160k", audio]);
+
+  // Subtitles: the voice's own sentence timings, shown with the natural spelling from narration.mjs
+  // (the voice reads the spelled-out form, so its text is only used for timing).
+  const cues = [];
+  for (const l of spoken) {
+    const timed = readVtt(l.vtt);
+    const shown = l.text.split(/(?<=[.!?])\s+/).filter(Boolean);
+    if (timed.length === shown.length) {
+      timed.forEach((c, i) => cues.push(`${cues.length + 1}\n${srtTime(l.at + c.from)} --> ${srtTime(l.at + c.to)}\n${shown[i]}\n`));
+    } else {
+      // Fallback: share the line's time in proportion to sentence length.
+      const chars = shown.reduce((n, x) => n + x.length, 0);
+      let t = l.at;
+      for (const sentence of shown) {
+        const len = (sentence.length / chars) * l.dur;
+        cues.push(`${cues.length + 1}\n${srtTime(t)} --> ${srtTime(t + len)}\n${sentence}\n`);
+        t += len;
+      }
+    }
+  }
+  const srt = path.join(outDir, `${id}.srt`);
+  writeFileSync(srt, cues.join("\n"));
+
+  // Chapters, one per clip.
+  const meta = [";FFMETADATA1", `title=${id}`];
+  files.forEach((_, i) => {
+    const end = i + 1 < files.length ? starts[i + 1] : total;
+    meta.push("[CHAPTER]", "TIMEBASE=1/1000", `START=${Math.round(starts[i] * 1000)}`, `END=${Math.round(end * 1000)}`, `title=${labels[i]}`);
+  });
+  const metaFile = path.join(workDir, `meta-${id}.txt`);
+  writeFileSync(metaFile, meta.join("\n"));
+
+  execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", silent, "-i", audio, "-i", srt, "-i", metaFile,
+    "-map", "0:v", "-map", "1:a", "-map", "2:s", "-map_chapters", "3", "-c:v", "copy", "-c:a", "copy", "-c:s", "mov_text",
+    "-metadata:s:s:0", "language=eng", "-metadata:s:a:0", "language=eng", "-movflags", "+faststart", out]);
+  return total;
 }
 
 async function recordScene(browser, scene) {
@@ -380,47 +506,66 @@ try {
     }
   }
 
-  // Themed videos: title card, recorded segments cross-faded, end card.
+  // Themed videos: title card, recorded segments cross-faded, end card (and, with --voice, Leah).
   for (const v of videos) {
     console.log(`▶▶ ${v.id}: ${v.title}`);
     try {
+      const narr = NARRATION[v.id] ?? {};
       const files = [cardMp4(await htmlPng(browser, titleHtml(v), `title-${v.id}`), 2.6, `title-${v.id}`)];
+      const items = [narr.intro ?? null];
+      const labels = ["Intro"];
       for (const id of v.parts) {
         const scene = sceneById.get(id);
         if (!scene) throw new Error(`unknown scene "${id}"`);
-        console.log(`   • ${id}`);
-        const { webm, trim } = await recordScene(browser, scene);
-        const backdrop = scene.device === "phone" ? await htmlPng(browser, backdropHtml(scene), `bd-${id}`) : null;
-        files.push(segmentMp4(scene, webm, trim, backdrop));
+        const cached = path.join(segDir, `${id}.mp4`);
+        if (reuse && existsSync(cached)) {
+          console.log(`   • ${id} (reused)`);
+          files.push(cached);
+        } else {
+          console.log(`   • ${id}`);
+          const { webm, trim } = await recordScene(browser, scene);
+          const backdrop = scene.device === "phone" ? await htmlPng(browser, backdropHtml(scene), `bd-${id}`) : null;
+          copyFileSync(segmentMp4(scene, webm, trim, backdrop), cached);
+          files.push(cached);
+        }
+        items.push(narr.parts?.[id] ?? null);
+        labels.push(scene.title);
       }
-      const end = await endCardPng(browser, "desktop", { width: 1280, height: 720 });
-      files.push(cardMp4(end, 2.6, `end-${v.id}`));
-      const out = path.join(outDir, `${v.id}.mp4`);
-      const secs = stitch(files, out);
-      console.log(`  ✔ ${path.relative(webRoot, out)}  (${secs.toFixed(0)}s)`);
+      files.push(cardMp4(await endCardPng(browser, "desktop", { width: 1280, height: 720 }), 2.6, `end-${v.id}`));
+      items.push(narr.outro ?? null);
+      labels.push("Growfit");
+      const secs = finishVideo(v.id, files, items, labels);
+      console.log(`  ✔ ${path.relative(webRoot, path.join(outDir, `${v.id}.mp4`))}  (${secs.toFixed(0)}s${voice ? ", with Leah" : ""})`);
     } catch (err) {
       failed++;
       console.error(`  ✖ ${v.id}: ${err.message}`);
     }
   }
 
-  // Highlights: cuts from videos that are already built.
+  // Highlights: cuts from videos that are already built (their silent copies when there is a voiced build).
   for (const h of highlights) {
     console.log(`▶▶ ${h.id}: ${h.title}`);
     try {
+      const narr = NARRATION[h.id] ?? {};
       const files = [cardMp4(await htmlPng(browser, titleHtml(h), `title-${h.id}`), 2.6, `title-${h.id}`)];
+      const items = [narr.intro ?? null];
+      const labels = ["Intro"];
       h.cuts.forEach((c, i) => {
-        const src = path.join(outDir, `${c.src}.mp4`);
+        const silentSrc = path.join(outDir, `${c.src}-silent.mp4`);
+        const src = existsSync(silentSrc) ? silentSrc : path.join(outDir, `${c.src}.mp4`);
         if (!existsSync(src)) throw new Error(`build ${c.src} first`);
         const out = path.join(workDir, `cut-${h.id}-${i}.mp4`);
-        execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-ss", String(c.from), "-t", String(c.to - c.from), "-i", src,
+        execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-ss", String(c.from), "-t", String(c.to - c.from), "-i", src, "-an",
           "-vf", `scale=${CANVAS.w}:${CANVAS.h},${NORM}`, "-c:v", "libx264", "-crf", "19", out]);
         files.push(out);
+        items.push(narr.cuts?.[i] ?? null);
+        labels.push(`Highlight ${i + 1}`);
       });
       files.push(cardMp4(await endCardPng(browser, "desktop", { width: 1280, height: 720 }), 2.6, `end-${h.id}`));
-      const out = path.join(outDir, `${h.id}.mp4`);
-      const secs = stitch(files, out);
-      console.log(`  ✔ ${path.relative(webRoot, out)}  (${secs.toFixed(0)}s)`);
+      items.push(narr.outro ?? null);
+      labels.push("Growfit");
+      const secs = finishVideo(h.id, files, items, labels);
+      console.log(`  ✔ ${path.relative(webRoot, path.join(outDir, `${h.id}.mp4`))}  (${secs.toFixed(0)}s${voice ? ", with Leah" : ""})`);
     } catch (err) {
       failed++;
       console.error(`  ✖ ${h.id}: ${err.message}`);
