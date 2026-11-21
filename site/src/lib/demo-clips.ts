@@ -7,17 +7,13 @@ import type { DemoClip } from "@/components/demo-videos";
 // A clip whose file isn't there yet is skipped, and the whole section hides
 // when none are, so the site never shows a broken player.
 const CLIPS: Omit<DemoClip, "src">[] = [
-  { id: "01-squad-at-a-glance", title: "Your squad, one screen", blurb: "Every player, age group and status without a spreadsheet.", device: "desktop" },
-  { id: "02-attendance-and-training", title: "Training & attendance", blurb: "Plan the week and get a flag when a player drops below 75%.", device: "desktop" },
-  { id: "03-match-day", title: "Match day, sorted", blurb: "Fixtures, squads, results and the tactics board together.", device: "desktop" },
-  { id: "04-talk-to-parents", title: "Keep parents informed", blurb: "Announce to a squad. Parents see only what is about their child.", device: "desktop" },
-  { id: "08-tactical-board", title: "The tactical board", blurb: "Your real squad on a pitch. Draw runs and passes, see who controls the space, then view it in 3D.", device: "desktop" },
-  { id: "09-ai-assistant", title: "AI assistant coach", blurb: "Ask about your own squad, get a starting XI and a match plan, and save it to the board.", device: "desktop" },
-  { id: "10-our-curriculum", title: "Your philosophy, built in", blurb: "Write what the academy teaches by age group, and see what has really been trained.", device: "desktop" },
-  { id: "11-plan-by-philosophy", title: "Plan against it", blurb: "Pick the objective for each session and find lessons for the problems you see.", device: "desktop" },
-  { id: "05-parent-view", title: "What parents see", blurb: "The child's week on a phone, no WhatsApp scrolling.", device: "phone" },
-  { id: "06-player-development", title: "Player development", blurb: "Players see their own growth, season by season.", device: "phone" },
-  { id: "07-academy-health", title: "Run the academy", blurb: "Attendance, registration and results for funders and SAFA.", device: "desktop" },
+  { id: "00-growfit-in-60-seconds", title: "Growfit in under a minute", blurb: "The whole app in a quick tour.", device: "desktop" },
+  { id: "01-plan-and-train", title: "Plan & train", blurb: "Week plans, AI-built sessions with diagrams, a register in seconds and welfare flags.", device: "desktop" },
+  { id: "02-match-day", title: "Match day", blurb: "Team sheet, fair playing time and the tactics board, including 3D.", device: "desktop" },
+  { id: "03-ai-coaching", title: "AI coaching insights", blurb: "Ask about your own squad, get a starting XI, a scouting report, a match plan and player insights.", device: "desktop" },
+  { id: "04-your-philosophy", title: "Your philosophy, built in", blurb: "Write what the academy teaches by age group and see what has really been trained.", device: "desktop" },
+  { id: "05-parents-and-players", title: "Parents & players", blurb: "Write once, simplify for the age group, and everyone gets what is about them.", device: "desktop" },
+  { id: "06-run-the-academy", title: "Run the academy", blurb: "Compliance, live analytics, an AI health report and exports for funders and SAFA.", device: "desktop" },
 ];
 
 export function availableClips(): DemoClip[] {

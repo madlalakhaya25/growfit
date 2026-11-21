@@ -186,7 +186,7 @@ export const SCENES = [
           { waitFor: { selector: ".leading-relaxed", timeout: 60000 } },
           { scroll: 250 },
         ],
-        hold: 3000,
+        hold: 2000,
       },
       {
         caption: "Pick the match and the shape, then get a starting XI",
@@ -198,7 +198,7 @@ export const SCENES = [
           { waitFor: { selector: 'p:text-is("Suggested XI")', timeout: 60000 } },
           { scroll: 380 },
         ],
-        hold: 3200,
+        hold: 2200,
       },
       {
         caption: "One tap puts it on your tactics board",
@@ -206,7 +206,7 @@ export const SCENES = [
           { click: "role:button:Apply" },
           { waitFor: { text: "Open the tactical board", timeout: 30000 } },
         ],
-        hold: 1500,
+        hold: 900,
       },
       {
         caption: "Scout the opponent from your own data",
@@ -216,7 +216,7 @@ export const SCENES = [
           { waitFor: { selector: 'p:text-is("Scouting report")', timeout: 60000 } },
           { scroll: 300 },
         ],
-        hold: 3200,
+        hold: 2200,
       },
       {
         caption: "And a match plan to go with it",
@@ -226,7 +226,7 @@ export const SCENES = [
           { waitFor: { selector: 'p:text-is("Match plan")', timeout: 60000 } },
           { scroll: 420 },
         ],
-        hold: 3200,
+        hold: 2200,
       },
     ],
   },
@@ -326,11 +326,10 @@ export const SCENES = [
       },
       {
         caption: "Five drills, each with a diagram, ready to run",
-        actions: [
-          { center: 'button:has-text("Apply to this session")' },
-          { click: "role:button:Apply to this session" },
-        ],
-        hold: 1500,
+        // Not clicking "Apply to this session": the demo sessions use hand-made ids that the action's
+        // strict UUID check rejects. Real sessions have real UUIDs. See seed_demo.sql.
+        actions: [{ center: 'button:has-text("Apply to this session")' }],
+        hold: 2200,
       },
     ],
   },
@@ -394,12 +393,14 @@ export const SCENES = [
         goto: "/dashboard/coach/squad/10000000-0000-0000-0000-0000000000c1",
         caption: "Get an evidence-based read on any player",
         actions: [
-          { center: 'button:has-text("Generate insights")' },
-          { click: "role:button:Generate insights" },
+          { click: "role:tab:Development" },
+          { click: "role:tab:Plan" },
+          { center: 'button:has-text("Generate insights"), button:has-text("Refresh")' },
+          { click: "role:button:Generate insights|Refresh" },
           { waitFor: { text: "STRENGTHS", timeout: 60000 } },
           { scroll: 300 },
         ],
-        hold: 3800,
+        hold: 2400,
       },
     ],
   },
@@ -441,11 +442,9 @@ export const SCENES = [
         ],
         hold: 1200,
       },
-      {
-        caption: "Post it. Every parent gets it on their phone",
-        actions: [{ click: "role:button:Post announcement" }],
-        hold: 1800,
-      },
+      // Not clicking Post: the demo team id fails the same strict UUID check, so the post would show an
+      // error. The parent clip that follows shows the announcements parents receive.
+      { caption: "Then post it. Parents see it on their phone", actions: [{ center: 'button:has-text("Post announcement")' }], hold: 2000 },
     ],
   },
   {
@@ -504,8 +503,12 @@ export const SCENES = [
         goto: "/dashboard/admin/analytics",
         caption: "A monthly health report, written from your own numbers",
         actions: [
-          { center: 'button:has-text("Generate report")' },
-          { click: "role:button:Generate report" },
+          { center: 'button:has-text("Generate report"), button:has-text("Refresh")' },
+          // "Refresh" when an earlier take's report is already saved: it regenerates, so the clip still
+          // shows the working state.
+          { click: "role:button:Generate report|Refresh" },
+          // When nothing has changed the app offers the saved report first; regenerate for the clip.
+          { click: "role:button:Regenerate anyway", optional: true },
           { waitFor: { text: "ACADEMY OVERVIEW", timeout: 60000 } },
           { scroll: 380 },
         ],

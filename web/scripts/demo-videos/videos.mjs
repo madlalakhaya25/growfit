@@ -48,3 +48,24 @@ export const VIDEOS = [
     parts: ["v6-overview", "v6-health", "v6-paperwork"],
   },
 ];
+
+// Opening video, cut from the best moments of the finished videos above (no new recording).
+// Each cut is { src: <video id>, from, to } in seconds. Build the videos first.
+export const HIGHLIGHTS = [
+  {
+    id: "00-growfit-in-60-seconds",
+    kicker: "GROWFIT FA",
+    title: "Run your academy like a pro.",
+    subtitle: "Plan, coach, communicate and stay compliant in one app, built for grassroots football in South Africa.",
+    cuts: [
+      { src: "02-match-day", from: 59, to: 65 },
+      { src: "01-plan-and-train", from: 38, to: 44 },
+      { src: "03-ai-coaching", from: 22, to: 28 },
+      { src: "01-plan-and-train", from: 52, to: 57 },
+      { src: "04-your-philosophy", from: 5, to: 10 },
+      { src: "02-match-day", from: 30, to: 36 },
+      { src: "05-parents-and-players", from: 30, to: 35 },
+      { src: "06-run-the-academy", from: 23, to: 29 },
+    ],
+  },
+];

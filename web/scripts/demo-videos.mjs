@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { chromium } from "@playwright/test";
 import { ROLES, SCENES } from "./demo-videos/scenes.mjs";
-import { VIDEOS } from "./demo-videos/videos.mjs";
+import { VIDEOS, HIGHLIGHTS } from "./demo-videos/videos.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const webRoot = path.resolve(here, "..");
@@ -38,12 +38,13 @@ const sceneById = new Map(SCENES.map((x) => [x.id, x]));
 const matches = (id) => wanted.some((w) => id.startsWith(w));
 // Default: the themed videos. Name a video or a scene to build just that; --clips for every scene.
 const videos = smoke || clipsMode ? [] : VIDEOS.filter((v) => (wanted.length ? matches(v.id) : true));
+const highlights = smoke || clipsMode ? [] : HIGHLIGHTS.filter((h) => (wanted.length ? matches(h.id) : true));
 const scenes = smoke
   ? SCENES.filter((x) => x.id.includes("smoke"))
   : clipsMode || (wanted.length && videos.length === 0)
     ? SCENES.filter((x) => (wanted.length ? matches(x.id) : !x.skipByDefault && (!x.needsAi || process.env.DEMO_AI === "1")))
     : [];
-if (scenes.length === 0 && videos.length === 0) {
+if (scenes.length === 0 && videos.length === 0 && highlights.length === 0) {
   console.error("No matching videos or scenes.");
   process.exit(1);
 }
@@ -128,8 +129,8 @@ async function clickTarget(page, spec, optional = false) {
   const target = spec.startsWith("role:")
     ? page.getByRole(...(() => { const [, role, name] = spec.split(":"); return [role, { name: new RegExp(name, "i") }]; })()).first()
     : spec.match(/^[.#\[]/) ? page.locator(spec).first() : page.getByText(spec, { exact: false }).first();
-  const box = await target.boundingBox();
-  if (!box) { console.warn(`  could not find "${spec}"`); return; }
+  const box = await target.boundingBox({ timeout: optional ? 2500 : 8000 }).catch(() => null);
+  if (!box) { if (!optional) console.warn(`  could not find "${spec}"`); return; }
   await glide(page, box.x + box.width / 2, box.y + box.height / 2);
   await page.waitForTimeout(350);
   // optional: a button that is legitimately disabled (e.g. Save when nothing changed on a re-run).
@@ -400,6 +401,29 @@ try {
     } catch (err) {
       failed++;
       console.error(`  ✖ ${v.id}: ${err.message}`);
+    }
+  }
+
+  // Highlights: cuts from videos that are already built.
+  for (const h of highlights) {
+    console.log(`▶▶ ${h.id}: ${h.title}`);
+    try {
+      const files = [cardMp4(await htmlPng(browser, titleHtml(h), `title-${h.id}`), 2.6, `title-${h.id}`)];
+      h.cuts.forEach((c, i) => {
+        const src = path.join(outDir, `${c.src}.mp4`);
+        if (!existsSync(src)) throw new Error(`build ${c.src} first`);
+        const out = path.join(workDir, `cut-${h.id}-${i}.mp4`);
+        execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-ss", String(c.from), "-t", String(c.to - c.from), "-i", src,
+          "-vf", `scale=${CANVAS.w}:${CANVAS.h},${NORM}`, "-c:v", "libx264", "-crf", "19", out]);
+        files.push(out);
+      });
+      files.push(cardMp4(await endCardPng(browser, "desktop", { width: 1280, height: 720 }), 2.6, `end-${h.id}`));
+      const out = path.join(outDir, `${h.id}.mp4`);
+      const secs = stitch(files, out);
+      console.log(`  ✔ ${path.relative(webRoot, out)}  (${secs.toFixed(0)}s)`);
+    } catch (err) {
+      failed++;
+      console.error(`  ✖ ${h.id}: ${err.message}`);
     }
   }
 } finally {

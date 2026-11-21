@@ -130,10 +130,19 @@ WHERE f.id = pr.fixture_id
 -- "needs you" card is a feature worth showing. Sanele (c5) is missing his ID
 -- document and Thulani (c9) his medical consent, so compliance reads
 -- realistically (7 of 10 players fully complete), not a flat 100%.
-INSERT INTO player_documents (player_id, document_type, season, signed_digitally, signer_name, signer_role, signed_at, status)
-SELECT p.id, d.t, '2026', true,
-       'Guardian ' || split_part(p.full_name, ' ', 2), 'parent',
-       now() - make_interval(days => 40 + abs(hashtext(p.id::text || d.t)) % 20), 'signed'
+-- The ID document is upload-only in this app (lib/document-definitions.ts), so it is stored as an
+-- upload; the other five are signed forms. Storing the ID as 'signed' reads as incomplete.
+INSERT INTO player_documents (player_id, document_type, season, signed_digitally, signer_name, signer_role, signed_at,
+                              file_name, upload_url, uploaded_at, uploaded_by, status)
+SELECT p.id, d.t, '2026', d.t <> 'id_document',
+       CASE WHEN d.t = 'id_document' THEN NULL ELSE 'Guardian ' || split_part(p.full_name, ' ', 2) END,
+       CASE WHEN d.t = 'id_document' THEN NULL ELSE 'parent' END,
+       CASE WHEN d.t = 'id_document' THEN NULL ELSE now() - make_interval(days => 40 + abs(hashtext(p.id::text || d.t)) % 20) END,
+       CASE WHEN d.t = 'id_document' THEN 'id-document.pdf' END,
+       CASE WHEN d.t = 'id_document' THEN 'demo/id-document.pdf' END,
+       CASE WHEN d.t = 'id_document' THEN now() - interval '45 days' END,
+       CASE WHEN d.t = 'id_document' THEN '10000000-0000-0000-0000-000000000001'::uuid END,
+       CASE WHEN d.t = 'id_document' THEN 'uploaded' ELSE 'signed' END
 FROM players p
 CROSS JOIN (VALUES ('registration_agreement'), ('consent_form'), ('code_of_ethics'),
                    ('medical_consent'), ('popia_consent'), ('id_document')) AS d(t)
@@ -141,7 +150,15 @@ WHERE p.academy_id = '10000000-0000-0000-0000-0000000000a1'
   AND p.id <> '10000000-0000-0000-0000-0000000000c1'
   AND NOT (p.id = '10000000-0000-0000-0000-0000000000c5' AND d.t = 'id_document')
   AND NOT (p.id = '10000000-0000-0000-0000-0000000000c9' AND d.t = 'medical_consent')
-ON CONFLICT (player_id, document_type, season) DO UPDATE SET status = EXCLUDED.status;
+ON CONFLICT (player_id, document_type, season) DO UPDATE SET status = EXCLUDED.status, signed_digitally = EXCLUDED.signed_digitally, file_name = EXCLUDED.file_name, upload_url = EXCLUDED.upload_url;
+
+-- ── MySAFA registration numbers (fictional) ──────────────────────────
+-- Without these the paperwork "chase" list tags every player "No SAFA number". Eight of ten are
+-- registered; Asanda and Thulani are not, so the list still has something real to chase.
+UPDATE players SET mysafa_number = 'MYS-2026-' || lpad(x.rn::text, 4, '0')
+FROM (SELECT id, row_number() OVER (ORDER BY id) AS rn FROM players WHERE academy_id = '10000000-0000-0000-0000-0000000000a1') x
+WHERE players.id = x.id AND players.mysafa_number IS NULL
+  AND players.id NOT IN ('10000000-0000-0000-0000-0000000000c1', '10000000-0000-0000-0000-0000000000c9');
 
 -- ── Development milestones across all five categories ─────────────────
 -- Asanda ends 4 of 5 done (one to go), which is a better story than 1 of 5.
@@ -244,5 +261,5 @@ SELECT
      WHERE ts.session_date < now() AND ts.session_date > now() - interval '90 days'
      GROUP BY player_id) a WHERE pct < 0.75) AS below_75,
   (SELECT count(*) FROM (
-     SELECT player_id FROM player_documents WHERE status = 'signed' AND season = '2026'
+     SELECT player_id FROM player_documents WHERE status IN ('signed','uploaded') AND season = '2026'
      GROUP BY player_id HAVING count(*) = 6) d) AS players_all_six_docs;

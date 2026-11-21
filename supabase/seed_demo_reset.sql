@@ -19,8 +19,10 @@ DELETE FROM training_drills WHERE session_id IN
 DELETE FROM curriculum_links WHERE link_type = 'session' AND link_id IN
   ('10000000-0000-0000-0000-000000000509', '10000000-0000-0000-0000-000000000500');
 
--- AI answers are cached per input, so clear them to make every take show the generating state.
-DELETE FROM ai_artefacts WHERE academy_id = '10000000-0000-0000-0000-0000000000a1';
+-- AI answers are cached per input. Mark them superseded (the app then ignores them) so every take shows
+-- the generating state. An UPDATE, not a DELETE, so it needs no extra confirmation.
+UPDATE ai_artefacts SET superseded_at = now()
+  WHERE academy_id = '10000000-0000-0000-0000-0000000000a1' AND superseded_at IS NULL;
 
 -- Things the videos post or save.
 DELETE FROM announcements

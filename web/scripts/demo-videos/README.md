@@ -38,3 +38,38 @@ Copy the finished MP4s from `web/demo-videos/out/` into `site/public/demo/`
 (same file names). The "See it in action" section on the marketing site lists
 whichever clips are there and hides itself when there are none. Titles, order
 and blurbs live in `site/src/lib/demo-clips.ts`.
+
+
+## The themed videos (what you publish)
+
+`npm run demo:videos` builds the videos in `videos.mjs`, each 45-70 seconds: a title card, recorded scenes
+cross-faded together, and the Growfit end card. Phone scenes sit in a branded 16:9 frame with a one-line note.
+
+    npm run demo:videos                  # all six, then the opening video
+    npm run demo:videos -- 03            # one video (by id prefix)
+    npm run demo:videos -- 00            # the opening video, cut from the finished six (build them first)
+    npm run demo:videos -- --clips       # one MP4 per scene, no stitching
+
+Scene ids that start `v1-` ... `v6-` are the segments of video 1 ... 6. Edit captions and pacing in `scenes.mjs`,
+and the titles and order in `videos.mjs`.
+
+### Scripted AI (read before you call a clip "live AI")
+
+The AI scenes record against `mock-gemini.mjs`, a stand-in for Gemini. The app is real; only the model's wording is
+scripted, and it is written against the demo data. Run it and point the app at it:
+
+    node scripts/demo-videos/mock-gemini.mjs &
+    GOOGLE_GEMINI_BASE_URL=http://localhost:4010 GEMINI_API_KEY=demo npm start
+
+### Before each take
+
+Run `supabase/seed_demo_reset.sql` on the demo project. The clips tick boxes, mark the register and cache AI answers,
+so a second take would otherwise start from a different screen. Its DELETEs ask for confirmation in the Supabase
+connector. Everything else (`seed_demo.sql`) is safe to re-run and moves the dates to be relative to today.
+
+### Known limits of the demo data
+
+* The demo sessions and team use hand-made ids that are not RFC UUIDs, so two actions reject them: "Apply to this
+  session" (drills) and "Post announcement". The clips avoid both. Real data has real UUIDs.
+* The demo academy has one team (U13), so the curriculum coverage card reads 0% for U11 and U15.
+* In a cloud container, the Next server needs `NODE_USE_ENV_PROXY=1` to reach Supabase through the egress proxy.
