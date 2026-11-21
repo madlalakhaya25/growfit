@@ -14,7 +14,8 @@
     "ui:shots": "node scripts/ui-shots.mjs",
     "measure:bundle": "node scripts/measure-bundle.mjs",
     "check:budgets": "node scripts/check-budgets.mjs",
-    "db:types": "npx supabase gen types typescript --project-id gxkttmxrdrerjhxhsisc --schema public > src/lib/database.types.ts"
+    "db:types": "npx supabase gen types typescript --project-id gxkttmxrdrerjhxhsisc --schema public > src/lib/database.types.ts",
+    "demo:videos": "node scripts/demo-videos.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.8.0",
