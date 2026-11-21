@@ -267,6 +267,69 @@ function playerInsight(prompt) {
   ].join("\n\n");
 }
 
+// ── Development plans, written from the player's own brief ───────────────
+// The prompt lists the player's attributes, open milestones and attendance. The plan is built from those
+// facts (weakest attributes, first open milestones), so each child's plan is about that child.
+const ATTR_CATEGORY = [
+  [/leader|communicat/i, "leadership"],
+  [/composure|work rate|resilien|confidence|focus/i, "mental"],
+  [/pace|agility|jump|strength|stamina|balance|speed/i, "physical"],
+  [/position|decision|reading|off.?ball|marking|awareness|press/i, "tactical"],
+];
+const categoryOf = (label) => ATTR_CATEGORY.find(([re]) => re.test(label))?.[1] ?? "technical";
+
+const HOW = {
+  technical: ["Ten minutes with a ball against a wall, two touches each time, counting how many are clean.", "Clean touches out of twenty, written in a notebook."],
+  tactical: ["Before every pass in the small games, look over both shoulders and say out loud where the space is.", "Coach notes how often they look before the ball arrives."],
+  physical: ["Five minutes of quick feet over a line or ladder before bed, then slow stretches.", "Rounds completed without stopping."],
+  mental: ["After a mistake, take one breath, say one positive word, and go straight to the next play.", "Coach notes how quickly they settle after an error."],
+  leadership: ["Call one clear instruction to a teammate in every drill, such as time, man on or switch.", "Number of clear calls in a session."],
+};
+const POS = { gk: "goalkeeper", cb: "centre back", lb: "left back", rb: "right back", cdm: "defensive midfielder", cm: "central midfielder", cam: "attacking midfielder", lw: "left winger", rw: "right winger", st: "striker" };
+const lc = (s) => s.charAt(0).toLowerCase() + s.slice(1);
+
+function developmentPlan(prompt) {
+  const name = pick(/Player: ([^,]+),/, prompt, "The player");
+  const first = name.split(" ")[0];
+  const position = POS[pick(/Position: ([^,\n]+)/, prompt, "player").toLowerCase()] ?? pick(/Position: ([^,\n]+)/, prompt, "player");
+  const attrLine = pick(/Attributes \(strongest to weakest\): ([^\n]+)/, prompt, "");
+  const attrs = attrLine.split(/,\s*/).map((a) => /^(.*?)\s+(\d+)$/.exec(a.trim())).filter(Boolean).map((m) => ({ label: m[1], value: Number(m[2]) }));
+  const pct = pick(/attended since [^(]*\((\d+)%/, prompt, null);
+  const open = [...prompt.matchAll(/^- \[([0-9a-f-]{36})\] (\w+): (.+)$/gm)].map((m) => ({ id: m[1], category: m[2].toLowerCase(), title: m[3].trim() }));
+
+  const strongest = attrs[0];
+  const weakest = attrs.slice(-2).reverse();
+  const focus = [];
+  const used = new Set();
+  for (const a of weakest) {
+    const cat = categoryOf(a.label);
+    if (!used.has(cat)) { used.add(cat); focus.push({ category: cat, area: a.label, why: `Building ${lc(a.label)} will make ${first}'s strongest qualities count for even more in matches.` }); }
+  }
+  if (open[0] && !used.has(open[0].category)) {
+    used.add(open[0].category);
+    focus.push({ category: open[0].category, area: open[0].title, fromMilestone: true, why: `This is the next milestone on ${first}'s season, and a good one to aim for.` });
+  }
+  if (focus.length === 0 && open[0]) focus.push({ category: open[0].category, area: open[0].title, fromMilestone: true, why: `A clear next step for ${first} this season.` });
+
+  const actions = focus.slice(0, 3).map((f, i) => {
+    const [how, measure] = HOW[f.category] ?? HOW.technical;
+    const ms = open.find((m) => m.category === f.category);
+    return { what: f.fromMilestone ? `Work towards: ${f.area}` : `Work on ${lc(f.area)}`, how, timesPerWeek: i === 0 ? 3 : 2, measure, ...(ms ? { milestoneTemplateId: ms.id } : {}) };
+  });
+  if (open[0] && !actions.some((a) => a.milestoneTemplateId === open[0].id)) {
+    const [how, measure] = HOW[open[0].category] ?? HOW.technical;
+    actions.push({ what: open[0].title, how, timesPerWeek: 2, measure, milestoneTemplateId: open[0].id });
+  }
+
+  return {
+    playerSummary: `${name} plays as ${position.toLowerCase()}${strongest ? ` and is strongest on ${lc(strongest.label)} (${strongest.value})` : ""}. ${weakest[0] ? `The clearest room to grow is ${lc(weakest[0].label)} (${weakest[0].value}).` : ""}`.trim(),
+    focusAreas: focus.slice(0, 3).map(({ fromMilestone, ...f }) => f),
+    actions,
+    coachNote: `${pct !== null ? `Training attendance is ${pct}% this term. ` : ""}Review the plan with ${first} before sharing it, and check the milestone links match what you see at training.`.trim(),
+    playerNote: `${first}, you are already doing a lot well${strongest ? `, especially ${lc(strongest.label)}` : ""}. These few things will help you grow even more, and your coach will help you with each one.`,
+  };
+}
+
 function flatten(contents) {
   const turns = typeof contents === "string" ? [{ role: "user", parts: [{ text: contents }] }] : contents ?? [];
   return turns.map((t) => ({ role: t.role ?? "user", text: (t.parts ?? []).map((p) => p.text ?? "").join("\n") }));
@@ -282,6 +345,7 @@ function reply(body) {
     return JSON.stringify(lineup(formation));
   }
   if (all.includes("Write the match plan for this team")) return JSON.stringify(PLAN);
+  if (/Write a focused \d+-week development plan for this player/.test(all)) return JSON.stringify(developmentPlan(all));
   if (all.includes("Generate a complete, structured training session plan")) return JSON.stringify(SESSION_PLAN);
   if (/drill diagram|Coordinates: x runs left to right/i.test(all)) {
     return JSON.stringify({ diagrams: DRILLS.map((d, i) => ({ drill: i, diagram: d.diagram })) });
@@ -317,8 +381,9 @@ http
             usageMetadata: { promptTokenCount: 900, candidatesTokenCount: Math.ceil(text.length / 4), totalTokenCount: 900 + Math.ceil(text.length / 4) },
             modelVersion: "scripted-demo",
           }),
-        // A believable beat, so the spinner is visible, as it would be with a live model.
-        1800,
+        // A believable beat, so the spinner is visible, as it would be with a live model. Squad-wide plan
+        // drafting makes ten calls in a row, so each one is quick to keep the clip short.
+        /Write a focused \d+-week development plan/.test(raw) ? 450 : 1800,
       );
     });
   })

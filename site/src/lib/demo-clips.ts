@@ -14,6 +14,9 @@ const CLIPS: Omit<DemoClip, "src">[] = [
   { id: "04-your-philosophy", title: "Your philosophy, built in", blurb: "Write what the academy teaches by age group and see what has really been trained.", device: "desktop" },
   { id: "05-parents-and-players", title: "Parents & players", blurb: "Write once, simplify for the age group, and everyone gets what is about them.", device: "desktop" },
   { id: "07-player-profile-and-passport", title: "Player profile & passport", blurb: "Ratings, development, video clips and a shareable passport with a QR code.", device: "desktop" },
+  { id: "08-film-room", title: "Match film", blurb: "Freeze a frame from a phone clip, draw over it like a TV analyst, and save it for the squad.", device: "desktop" },
+  { id: "09-development-plans", title: "Development plans", blurb: "AI drafts a plan for every player. The coach reviews and approves; families get the home challenge.", device: "desktop" },
+  { id: "10-safe-and-compliant", title: "Safe & compliant", blurb: "Emergency contacts with no signal, forms signed on a phone, and erasure of a child's record.", device: "desktop" },
   { id: "06-run-the-academy", title: "Run the academy", blurb: "Registration paperwork, live analytics, an AI health report and CSV or PDF exports.", device: "desktop" },
 ];
 

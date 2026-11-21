@@ -160,6 +160,25 @@ FROM (SELECT id, row_number() OVER (ORDER BY id) AS rn FROM players WHERE academ
 WHERE players.id = x.id AND players.mysafa_number IS NULL
   AND players.id NOT IN ('10000000-0000-0000-0000-0000000000c1', '10000000-0000-0000-0000-0000000000c9');
 
+-- ── Emergency contacts for the rest of the squad (fictional; 555 numbers) ──
+-- seed.sql gives Asanda a contact and nobody else, so the "Who to call" sheet read "No emergency contact on file"
+-- for nine children. A couple of allergies make the sheet more realistic.
+INSERT INTO player_medical (player_id, blood_type, allergies, emergency_1_name, emergency_1_relationship, emergency_1_phone, has_medical_aid, nearest_hospital, season)
+SELECT p.id, v.bt, v.al, v.nm, v.rel, v.ph, true, 'Chatsmed Garden Hospital', '2026'
+FROM (VALUES
+ ('10000000-0000-0000-0000-0000000000c2', 'A+',  'NONE',      'Thandi Ngcobo',     'Mother',      '082 555 0111'),
+ ('10000000-0000-0000-0000-0000000000c3', 'O+',  'NONE',      'Sibusiso Dlamini',  'Father',      '082 555 0112'),
+ ('10000000-0000-0000-0000-0000000000c4', 'B+',  'Penicillin','Nomsa Mahlangu',    'Grandmother', '082 555 0113'),
+ ('10000000-0000-0000-0000-0000000000c5', 'O-',  'NONE',      'Bongani Buthelezi', 'Father',      '082 555 0114'),
+ ('10000000-0000-0000-0000-0000000000c6', 'A-',  'NONE',      'Zodwa Radebe',      'Mother',      '082 555 0115'),
+ ('10000000-0000-0000-0000-0000000000c7', 'AB+', 'Peanuts',   'Lerato Mkhize',     'Aunt',        '082 555 0116'),
+ ('10000000-0000-0000-0000-0000000000c8', 'O+',  'NONE',      'Themba Zungu',      'Father',      '082 555 0117'),
+ ('10000000-0000-0000-0000-0000000000c9', 'B-',  'NONE',      'Ntombi Nkosi',      'Mother',      '082 555 0118'),
+ ('10000000-0000-0000-0000-0000000000ca', 'A+',  'NONE',      'Palesa Mokoena',    'Mother',      '082 555 0119')
+) AS v(pid, bt, al, nm, rel, ph)
+JOIN players p ON p.id = v.pid::uuid
+ON CONFLICT (player_id) DO NOTHING;
+
 -- ── Development milestones across all five categories ─────────────────
 -- Asanda ends 4 of 5 done (one to go), which is a better story than 1 of 5.
 INSERT INTO player_milestone_completions (template_id, player_id, season, completed_by, note) VALUES

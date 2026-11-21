@@ -54,6 +54,27 @@ export const VIDEOS = [
     subtitle: "Ratings, development, video clips and a shareable passport that parents, schools and scouts can open.",
     parts: ["v7-profile", "v7-passport", "v7-parent-child"],
   },
+  {
+    id: "08-film-room",
+    kicker: "MATCH FILM",
+    title: "Break down a play like a TV analyst.",
+    subtitle: "Freeze a frame from a phone clip, draw over it, and save it for the squad. The clip itself never leaves your device.",
+    parts: ["v8-film"],
+  },
+  {
+    id: "09-development-plans",
+    kicker: "DEVELOPMENT PLANS",
+    title: "A plan for every player. The coach stays in charge.",
+    subtitle: "AI drafts each plan from the child's own ratings, attendance and milestones. Nothing reaches a player or parent until you approve it.",
+    parts: ["v9-plans", "v9-notes", "v9-parent"],
+  },
+  {
+    id: "10-safe-and-compliant",
+    kicker: "SAFE \u00b7 COMPLIANT",
+    title: "Look after every child, and the paperwork that protects them.",
+    subtitle: "Emergency contacts that work with no signal, forms signed on a phone, and a child's record erased when the law asks.",
+    parts: ["v10-emergency", "v10-forms", "v10-erasure"],
+  },
 ];
 
 // Opening video, cut from the best moments of the finished videos above (no new recording).

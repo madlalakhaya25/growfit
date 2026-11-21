@@ -131,6 +131,7 @@ async function glide(page, x, y) {
 }
 
 let recordStart = 0;
+let timelapses = []; // [{from, to}] seconds into the recording that are sped up in the finished clip
 let leadIn = 0; // seconds of recording before the first real screen, trimmed off in encode()
 
 async function clickTarget(page, spec, optional = false) {
@@ -181,6 +182,12 @@ async function doAction(page, a, scene, pos) {
     await page.waitForTimeout(300);
     await sel.selectOption(a.select.index !== undefined ? { index: a.select.index } : { label: a.select.label });
   }
+  if (a.upload) {
+    // A file the clip needs (a synthetic match clip in demo-videos/assets); path is relative to web/.
+    await page.locator(a.upload.selector).first().setInputFiles(path.resolve(webRoot, a.upload.file));
+    await page.waitForTimeout(1200);
+  }
+  if (a.seek !== undefined) await page.evaluate((t) => { const v = document.querySelector("video"); if (v) v.currentTime = t; }, a.seek);
   if (a.key) await page.keyboard.press(a.key);
   if (a.center) { await page.locator(a.center).first().evaluate((e) => e.scrollIntoView({ block: "center" })); await page.waitForTimeout(500); }
   if (a.top) { await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(500); }
@@ -205,6 +212,14 @@ async function doAction(page, a, scene, pos) {
     const w = a.waitFor;
     const loc = w.selector ? page.locator(w.selector).first() : page.getByText(w.text, { exact: false }).first();
     await loc.waitFor({ timeout: w.timeout ?? 45_000 }).catch(() => console.warn(`  never saw ${w.selector ?? w.text}`));
+  }
+  if (a.waitGone) {
+    const g = a.waitGone;
+    const from = (Date.now() - recordStart) / 1000;
+    await page.waitForFunction((t) => !document.body.innerText.includes(t), g.text, { timeout: g.timeout ?? 60_000 })
+      .catch(() => console.warn(`  "${g.text}" never went away`));
+    // A long wait is shown as a time-lapse (see segmentMp4) rather than as dead air.
+    timelapses.push({ from: from + 0.6, to: (Date.now() - recordStart) / 1000 - 0.4 });
   }
   if (a.scroll) {
     const frames = 30;
@@ -288,7 +303,7 @@ const probe = (f) => Number(execFileSync("ffprobe", ["-v", "error", "-show_entri
 const NORM = `fps=30,format=yuv420p,setsar=1`;
 
 /** One recorded scene, trimmed and put on a 1920x1080 canvas. Phones sit on a branded backdrop. */
-function segmentMp4(scene, webm, trim, backdropPng) {
+function segmentMp4(scene, webm, trim, backdropPng, laps = []) {
   const out = path.join(workDir, `seg-${scene.id}.mp4`);
   const phone = scene.device === "phone";
   const args = ["-y", "-loglevel", "error", "-ss", String(trim), "-i", webm];
@@ -297,7 +312,16 @@ function segmentMp4(scene, webm, trim, backdropPng) {
     args.push("-loop", "1", "-i", backdropPng);
     filter = `[0:v]scale=-2:960:flags=lanczos,setsar=1[p];[1:v]scale=${CANVAS.w}:${CANVAS.h}[bg];[bg][p]overlay=W-w-210:(H-h)/2:shortest=1,${NORM}[v]`;
   } else {
-    filter = `[0:v]scale=${CANVAS.w}:${CANVAS.h}:force_original_aspect_ratio=decrease,pad=${CANVAS.w}:${CANVAS.h}:(ow-iw)/2:(oh-ih)/2:color=0x${BRAND},${NORM}[v]`;
+    const fit = `scale=${CANVAS.w}:${CANVAS.h}:force_original_aspect_ratio=decrease,pad=${CANVAS.w}:${CANVAS.h}:(ow-iw)/2:(oh-ih)/2:color=0x${BRAND},${NORM}`;
+    const lap = laps.map((l) => ({ a: l.from - trim, b: l.to - trim })).find((l) => l.b - l.a > 3 && l.a > 0);
+    if (lap) {
+      // Speed the waiting stretch up (x6) so a slow step does not cost the viewer 25 seconds.
+      filter = `[0:v]split=3[s0][s1][s2];[s0]trim=0:${lap.a.toFixed(3)},setpts=PTS-STARTPTS[p0];` +
+        `[s1]trim=${lap.a.toFixed(3)}:${lap.b.toFixed(3)},setpts=(PTS-STARTPTS)/6[p1];[s2]trim=start=${lap.b.toFixed(3)},setpts=PTS-STARTPTS[p2];` +
+        `[p0][p1][p2]concat=n=3:v=1:a=0,${fit}[v]`;
+    } else {
+      filter = `[0:v]${fit}[v]`;
+    }
   }
   execFileSync("ffmpeg", [...args, "-filter_complex", filter, "-map", "[v]", "-c:v", "libx264", "-crf", "19", "-preset", "medium", out]);
   return out;
@@ -480,10 +504,11 @@ async function recordScene(browser, scene) {
   const page = await ctx.newPage();
   recordStart = Date.now();
   leadIn = 0;
+  timelapses = [];
   for (const step of scene.steps) await runStep(page, step, scene);
   const video = page.video();
   await ctx.close(); // flushes the recording
-  return { webm: await video.path(), trim: leadIn };
+  return { webm: await video.path(), trim: leadIn, laps: timelapses };
 }
 
 const browser = await chromium.launch(
@@ -523,9 +548,9 @@ try {
           files.push(cached);
         } else {
           console.log(`   • ${id}`);
-          const { webm, trim } = await recordScene(browser, scene);
+          const { webm, trim, laps } = await recordScene(browser, scene);
           const backdrop = scene.device === "phone" ? await htmlPng(browser, backdropHtml(scene), `bd-${id}`) : null;
-          copyFileSync(segmentMp4(scene, webm, trim, backdrop), cached);
+          copyFileSync(segmentMp4(scene, webm, trim, backdrop, laps), cached);
           files.push(cached);
         }
         items.push(narr.parts?.[id] ?? null);

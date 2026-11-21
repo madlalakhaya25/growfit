@@ -13,6 +13,7 @@
 //                       key / press   a keyboard key (the tactics board has R run, P pass, K shot shortcuts)
 //                       drag    { on: "<css>", from: [fx, fy], to: [fx, fy] }, fractions of that element
 //                       expand  summary text of a collapsed section (no-op when open)
+//                       upload  { selector, file } load a file into a file input; seek: seconds into the page's <video>
 //                       check   label text of a tick box (ticks it; safe to re-run)
 //                       type    { selector, text }      center / top / scroll   move the page
 //                       waitFor { text | selector, timeout }   wait for something real to appear
@@ -559,6 +560,137 @@ export const SCENES = [
     sideNote: { kicker: "FOR PARENTS", text: "Ratings, fixtures, development and forms for their child, on their phone." },
     steps: [
       { goto: "/dashboard/parent/10000000-0000-0000-0000-0000000000c1", caption: "Their child's ratings and development", scroll: 1400, hold: 8000 },
+    ],
+  },
+
+  {
+    id: "v8-film",
+    title: "Match film",
+    role: "coach",
+    device: "desktop",
+    viewport: { width: 1440, height: 900 },
+    steps: [
+      {
+        goto: "/dashboard/coach/tactics/film",
+        caption: "Pick a clip from your phone. It never leaves your device",
+        actions: [{ upload: { selector: 'input[type="file"]', file: "demo-videos/assets/demo-match-clip.mp4" } }],
+        hold: 1800,
+      },
+      {
+        caption: "Freeze the moment that matters",
+        actions: [{ seek: 4.2 }, { click: "role:button:Freeze this frame" }],
+        hold: 1500,
+      },
+      {
+        caption: "Draw the pass, the run and the gap, like a TV analyst",
+        actions: [
+          { click: "role:button:^Pass$" },
+          { drag: { on: "main svg.touch-none", from: [0.45, 0.62], to: [0.62, 0.45] } },
+          { click: "role:button:^Run$" },
+          { drag: { on: "main svg.touch-none", from: [0.78, 0.7], to: [0.88, 0.35] } },
+          { click: "role:button:^Dribble$" },
+          { drag: { on: "main svg.touch-none", from: [0.3, 0.8], to: [0.5, 0.72] } },
+        ],
+        hold: 1500,
+      },
+      {
+        caption: "Name it, save it, and keep it for the whole squad",
+        actions: [
+          { type: { selector: 'input[placeholder^="Name this breakdown"]', text: "Press breakdown vs Chatsworth United" } },
+          { click: "role:button:^Save$" },
+        ],
+        hold: 4800,
+      },
+    ],
+  },
+
+  {
+    id: "v9-plans",
+    title: "Development plans",
+    role: "coach",
+    device: "desktop",
+    viewport: { width: 1440, height: 900 },
+    steps: [
+      {
+        goto: "/dashboard/coach/squad/plans",
+        caption: "Draft a development plan for every player in one tap",
+        actions: [{ click: "role:button:Draft plans" }, { waitGone: { text: "Drafting", timeout: 90000 } }],
+        hold: 1200,
+      },
+      { caption: "Read it, change the words, make it yours", actions: [{ click: "role:button:Review draft" }], hold: 3600 },
+      { caption: "Nothing reaches a player or parent until you approve it", actions: [{ click: "role:button:Approve & share" }], hold: 3000 },
+    ],
+  },
+  {
+    id: "v9-notes",
+    title: "Weekly family notes",
+    role: "coach",
+    device: "desktop",
+    viewport: { width: 1440, height: 900 },
+    steps: [
+      {
+        goto: "/dashboard/coach/squad/digest",
+        caption: "Write the week's family notes in one tap",
+        actions: [{ click: "role:button:Write this week|Write any missing" }, { waitFor: { text: "Share with family", timeout: 30000 } }],
+        hold: 3800,
+      },
+      { caption: "Read it, change it, then share it with the family", actions: [{ click: "role:button:Share with family" }], hold: 3200 },
+    ],
+  },
+  {
+    id: "v9-parent",
+    title: "What the family sees",
+    role: "parent",
+    device: "phone",
+    sideNote: { kicker: "FOR THE FAMILY", text: "This week's home challenge, in the coach's words." },
+    steps: [
+      {
+        goto: "/dashboard/parent/10000000-0000-0000-0000-0000000000c1",
+        caption: "This week's challenge, and what their child is working on",
+        actions: [{ scroll: 2150 }],
+        hold: 6500,
+      },
+    ],
+  },
+
+  {
+    id: "v10-emergency",
+    title: "Emergency contacts",
+    role: "coach",
+    device: "desktop",
+    viewport: { width: 1440, height: 900 },
+    steps: [
+      { goto: "/dashboard/coach/squad/emergency", caption: "Every child's emergency contact, one tap to call", scroll: 450, hold: 6200 },
+    ],
+  },
+  {
+    id: "v10-forms",
+    title: "Forms on the phone",
+    role: "parent",
+    device: "phone",
+    sideNote: { kicker: "FOR PARENTS", text: "Sign the forms and keep medical details up to date, on their phone." },
+    steps: [
+      { goto: "/dashboard/parent/10000000-0000-0000-0000-0000000000c1", caption: "Registration and consent forms, signed on a phone", scroll: 4700, hold: 9000 },
+    ],
+  },
+  {
+    id: "v10-erasure",
+    title: "Erase a child's record",
+    role: "admin",
+    device: "desktop",
+    viewport: { width: 1440, height: 900 },
+    steps: [
+      {
+        goto: "/dashboard/admin/players/10000000-0000-0000-0000-0000000000ca",
+        caption: "When the law asks, erase a child's whole record",
+        actions: [
+          { center: 'text=Delete this player permanently' },
+          { click: "Delete player record" },
+          // The name is typed to show the safeguard. The red "Permanently delete" button is never pressed.
+          { type: { selector: 'label:has-text("to confirm") + input', text: "Kagiso Mokoena" } },
+        ],
+        hold: 3600,
+      },
     ],
   },
 ];

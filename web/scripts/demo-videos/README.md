@@ -101,3 +101,17 @@ In a cloud container the service address `speech.platform.bing.com` must be on t
 
 Note: `edge-tts` uses the Edge browser's read-aloud service, which is free but unofficial. The same voices are
 available, licensed, through Azure AI Speech (`en-ZA-LeahNeural`) if the videos ever need a supported service.
+
+
+## More videos (08 to 10)
+
+* **08 Match film** loads `demo-videos/assets/demo-match-clip.mp4` into the Film area. Make the clearly synthetic sample
+  with `node scripts/demo-videos/make-sample-clip.mjs` (a moving-discs pitch, labelled "Simulated clip: not real
+  match footage"), or put your own consented clip at that path to show real footage.
+* **09 Development plans** drafts a plan for every player. The scripted AI (`mock-gemini.mjs`) writes each plan from
+  that player's own attributes, open milestones and attendance in the prompt. The long drafting wait is shown as a
+  6x time-lapse (see `waitGone` in `scenes.mjs`).
+* **10 Safe and compliant** shows the erasure safeguard: it types the child's name but never presses the red
+  "Permanently delete" button. Keep it that way: that action cannot be undone.
+
+`seed_demo_reset.sql` also puts the weekly family notes and AI answers back, so these can be re-recorded.

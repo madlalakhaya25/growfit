@@ -100,4 +100,36 @@ export const NARRATION = {
     },
     outro: "Growfit. Run your academy like a pro.",
   },
+
+  "08-film-room": {
+    intro: "Break down a play like a TV analyst.",
+    parts: {
+      "v8-film":
+        "Pick a clip from your phone. It plays right in the app and never leaves your device. Freeze the moment that matters, then draw the pass, the run and the gap. Name it, save it, and keep it for the whole squad.",
+    },
+    outro: "Growfit. Run your academy like a pro.",
+  },
+
+  "09-development-plans": {
+    intro: "A plan for every player. The coach stays in charge.",
+    parts: {
+      "v9-plans":
+        "Draft a development plan for every player in one tap. Each plan is built from that child's own ratings, attendance and milestones. Read it, change the words, and nothing reaches a player or parent until you approve it.",
+      "v9-notes":
+        "Then write the week's family notes: a short, kind note for each family, with one thing to try at home from the approved plan. Read it, change it, then share it.",
+      "v9-parent": "The family sees this week's home challenge, and what their child is working on, in the coach's own words.",
+    },
+    outro: "Growfit. Run your academy like a pro.",
+  },
+
+  "10-safe-and-compliant": {
+    intro: "Look after every child, and the paperwork that protects them.",
+    parts: {
+      "v10-emergency": "Every child's emergency contact is one tap away, and the sheet opens even with no signal on the touchline.",
+      "v10-forms": "Parents sign the registration and consent forms on their phone, and keep their child's medical details up to date.",
+      "v10-erasure":
+        "And when the law asks, an admin can erase a child's whole record. It needs the child's exact name typed to confirm, so it can never happen by accident.",
+    },
+    outro: "Growfit. Run your academy like a pro.",
+  },
 };
