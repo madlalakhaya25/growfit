@@ -16,6 +16,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { chromium } from "@playwright/test";
 import { ROLES, SCENES } from "./demo-videos/scenes.mjs";
+import { VIDEOS } from "./demo-videos/videos.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const webRoot = path.resolve(here, "..");
@@ -31,12 +32,19 @@ const DEVICES = {
 
 const args = process.argv.slice(2);
 const smoke = args.includes("--smoke");
+const clipsMode = args.includes("--clips"); // one MP4 per scene, no stitching
 const wanted = args.filter((a) => !a.startsWith("--"));
-const scenes = SCENES.filter((s) =>
-  smoke ? s.id.includes("smoke") : wanted.length ? wanted.some((w) => s.id.startsWith(w)) : !s.skipByDefault && (!s.needsAi || process.env.DEMO_AI === "1"),
-);
-if (scenes.length === 0) {
-  console.error("No matching scenes.");
+const sceneById = new Map(SCENES.map((x) => [x.id, x]));
+const matches = (id) => wanted.some((w) => id.startsWith(w));
+// Default: the themed videos. Name a video or a scene to build just that; --clips for every scene.
+const videos = smoke || clipsMode ? [] : VIDEOS.filter((v) => (wanted.length ? matches(v.id) : true));
+const scenes = smoke
+  ? SCENES.filter((x) => x.id.includes("smoke"))
+  : clipsMode || (wanted.length && videos.length === 0)
+    ? SCENES.filter((x) => (wanted.length ? matches(x.id) : !x.skipByDefault && (!x.needsAi || process.env.DEMO_AI === "1")))
+    : [];
+if (scenes.length === 0 && videos.length === 0) {
+  console.error("No matching videos or scenes.");
   process.exit(1);
 }
 
@@ -261,30 +269,137 @@ function encode(webm, endcard, device, out, trim) {
   ]);
 }
 
+// ── Stitching ────────────────────────────────────────────────────────────
+const CANVAS = { w: 1920, h: 1080 };
+const FADE = 0.45;
+const BRAND = "0b1f14";
+const probe = (f) => Number(execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f]).toString().trim());
+const NORM = `fps=30,format=yuv420p,setsar=1`;
+
+/** One recorded scene, trimmed and put on a 1920x1080 canvas. Phones sit on a branded backdrop. */
+function segmentMp4(scene, webm, trim, backdropPng) {
+  const out = path.join(workDir, `seg-${scene.id}.mp4`);
+  const phone = scene.device === "phone";
+  const args = ["-y", "-loglevel", "error", "-ss", String(trim), "-i", webm];
+  let filter;
+  if (phone) {
+    args.push("-loop", "1", "-i", backdropPng);
+    filter = `[0:v]scale=-2:960:flags=lanczos,setsar=1[p];[1:v]scale=${CANVAS.w}:${CANVAS.h}[bg];[bg][p]overlay=W-w-210:(H-h)/2:shortest=1,${NORM}[v]`;
+  } else {
+    filter = `[0:v]scale=${CANVAS.w}:${CANVAS.h}:force_original_aspect_ratio=decrease,pad=${CANVAS.w}:${CANVAS.h}:(ow-iw)/2:(oh-ih)/2:color=0x${BRAND},${NORM}[v]`;
+  }
+  execFileSync("ffmpeg", [...args, "-filter_complex", filter, "-map", "[v]", "-c:v", "libx264", "-crf", "19", "-preset", "medium", out]);
+  return out;
+}
+
+/** A still shown for a few seconds, as a clip, so it can be cross-faded like everything else. */
+function cardMp4(png, seconds, name) {
+  const out = path.join(workDir, `${name}.mp4`);
+  execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-loop", "1", "-t", String(seconds), "-i", png,
+    "-vf", `scale=${CANVAS.w}:${CANVAS.h},${NORM}`, "-c:v", "libx264", "-crf", "19", out]);
+  return out;
+}
+
+async function htmlPng(browser, html, name) {
+  const ctx = await browser.newContext({ viewport: { width: CANVAS.w, height: CANVAS.h }, deviceScaleFactor: 1 });
+  const page = await ctx.newPage();
+  await page.setContent(html);
+  const file = path.join(workDir, `${name}.png`);
+  await page.screenshot({ path: file });
+  await ctx.close();
+  return file;
+}
+
+const LOGO = () => readFileSync(path.resolve(webRoot, "..", "growfit.png")).toString("base64");
+const FONT = "system-ui,-apple-system,Segoe UI,Roboto,sans-serif";
+
+function titleHtml(v) {
+  return `<body style="margin:0;width:${CANVAS.w}px;height:${CANVAS.h}px;background:radial-gradient(ellipse at 30% 20%,#14402a,#${BRAND} 70%);color:#fff;font-family:${FONT};display:flex;align-items:center;padding:0 170px;box-sizing:border-box">
+    <div><img src="data:image/png;base64,${LOGO()}" style="height:120px;border-radius:20px;margin-bottom:56px;display:block">
+    <div style="font-size:26px;letter-spacing:.32em;color:#7ee2a8;font-weight:700;margin-bottom:26px">${v.kicker ?? "GROWFIT FA"}</div>
+    <div style="font-size:92px;font-weight:800;line-height:1.05;max-width:1400px">${v.title}</div>
+    <div style="font-size:38px;line-height:1.35;color:#cfe8d9;margin-top:34px;max-width:1300px">${v.subtitle ?? ""}</div></div></body>`;
+}
+
+function backdropHtml(scene) {
+  const n = scene.sideNote ?? { kicker: "", text: "" };
+  return `<body style="margin:0;width:${CANVAS.w}px;height:${CANVAS.h}px;background:radial-gradient(ellipse at 20% 30%,#14402a,#${BRAND} 72%);color:#fff;font-family:${FONT};display:flex;align-items:center;padding:0 150px;box-sizing:border-box">
+    <div style="max-width:760px"><div style="font-size:24px;letter-spacing:.3em;color:#7ee2a8;font-weight:700;margin-bottom:22px">${n.kicker}</div>
+    <div style="font-size:66px;font-weight:800;line-height:1.1">${n.text}</div></div></body>`;
+}
+
+/** Chain clips with a cross-fade. Every input is already 1920x1080 at 30fps. */
+function stitch(files, out) {
+  const d = files.map(probe);
+  const inputs = files.flatMap((f) => ["-i", f]);
+  let filter = "";
+  let last = "[0:v]";
+  let acc = d[0];
+  for (let i = 1; i < files.length; i++) {
+    const offset = (acc - FADE).toFixed(3);
+    const label = i === files.length - 1 ? "[v]" : `[x${i}]`;
+    filter += `${last}[${i}:v]xfade=transition=fade:duration=${FADE}:offset=${offset}${label};`;
+    last = label;
+    acc += d[i] - FADE;
+  }
+  execFileSync("ffmpeg", ["-y", "-loglevel", "error", ...inputs, "-filter_complex", filter.replace(/;$/, ""),
+    "-map", "[v]", "-c:v", "libx264", "-crf", "19", "-preset", "medium", "-pix_fmt", "yuv420p", "-movflags", "+faststart", out]);
+  return acc;
+}
+
+async function recordScene(browser, scene) {
+  const storage = scene.role === "public" ? undefined : await login(browser, scene.role);
+  const ctx = await newContext(browser, scene.device, storage, true, scene.viewport);
+  const page = await ctx.newPage();
+  recordStart = Date.now();
+  leadIn = 0;
+  for (const step of scene.steps) await runStep(page, step, scene);
+  const video = page.video();
+  await ctx.close(); // flushes the recording
+  return { webm: await video.path(), trim: leadIn };
+}
+
 const browser = await chromium.launch(
   process.env.PLAYWRIGHT_CHROMIUM_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH } : {},
 );
 let failed = 0;
 try {
+  // One MP4 per scene (the old behaviour, and the smoke test).
   for (const scene of scenes) {
     console.log(`▶ ${scene.id}  (${scene.role}, ${scene.device})`);
     try {
-      const storage = scene.role === "public" ? undefined : await login(browser, scene.role);
-      const ctx = await newContext(browser, scene.device, storage, true, scene.viewport);
-      const page = await ctx.newPage();
-      recordStart = Date.now();
-      leadIn = 0;
-      for (const step of scene.steps) await runStep(page, step, scene);
-      const video = page.video();
-      await ctx.close(); // flushes the recording
-      const webm = await video.path();
+      const { webm, trim } = await recordScene(browser, scene);
       const card = await endCardPng(browser, scene.device, scene.viewport);
       const out = path.join(outDir, `${scene.id}.mp4`);
-      encode(webm, card, scene.device, out, leadIn);
+      encode(webm, card, scene.device, out, trim);
       console.log(`  ✔ ${path.relative(webRoot, out)}`);
     } catch (err) {
       failed++;
       console.error(`  ✖ ${scene.id}: ${err.message}`);
+    }
+  }
+
+  // Themed videos: title card, recorded segments cross-faded, end card.
+  for (const v of videos) {
+    console.log(`▶▶ ${v.id}: ${v.title}`);
+    try {
+      const files = [cardMp4(await htmlPng(browser, titleHtml(v), `title-${v.id}`), 2.6, `title-${v.id}`)];
+      for (const id of v.parts) {
+        const scene = sceneById.get(id);
+        if (!scene) throw new Error(`unknown scene "${id}"`);
+        console.log(`   • ${id}`);
+        const { webm, trim } = await recordScene(browser, scene);
+        const backdrop = scene.device === "phone" ? await htmlPng(browser, backdropHtml(scene), `bd-${id}`) : null;
+        files.push(segmentMp4(scene, webm, trim, backdrop));
+      }
+      const end = await endCardPng(browser, "desktop", { width: 1280, height: 720 });
+      files.push(cardMp4(end, 2.6, `end-${v.id}`));
+      const out = path.join(outDir, `${v.id}.mp4`);
+      const secs = stitch(files, out);
+      console.log(`  ✔ ${path.relative(webRoot, out)}  (${secs.toFixed(0)}s)`);
+    } catch (err) {
+      failed++;
+      console.error(`  ✖ ${v.id}: ${err.message}`);
     }
   }
 } finally {

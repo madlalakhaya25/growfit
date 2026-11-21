@@ -186,7 +186,7 @@ export const SCENES = [
           { waitFor: { selector: ".leading-relaxed", timeout: 60000 } },
           { scroll: 250 },
         ],
-        hold: 3800,
+        hold: 3000,
       },
       {
         caption: "Pick the match and the shape, then get a starting XI",
@@ -198,7 +198,7 @@ export const SCENES = [
           { waitFor: { selector: 'p:text-is("Suggested XI")', timeout: 60000 } },
           { scroll: 380 },
         ],
-        hold: 4200,
+        hold: 3200,
       },
       {
         caption: "One tap puts it on your tactics board",
@@ -209,6 +209,16 @@ export const SCENES = [
         hold: 1500,
       },
       {
+        caption: "Scout the opponent from your own data",
+        actions: [
+          { top: true },
+          { click: "role:button:Scout opponent" },
+          { waitFor: { selector: 'p:text-is("Scouting report")', timeout: 60000 } },
+          { scroll: 300 },
+        ],
+        hold: 3200,
+      },
+      {
         caption: "And a match plan to go with it",
         actions: [
           { top: true },
@@ -216,7 +226,7 @@ export const SCENES = [
           { waitFor: { selector: 'p:text-is("Match plan")', timeout: 60000 } },
           { scroll: 420 },
         ],
-        hold: 4200,
+        hold: 3200,
       },
     ],
   },
@@ -269,6 +279,249 @@ export const SCENES = [
         scroll: 500,
         hold: 5000,
       },
+    ],
+  },
+
+  // ───────────── Segments for the themed videos (see videos.mjs) ─────────────
+  {
+    id: "v1-week",
+    title: "Plan the week",
+    role: "coach",
+    device: "desktop",
+    viewport: { width: 1440, height: 810 },
+    steps: [
+      { goto: "/dashboard/coach/training", caption: "Plan the week around your next match", hold: 3200 },
+      { goto: "/dashboard/coach/training/week", caption: "See every session and how hard it is on the squad", hold: 3800 },
+    ],
+  },
+  {
+    id: "v1-session",
+    title: "Plan a session",
+    role: "coach",
+    device: "desktop",
+    viewport: { width: 1440, height: 810 },
+    steps: [
+      {
+        goto: "/dashboard/coach/training/10000000-0000-0000-0000-000000000509",
+        caption: "Pick the objective from your own curriculum",
+        actions: [
+          { expand: "What is this about" },
+          { check: "Defensive organisation" },
+          { check: "Reacting when we lose the ball" },
+          { click: "role:button:^Save$", optional: true },
+        ],
+        hold: 900,
+      },
+      {
+        caption: "Let AI build the whole session",
+        actions: [
+          { center: "text=AI session planner" },
+          { type: { selector: 'input[placeholder^="e.g. U15"]', text: "U13" } },
+          { type: { selector: 'input[placeholder^="e.g. Pressing"]', text: "Winning the ball back" } },
+          { click: "role:button:Generate session plan" },
+          { waitFor: { text: "Rondo 4v2", timeout: 60000 } },
+          { scroll: 1500 },
+        ],
+        hold: 600,
+      },
+      {
+        caption: "Five drills, each with a diagram, ready to run",
+        actions: [
+          { center: 'button:has-text("Apply to this session")' },
+          { click: "role:button:Apply to this session" },
+        ],
+        hold: 1500,
+      },
+    ],
+  },
+  {
+    id: "v1-register",
+    title: "Take the register",
+    role: "coach",
+    device: "desktop",
+    viewport: { width: 1440, height: 810 },
+    steps: [
+      {
+        goto: "/dashboard/coach/training/10000000-0000-0000-0000-000000000509?tab=register",
+        caption: "Take the register in seconds",
+        actions: [
+          { click: '[aria-label="Attendance for Lindiwe Mahlangu"] button:text-is("Late")' },
+          { click: '[aria-label="Attendance for Sanele Buthelezi"] button:text-is("Absent")' },
+          { click: '[aria-label="Attendance for Thulani Nkosi"] button:text-is("Absent")' },
+          { click: "role:button:Mark remaining", optional: true },
+        ],
+        hold: 2200,
+      },
+    ],
+  },
+  {
+    id: "v1-welfare",
+    title: "Welfare flags",
+    role: "coach",
+    device: "desktop",
+    viewport: { width: 1440, height: 810 },
+    steps: [
+      { goto: "/dashboard/coach/welfare", caption: "Players under 75% attendance are flagged for a welfare check-in", hold: 4200 },
+    ],
+  },
+
+  {
+    id: "v2-fixtures",
+    title: "Match day prep",
+    role: "coach",
+    device: "desktop",
+    viewport: { width: 1440, height: 810 },
+    steps: [
+      { goto: "/dashboard/coach/fixtures", caption: "Every fixture, result and cancellation in one list", hold: 3000 },
+      {
+        goto: "/dashboard/coach/fixtures/10000000-0000-0000-0000-0000000000f2",
+        caption: "Pick the squad and share the team sheet",
+        actions: [{ click: "Team sheet" }],
+        hold: 2600,
+      },
+      { caption: "Plan fair playing time for every child", actions: [{ click: "Playing time" }], hold: 2600 },
+    ],
+  },
+
+  {
+    id: "v3-insights",
+    title: "Player insights",
+    role: "coach",
+    device: "desktop",
+    viewport: { width: 1440, height: 810 },
+    steps: [
+      {
+        goto: "/dashboard/coach/squad/10000000-0000-0000-0000-0000000000c1",
+        caption: "Get an evidence-based read on any player",
+        actions: [
+          { center: 'button:has-text("Generate insights")' },
+          { click: "role:button:Generate insights" },
+          { waitFor: { text: "STRENGTHS", timeout: 60000 } },
+          { scroll: 300 },
+        ],
+        hold: 3800,
+      },
+    ],
+  },
+
+  {
+    id: "v4-learn",
+    title: "Lessons for coaches",
+    role: "coach",
+    device: "desktop",
+    viewport: { width: 1440, height: 810 },
+    steps: [
+      { goto: "/dashboard/coach/learn", caption: "Short lessons for the problems you see on the pitch", scroll: 250, hold: 3000 },
+      { caption: "Plain language, built for volunteer coaches", actions: [{ click: "Pressing together" }, { scroll: 450 }], hold: 2600 },
+    ],
+  },
+
+  {
+    id: "v5-announce",
+    title: "Tell the squad",
+    role: "coach",
+    device: "desktop",
+    viewport: { width: 1440, height: 810 },
+    steps: [
+      {
+        goto: "/dashboard/coach/announcements",
+        caption: "Write the message once",
+        actions: [
+          { type: { selector: 'input[placeholder^="e.g. Training cancelled"]', text: "Match day: Chatsworth United" } },
+          { type: { selector: 'textarea[placeholder^="Write your announcement"]', text: "Match day Thursday 26 Nov. Kick-off 18:59 at Chatsworth Stadium. Meet at Riverside Grounds at 17:30 with both kits." } },
+        ],
+        hold: 500,
+      },
+      {
+        caption: "One tap rewrites it so a 13-year-old can follow it",
+        actions: [
+          { click: "role:button:Simplify for U13" },
+          { waitFor: { text: "Simpler version", timeout: 60000 } },
+          { click: "role:button:Use this version" },
+        ],
+        hold: 1200,
+      },
+      {
+        caption: "Post it. Every parent gets it on their phone",
+        actions: [{ click: "role:button:Post announcement" }],
+        hold: 1800,
+      },
+    ],
+  },
+  {
+    id: "v5-parent",
+    title: "What parents see",
+    role: "parent",
+    device: "phone",
+    sideNote: { kicker: "FOR PARENTS", text: "Their child's week, on their phone. No WhatsApp scrolling." },
+    steps: [
+      { goto: "/dashboard/parent/announcements", caption: "The message arrives instantly", hold: 3200 },
+      { goto: "/dashboard/parent", caption: "Next match, kick-off and what needs signing", scroll: 350, hold: 3600 },
+      { goto: "/dashboard/parent/fixtures", caption: "Fixtures and any change, with the reason", hold: 3200 },
+    ],
+  },
+  {
+    id: "v5-player",
+    title: "What players see",
+    role: "player",
+    device: "phone",
+    sideNote: { kicker: "FOR PLAYERS", text: "Challenges, progress and their own football passport." },
+    steps: [
+      { goto: "/dashboard/player/challenges", caption: "Skill challenges set by their coach", hold: 3200 },
+      { goto: "/dashboard/player/development", caption: "Their own growth, season by season", scroll: 450, hold: 3600 },
+    ],
+  },
+  {
+    id: "v4-player-dev",
+    title: "Development on the phone",
+    role: "player",
+    device: "phone",
+    sideNote: { kicker: "THE PHILOSOPHY, IN THE PLAYER'S HANDS", text: "Players see the same five headings their coaches teach." },
+    steps: [
+      { goto: "/dashboard/player/development", caption: "Progress against what the academy teaches", scroll: 600, hold: 5200 },
+    ],
+  },
+
+  {
+    id: "v6-overview",
+    title: "Club overview",
+    role: "admin",
+    device: "desktop",
+    viewport: { width: 1440, height: 810 },
+    steps: [
+      { goto: "/dashboard/admin", caption: "The whole club at a glance", hold: 3600 },
+      { goto: "/dashboard/admin/analytics", caption: "Attendance, ratings and registration, live", scroll: 450, hold: 4600 },
+    ],
+  },
+  {
+    id: "v6-health",
+    title: "Academy health report",
+    role: "admin",
+    device: "desktop",
+    viewport: { width: 1440, height: 810 },
+    steps: [
+      {
+        goto: "/dashboard/admin/analytics",
+        caption: "A monthly health report, written from your own numbers",
+        actions: [
+          { center: 'button:has-text("Generate report")' },
+          { click: "role:button:Generate report" },
+          { waitFor: { text: "ACADEMY OVERVIEW", timeout: 60000 } },
+          { scroll: 380 },
+        ],
+        hold: 4200,
+      },
+    ],
+  },
+  {
+    id: "v6-paperwork",
+    title: "Paperwork and reports",
+    role: "admin",
+    device: "desktop",
+    viewport: { width: 1440, height: 810 },
+    steps: [
+      { goto: "/dashboard/admin/players/documents", caption: "Registration paperwork for every player, tracked", hold: 4200 },
+      { goto: "/dashboard/admin/reports", caption: "Exports for funders and SAFA in one click", hold: 3600 },
     ],
   },
 ];
