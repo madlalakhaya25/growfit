@@ -111,10 +111,16 @@ async function glide(page, x, y) {
   await page.mouse.move(x, y, { steps: 25 });
 }
 
+let recordStart = 0;
+let leadIn = 0; // seconds of recording before the first real screen, trimmed off in encode()
+
 async function runStep(page, step, device) {
   if (step.goto) await page.goto(step.goto, { waitUntil: "networkidle" });
+  // Loading skeletons look unfinished on camera: wait for them to go.
+  await page.waitForFunction(() => !document.querySelector(".animate-pulse"), null, { timeout: 10_000 }).catch(() => {});
   await page.evaluate(OVERLAY);
   await page.waitForTimeout(500);
+  if (!leadIn) leadIn = Math.max(0, (Date.now() - recordStart) / 1000 - 0.4);
   if (step.caption) await page.evaluate((t) => window.__setCaption?.(t), step.caption);
   const hold = step.hold ?? 3500;
   if (step.click) {
@@ -162,13 +168,13 @@ function endCardPng(browser, device) {
   })();
 }
 
-function encode(webm, endcard, device, out) {
+function encode(webm, endcard, device, out, trim) {
   const { final } = DEVICES[device];
   const [w, h] = final.split(":");
   const vf = `scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:color=0x0b1f14,fps=30,format=yuv420p,setsar=1`;
   execFileSync("ffmpeg", [
     "-y", "-loglevel", "error",
-    "-i", webm,
+    "-ss", String(trim), "-i", webm,
     "-loop", "1", "-t", "2.5", "-i", endcard,
     "-f", "lavfi", "-t", "1", "-i", "anullsrc=r=44100:cl=stereo",
     "-filter_complex",
@@ -188,13 +194,15 @@ try {
       const storage = scene.role === "public" ? undefined : await login(browser, scene.role);
       const ctx = await newContext(browser, scene.device, storage, true);
       const page = await ctx.newPage();
+      recordStart = Date.now();
+      leadIn = 0;
       for (const step of scene.steps) await runStep(page, step, scene.device);
       const video = page.video();
       await ctx.close(); // flushes the recording
       const webm = await video.path();
       const card = await endCardPng(browser, scene.device);
       const out = path.join(outDir, `${scene.id}.mp4`);
-      encode(webm, card, scene.device, out);
+      encode(webm, card, scene.device, out, leadIn);
       console.log(`  ✔ ${path.relative(webRoot, out)}`);
     } catch (err) {
       failed++;
