@@ -5,6 +5,8 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { DemoVideos } from "@/components/demo-videos";
+import { availableClips } from "@/lib/demo-clips";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.growfitfa.co.za";
 
@@ -87,6 +89,7 @@ const ATTRS = [
 ];
 
 export default function Home() {
+  const demoClips = availableClips();
   return (
     <div className="flex min-h-dvh flex-col">
 
@@ -209,6 +212,9 @@ export default function Home() {
             ))}
           </div>
         </div>
+
+        {/* ── Demo videos (hidden until clips exist in public/demo) ── */}
+        {demoClips.length > 0 && <DemoVideos clips={demoClips} />}
 
         {/* ── Roles ────────────────────────────────────────── */}
         <section id="roles" className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-16">

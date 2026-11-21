@@ -31,3 +31,10 @@ Re-run after any UI change and the clips stay current.
 Check each clip by eye before publishing: the seed has only ten players and
 two sessions, so a screen can look sparse. Add rows to the seed rather than
 faking footage.
+
+## Put them on the site
+
+Copy the finished MP4s from `web/demo-videos/out/` into `site/public/demo/`
+(same file names). The "See it in action" section on the marketing site lists
+whichever clips are there and hides itself when there are none. Titles, order
+and blurbs live in `site/src/lib/demo-clips.ts`.
