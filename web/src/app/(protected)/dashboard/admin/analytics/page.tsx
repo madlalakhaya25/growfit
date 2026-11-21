@@ -8,6 +8,7 @@ import { AiUsageCard } from "@/components/ai/ai-usage-card";
 import { getLatestAiArtefact, summariseAiUsage } from "@/lib/ai-artefacts";
 import { formatInTimezone, monthStartIso } from "@/lib/time";
 import { getAuthUser } from "@/lib/auth";
+import { countsAsAttended, countsTowardTotal, isAttendanceStatus } from "@/lib/attendance";
 
 const DOC_TYPES = [
   "registration_agreement",
@@ -172,9 +173,12 @@ export default async function AnalyticsPage() {
     const team = Array.isArray(session.teams) ? session.teams[0] : session.teams;
     if (!team) continue;
     const name = team.name;
+    // Same rule as the welfare check-in: late counts as attended, an excused
+    // absence is left out of the total rather than held against the player.
+    if (!isAttendanceStatus(row.status) || !countsTowardTotal(row.status)) continue;
     const cur = teamAttendance.get(name) ?? { attending: 0, total: 0 };
     cur.total++;
-    if (row.status === "attending") cur.attending++;
+    if (countsAsAttended(row.status)) cur.attending++;
     teamAttendance.set(name, cur);
   }
   const attendanceData = Array.from(teamAttendance.entries()).map(([team, { attending, total }]) => ({
